@@ -1,0 +1,38 @@
+# Docs: https://docs.github.com/en/actions
+
+name: CI/CD
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: "go.mod"
+
+    - name: Fetch external JS deps
+      run: bash bin/fetch_client_deps.sh
+
+    - name: sqlc generate
+      run: go tool sqlc generate
+
+    - name: templ generate
+      run: go tool templ generate
+
+    # TODO: need tsc generation too
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...

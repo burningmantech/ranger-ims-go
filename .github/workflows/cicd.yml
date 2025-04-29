@@ -9,7 +9,7 @@ on:
     branches: ["master"]
 
 jobs:
-  
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -23,13 +23,12 @@ jobs:
     - name: Fetch external JS deps
       run: bash bin/fetch_client_deps.sh
 
-    - name: sqlc generate
-      run: go tool sqlc generate
-
-    - name: templ generate
-      run: go tool templ generate
-
-    # TODO: need tsc generation too
+    # TODO: maybe install sqlc, templ, and tsc code generation
+    #  here as well. They would add some additional build time
+    #  (mostly due to fetching their deps and building them),
+    #  which is less than ideal. For now, it should be fine to
+    #  do these on the developer's computer, and this can be
+    #  enforced by pre-commit.
 
     - name: Build
       run: go build -v ./...

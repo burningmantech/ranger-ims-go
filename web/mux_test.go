@@ -1,7 +1,7 @@
 package web
 
 import (
-	"github.com/srabraham/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"

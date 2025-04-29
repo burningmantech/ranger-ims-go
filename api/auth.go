@@ -2,11 +2,11 @@ package api
 
 import (
 	"fmt"
-	"github.com/srabraham/ranger-ims-go/auth"
-	"github.com/srabraham/ranger-ims-go/auth/password"
-	"github.com/srabraham/ranger-ims-go/directory"
-	imsjson "github.com/srabraham/ranger-ims-go/json"
-	"github.com/srabraham/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/auth"
+	"github.com/burningmantech/ranger-ims-go/auth/password"
+	"github.com/burningmantech/ranger-ims-go/directory"
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/store"
 	"log/slog"
 	"net/http"
 	"slices"

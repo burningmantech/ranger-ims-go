@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "github.com/srabraham/ranger-ims-go/cmd"
+import "github.com/burningmantech/ranger-ims-go/cmd"
 
 func main() {
 	cmd.Execute()

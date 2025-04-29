@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"fmt"
-	"github.com/srabraham/ranger-ims-go/store"
-	"github.com/srabraham/ranger-ims-go/store/imsdb"
+	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"slices"
 	"strings"
 )

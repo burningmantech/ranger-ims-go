@@ -3,9 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"github.com/srabraham/ranger-ims-go/conf"
 	"log"
 	"log/slog"
 	"os"

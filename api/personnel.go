@@ -1,10 +1,10 @@
 package api
 
 import (
-	"github.com/srabraham/ranger-ims-go/auth"
-	"github.com/srabraham/ranger-ims-go/directory"
-	imsjson "github.com/srabraham/ranger-ims-go/json"
-	"github.com/srabraham/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/auth"
+	"github.com/burningmantech/ranger-ims-go/directory"
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/store"
 	"net/http"
 )
 

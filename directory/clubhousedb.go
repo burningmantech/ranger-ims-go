@@ -3,8 +3,8 @@ package directory
 import (
 	"context"
 	"database/sql"
+	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/go-sql-driver/mysql"
-	"github.com/srabraham/ranger-ims-go/conf"
 	"log/slog"
 	"os"
 	"strings"

@@ -3,9 +3,9 @@ package directory
 import (
 	"context"
 	"fmt"
-	"github.com/srabraham/ranger-ims-go/conf"
-	clubhousequeries "github.com/srabraham/ranger-ims-go/directory/clubhousedb"
-	imsjson "github.com/srabraham/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/conf"
+	clubhousequeries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"slices"
 )
 

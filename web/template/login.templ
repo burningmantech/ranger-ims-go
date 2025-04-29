@@ -1,0 +1,48 @@
+package template
+
+templ Login(deployment string) {
+<!DOCTYPE html>
+<html lang="en">
+@head("Log In", "login.js", nil)
+
+<body>
+<div class="container-fluid">
+@header(deployment)
+@nav()
+<h1 id="doc-title">Incident Management System</h1>
+
+<form method="POST" id="login_form" class="form-horizontal">
+
+<button type="button" class="btn btn-block btn-danger if-authentication-failed hidden">Authentication Failed</button>
+<button type="button" class="btn btn-block btn-danger if-logged-in hidden">You are already logged in as <span
+        class="logged-in-user"/></button>
+
+<p>
+  Please log in with your Ranger Secret Clubhouse credentials.
+</p>
+
+<div class="form-floating mb-3">
+  <input id="username_input" type="text" name="username" inputmode="latin-name"
+         class="form-control text-size-normal"
+         autocomplete="username" placeholder="name@example.com"/>
+  <label for="username_input">Email address</label>
+</div>
+
+<div class="form-floating mb-3">
+  <input id="password_input" type="password" name="password" inputmode="latin-prose"
+         class="form-control text-size-normal"
+         autocomplete="current-password" placeholder="Password"/>
+  <label for="password_input">Password</label>
+</div>
+
+<div class="mb-3">
+  <button type="submit" class="btn btn-primary">Submit</button>
+</div>
+
+</form>
+@footer()
+</div>
+</body>
+</html>
+
+}

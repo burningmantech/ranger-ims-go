@@ -1,4 +1,4 @@
-module github.com/srabraham/ranger-ims-go
+module github.com/burningmantech/ranger-ims-go
 
 go 1.24.2
 

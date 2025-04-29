@@ -3,9 +3,9 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/srabraham/ranger-ims-go/auth"
-	"github.com/srabraham/ranger-ims-go/store"
-	"github.com/srabraham/ranger-ims-go/store/imsdb"
+	"github.com/burningmantech/ranger-ims-go/auth"
+	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"io"
 	"log/slog"
 	"net/http"

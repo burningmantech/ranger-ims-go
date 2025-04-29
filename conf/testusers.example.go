@@ -1,7 +1,7 @@
 package conf
 
 import (
-	"github.com/srabraham/ranger-ims-go/auth/password"
+	"github.com/burningmantech/ranger-ims-go/auth/password"
 	"runtime"
 	"strings"
 )

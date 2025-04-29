@@ -1,8 +1,8 @@
 package integration
 
 import (
-	"github.com/srabraham/ranger-ims-go/api"
-	imsjson "github.com/srabraham/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/api"
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"

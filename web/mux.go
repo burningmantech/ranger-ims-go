@@ -3,8 +3,8 @@ package web
 import (
 	"fmt"
 	"github.com/a-h/templ"
-	"github.com/srabraham/ranger-ims-go/conf"
-	"github.com/srabraham/ranger-ims-go/web/template"
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/web/template"
 	"log/slog"
 	"net/http"
 	"strings"

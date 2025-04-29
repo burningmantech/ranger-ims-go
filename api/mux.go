@@ -2,10 +2,10 @@ package api
 
 import (
 	"context"
-	"github.com/srabraham/ranger-ims-go/auth"
-	"github.com/srabraham/ranger-ims-go/conf"
-	"github.com/srabraham/ranger-ims-go/directory"
-	"github.com/srabraham/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/auth"
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/store"
 	"log/slog"
 	"net/http"
 	"runtime/debug"

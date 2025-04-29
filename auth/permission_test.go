@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"github.com/srabraham/ranger-ims-go/store/imsdb"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

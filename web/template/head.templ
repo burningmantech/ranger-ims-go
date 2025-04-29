@@ -1,0 +1,23 @@
+package template
+
+templ head(title string, module string, imports []string) {
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link type="image/png" rel="icon" href="/ims/static/logo.png" />
+    <link rel="stylesheet" href="/ims/static/ext/bootstrap.min.css">
+    <link rel="stylesheet" href="/ims/static/ext/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="/ims/static/style.css" type="text/css">
+    <title>{title}</title>
+    <script src="/ims/static/ext/jquery-3.1.0.min.js"></script>
+    <script src="/ims/static/ext/bootstrap.bundle.min.js"></script>
+    <script src="/ims/static/urls.js"></script>
+    <script src="/ims/static/theme.js"></script>
+    <script src="/ims/static/ext/dataTables.min.js"></script>
+    <script src="/ims/static/ext/dataTables.bootstrap5.min.js"></script>
+    for _, imp := range imports {
+        <script src={"/ims/static/" + imp}></script>
+    }
+    <script src={"/ims/static/" + module} type="module"></script>
+</head>
+}

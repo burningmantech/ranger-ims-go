@@ -1,0 +1,34 @@
+package template
+
+templ AdminRoot(deployment string) {
+<!DOCTYPE html>
+<html lang="en">
+@head("Administration Tools", "admin_root.js", nil)
+
+<body>
+<div class="container-fluid">
+@header(deployment)
+@nav()
+<h1 id="doc-title">Administration Tools</h1>
+  <ul>
+    <li>
+      <a href="/ims/app/admin/types">
+        Incident Types
+      </a>
+    </li>
+    <li>
+      <a href="/ims/app/admin/events">
+        Events
+      </a>
+    </li>
+    <li>
+      <a href="/ims/app/admin/streets">
+        Event Concentric Streets
+      </a>
+    </li>
+  </ul>
+@footer()
+</div>
+</body>
+</html>
+}

@@ -1,0 +1,331 @@
+:root {
+  --bs-nav-link-font-size: 1rem;
+  --bs-list-group-item-padding-x: 0.8rem;
+  --bs-list-group-item-padding-y: 0.1rem;
+
+  --dt-row-stripe: 160, 160, 160;
+
+  --font-size-smaller: 0.8rem;
+  --font-size-smallest: 0.65rem;
+}
+
+.navbar {
+  --bs-navbar-padding-y: 0;
+}
+
+.navbar-brand {
+  --bs-navbar-brand-font-size: 1rem;
+  --bs-navbar-brand-margin-end: 0.5rem;
+  padding-bottom: 0;
+}
+
+
+.dropdown-menu {
+  --bs-dropdown-item-padding-x: 0.5rem;
+  --bs-dropdown-item-padding-y: 0.1rem;
+}
+
+.accordion {
+  --bs-accordion-btn-padding-y: 0.5rem;
+}
+
+.card {
+  --bs-card-spacer-x: 0.5rem;
+  --bs-card-spacer-y: 0;
+  --bs-card-cap-padding-x: 0.7rem;
+  --bs-card-cap-padding-y: 0.2rem;
+  --bs-card-cap-bg: rgba(var(--bs-body-color-rgb), 0.09);
+  --bs-card-border-color: var(--bs-border-color);
+}
+
+.card-footer {
+  --bs-card-cap-bg: rgba(var(--bs-body-color-rgb), 0.01);
+}
+
+.input-group-text {
+  background-color: rgba(var(--bs-body-color-rgb), 0.09);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 400;
+}
+
+.table {
+  font-size: var(--font-size-smaller);
+  --bs-table-color: var(--bs-body-color);
+  --bs-table-striped-color: var(--bs-body-color);
+}
+
+.btn-close {
+  font-size: var(--font-size-smallest);
+}
+
+.btn-sm {
+  font-size: var(--font-size-smaller);
+}
+
+.text-smaller {
+  font-size: var(--font-size-smaller);
+}
+
+.text-size-normal {
+  font-size: 1rem !important;
+}
+
+.form-control-static {
+  --bs-border-width: 0;
+}
+
+/*.table-hover > tbody > tr:hover {*/
+/*  background-color: #FFFF00;*/
+/*}*/
+
+.table > tbody > tr > td,
+.table > tbody > tr > th,
+.table > tfoot > tr > td,
+.table > tfoot > tr > th,
+.table > thead > tr > td,
+.table > thead > tr > th {
+  padding: 0.3rem;
+}
+
+.footer-hr {
+  margin: 0;
+}
+
+.footer-text {
+  float: left;
+  font-size: var(--font-size-smaller);
+}
+
+.nonprod-warning {
+  background-color: #dc3545;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.flex-input-container {
+  display: flex;
+}
+
+.flex-input-container > label {
+  margin: 0.3rem;
+}
+
+.flex-input-container > input {
+  flex: 2;
+}
+
+.list-group-small > .list-group-item {
+  padding: 0.2rem 0.3rem;
+  font-size: var(--font-size-smaller);
+}
+
+.auto-width {
+  width: auto;
+  display: inline;
+}
+
+.report_entry_system {
+  font-size: var(--font-size-smaller);
+  filter: opacity(75%);
+}
+
+.report_entry_system > .report_entry_text {
+  margin: 0 0 0 0.5rem;
+}
+
+.report_entry_stricken {
+  font-size: var(--font-size-smaller);
+  filter: opacity(75%);
+  text-decoration: line-through;
+}
+
+.report_entry_text {
+  font-size: var(--font-size-smaller);
+}
+
+.report_entry_metadata {
+  font-size: var(--font-size-smallest);
+  font-weight: bold;
+  text-decoration: underline;
+  filter: opacity(75%);
+  margin: 0.9rem 0 0 0;
+}
+
+.form-control {
+  font-size: var(--font-size-smaller);
+}
+
+.control-label {
+  font-weight: 700;
+  font-size: var(--font-size-smaller);
+}
+
+.search-box {
+  font-size: var(--font-size-smaller);
+}
+
+.dt-info {
+  font-size: var(--font-size-smaller);
+}
+
+a {
+  text-decoration: none;
+}
+
+h1 {
+  margin-top: 0.8rem;
+  font-size: 1.8rem;
+}
+
+/*
+ * Below is a trick to hide the remove buttons (.remove-badge) from list
+ * groups except when hovering, but only on non-touch devices.
+ */
+
+.no-touch .remove-badge {
+  display: none;
+}
+
+.no-touch .list-group-item:hover .remove-badge {
+  display: inline-block;
+}
+.no-touch .report_entry:hover .remove-badge {
+  display: inline-block;
+}
+
+/* Disable on touch devices if editing is disabled. */
+.no-edit .remove-badge {
+  display: none;
+}
+
+/* Override hover behavior if editing is disabled. */
+.no-edit .list-group-item:hover .remove-badge {
+  display: none;
+}
+.no-edit .report_entry:hover .remove-badge {
+  display: none;
+}
+
+.no-edit .new_incident {
+  display: none;
+}
+
+.no-edit .new_field_report {
+  display: none;
+}
+
+#report_entry_well > .panel {
+  margin-bottom: 0.5rem;
+}
+
+#report_entry_add {
+  resize: vertical;
+  min-height: 8rem;
+  field-sizing: content;
+}
+
+.item-hidden > .badge-visible {
+  display: none;
+}
+
+.item-visible > .badge-hidden {
+  display: none;
+}
+
+.badge-visible {
+  float: right !important;
+}
+
+.badge-hidden {
+  float: right !important;
+}
+
+.hide-history .report_entry_system {
+  display: none;
+}
+
+.hide-history .report_entry_stricken {
+  display: none;
+}
+
+.bi {
+  width: 1em;
+  height: 1em;
+  vertical-align: -.125em;
+  fill: currentcolor
+}
+
+.logo-icon {
+  width: 2.5rem;
+  height: 1.8rem;
+  fill: currentcolor
+}
+
+@media print {
+  .no-print {
+    display: none;
+  }
+
+  /*!* The below tweaks make the print version have multiple columns, like the desktop >768 px version. *!*/
+  /*.col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12 {*/
+  /*  float: left;*/
+  /*}*/
+  /*.col-sm-12 {*/
+  /*  width: 100%;*/
+  /*}*/
+  /*.col-sm-11 {*/
+  /*  width: 91.67%;*/
+  /*}*/
+  /*.col-sm-10 {*/
+  /*  width: 83.33%;*/
+  /*}*/
+  /*.col-sm-9 {*/
+  /*  width: 75%;*/
+  /*}*/
+  /*.col-sm-8 {*/
+  /*  width: 66.67%;*/
+  /*}*/
+  /*.col-sm-7 {*/
+  /*  width: 58.33%;*/
+  /*}*/
+  /*.col-sm-6 {*/
+  /*  width: 50%;*/
+  /*}*/
+  /*.col-sm-5 {*/
+  /*  width: 41.67%;*/
+  /*}*/
+  /*.col-sm-4 {*/
+  /*  width: 33.33%;*/
+  /*}*/
+  /*.col-sm-3 {*/
+  /*  width: 25%;*/
+  /*}*/
+  /*.col-sm-2 {*/
+  /*  width: 16.67%;*/
+  /*}*/
+  /*.col-sm-1 {*/
+  /*  width: 8.33%;*/
+  /*}*/
+
+  /* don't print the full name under the abbreviation */
+  abbr[title]:after {
+    content: "";
+  }
+}
+
+.hidden {
+  display: none !important;
+}
+
+.dropdown-item-checkable {
+  padding: var(--bs-dropdown-item-padding-y) 1.5rem;
+}
+
+.dropdown-item-checked::before {
+  position: absolute;
+  left: .4rem;
+  content: '✓';
+  font-weight: 600;
+}

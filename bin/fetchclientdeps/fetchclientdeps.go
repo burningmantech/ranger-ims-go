@@ -58,18 +58,18 @@ func main() {
 }
 
 func existOrFetch(dest, url string) error {
-	resp, err := client.Get(url)
-	if err != nil {
-		return fmt.Errorf("[Get]: %w", err)
-	}
-	defer resp.Body.Close()
-
 	if pathExists(dest) {
 		// File already exists. No need to download again.
 		log.Printf("No need to re-fetch: %v", dest)
 		return nil
 	}
+
 	log.Printf("Fetching %v", url)
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("[Get]: %w", err)
+	}
+	defer resp.Body.Close()
 
 	f, err := os.Create(dest)
 	if err != nil {

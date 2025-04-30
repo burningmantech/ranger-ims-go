@@ -8,11 +8,10 @@ that occur in Black Rock City.
 ## Getting started with IMS development:
 
 1. Clone the repo
-2. Install a recent version of Go: https://go.dev/dl
-3. Install the TypeScript transpiler, `tsc`: https://www.typescriptlang.org/download
-4. Install Docker Desktop or Docker Engine (needed for tests). https://www.docker.com/
-5. Have `go` and `tsc` on your PATH
-6. (Optionally) install Playwright: https://playwright.dev/docs/intro
+2. Install a recent version of Go. Have `go` on your PATH. https://go.dev/dl
+3. (Optional: if you're doing TypeScript work in the repo) install the TypeScript transpiler and have `tsc` on your PATH: https://www.typescriptlang.org/download
+4. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
+6. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
 7. Do a one-time fetch of external client deps into your repo, by running
    ```shell
     go run bin/fetchclientdeps/fetchclientdeps.go

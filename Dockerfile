@@ -2,11 +2,6 @@ FROM golang:alpine AS build
 
 WORKDIR /app
 
-# Install `curl`, which is used by `fetch_client_deps.sh`
-RUN apk add curl
-COPY bin/ ./bin/
-RUN bin/fetch_client_deps.sh
-
 # Install all the module dependencies early, so that this layer
 # can be cached before ranger-ims-go code is copied over.
 COPY go.mod go.sum ./
@@ -16,6 +11,9 @@ RUN go mod download
 # because we want Go to bake the repo's state into the build.
 # See https://pkg.go.dev/debug/buildinfo#BuildInfo
 COPY ./ ./
+
+# Fetch client deps that we need to embed in the binary
+RUN go run bin/fetchclientdeps/fetchclientdeps.go
 
 # Build the server
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go

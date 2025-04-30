@@ -21,7 +21,7 @@ jobs:
         go-version-file: "go.mod"
 
     - name: Fetch external JS deps
-      run: bash bin/fetch_client_deps.sh
+      run: go run bin/fetchclientdeps/fetchclientdeps.go
 
     # TODO: maybe install sqlc, templ, and tsc code generation
     #  here as well. They would add some additional build time

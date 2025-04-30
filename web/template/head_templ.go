@@ -72,7 +72,7 @@ func head(title string, module string, imports []string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><script src=\"/ims/static/ext/jquery-3.1.0.min.js\"></script><script src=\"/ims/static/ext/bootstrap.bundle.min.js\"></script><script src=\"/ims/static/urls.js\"></script><script src=\"/ims/static/theme.js\"></script><script src=\"/ims/static/ext/dataTables.min.js\"></script><script src=\"/ims/static/ext/dataTables.bootstrap5.min.js\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><script src=\"/ims/static/ext/jquery.min.js\"></script><script src=\"/ims/static/ext/bootstrap.bundle.min.js\"></script><script src=\"/ims/static/urls.js\"></script><script src=\"/ims/static/theme.js\"></script><script src=\"/ims/static/ext/dataTables.min.js\"></script><script src=\"/ims/static/ext/dataTables.bootstrap5.min.js\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

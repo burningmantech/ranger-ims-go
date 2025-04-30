@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7-labs
+
 FROM golang:alpine AS build
 
 WORKDIR /app
@@ -10,7 +12,7 @@ RUN go mod download
 # Copy everything in the repo, including the .git directory,
 # because we want Go to bake the repo's state into the build.
 # See https://pkg.go.dev/debug/buildinfo#BuildInfo
-COPY ./ ./
+COPY --exclude=playwright ./ ./
 
 # Fetch client deps that we need to embed in the binary
 RUN go run bin/fetchclientdeps/fetchclientdeps.go

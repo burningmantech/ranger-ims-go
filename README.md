@@ -33,9 +33,20 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
 
 ## Run IMS locally
 
-1. Copy `.env.example` as `.env`, and set the configuration for your machine.
-   (Note: ranger-ims-server used a `conf/imsd.conf` file. ranger-ims-go uses `.env` instead)
-2. Run the following to build and launch the server: `bin/build.sh && ./ranger-ims-go serve`
+1. Have a local MariaDB server running. An empty database is fine. e.g.
+   ```shell
+   password=$(openssl rand -hex 16)
+   echo "Password is ${password}"
+   docker run -it \
+     -e MARIADB_RANDOM_ROOT_PASSWORD=true \
+	 -e MARIADB_DATABASE=ims \
+	 -e MARIADB_USER=rangers \
+	 -e MARIADB_PASSWORD=${password} \
+     -p 3306:3306 mariadb:10.5.27
+   ```
+2. Copy `.env.example` as `.env`, and set the various flags. Especially read the part in
+   `.env.example` about `IMS_DIRECTORY` if you want to use TestUsers rather than a Clubhouse DB.
+3. Run the following to build and launch the server: `bin/build.sh && ./ranger-ims-go serve`
 
 ## Build and run with Docker
 
@@ -43,3 +54,17 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
 docker build --tag ranger-ims-go .
 docker run --env-file .env -it -p 80:8080 ranger-ims-go:latest
 ```
+
+## Differences between the Go and Python IMS servers
+
+1. We didn't bring over support for a SQLite IMS database, so MariaDB is the only option currently.
+   It's kind of a pain supporting two different sets of SQLs statements and needing an abstraction layer
+   in the middle. Also, sqlc doesn't support SQLite well yet, and this Go version of IMS makes heavy use
+   of sqlc's glorious code generation. If we do end up wanting some lighter alternative to MariaDB for
+   some reason, the easier thing would be to make a fake version of the Querier interface, i.e. creating
+   an in-memory DB.
+2. We use a `.env` file rather than `conf/imsd.conf` for local configuration. This ends up just being a
+   lot simpler, since prod only uses env variables anyway, and this means each config setting just has
+   one name.
+3. We kept the "File" Directory type in spirit, but changed it to "TestUsers" and made it a compiled
+   source file, `testusers.go`.

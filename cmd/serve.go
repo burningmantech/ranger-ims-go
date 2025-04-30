@@ -86,6 +86,21 @@ func runServer(cmd *cobra.Command, args []string) {
 	log.Fatal(s.ListenAndServe())
 }
 
+func lookupEnv(key string) (string, bool) {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return "", false
+	}
+	// When doing `docker run --env-file .env`, Docker passes in vars without removing
+	// the double-quotes, e.g. IMS_HOSTNAME="localhost" would actually get passed into
+	// the program with the double-quotes in place.
+	// https://github.com/docker/cli/issues/3630
+	if strings.HasPrefix(v, "\"") && strings.HasSuffix(v, "\"") {
+		v = v[1 : len(v)-1]
+	}
+	return v, true
+}
+
 // initConfig reads in the .env file and ENV variables if set.
 func initConfig() {
 	newCfg := conf.DefaultIMS()
@@ -97,61 +112,61 @@ func initConfig() {
 			log.Fatal("Error loading .env file: " + err.Error())
 		}
 	}
-	if v, ok := os.LookupEnv("IMS_HOSTNAME"); ok {
+	if v, ok := lookupEnv("IMS_HOSTNAME"); ok {
 		newCfg.Core.Host = v
 	}
-	if v, ok := os.LookupEnv("IMS_PORT"); ok {
+	if v, ok := lookupEnv("IMS_PORT"); ok {
 		num, err := strconv.ParseInt(v, 10, 32)
 		must(err)
 		newCfg.Core.Port = int32(num)
 	}
-	if v, ok := os.LookupEnv("IMS_DEPLOYMENT"); ok {
+	if v, ok := lookupEnv("IMS_DEPLOYMENT"); ok {
 		newCfg.Core.Deployment = strings.ToLower(v)
 	}
-	if v, ok := os.LookupEnv("IMS_TOKEN_LIFETIME"); ok {
+	if v, ok := lookupEnv("IMS_TOKEN_LIFETIME"); ok {
 		seconds, err := strconv.ParseInt(v, 10, 64)
 		must(err)
 		newCfg.Core.TokenLifetime = time.Duration(seconds) * time.Second
 	}
-	if v, ok := os.LookupEnv("IMS_LOG_LEVEL"); ok {
+	if v, ok := lookupEnv("IMS_LOG_LEVEL"); ok {
 		newCfg.Core.LogLevel = v
 	}
-	if v, ok := os.LookupEnv("IMS_DIRECTORY"); ok {
+	if v, ok := lookupEnv("IMS_DIRECTORY"); ok {
 		newCfg.Directory.Directory = conf.DirectoryType(strings.ToLower(v))
 	}
-	if v, ok := os.LookupEnv("IMS_ADMINS"); ok {
+	if v, ok := lookupEnv("IMS_ADMINS"); ok {
 		newCfg.Core.Admins = strings.Split(v, ",")
 	}
-	if v, ok := os.LookupEnv("IMS_JWT_SECRET"); ok {
+	if v, ok := lookupEnv("IMS_JWT_SECRET"); ok {
 		newCfg.Core.JWTSecret = v
 	}
-	if v, ok := os.LookupEnv("IMS_DB_HOST_NAME"); ok {
+	if v, ok := lookupEnv("IMS_DB_HOST_NAME"); ok {
 		newCfg.Store.MySQL.HostName = v
 	}
-	if v, ok := os.LookupEnv("IMS_DB_HOST_POST"); ok {
+	if v, ok := lookupEnv("IMS_DB_HOST_POST"); ok {
 		num, err := strconv.ParseInt(v, 10, 32)
 		must(err)
 		newCfg.Store.MySQL.HostPort = int32(num)
 	}
-	if v, ok := os.LookupEnv("IMS_DB_DATABASE"); ok {
+	if v, ok := lookupEnv("IMS_DB_DATABASE"); ok {
 		newCfg.Store.MySQL.Database = v
 	}
-	if v, ok := os.LookupEnv("IMS_DB_USER_NAME"); ok {
+	if v, ok := lookupEnv("IMS_DB_USER_NAME"); ok {
 		newCfg.Store.MySQL.Username = v
 	}
-	if v, ok := os.LookupEnv("IMS_DB_PASSWORD"); ok {
+	if v, ok := lookupEnv("IMS_DB_PASSWORD"); ok {
 		newCfg.Store.MySQL.Password = v
 	}
-	if v, ok := os.LookupEnv("IMS_DMS_HOSTNAME"); ok {
+	if v, ok := lookupEnv("IMS_DMS_HOSTNAME"); ok {
 		newCfg.Directory.ClubhouseDB.Hostname = v
 	}
-	if v, ok := os.LookupEnv("IMS_DMS_DATABASE"); ok {
+	if v, ok := lookupEnv("IMS_DMS_DATABASE"); ok {
 		newCfg.Directory.ClubhouseDB.Database = v
 	}
-	if v, ok := os.LookupEnv("IMS_DMS_USERNAME"); ok {
+	if v, ok := lookupEnv("IMS_DMS_USERNAME"); ok {
 		newCfg.Directory.ClubhouseDB.Username = v
 	}
-	if v, ok := os.LookupEnv("IMS_DMS_PASSWORD"); ok {
+	if v, ok := lookupEnv("IMS_DMS_PASSWORD"); ok {
 		newCfg.Directory.ClubhouseDB.Password = v
 	}
 

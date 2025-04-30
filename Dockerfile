@@ -1,26 +1,27 @@
-FROM golang:1.24.2-alpine3.21 AS build
+FROM golang:alpine AS build
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+# Install `curl`, which is used by `fetch_client_deps.sh`
+RUN apk add curl
+COPY bin/ ./bin/
+RUN bin/fetch_client_deps.sh
 
+# Install all the module dependencies early, so that this layer
+# can be cached before ranger-ims-go code is copied over.
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY *.go ./
-COPY api/ ./api/
-COPY auth/ ./auth/
-COPY bin/ ./bin/
-COPY cmd/ ./cmd/
-COPY conf/ ./conf/
-COPY directory/ ./directory/
-COPY json/ ./json/
-COPY store/ ./store/
-COPY web/ ./web/
+# Copy everything in the repo, including the .git directory,
+# because we want Go to bake the repo's state into the build.
+# See https://pkg.go.dev/debug/buildinfo#BuildInfo
+COPY ./ ./
 
-RUN bin/fetch_client_deps.sh
+# Build the server
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
 
-FROM alpine:3.21
+# Start a new stage and only copy over the IMS binary.
+FROM alpine:latest
 COPY --from=build /app/ranger-ims-go /
 EXPOSE 80
 CMD ["/ranger-ims-go", "serve"]

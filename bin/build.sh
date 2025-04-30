@@ -24,7 +24,7 @@ echo "finished tsc"
 
 echo "fetching external deps"
 cd "${reporoot}"
-bin/fetch_client_deps.sh
+go run bin/fetchclientdeps/fetchclientdeps.go
 
 echo "building ranger-ims-go"
 cd "${reporoot}"

@@ -14,9 +14,6 @@
 
 import * as ims from "./ims.ts";
 
-declare let url_viewFieldReports: string;
-declare let url_fieldReports: string;
-
 declare global {
     interface Window {
         frShowDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
@@ -45,7 +42,7 @@ initFieldReportsPage();
 async function initFieldReportsPage(): Promise<void> {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
 

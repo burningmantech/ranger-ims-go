@@ -14,9 +14,6 @@
 
 import * as ims from "./ims.ts";
 
-declare let url_acl: string;
-declare let url_events: string;
-
 declare global {
     interface Window {
         setValidity: (el: HTMLSelectElement)=>Promise<void>;
@@ -35,7 +32,7 @@ initAdminEventsPage();
 async function initAdminEventsPage(): Promise<void> {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
 

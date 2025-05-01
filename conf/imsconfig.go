@@ -34,12 +34,13 @@ var (
 func DefaultIMS() *IMSConfig {
 	return &IMSConfig{
 		Core: ConfigCore{
-			Host:          "localhost",
-			Port:          80,
-			JWTSecret:     rand.Text(),
-			Deployment:    "dev",
-			LogLevel:      "INFO",
-			TokenLifetime: 1 * time.Hour,
+			Host:                 "localhost",
+			Port:                 80,
+			JWTSecret:            rand.Text(),
+			Deployment:           "dev",
+			LogLevel:             "INFO",
+			AccessTokenLifetime:  15 * time.Minute,
+			RefreshTokenLifetime: 8 * time.Hour,
 		},
 		Store: Store{
 			MySQL: StoreMySQL{
@@ -115,11 +116,12 @@ func (d DeploymentType) Validate() error {
 }
 
 type ConfigCore struct {
-	Host          string
-	Port          int32
-	TokenLifetime time.Duration
-	Admins        []string
-	MasterKey     string
+	Host                 string
+	Port                 int32
+	AccessTokenLifetime  time.Duration
+	RefreshTokenLifetime time.Duration
+	Admins               []string
+	MasterKey            string
 	// JWTSecret won't get marshalled as part of String() due to the json "-" tag.
 	JWTSecret        string `json:"-"`
 	AttachmentsStore string

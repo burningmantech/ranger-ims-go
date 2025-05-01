@@ -29,6 +29,7 @@ export let pathIds: {
 export let eventAccess: AuthInfoEventAccess|null = null;
 
 const accessTokenKey = "access_token";
+const accessTokenRefreshAfterKey = "access_token_refresh_after";
 
 //
 // HTML encoding
@@ -125,6 +126,20 @@ export function compareReportEntries(a: ReportEntry, b: ReportEntry): number {
 //
 
 export async function fetchJsonNoThrow<T>(url: string, init: RequestInit|null): Promise<FetchRes<T>> {
+    if (url != url_authRefresh && getAccessToken()) {
+        if ((refreshTokenAfter()??0) < new Date().getTime()) {
+            const {json, err} = await fetchJsonNoThrow<AuthRefreshResponse>(url_authRefresh, {body: JSON.stringify({})});
+            if (err != null || json == null) {
+                clearAccessToken();
+                return {resp: null, json: null, err: "Access token couldn't be refreshed"};
+            } else {
+                setAccessToken(json.token);
+                setRefreshTokenBy(json.expires_unix_ms);
+                console.log("Refreshed access token");
+            }
+        }
+    }
+
     if (init == null) {
         init = {};
     }
@@ -360,8 +375,9 @@ export async function commonPageInit(): Promise<PageInitResult> {
     return {authInfo: authInfo, eventDatas: eds};
 }
 
-export function redirectToLogin(): void {
-    console.log("redirecting to login page")
+export async function redirectToLogin(): Promise<void> {
+    await fetch(url_logout);
+    console.log("Logged out. Redirecting to login page")
     window.location.replace(`${url_login}?o=${window.location.pathname}`);
 }
 
@@ -1203,8 +1219,17 @@ export function setAccessToken(token: string): void {
     localStorage.setItem(accessTokenKey, token);
 }
 
+export function setRefreshTokenBy(timeUnixMS: number): void {
+    localStorage.setItem(accessTokenRefreshAfterKey, timeUnixMS.toString());
+}
+
+export function refreshTokenAfter(): number|null {
+    return parseInt10(localStorage.getItem(accessTokenRefreshAfterKey));
+}
+
 export function clearAccessToken(): void {
     localStorage.removeItem(accessTokenKey);
+    localStorage.removeItem(accessTokenRefreshAfterKey);
 }
 
 
@@ -1255,18 +1280,10 @@ cleanupOldCaches();
 // TypeScript declarations. These won't appear in the final JavaScript.
 //
 
-declare let url_auth: string;
-declare let url_events: string;
-declare let url_eventSource: string;
-declare let url_fieldReport_reportEntry: string;
-declare let url_incidentAttachmentNumber: string;
-declare let url_incidentTypes: string;
-declare let url_incident_reportEntry: string;
-declare let url_login: string;
-declare let url_streets: string;
-declare let url_viewEvent: string;
-declare let url_viewFieldReports: string;
-declare let url_viewIncidents: string;
+type AuthRefreshResponse = {
+    token: string;
+    expires_unix_ms: number;
+}
 
 export type PageInitResult = {
     authInfo: AuthInfo;

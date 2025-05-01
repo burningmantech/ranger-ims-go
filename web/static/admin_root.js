@@ -21,7 +21,7 @@ initAdminRootPage();
 async function initAdminRootPage() {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
 }

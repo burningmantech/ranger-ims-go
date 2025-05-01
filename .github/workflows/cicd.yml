@@ -16,9 +16,16 @@ jobs:
     - name: Harden CI
       uses: step-security/harden-runner@v2.12.0
       with:
-        disable-sudo: true
-        disable-file-monitoring: true
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          *.docker.com:443
+          *.docker.io:443
+          api.github.com:443
+          cdn.datatables.net:443
+          cdn.jsdelivr.net:443
+          code.jquery.com:443
+          github.com:443
+          objects.githubusercontent.com:443
 
     - name: Checkout source code
       uses: actions/checkout@v4

@@ -13,7 +13,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Harden CI
+      uses: step-security/harden-runner@v2.12.0
+      with:
+        disable-sudo: true
+        disable-file-monitoring: true
+        egress-policy: audit
+
+    - name: Checkout source code
+      uses: actions/checkout@v4
 
     - name: Set up Go
       uses: actions/setup-go@v5

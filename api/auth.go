@@ -216,7 +216,7 @@ func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Requ
 		handleErr(w, req, http.StatusUnauthorized, "Bad or no refresh token cookie found", err)
 		return
 	}
-	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.AuthenticateJWT(refreshCookie.Value)
+	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.AuthenticateRefreshToken(refreshCookie.Value)
 	if err != nil {
 		handleErr(w, req, http.StatusUnauthorized, "Failed to authenticate refresh token", err)
 		return

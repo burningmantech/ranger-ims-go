@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -89,13 +88,27 @@ func (j JWTer) CreateJWT(
 	return token, nil
 }
 
-func (j JWTer) AuthenticateJWT(authHeader string) (*IMSClaims, error) {
-	authHeader = strings.TrimPrefix(authHeader, "Bearer ")
-	if authHeader == "" {
-		return nil, fmt.Errorf("no token provided")
+// AuthenticateJWT gives JWT claims for a valid, authenticated JWT string, or
+// returns an error otherwise. A JWT may be invalid because it was signed by a
+// different key, because it has expired, etc.
+func (j JWTer) AuthenticateJWT(jwtStr string) (*IMSClaims, error) {
+	return j.authenticateJWT(jwtStr)
+}
+
+// AuthenticateRefreshToken is like AuthenticateJWT, in that it validates that the
+// supplied token is valid (was signed by the same secret key and hasn't expired).
+// It's an implementation detail that refresh tokens are also JWTs. Clients of IMS
+// should treat them as simply opaque strings.
+func (j JWTer) AuthenticateRefreshToken(refreshToken string) (*IMSClaims, error) {
+	return j.authenticateJWT(refreshToken)
+}
+
+func (j JWTer) authenticateJWT(jwtStr string) (*IMSClaims, error) {
+	if jwtStr == "" {
+		return nil, fmt.Errorf("no JWT string provided")
 	}
 	claims := IMSClaims{}
-	tok, err := jwt.ParseWithClaims(authHeader, &claims, func(token *jwt.Token) (any, error) {
+	tok, err := jwt.ParseWithClaims(jwtStr, &claims, func(token *jwt.Token) (any, error) {
 		return []byte(j.SecretKey), nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
 	if err != nil {

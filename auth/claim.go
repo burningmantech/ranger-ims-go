@@ -18,6 +18,7 @@ package auth
 
 import (
 	"github.com/golang-jwt/jwt/v5"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -95,4 +96,18 @@ func (c IMSClaims) RangerPositions() []string {
 func (c IMSClaims) RangerTeams() []string {
 	teams, _ := c.MapClaims[teamsKey].(string)
 	return strings.Split(teams, ",")
+}
+
+// DirectoryID returns the Clubhouse ID for a Ranger.
+// It returns -1 if the ID cannot be determined.
+func (c IMSClaims) DirectoryID() int64 {
+	sub, err := c.GetSubject()
+	if err != nil {
+		return -1
+	}
+	subN, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		return -1
+	}
+	return subN
 }

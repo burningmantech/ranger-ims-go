@@ -14,8 +14,6 @@
 
 import * as ims from "./ims.ts";
 
-declare let url_app: string;
-
 //
 // Initialize UI
 //

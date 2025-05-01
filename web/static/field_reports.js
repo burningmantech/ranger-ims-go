@@ -29,7 +29,7 @@ initFieldReportsPage();
 async function initFieldReportsPage() {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
     window.frShowDays = frShowDays;

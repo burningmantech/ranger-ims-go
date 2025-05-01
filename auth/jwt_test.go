@@ -30,7 +30,7 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 		[]string{"Fluffer", "Operator"},
 		[]string{"Fluff Squad"},
 		true,
-		1*time.Hour,
+		time.Now().Add(1*time.Hour),
 	)
 	require.NoError(t, err)
 	claims, err := jwter.AuthenticateJWT(j)
@@ -52,7 +52,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		nil,
 		nil,
 		true,
-		-1*time.Hour,
+		time.Now().Add(-1*time.Hour),
 	)
 	require.NoError(t, err)
 	differentKeyJWT, err := JWTer{"some-other-secret"}.CreateJWT(
@@ -61,7 +61,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		nil,
 		nil,
 		true,
-		1*time.Hour,
+		time.Now().Add(1*time.Hour),
 	)
 	require.NoError(t, err)
 	_, err = jwter.AuthenticateJWT(expiredJWT)

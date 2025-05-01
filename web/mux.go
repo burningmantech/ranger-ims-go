@@ -19,6 +19,7 @@ package web
 import (
 	"fmt"
 	"github.com/a-h/templ"
+	"github.com/burningmantech/ranger-ims-go/auth"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/web/template"
 	"log/slog"
@@ -71,6 +72,15 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/auth/logout",
 		Adapt(
 			func(w http.ResponseWriter, req *http.Request) {
+				slog.Info("Redirecting from logout")
+				http.SetCookie(w, &http.Cookie{
+					Name:     auth.RefreshTokenCookieName,
+					MaxAge:   -1,
+					Path:     "/",
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteStrictMode,
+				})
 				http.Redirect(w, req, "/ims/app?logout", http.StatusSeeOther)
 			},
 		),

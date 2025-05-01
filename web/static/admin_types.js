@@ -21,7 +21,7 @@ initAdminTypesPage();
 async function initAdminTypesPage() {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
     window.createIncidentType = createIncidentType;

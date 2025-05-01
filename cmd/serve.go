@@ -140,10 +140,19 @@ func initConfig() {
 	if v, ok := lookupEnv("IMS_DEPLOYMENT"); ok {
 		newCfg.Core.Deployment = strings.ToLower(v)
 	}
+	// This should really be called "IMS_REFRESH_TOKEN_LIFETIME". This name of
+	// "IMS_TOKEN_LIFETIME" predates our use of refresh tokens, and what it tried
+	// to convey, i.e. the maximum duration for a session, is now what we mean
+	// when we talk about a refresh token's lifetime.
 	if v, ok := lookupEnv("IMS_TOKEN_LIFETIME"); ok {
 		seconds, err := strconv.ParseInt(v, 10, 64)
 		must(err)
-		newCfg.Core.TokenLifetime = time.Duration(seconds) * time.Second
+		newCfg.Core.RefreshTokenLifetime = time.Duration(seconds) * time.Second
+	}
+	if v, ok := lookupEnv("IMS_ACCESS_TOKEN_LIFETIME"); ok {
+		seconds, err := strconv.ParseInt(v, 10, 64)
+		must(err)
+		newCfg.Core.AccessTokenLifetime = time.Duration(seconds) * time.Second
 	}
 	if v, ok := lookupEnv("IMS_LOG_LEVEL"); ok {
 		newCfg.Core.LogLevel = v
@@ -193,6 +202,9 @@ func initConfig() {
 		if newCfg.Directory.Directory == conf.DirectoryTypeTestUsers {
 			must(fmt.Errorf("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
 		}
+	}
+	if newCfg.Core.AccessTokenLifetime > newCfg.Core.RefreshTokenLifetime {
+		must(fmt.Errorf("access token lifetime should not be greater than refresh token lifetime"))
 	}
 
 	conf.Cfg = newCfg

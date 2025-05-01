@@ -14,8 +14,6 @@
 
 import * as ims from "./ims.ts";
 
-declare let url_incidentTypes: string;
-
 declare global {
     interface Window {
         createIncidentType: (el: HTMLInputElement)=>Promise<void>;
@@ -34,7 +32,7 @@ initAdminTypesPage();
 async function initAdminTypesPage(): Promise<void> {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
 

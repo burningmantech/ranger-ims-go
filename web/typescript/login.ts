@@ -14,9 +14,6 @@
 
 import * as ims from "./ims.ts";
 
-declare let url_app: string;
-declare let url_auth: string;
-
 declare global {
     interface Window {
         login: ()=>void;
@@ -52,6 +49,7 @@ async function login(): Promise<void> {
         return;
     }
     ims.setAccessToken(json.token);
+    ims.setRefreshTokenBy(json.expires_unix_ms);
     const redirect = new URLSearchParams(window.location.search).get("o");
     if (redirect != null) {
         window.location.replace(redirect);
@@ -62,4 +60,5 @@ async function login(): Promise<void> {
 
 type AuthResponse = {
     token: string;
+    expires_unix_ms: number;
 }

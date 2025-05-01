@@ -57,10 +57,11 @@ func AddToMux(ctx context.Context, mux *http.ServeMux, cfg *conf.IMSConfig, db *
 	mux.Handle("POST /ims/api/auth",
 		Adapt(
 			PostAuth{
-				imsDB:       db,
-				userStore:   userStore,
-				jwtSecret:   cfg.Core.JWTSecret,
-				jwtDuration: cfg.Core.TokenLifetime,
+				imsDB:                db,
+				userStore:            userStore,
+				jwtSecret:            cfg.Core.JWTSecret,
+				accessTokenDuration:  cfg.Core.AccessTokenLifetime,
+				refreshTokenDuration: cfg.Core.RefreshTokenLifetime,
 			},
 			RecoverOnPanic(),
 			LogBeforeAfter(),
@@ -81,6 +82,22 @@ func AddToMux(ctx context.Context, mux *http.ServeMux, cfg *conf.IMSConfig, db *
 			// This endpoint does not require authentication or authorization, by design
 			OptionalAuthN(jwter),
 			LogBeforeAfter(),
+		),
+	)
+
+	mux.Handle("POST /ims/api/auth/refresh",
+		Adapt(
+			RefreshAccessToken{
+				imsDB:               db,
+				userStore:           userStore,
+				jwtSecret:           cfg.Core.JWTSecret,
+				accessTokenDuration: cfg.Core.AccessTokenLifetime,
+			},
+			RecoverOnPanic(),
+			LogBeforeAfter(),
+			// This endpoint does not require authentication, nor
+			// does it even consider the request's Authorization header,
+			// because the point of this is to make a new access token.
 		),
 	)
 
@@ -309,13 +326,6 @@ const JWTContextKey ContextKey = "JWTContext"
 type JWTContext struct {
 	Claims *auth.IMSClaims
 	Error  error
-}
-
-const PermissionsContextKey ContextKey = "PermissionsContext"
-
-type PermissionsContext struct {
-	EventPermissions  map[int32]auth.EventPermissionMask
-	GlobalPermissions auth.GlobalPermissionMask
 }
 
 func OptionalAuthN(j auth.JWTer) Adapter {

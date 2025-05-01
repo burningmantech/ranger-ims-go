@@ -31,10 +31,11 @@ import (
 )
 
 type PostAuth struct {
-	imsDB       *store.DB
-	userStore   *directory.UserStore
-	jwtSecret   string
-	jwtDuration time.Duration
+	imsDB                *store.DB
+	userStore            *directory.UserStore
+	jwtSecret            string
+	accessTokenDuration  time.Duration
+	refreshTokenDuration time.Duration
 }
 
 type PostAuthRequest struct {
@@ -42,7 +43,8 @@ type PostAuthRequest struct {
 	Password       string `json:"password"`
 }
 type PostAuthResponse struct {
-	Token string `json:"token"`
+	Token         string `json:"token"`
+	ExpiresUnixMs int64  `json:"expires_unix_ms"`
 }
 
 func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -97,12 +99,32 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.
-		CreateJWT(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, action.jwtDuration)
+		CreateJWT(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to create access token", err)
 	}
-	resp := PostAuthResponse{Token: jwt}
+
+	suggestedRefreshTime := accessTokenExpiration.Add(auth.SuggestedEarlyAccessTokenRefresh).UnixMilli()
+	resp := PostAuthResponse{Token: jwt, ExpiresUnixMs: suggestedRefreshTime}
+
+	// The refresh token should be valid much longer than the access token.
+	refreshTokenExpiration := time.Now().Add(action.refreshTokenDuration)
+	refreshToken, err := auth.JWTer{SecretKey: action.jwtSecret}.
+		CreateRefreshToken(matchedPerson.Handle, matchedPerson.DirectoryID, refreshTokenExpiration)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     auth.RefreshTokenCookieName,
+		Value:    refreshToken,
+		Path:     "/",
+		MaxAge:   int(action.refreshTokenDuration.Milliseconds() / 1000),
+		HttpOnly: true,
+		Secure:   true,
+		// We only ever read this cookie on POSTs to the refresh endpoint,
+		// so strict is fine.
+		SameSite: http.SameSiteStrictMode,
+	})
 
 	mustWriteJSON(w, resp)
 }
@@ -173,5 +195,60 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	mustWriteJSON(w, resp)
+}
+
+type RefreshAccessToken struct {
+	imsDB               *store.DB
+	userStore           *directory.UserStore
+	jwtSecret           string
+	accessTokenDuration time.Duration
+}
+
+type RefreshAccessTokenResponse struct {
+	Token         string `json:"token"`
+	ExpiresUnixMs int64  `json:"expires_unix_ms"`
+}
+
+func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	refreshCookie, err := req.Cookie(auth.RefreshTokenCookieName)
+	if err != nil {
+		handleErr(w, req, http.StatusUnauthorized, "Bad or no refresh token cookie found", err)
+		return
+	}
+	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.AuthenticateJWT(refreshCookie.Value)
+	if err != nil {
+		handleErr(w, req, http.StatusUnauthorized, "Failed to authenticate refresh token", err)
+		return
+	}
+	if jwt.RangerHandle() == "" {
+		handleErr(w, req, http.StatusUnauthorized, "No Ranger handle associated with refresh token", err)
+		return
+	}
+	slog.Info("Refreshing access token", "ranger", jwt.RangerHandle())
+	rangers, err := action.userStore.GetRangers(req.Context())
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to fetch personnel", err)
+		return
+	}
+	var matchedPerson imsjson.Person
+	for _, ranger := range rangers {
+		if ranger.Handle == jwt.RangerHandle() && ranger.DirectoryID == jwt.DirectoryID() {
+			matchedPerson = ranger
+			break
+		}
+	}
+	foundPositionNames, foundTeamNames, err := action.userStore.GetUserPositionsTeams(req.Context(), matchedPerson.DirectoryID)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Clubhouse positions/teams data", err)
+		return
+	}
+	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
+	accessToken, err := auth.JWTer{SecretKey: action.jwtSecret}.
+		CreateJWT(jwt.RangerHandle(), matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to create access token", err)
+	}
+	resp := RefreshAccessTokenResponse{Token: accessToken, ExpiresUnixMs: accessTokenExpiration.Add(auth.SuggestedEarlyAccessTokenRefresh).UnixMilli()}
 	mustWriteJSON(w, resp)
 }

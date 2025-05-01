@@ -40,6 +40,7 @@ async function login() {
         return;
     }
     ims.setAccessToken(json.token);
+    ims.setRefreshTokenBy(json.expires_unix_ms);
     const redirect = new URLSearchParams(window.location.search).get("o");
     if (redirect != null) {
         window.location.replace(redirect);

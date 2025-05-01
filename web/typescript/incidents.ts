@@ -14,13 +14,6 @@
 
 import * as ims from "./ims.ts";
 
-declare let url_incidents: string;
-declare let url_viewIncidents: string;
-declare let url_fieldReports: string;
-declare let url_incidentNumber: string;
-declare let url_viewFieldReports: string
-declare let url_viewEvent: string;
-
 declare global {
     interface Window {
         showState: (stateToShow: string, replaceState: boolean)=>void;
@@ -65,7 +58,7 @@ initIncidentsPage();
 async function initIncidentsPage(): Promise<void> {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
     if (!ims.eventAccess!.readIncidents) {

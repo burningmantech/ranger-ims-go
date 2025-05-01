@@ -23,6 +23,7 @@ export let pathIds = {
 };
 export let eventAccess = null;
 const accessTokenKey = "access_token";
+const accessTokenRefreshAfterKey = "access_token_refresh_after";
 //
 // HTML encoding
 //
@@ -111,6 +112,20 @@ export function compareReportEntries(a, b) {
 // Request making
 //
 export async function fetchJsonNoThrow(url, init) {
+    if (url != url_authRefresh && getAccessToken()) {
+        if ((refreshTokenAfter() ?? 0) < new Date().getTime()) {
+            const { json, err } = await fetchJsonNoThrow(url_authRefresh, { body: JSON.stringify({}) });
+            if (err != null || json == null) {
+                clearAccessToken();
+                return { resp: null, json: null, err: "Access token couldn't be refreshed" };
+            }
+            else {
+                setAccessToken(json.token);
+                setRefreshTokenBy(json.expires_unix_ms);
+                console.log("Refreshed access token");
+            }
+        }
+    }
     if (init == null) {
         init = {};
     }
@@ -314,8 +329,9 @@ export async function commonPageInit() {
     renderCommonPageItems(authInfo);
     return { authInfo: authInfo, eventDatas: eds };
 }
-export function redirectToLogin() {
-    console.log("redirecting to login page");
+export async function redirectToLogin() {
+    await fetch(url_logout);
+    console.log("Logged out. Redirecting to login page");
     window.location.replace(`${url_login}?o=${window.location.pathname}`);
 }
 function renderCommonPageItems(authInfo) {
@@ -1024,8 +1040,15 @@ function getAccessToken() {
 export function setAccessToken(token) {
     localStorage.setItem(accessTokenKey, token);
 }
+export function setRefreshTokenBy(timeUnixMS) {
+    localStorage.setItem(accessTokenRefreshAfterKey, timeUnixMS.toString());
+}
+export function refreshTokenAfter() {
+    return parseInt10(localStorage.getItem(accessTokenRefreshAfterKey));
+}
 export function clearAccessToken() {
     localStorage.removeItem(accessTokenKey);
+    localStorage.removeItem(accessTokenRefreshAfterKey);
 }
 //
 // Load incident types

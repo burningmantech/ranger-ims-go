@@ -26,6 +26,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type GetEventAccesses struct {
@@ -138,8 +139,14 @@ func (action PostEventAccess) maybeSetAccess(ctx context.Context, event imsdb.Ev
 		return nil
 	}
 
+	// Lock out any other callers from concurrently invoking this method.
+	// This function is very prone to transaction deadlock, because it does
+	// multiple transactional deletes and inserts. Add a timeout in here too,
+	// just to be safe that we don't end up holding the lock forever.
 	eventAccessWriteMu.Lock()
 	defer eventAccessWriteMu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 
 	txn, err := action.imsDB.BeginTx(ctx, nil)
 	if err != nil {

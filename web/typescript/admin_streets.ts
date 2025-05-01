@@ -14,8 +14,6 @@
 
 import * as ims from "./ims.ts";
 
-declare let url_streets: string;
-
 declare global {
     interface Window {
         addStreet: (el: HTMLInputElement)=>Promise<void>;
@@ -34,7 +32,7 @@ initAdminStreetsPage();
 async function initAdminStreetsPage(): Promise<void> {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
-        ims.redirectToLogin();
+        await ims.redirectToLogin();
         return;
     }
     const eds: ims.EventData[]|null = await initResult.eventDatas;

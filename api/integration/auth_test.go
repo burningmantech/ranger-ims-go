@@ -27,7 +27,7 @@ import (
 )
 
 func TestPostAuthAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -70,7 +70,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthWithEvent(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)

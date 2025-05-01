@@ -173,7 +173,7 @@ func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
 }
 
 func jwtForRealTestUser(t *testing.T) string {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func jwtForRealTestUser(t *testing.T) string {
 }
 
 func jwtForTestAdminRanger(t *testing.T) string {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)

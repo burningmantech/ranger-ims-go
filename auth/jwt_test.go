@@ -24,7 +24,7 @@ import (
 
 func TestCreateAndGetValidJWT(t *testing.T) {
 	jwter := JWTer{"some-secret"}
-	j := jwter.CreateJWT(
+	j, err := jwter.CreateJWT(
 		"Hardware",
 		12345,
 		[]string{"Fluffer", "Operator"},
@@ -32,6 +32,7 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 		true,
 		1*time.Hour,
 	)
+	require.NoError(t, err)
 	claims, err := jwter.AuthenticateJWT(j)
 	require.NoError(t, err)
 	sub, err := claims.GetSubject()
@@ -45,7 +46,7 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 
 func TestCreateAndGetInvalidJWTs(t *testing.T) {
 	jwter := JWTer{"some-secret"}
-	expiredJWT := jwter.CreateJWT(
+	expiredJWT, err := jwter.CreateJWT(
 		"Hardware",
 		1,
 		nil,
@@ -53,7 +54,8 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		true,
 		-1*time.Hour,
 	)
-	differentKeyJWT := JWTer{"some-other-secret"}.CreateJWT(
+	require.NoError(t, err)
+	differentKeyJWT, err := JWTer{"some-other-secret"}.CreateJWT(
 		"Hardware",
 		1,
 		nil,
@@ -61,7 +63,8 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		true,
 		1*time.Hour,
 	)
-	_, err := jwter.AuthenticateJWT(expiredJWT)
+	require.NoError(t, err)
+	_, err = jwter.AuthenticateJWT(expiredJWT)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "expired")
 	_, err = jwter.AuthenticateJWT(differentKeyJWT)

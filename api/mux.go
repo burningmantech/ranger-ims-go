@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -332,7 +333,7 @@ func OptionalAuthN(j auth.JWTer) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
-			claims, err := j.AuthenticateJWT(header)
+			claims, err := j.AuthenticateJWT(strings.TrimPrefix(header, "Bearer "))
 			ctx := context.WithValue(r.Context(), JWTContextKey, JWTContext{
 				Claims: claims,
 				Error:  err,
@@ -346,7 +347,7 @@ func RequireAuthN(j auth.JWTer) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
-			claims, err := j.AuthenticateJWT(header)
+			claims, err := j.AuthenticateJWT(strings.TrimPrefix(header, "Bearer "))
 			if err != nil || claims == nil {
 				slog.Error("Failed to authenticate JWT", "error", err)
 				http.Error(w, "Invalid Authorization token", http.StatusUnauthorized)

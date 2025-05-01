@@ -51,6 +51,32 @@ func (a ApiHelper) postAuth(req api.PostAuthRequest) (statusCode int, body, vali
 	return resp.StatusCode, string(b), response.Token
 }
 
+func (a ApiHelper) refreshAccessToken(refreshCookie *http.Cookie) (statusCode int, result *api.RefreshAccessTokenResponse) {
+	response := &api.RefreshAccessTokenResponse{}
+	postBody, err := json.Marshal(struct{}{})
+	require.NoError(a.t, err)
+	httpPost, err := http.NewRequest("POST", a.serverURL.JoinPath("/ims/api/auth/refresh").String(), bytes.NewReader(postBody))
+	require.NoError(a.t, err)
+	if a.jwt != "" {
+		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
+	}
+	httpPost.AddCookie(refreshCookie)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Do(httpPost)
+	require.NoError(a.t, err)
+
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, nil
+	}
+	err = json.Unmarshal(b, &response)
+	require.NoError(a.t, err)
+	return resp.StatusCode, response
+}
+
 func (a ApiHelper) getAuth(eventName string) (api.GetAuthResponse, *http.Response) {
 	path := a.serverURL.JoinPath("/ims/api/auth").String()
 	if eventName != "" {
@@ -134,9 +160,6 @@ func (a ApiHelper) getAccess() (imsjson.EventsAccess, *http.Response) {
 }
 
 func (a ApiHelper) imsPost(body any, path string) *http.Response {
-	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
-	}
 	postBody, err := json.Marshal(body)
 	require.NoError(a.t, err)
 	httpPost, err := http.NewRequest("POST", path, bytes.NewReader(postBody))
@@ -144,22 +167,25 @@ func (a ApiHelper) imsPost(body any, path string) *http.Response {
 	if a.jwt != "" {
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
-	resp, err := httpClient.Do(httpPost)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp
 	// require.Equal(a.t, http.StatusNoContent, resp.StatusCode)
 }
 
 func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
-	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
-	}
 	httpReq, err := http.NewRequest("GET", path, nil)
 	require.NoError(a.t, err)
 	if a.jwt != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
-	get, err := httpClient.Do(httpReq)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	get, err := client.Do(httpReq)
 	require.NoError(a.t, err)
 	defer get.Body.Close()
 	b, err := io.ReadAll(get.Body)

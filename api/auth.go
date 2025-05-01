@@ -101,7 +101,7 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.
-		CreateJWT(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
+		CreateAccessToken(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to create access token", err)
 	}
@@ -245,7 +245,7 @@ func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Requ
 	}
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	accessToken, err := auth.JWTer{SecretKey: action.jwtSecret}.
-		CreateJWT(jwt.RangerHandle(), matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
+		CreateAccessToken(jwt.RangerHandle(), matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to create access token", err)
 	}

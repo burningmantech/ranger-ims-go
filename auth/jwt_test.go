@@ -24,7 +24,7 @@ import (
 
 func TestCreateAndGetValidJWT(t *testing.T) {
 	jwter := JWTer{"some-secret"}
-	j, err := jwter.CreateJWT(
+	j, err := jwter.CreateAccessToken(
 		"Hardware",
 		12345,
 		[]string{"Fluffer", "Operator"},
@@ -46,7 +46,7 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 
 func TestCreateAndGetInvalidJWTs(t *testing.T) {
 	jwter := JWTer{"some-secret"}
-	expiredJWT, err := jwter.CreateJWT(
+	expiredJWT, err := jwter.CreateAccessToken(
 		"Hardware",
 		1,
 		nil,
@@ -55,7 +55,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		time.Now().Add(-1*time.Hour),
 	)
 	require.NoError(t, err)
-	differentKeyJWT, err := JWTer{"some-other-secret"}.CreateJWT(
+	differentKeyJWT, err := JWTer{"some-other-secret"}.CreateAccessToken(
 		"Hardware",
 		1,
 		nil,

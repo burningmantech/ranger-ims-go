@@ -28,13 +28,13 @@ import (
 	"time"
 )
 
-func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig, db *store.DB, userStore *directory.UserStore) *http.ServeMux {
+func AddToMux(ctx context.Context, mux *http.ServeMux, cfg *conf.IMSConfig, db *store.DB, userStore *directory.UserStore) *http.ServeMux {
 	if mux == nil {
 		mux = http.NewServeMux()
 	}
 
 	jwter := auth.JWTer{SecretKey: cfg.Core.JWTSecret}
-	es := NewEventSourcerer()
+	es := NewEventSourcerer(ctx)
 
 	mux.Handle("GET /ims/api/access",
 		Adapt(

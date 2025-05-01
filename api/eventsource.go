@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/launchdarkly/eventsource"
 	"log/slog"
@@ -74,13 +75,20 @@ type EventSourcerer struct {
 	IdCounter atomic.Int64
 }
 
-func NewEventSourcerer() *EventSourcerer {
+func NewEventSourcerer(ctx context.Context) *EventSourcerer {
 	es := &EventSourcerer{
 		Server:    eventsource.NewServer(),
 		IdCounter: atomic.Int64{},
 	}
 	es.Server.Register(EventSourceChannel, es)
 	es.Server.ReplayAll = true
+	go func() {
+		select {
+		case <-ctx.Done():
+			slog.Info("Shutting down EventSource")
+			es.Server.Close()
+		}
+	}()
 	return es
 }
 

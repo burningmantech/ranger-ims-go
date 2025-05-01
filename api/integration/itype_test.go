@@ -27,7 +27,7 @@ import (
 )
 
 func TestIncidentTypesAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestIncidentTypesAPIAuthorization(t *testing.T) {
 }
 
 func TestCreateIncident(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)

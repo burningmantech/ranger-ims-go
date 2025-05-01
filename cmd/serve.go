@@ -17,6 +17,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
@@ -30,6 +31,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -67,8 +69,11 @@ func runServer(cmd *cobra.Command, args []string) {
 	must(err)
 	imsDB := store.MariaDB(imsCfg)
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	mux := http.NewServeMux()
-	api.AddToMux(mux, imsCfg, &store.DB{DB: imsDB}, userStore)
+	api.AddToMux(ctx, mux, imsCfg, &store.DB{DB: imsDB}, userStore)
 	web.AddToMux(mux, imsCfg)
 
 	addr := fmt.Sprintf("%v:%v", imsCfg.Core.Host, imsCfg.Core.Port)
@@ -82,8 +87,19 @@ func runServer(cmd *cobra.Command, args []string) {
 		WriteTimeout:   30 * time.Minute,
 		MaxHeaderBytes: 1 << 20,
 	}
-	slog.Info("IMS server up-and-running", "address", addr)
-	log.Fatal(s.ListenAndServe())
+
+	slog.Info("IMS server ready for connections", "address", addr)
+	go s.ListenAndServe()
+
+	<-ctx.Done()
+	stop()
+	slog.Error("Shutting down gracefully, press Ctrl+C again to force")
+
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	slog.Error("Server shut down", "err", s.Shutdown(timeoutCtx))
+	os.Exit(0)
 }
 
 func lookupEnv(key string) (string, bool) {
@@ -109,7 +125,8 @@ func initConfig() {
 		if errors.Is(err, os.ErrNotExist) {
 			slog.Info("No .env file found. Carrying on with IMSConfig defaults and environment variable overrides")
 		} else {
-			log.Fatal("Error loading .env file: " + err.Error())
+			slog.Error("Exiting due to error loading .env file", "err", err)
+			os.Exit(1)
 		}
 	}
 	if v, ok := lookupEnv("IMS_HOSTNAME"); ok {
@@ -187,8 +204,11 @@ func init() {
 	cobra.OnInitialize(initConfig)
 }
 
+// must logs an error and kills the program. This should only be done for
+// startup errors, not after the server is up and running.
 func must(err error) {
 	if err != nil {
-		log.Panic(err)
+		slog.Error("Exiting due to startup error", "err", err)
+		os.Exit(1)
 	}
 }

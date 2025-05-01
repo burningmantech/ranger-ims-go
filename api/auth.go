@@ -97,8 +97,11 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	jwt := auth.JWTer{SecretKey: action.jwtSecret}.
+	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.
 		CreateJWT(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, action.jwtDuration)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to create access token", err)
+	}
 	resp := PostAuthResponse{Token: jwt}
 
 	mustWriteJSON(w, resp)

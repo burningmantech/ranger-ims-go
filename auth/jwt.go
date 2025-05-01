@@ -19,7 +19,6 @@ package auth
 import (
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +35,7 @@ func (j JWTer) CreateJWT(
 	teams []string,
 	onsite bool,
 	duration time.Duration,
-) string {
+) (string, error) {
 	token, err := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		NewIMSClaims().
@@ -50,9 +49,9 @@ func (j JWTer) CreateJWT(
 			WithSubject(strconv.FormatInt(clubhouseID, 10)),
 	).SignedString([]byte(j.SecretKey))
 	if err != nil {
-		log.Panic(err)
+		return "", fmt.Errorf("[SignedString]: %w", err)
 	}
-	return token
+	return token, nil
 }
 
 func (j JWTer) AuthenticateJWT(authHeader string) (*IMSClaims, error) {

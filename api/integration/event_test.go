@@ -28,7 +28,7 @@ import (
 )
 
 func TestEventAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestEventAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAndEditEvent(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestGetAndEditEvent(t *testing.T) {
 }
 
 func TestEditEvent_errors(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)

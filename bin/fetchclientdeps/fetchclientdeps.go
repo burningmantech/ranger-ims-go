@@ -69,13 +69,13 @@ func existOrFetch(dest, url string) error {
 	if err != nil {
 		return fmt.Errorf("[Get]: %w", err)
 	}
-	defer resp.Body.Close()
+	defer logClose(resp.Body)
 
 	f, err := os.Create(dest)
 	if err != nil {
 		return fmt.Errorf("[Create]: %w", err)
 	}
-	defer f.Close()
+	defer logClose(resp.Body)
 
 	_, err = io.Copy(f, resp.Body)
 	if err != nil {
@@ -92,5 +92,11 @@ func pathExists(path string) bool {
 func must(err error) {
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func logClose(closer io.Closer) {
+	if err := closer.Close(); err != nil {
+		log.Printf("Failed to close connection: %v", err)
 	}
 }

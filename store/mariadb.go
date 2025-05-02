@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	_ "embed"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/go-sql-driver/mysql"

@@ -119,7 +119,7 @@ func TestEditEvent_errors(t *testing.T) {
 	resp := apisAdmin.editEvent(editEventReq)
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	b, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
 	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
 	require.Contains(t, string(b), "names must match the pattern")
 }

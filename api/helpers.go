@@ -39,7 +39,7 @@ func mustParseForm(w http.ResponseWriter, req *http.Request) (success bool) {
 }
 
 func mustReadBodyAs[T any](w http.ResponseWriter, req *http.Request) (t T, success bool) {
-	defer req.Body.Close()
+	defer logClose(req.Body)
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		slog.Error("Failed to read request body", "error", err)
@@ -197,5 +197,11 @@ func rollback(txn *sql.Tx) {
 	err := txn.Rollback()
 	if err != nil && !errors.Is(err, sql.ErrTxDone) {
 		slog.Error("Failed to rollback transaction", "error", err)
+	}
+}
+
+func logClose(closer io.Closer) {
+	if err := closer.Close(); err != nil {
+		slog.Error("Failed to close connection", "error", err)
 	}
 }

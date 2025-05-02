@@ -136,7 +136,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
-	auth, resp := apisAdmin.getAuth(eventName)
+	authResp, resp := apisAdmin.getAuth(eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, api.GetAuthResponse{
 		Authenticated: true,
@@ -150,7 +150,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 				AttachFiles:       false,
 			},
 		},
-	}, auth)
+	}, authResp)
 }
 
 func TestPostAuthMakesRefreshCookie(t *testing.T) {
@@ -168,9 +168,9 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 	}
 	response := &api.PostAuthResponse{}
 	resp := apisNotAuthenticated.imsPost(req, serverURL.JoinPath("/ims/api/auth").String())
-	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	err = json.Unmarshal(b, &response)
 	require.NoError(t, err)

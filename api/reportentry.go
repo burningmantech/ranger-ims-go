@@ -70,7 +70,7 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 		handleErr(w, req, http.StatusInternalServerError, "Error starting transaction", err)
 		return
 	}
-	defer txn.Rollback()
+	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
 
 	err = dbTxn.SetFieldReportReportEntryStricken(ctx, imsdb.SetFieldReportReportEntryStrickenParams{
@@ -146,7 +146,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 		handleErr(w, req, http.StatusInternalServerError, "Error starting transaction", err)
 		return
 	}
-	defer txn.Rollback()
+	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
 
 	err = dbTxn.SetIncidentReportEntryStricken(ctx, imsdb.SetIncidentReportEntryStrickenParams{

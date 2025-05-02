@@ -31,7 +31,7 @@ import (
 )
 
 func TestPostAuthAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 	require.Empty(t, token)
 
 	// A user with the correct password gets logged in and gets a JWT
-	statusCode, body, token = apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, _, token = apisNotAuthenticated.postAuth(api.PostAuthRequest{
 		Identification: userAliceEmail,
 		Password:       userAlicePassword,
 	})
@@ -56,7 +56,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 	require.NotEmpty(t, token)
 
 	// That same valid user can also log in by handle
-	statusCode, body, token = apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, _, token = apisNotAuthenticated.postAuth(api.PostAuthRequest{
 		Identification: userAliceHandle,
 		Password:       userAlicePassword,
 	})
@@ -74,7 +74,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthWithEvent(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 }
 
 func TestPostAuthMakesRefreshCookie(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -170,6 +170,7 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 	resp := apisNotAuthenticated.imsPost(req, serverURL.JoinPath("/ims/api/auth").String())
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	err = json.Unmarshal(b, &response)
 	require.NoError(t, err)

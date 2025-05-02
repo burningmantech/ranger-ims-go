@@ -300,7 +300,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 		handleErr(w, req, http.StatusInternalServerError, "Failed to start transaction", err)
 		return
 	}
-	defer txn.Rollback()
+	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
 
 	if requestFR.Summary != nil {
@@ -413,7 +413,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		handleErr(w, req, http.StatusInternalServerError, "Failed to start transaction", err)
 		return
 	}
-	defer txn.Rollback()
+	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
 
 	err = dbTxn.CreateFieldReport(ctx, imsdb.CreateFieldReportParams{

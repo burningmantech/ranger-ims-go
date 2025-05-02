@@ -34,6 +34,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -69,11 +70,12 @@ func runServer(cmd *cobra.Command, args []string) {
 	must(err)
 	imsDB := store.MariaDB(imsCfg)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(ctx, mux, imsCfg, &store.DB{DB: imsDB}, userStore)
+	api.AddToMux(mux, eventSource, imsCfg, &store.DB{DB: imsDB}, userStore)
 	web.AddToMux(mux, imsCfg)
 
 	addr := fmt.Sprintf("%v:%v", imsCfg.Core.Host, imsCfg.Core.Port)
@@ -87,19 +89,28 @@ func runServer(cmd *cobra.Command, args []string) {
 		WriteTimeout:   30 * time.Minute,
 		MaxHeaderBytes: 1 << 20,
 	}
+	s.RegisterOnShutdown(func() {
+		eventSource.Server.Close()
+	})
+	go func() {
+		err := s.ListenAndServe()
+		slog.Error("ListenAndServe", "err", err)
+	}()
 
-	slog.Info("IMS server ready for connections", "address", addr)
-	go s.ListenAndServe()
+	slog.Info("IMS server is ready for connections", "address", addr)
+	slog.Info(fmt.Sprintf("Visit the web frontend at http://%v/ims/app", addr))
 
+	// The goroutine will hang here until the NotifyContext is done
 	<-ctx.Done()
 	stop()
 	slog.Error("Shutting down gracefully, press Ctrl+C again to force")
 
+	// Tell the server to shut down, giving it this much time to do so gracefully.
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	slog.Error("Server shut down", "err", s.Shutdown(timeoutCtx))
-	os.Exit(0)
+	err = s.Shutdown(timeoutCtx)
+	slog.Error("Server shut down", "err", err)
+	os.Exit(1)
 }
 
 func lookupEnv(key string) (string, bool) {

@@ -43,6 +43,7 @@ func (a ApiHelper) postAuth(req api.PostAuthRequest) (statusCode int, body, vali
 	resp := a.imsPost(req, a.serverURL.JoinPath("/ims/api/auth").String())
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
+	require.NoError(a.t, err)
 	if resp.StatusCode != http.StatusOK {
 		return resp.StatusCode, string(b), ""
 	}
@@ -69,6 +70,7 @@ func (a ApiHelper) refreshAccessToken(refreshCookie *http.Cookie) (statusCode in
 
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
+	require.NoError(a.t, err)
 	if resp.StatusCode != http.StatusOK {
 		return resp.StatusCode, nil
 	}
@@ -199,7 +201,7 @@ func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
 }
 
 func jwtForRealTestUser(t *testing.T) string {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -213,7 +215,7 @@ func jwtForRealTestUser(t *testing.T) string {
 }
 
 func jwtForTestAdminRanger(t *testing.T) string {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, shared.userStore))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)

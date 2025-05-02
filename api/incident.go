@@ -345,7 +345,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 	if err != nil {
 		return fmt.Errorf("[Begin]: %w", err)
 	}
-	defer txn.Rollback()
+	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
 
 	update := imsdb.UpdateIncidentParams{
@@ -574,6 +574,4 @@ func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
-
-	return
 }

@@ -19,6 +19,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"github.com/burningmantech/ranger-ims-go/auth"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -192,6 +193,9 @@ func stringOrNil(v sql.NullString) *string {
 	return nil
 }
 
-func ptr[T any](t T) *T {
-	return &t
+func rollback(txn *sql.Tx) {
+	err := txn.Rollback()
+	if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		slog.Error("Failed to rollback transaction", "error", err)
+	}
 }

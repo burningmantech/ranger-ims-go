@@ -50,7 +50,7 @@ func sampleIncident1(eventName string) imsjson.Incident {
 }
 
 func TestIncidentAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 }
 
 func TestCreateAndGetIncident(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 }
 
 func TestCreateAndUpdateIncident(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(t.Context(), nil, shared.cfg, shared.imsDB, nil))
+	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -190,7 +190,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 	num := apisNonAdmin.newIncidentSuccess(incidentReq)
 	incidentReq.Number = num
 
-	retrievedNewIncident, resp := apisNonAdmin.getIncident(eventName, num)
+	retrievedNewIncident, _ := apisNonAdmin.getIncident(eventName, num)
 
 	// Now let's update the incident. First let's try changing nothing.
 	updates := imsjson.Incident{

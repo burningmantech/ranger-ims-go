@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/auth/password"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -45,6 +46,7 @@ var shared struct {
 	imsDB *store.DB
 	// jwtAdmin, jwtNormalUser string
 	userStore *directory.UserStore
+	es        *api.EventSourcerer
 }
 
 const (
@@ -104,6 +106,7 @@ func setup(ctx context.Context) {
 			Teams:       nil,
 		},
 	}
+	shared.es = api.NewEventSourcerer()
 	userStore, err := directory.NewUserStore(shared.cfg.Directory.TestUsers, nil)
 	if err != nil {
 		panic(err)

@@ -35,7 +35,7 @@ type GetEventAccesses struct {
 }
 
 func (action GetEventAccesses) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp := imsjson.EventsAccess{}
+	var resp imsjson.EventsAccess
 	_, globalPermissions, ok := mustGetGlobalPermissions(w, req, action.imsDB, action.imsAdmins)
 	if !ok {
 		return
@@ -152,7 +152,7 @@ func (action PostEventAccess) maybeSetAccess(ctx context.Context, event imsdb.Ev
 	if err != nil {
 		return fmt.Errorf("[BeginTx]: %w", err)
 	}
-	defer txn.Rollback()
+	defer rollback(txn)
 	err = imsdb.New(txn).ClearEventAccessForMode(ctx, imsdb.ClearEventAccessForModeParams{
 		Event: event.ID,
 		Mode:  mode,

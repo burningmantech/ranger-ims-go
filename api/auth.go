@@ -63,12 +63,12 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	var matchedPerson *imsjson.Person
 	for _, person := range rangers {
-		callsignMatch := person.Handle != "" && person.Handle == vals.Identification
+		callsignMatch := person.Handle != "" && strings.EqualFold(person.Handle, vals.Identification)
 		if callsignMatch {
 			matchedPerson = &person
 			break
 		}
-		emailMatch := person.Email != "" && strings.ToLower(person.Email) == strings.ToLower(vals.Identification)
+		emailMatch := person.Email != "" && strings.EqualFold(person.Email, vals.Identification)
 		if emailMatch {
 			matchedPerson = &person
 			break
@@ -113,6 +113,10 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	refreshTokenExpiration := time.Now().Add(action.refreshTokenDuration)
 	refreshToken, err := auth.JWTer{SecretKey: action.jwtSecret}.
 		CreateRefreshToken(matchedPerson.Handle, matchedPerson.DirectoryID, refreshTokenExpiration)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to create refresh token", err)
+		return
+	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     auth.RefreshTokenCookieName,

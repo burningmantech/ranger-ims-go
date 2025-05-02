@@ -2,6 +2,10 @@ create table SCHEMA_INFO (
     VERSION smallint not null
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- This value must be updated when you make a new migration file.
+--
+
 insert into SCHEMA_INFO (VERSION) values (13);
 
 

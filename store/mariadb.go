@@ -19,6 +19,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"embed"
 	_ "embed"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -29,10 +30,13 @@ import (
 	"time"
 )
 
-//go:embed schema.sql
+//go:embed schema/current.sql
 var CurrentSchema string
 
-func MariaDB(imsCfg *conf.IMSConfig) *sql.DB {
+//go:embed schema/*-from-*.sql
+var Migrations embed.FS
+
+func MariaDB(ctx context.Context, imsCfg *conf.IMSConfig) *sql.DB {
 	slog.Info("Setting up IMS DB connection")
 
 	// Capture connection properties.
@@ -57,6 +61,12 @@ func MariaDB(imsCfg *conf.IMSConfig) *sql.DB {
 		slog.Error("Failed ping attempt to IMS DB", "error", pingErr)
 		os.Exit(1)
 	}
+
+	if err = MigrateDB(ctx, db); err != nil {
+		slog.Error("Failed to migrate IMS DB", "error", err)
+		os.Exit(1)
+	}
+
 	slog.Info("Connected to IMS MariaDB")
 	return db
 }

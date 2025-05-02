@@ -48,6 +48,7 @@ var serveCmd = &cobra.Command{
 }
 
 func runServer(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
 	imsCfg := conf.Cfg
 
 	var logLevel slog.Level
@@ -68,9 +69,9 @@ func runServer(cmd *cobra.Command, args []string) {
 		err = fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory)
 	}
 	must(err)
-	imsDB := store.MariaDB(imsCfg)
+	imsDB := store.MariaDB(ctx, imsCfg)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	eventSource := api.NewEventSourcerer()

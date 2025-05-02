@@ -23,5 +23,16 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
 # Start a new stage and only copy over the IMS binary.
 FROM alpine:latest
 COPY --from=build /app/ranger-ims-go /
+
+# Use a non-root user to run the server
+USER daemon:daemon
+
+# Docker-specific default configuration
+ENV IMS_HOSTNAME="0.0.0.0"
+ENV IMS_PORT="80"
+ENV IMS_DIRECTORY="ClubhouseDB"
+
+# This should match the IMS_PORT above
 EXPOSE 80
+
 CMD ["/ranger-ims-go", "serve"]

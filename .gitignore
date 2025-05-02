@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Docker compose data
+.docker
+
 # Test binary, built with `go test -c`
 *.test
 

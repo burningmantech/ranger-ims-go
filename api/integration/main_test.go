@@ -140,12 +140,9 @@ func setup(ctx context.Context) {
 	}
 	port, _ := strconv.Atoi(strings.TrimPrefix(endpoint, "localhost:"))
 	shared.cfg.Store.MySQL.HostPort = int32(port)
-	shared.imsDB = &store.DB{DB: store.MariaDB(shared.cfg)}
-	script := "BEGIN NOT ATOMIC\n" + store.CurrentSchema + "\nEND"
-	_, err = shared.imsDB.ExecContext(ctx, script)
-	if err != nil {
-		panic(err)
-	}
+	db := store.MariaDB(ctx, shared.cfg)
+	shared.imsDB = &store.DB{DB: db}
+
 }
 
 func shutdown(ctx context.Context) {

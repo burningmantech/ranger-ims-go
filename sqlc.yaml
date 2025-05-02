@@ -2,7 +2,7 @@ version: "2"
 sql:
 - engine: "mysql"
   queries: "store/queries.sql"
-  schema: "store/schema.sql"
+  schema: "store/schema/current.sql"
   gen:
     go:
       package: "imsdb"

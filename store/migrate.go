@@ -1,0 +1,113 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"github.com/go-sql-driver/mysql"
+	"log/slog"
+	"strconv"
+	"strings"
+)
+
+type schemaVersion int16
+
+func repoSchemaVersion() (schemaVersion, error) {
+	// Find the line
+	// `insert into SCHEMA_INFO (VERSION) values (123);`
+	// and extract the 123
+
+	// after this
+	insert := "insert into SCHEMA_INFO (VERSION) values ("
+	afterInsert := strings.SplitN(CurrentSchema, insert, 2)
+	if len(afterInsert) != 2 {
+		return 0, errors.New("couldn't find SCHEMA_INFO insert in current.sql")
+	}
+	// and before ")"
+	endParen := strings.SplitN(afterInsert[1], ")", 2)
+	if len(afterInsert) != 2 {
+		return 0, errors.New("couldn't find `)` after SCHEMA_INFO insert in current.sql")
+	}
+
+	vers, err := strconv.ParseInt(strings.TrimSpace(endParen[0]), 10, 16)
+	return schemaVersion(vers), err
+}
+
+func dbSchemaVersion(ctx context.Context, db *sql.DB) (schemaVersion, error) {
+	result, err := imsdb.New(db).SchemaVersion(ctx)
+	if err == nil {
+		return schemaVersion(result), nil
+	}
+
+	const tableUnknownError = 1146
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) && mysqlErr.Number == tableUnknownError {
+		slog.Info("No SCHEMA_INFO table found. This must be a new database.")
+		return 0, nil
+	}
+	return 0, fmt.Errorf("[schemaVersion]: %w", err)
+}
+
+func runScript(ctx context.Context, imsDB *sql.DB, sql string) error {
+	script := "BEGIN NOT ATOMIC\n" + sql + "\nEND"
+	_, err := imsDB.ExecContext(ctx, script)
+	if err != nil {
+		return fmt.Errorf("[ExecContext]: %w", err)
+	}
+	return nil
+}
+
+func migrate(ctx context.Context, imsDB *sql.DB, to, from schemaVersion) error {
+	if from == 0 {
+		if err := runScript(ctx, imsDB, CurrentSchema); err != nil {
+			return fmt.Errorf("[runScript]: %w", err)
+		}
+		slog.Info("Migrated schema version", "to", to, "from", from)
+		return nil
+	}
+	for step := from + 1; step <= to; step++ {
+		b, err := Migrations.ReadFile(fmt.Sprintf("schema/%02d-from-%02d.sql", step, step-1))
+		if err != nil {
+			return fmt.Errorf("[ReadFile]: %w", err)
+		}
+		if err := runScript(ctx, imsDB, string(b)); err != nil {
+			return fmt.Errorf("[runScript]: %w", err)
+		}
+		slog.Info("Migrated schema version", "to", step, "from", step-1)
+	}
+	return nil
+}
+
+func MigrateDB(ctx context.Context, imsDB *sql.DB) error {
+	dbVersion, err := dbSchemaVersion(ctx, imsDB)
+	if err != nil {
+		return fmt.Errorf("[dbSchemaVersion]: %w", err)
+	}
+	repoVersion, err := repoSchemaVersion()
+	if err != nil {
+		return fmt.Errorf("[repoSchemaVersion]: %w", err)
+	}
+	slog.Info("Schema versions are", "repoVersion", repoVersion, "dbVersion", dbVersion)
+	if dbVersion == repoVersion {
+		// DB is up-to-date. Move along.
+		return nil
+	}
+	if dbVersion > repoVersion {
+		return fmt.Errorf("the DB schema is ahead of the schema in the code (%v > %v). Something is wrong", dbVersion, repoVersion)
+	}
+	if err = migrate(ctx, imsDB, repoVersion, dbVersion); err != nil {
+		return fmt.Errorf("[migrate]: %w", err)
+	}
+
+	// We should be done now. Check to be sure the schema version was updated.
+	dbVersion, err = dbSchemaVersion(ctx, imsDB)
+	if err != nil {
+		return fmt.Errorf("[repoSchemaVersion]: %w", err)
+	}
+	if dbVersion != repoVersion {
+		return fmt.Errorf("failed to migrate to schema version %v. Database reports a version of %v", repoVersion, dbVersion)
+	}
+	return nil
+}

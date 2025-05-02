@@ -41,8 +41,8 @@ type ApiHelper struct {
 func (a ApiHelper) postAuth(req api.PostAuthRequest) (statusCode int, body, validJWT string) {
 	response := &api.PostAuthResponse{}
 	resp := a.imsPost(req, a.serverURL.JoinPath("/ims/api/auth").String())
-	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
+	require.NoError(a.t, resp.Body.Close())
 	require.NoError(a.t, err)
 	if resp.StatusCode != http.StatusOK {
 		return resp.StatusCode, string(b), ""
@@ -68,9 +68,9 @@ func (a ApiHelper) refreshAccessToken(refreshCookie *http.Cookie) (statusCode in
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 
-	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(a.t, err)
+	require.NoError(a.t, resp.Body.Close())
 	if resp.StatusCode != http.StatusOK {
 		return resp.StatusCode, nil
 	}
@@ -189,9 +189,9 @@ func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
 	}
 	get, err := client.Do(httpReq)
 	require.NoError(a.t, err)
-	defer get.Body.Close()
 	b, err := io.ReadAll(get.Body)
 	require.NoError(a.t, err)
+	require.NoError(a.t, get.Body.Close())
 	if get.StatusCode != http.StatusOK {
 		return resp, get
 	}

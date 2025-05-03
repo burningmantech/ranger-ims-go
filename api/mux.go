@@ -38,7 +38,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/access",
 		Adapt(
-			GetEventAccesses{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetEventAccesses{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -47,7 +47,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/access",
 		Adapt(
-			PostEventAccess{imsDB: db, imsAdmins: cfg.Core.Admins},
+			PostEventAccess{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -57,11 +57,11 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 	mux.Handle("POST /ims/api/auth",
 		Adapt(
 			PostAuth{
-				imsDB:                db,
-				userStore:            userStore,
-				jwtSecret:            cfg.Core.JWTSecret,
-				accessTokenDuration:  cfg.Core.AccessTokenLifetime,
-				refreshTokenDuration: cfg.Core.RefreshTokenLifetime,
+				db,
+				userStore,
+				cfg.Core.JWTSecret,
+				cfg.Core.AccessTokenLifetime,
+				cfg.Core.RefreshTokenLifetime,
 			},
 			RecoverOnPanic(),
 			LogBeforeAfter(),
@@ -74,9 +74,9 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 	mux.Handle("GET /ims/api/auth",
 		Adapt(
 			GetAuth{
-				imsDB:     db,
-				jwtSecret: cfg.Core.JWTSecret,
-				admins:    cfg.Core.Admins,
+				db,
+				cfg.Core.JWTSecret,
+				cfg.Core.Admins,
 			},
 			RecoverOnPanic(),
 			// This endpoint does not require authentication or authorization, by design
@@ -88,10 +88,10 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 	mux.Handle("POST /ims/api/auth/refresh",
 		Adapt(
 			RefreshAccessToken{
-				imsDB:               db,
-				userStore:           userStore,
-				jwtSecret:           cfg.Core.JWTSecret,
-				accessTokenDuration: cfg.Core.AccessTokenLifetime,
+				db,
+				userStore,
+				cfg.Core.JWTSecret,
+				cfg.Core.AccessTokenLifetime,
 			},
 			RecoverOnPanic(),
 			LogBeforeAfter(),
@@ -103,7 +103,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents",
 		Adapt(
-			GetIncidents{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetIncidents{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -112,7 +112,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents",
 		Adapt(
-			NewIncident{imsDB: db, es: es, imsAdmins: cfg.Core.Admins},
+			NewIncident{db, es, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -121,7 +121,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}",
 		Adapt(
-			GetIncident{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetIncident{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -130,7 +130,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}",
 		Adapt(
-			EditIncident{imsDB: db, es: es, imsAdmins: cfg.Core.Admins},
+			EditIncident{db, es, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -139,7 +139,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}",
 		Adapt(
-			EditIncidentReportEntry{imsDB: db, eventSource: es, imsAdmins: cfg.Core.Admins},
+			EditIncidentReportEntry{db, es, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -148,7 +148,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports",
 		Adapt(
-			GetFieldReports{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetFieldReports{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -157,7 +157,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports",
 		Adapt(
-			NewFieldReport{imsDB: db, eventSource: es, imsAdmins: cfg.Core.Admins},
+			NewFieldReport{db, es, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -166,7 +166,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
 		Adapt(
-			GetFieldReport{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetFieldReport{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -175,7 +175,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
 		Adapt(
-			EditFieldReport{imsDB: db, eventSource: es, imsAdmins: cfg.Core.Admins},
+			EditFieldReport{db, es, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -184,7 +184,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}",
 		Adapt(
-			EditFieldReportReportEntry{imsDB: db, eventSource: es, imsAdmins: cfg.Core.Admins},
+			EditFieldReportReportEntry{db, es, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -193,7 +193,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events",
 		Adapt(
-			GetEvents{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetEvents{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -202,7 +202,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events",
 		Adapt(
-			EditEvents{imsDB: db, imsAdmins: cfg.Core.Admins},
+			EditEvents{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -211,7 +211,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/streets",
 		Adapt(
-			GetStreets{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetStreets{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -220,7 +220,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/streets",
 		Adapt(
-			EditStreets{imsDB: db, imsAdmins: cfg.Core.Admins},
+			EditStreets{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -229,7 +229,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/incident_types",
 		Adapt(
-			GetIncidentTypes{imsDB: db, imsAdmins: cfg.Core.Admins},
+			GetIncidentTypes{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -238,7 +238,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/incident_types",
 		Adapt(
-			EditIncidentTypes{imsDB: db, imsAdmins: cfg.Core.Admins},
+			EditIncidentTypes{db, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -247,7 +247,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/personnel",
 		Adapt(
-			GetPersonnel{imsDB: db, userStore: userStore, imsAdmins: cfg.Core.Admins},
+			GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),

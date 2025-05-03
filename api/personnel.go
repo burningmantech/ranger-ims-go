@@ -17,17 +17,20 @@
 package api
 
 import (
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/auth"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"net/http"
+	"time"
 )
 
 type GetPersonnel struct {
-	imsDB     *store.DB
-	userStore *directory.UserStore
-	imsAdmins []string
+	imsDB             *store.DB
+	userStore         *directory.UserStore
+	imsAdmins         []string
+	cacheControlShort time.Duration
 }
 
 type GetPersonnelResponse []imsjson.Person
@@ -64,6 +67,6 @@ func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		})
 	}
 
-	w.Header().Set("Cache-Control", "max-age=1200, private")
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
 	mustWriteJSON(w, response)
 }

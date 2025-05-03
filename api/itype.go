@@ -17,17 +17,20 @@
 package api
 
 import (
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
 	"slices"
+	"time"
 )
 
 type GetIncidentTypes struct {
-	imsDB     *store.DB
-	imsAdmins []string
+	imsDB             *store.DB
+	imsAdmins         []string
+	cacheControlShort time.Duration
 }
 
 func (action GetIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -59,7 +62,7 @@ func (action GetIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	}
 	slices.Sort(response)
 
-	w.Header().Set("Cache-Control", "max-age=1200, private")
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
 	mustWriteJSON(w, response)
 }
 

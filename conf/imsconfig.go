@@ -44,6 +44,8 @@ func DefaultIMS() *IMSConfig {
 			LogLevel:             "INFO",
 			AccessTokenLifetime:  15 * time.Minute,
 			RefreshTokenLifetime: 8 * time.Hour,
+			CacheControlShort:    20 * time.Minute,
+			CacheControlLong:     2 * time.Hour,
 		},
 		Store: Store{
 			MySQL: StoreMySQL{
@@ -211,6 +213,16 @@ type ConfigCore struct {
 	JWTSecret            string `redact:"true"`
 	AttachmentsStore     string
 	Deployment           string
+
+	// CacheControlShort is the duration we set in various responses' Cache-Control headers
+	// for resources that aren't expected to change often, but still do change (e.g. the list of
+	// Events, Personnel, and Incident Types). Set this to 0 to disable that client-side caching.
+	CacheControlShort time.Duration
+
+	// CacheControlLong is the duration we set in various responses' Cache-Control headers
+	// for resources that won't change unless IMS is recompiled or its IMSConfig altered.
+	// For example, this is used for all the template html, JS, and CSS
+	CacheControlLong time.Duration
 
 	// LogLevel should be one of DEBUG, INFO, WARN, or ERROR
 	LogLevel string

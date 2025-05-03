@@ -28,11 +28,13 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"time"
 )
 
 type GetEvents struct {
-	imsDB     *store.DB
-	imsAdmins []string
+	imsDB             *store.DB
+	imsAdmins         []string
+	cacheControlShort time.Duration
 }
 
 func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -76,7 +78,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return cmp.Compare(a.ID, b.ID)
 	})
 
-	w.Header().Set("Cache-Control", "max-age=1200, private")
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
 	mustWriteJSON(w, resp)
 }
 

@@ -168,6 +168,19 @@ func initConfig() {
 		must(err)
 		newCfg.Core.AccessTokenLifetime = time.Duration(seconds) * time.Second
 	}
+	if v, ok := lookupEnv("IMS_CACHE_CONTROL_SHORT"); ok {
+		dur, err := time.ParseDuration(v)
+		must(err)
+		newCfg.Core.CacheControlShort = dur
+	}
+	if v, ok := lookupEnv("IMS_CACHE_CONTROL_LONG"); ok {
+		// These values must be given with a time unit in the env variable,
+		// e.g. "20s" or "5m10s". ParseDuration will fail here if the value
+		// is just a nonzero number.
+		dur, err := time.ParseDuration(v)
+		must(err)
+		newCfg.Core.CacheControlLong = dur
+	}
 	if v, ok := lookupEnv("IMS_LOG_LEVEL"); ok {
 		newCfg.Core.LogLevel = v
 	}

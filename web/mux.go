@@ -36,38 +36,38 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/static/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
-			Static(1*time.Hour),
+			Static(cfg.Core.CacheControlLong),
 		),
 	)
 	mux.Handle("GET /ims/app",
-		AdaptTempl(template.Root(cfg.Core.Deployment)),
+		AdaptTempl(template.Root(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin",
-		AdaptTempl(template.AdminRoot(cfg.Core.Deployment)),
+		AdaptTempl(template.AdminRoot(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/events",
-		AdaptTempl(template.AdminEvents(cfg.Core.Deployment)),
+		AdaptTempl(template.AdminEvents(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/streets",
-		AdaptTempl(template.AdminStreets(cfg.Core.Deployment)),
+		AdaptTempl(template.AdminStreets(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/types",
-		AdaptTempl(template.AdminTypes(cfg.Core.Deployment)),
+		AdaptTempl(template.AdminTypes(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/field_reports",
-		AdaptTempl(template.FieldReports(cfg.Core.Deployment)),
+		AdaptTempl(template.FieldReports(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/field_reports/{fieldReportNumber}",
-		AdaptTempl(template.FieldReport(cfg.Core.Deployment)),
+		AdaptTempl(template.FieldReport(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/incidents",
-		AdaptTempl(template.Incidents(cfg.Core.Deployment)),
+		AdaptTempl(template.Incidents(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/incidents/{incidentNumber}",
-		AdaptTempl(template.Incident(cfg.Core.Deployment)),
+		AdaptTempl(template.Incident(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/auth/login",
-		AdaptTempl(template.Login(cfg.Core.Deployment)),
+		AdaptTempl(template.Login(cfg.Core.Deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/auth/logout",
 		Adapt(
@@ -102,7 +102,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 func Static(dur time.Duration) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			durSec := int64(dur.Seconds())
+			durSec := dur.Milliseconds() / 1000
 			w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", durSec))
 			next.ServeHTTP(w, r.WithContext(r.Context()))
 		})
@@ -120,11 +120,10 @@ func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
 	return handler
 }
 
-func AdaptTempl(comp templ.Component, adapters ...Adapter) http.Handler {
-	adapters = append(adapters, Static(1*time.Hour))
+func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, adapters ...Adapter) http.Handler {
+	adapters = append(adapters, Static(cacheControlLong))
 	return Adapt(
 		func(w http.ResponseWriter, req *http.Request) {
-			w.Header().Set("Cache-Control", "max-age=1200, private")
 			err := comp.Render(req.Context(), w)
 			if err != nil {
 				slog.Error("Failed to render template", "error", err)

@@ -1,28 +1,30 @@
-package conf
+package conf_test
 
 import (
+	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestPrintRedacted(t *testing.T) {
-	cfg := IMSConfig{
-		Core: ConfigCore{
+	t.Parallel()
+	cfg := conf.IMSConfig{
+		Core: conf.ConfigCore{
 			Admins: []string{"admin user"},
 		},
-		Store: Store{
-			MySQL: StoreMySQL{
+		Store: conf.Store{
+			MySQL: conf.StoreMySQL{
 				Username: "db username",
 				Password: "db password",
 			},
 		},
-		Directory: Directory{
-			TestUsers: []TestUser{
+		Directory: conf.Directory{
+			TestUsers: []conf.TestUser{
 				{
 					Password: "user password",
 				},
 			},
-			ClubhouseDB: ClubhouseDB{
+			ClubhouseDB: conf.ClubhouseDB{
 				Username: "clubhouse username",
 				Password: "clubhouse password",
 			},

@@ -67,7 +67,7 @@ func printRedacted(w io.Writer, v reflect.Value, indent string) error {
 	const nestIndent = "    "
 	s := v
 	typeOfT := s.Type()
-	for i := 0; i < s.NumField(); i++ {
+	for i := range s.NumField() {
 		f := s.Field(i)
 
 		redact := strings.EqualFold(typeOfT.Field(i).Tag.Get("redact"), "true")
@@ -103,7 +103,7 @@ func printRedacted(w io.Writer, v reflect.Value, indent string) error {
 					return err
 				}
 			} else {
-				for j := 0; j < x1.Len(); j++ {
+				for j := range x1.Len() {
 					_, err := fmt.Fprintf(w, "%v%v[%d]\n", indent, typeOfT.Field(i).Name, j)
 					if err != nil {
 						return err

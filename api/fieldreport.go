@@ -247,7 +247,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 		previousIncident := storedFR.IncidentNumber
 
 		var newIncident sql.NullInt32
-		entryText := ""
+		var entryText string
 		switch queryAction {
 		case "attach":
 			num, err := strconv.ParseInt(req.FormValue("incident"), 10, 32)
@@ -308,7 +308,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 		text := "Changed summary to: " + *requestFR.Summary
 		err = addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, text, true)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Error adding system Field Report Report Entry", err)
+			handleErr(w, req, http.StatusInternalServerError, "Error adding system Field Report ReportEntry", err)
 			return
 		}
 	}
@@ -328,7 +328,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 		err = addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, entry.Text, false)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Error adding Field Report Report Entry", err)
+			handleErr(w, req, http.StatusInternalServerError, "Error adding Field Report ReportEntry", err)
 			return
 		}
 	}
@@ -356,7 +356,7 @@ func (action EditFieldReport) mustCheckIfPreviousAuthor(
 			FieldReportNumber: fieldReportNumber,
 		})
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Field Report Report Entries", err)
+		handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Field Report ReportEntries", err)
 		return false
 	}
 	authorMatch := false
@@ -454,7 +454,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	}
 
 	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, newFrNum)
-	w.Header().Set("X-IMS-Field-Report-Number", fmt.Sprint(newFrNum))
+	w.Header().Set("X-IMS-Field-Report-Number", strconv.Itoa(int(newFrNum)))
 	w.Header().Set("Location", loc)
 	defer action.eventSource.notifyFieldReportUpdate(event.Name, int32(newFrNum))
 

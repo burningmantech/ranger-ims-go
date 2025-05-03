@@ -14,17 +14,18 @@
 // limitations under the License.
 //
 
-package auth
+package auth_test
 
 import (
+	. "github.com/burningmantech/ranger-ims-go/auth"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-var (
-	testAdmins = []string{"AdminCat", "AdminDog"}
+var testAdmins = []string{"AdminCat", "AdminDog"}
 
+const (
 	readerPerm             = EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports
 	writerPerm             = EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports
 	reporterPerm           = EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports
@@ -42,6 +43,7 @@ func addPerm(m map[int32][]imsdb.EventAccess, eventID int32, expr, mode, validit
 }
 
 func TestManyEventPermissions_personRules(t *testing.T) {
+	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
 	addPerm(accessByEvent, 999, "person:SomeoneElse", "read", "always")
 	addPerm(accessByEvent, 123, "person:EventReaderGuy", "read", "always")
@@ -97,6 +99,7 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 }
 
 func TestManyEventPermissions_positionRules(t *testing.T) {
+	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
 	addPerm(accessByEvent, 123, "person:Running Ranger", "report", "always")
 	addPerm(accessByEvent, 123, "position:Runner", "read", "always")
@@ -117,6 +120,7 @@ func TestManyEventPermissions_positionRules(t *testing.T) {
 }
 
 func TestManyEventPermissions_teamRules(t *testing.T) {
+	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
 	addPerm(accessByEvent, 123, "position:Runner", "report", "always")
 	addPerm(accessByEvent, 123, "team:Running Squad", "read", "always")
@@ -137,6 +141,7 @@ func TestManyEventPermissions_teamRules(t *testing.T) {
 }
 
 func TestManyEventPermissions_wildcardValidity(t *testing.T) {
+	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
 	addPerm(accessByEvent, 123, "*", "report", "onsite")
 

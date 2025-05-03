@@ -17,6 +17,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -36,7 +37,7 @@ func (j JWTer) createJWT(claims IMSClaims) (string, error) {
 
 func (j JWTer) authenticateJWT(jwtStr string) (*IMSClaims, error) {
 	if jwtStr == "" {
-		return nil, fmt.Errorf("no JWT string provided")
+		return nil, errors.New("no JWT string provided")
 	}
 	claims := IMSClaims{}
 	tok, err := jwt.ParseWithClaims(jwtStr, &claims, func(token *jwt.Token) (any, error) {
@@ -46,13 +47,13 @@ func (j JWTer) authenticateJWT(jwtStr string) (*IMSClaims, error) {
 		return nil, fmt.Errorf("[jwt.Parse]: %w", err)
 	}
 	if tok == nil {
-		return nil, fmt.Errorf("token is nil")
+		return nil, errors.New("token is nil")
 	}
 	if !tok.Valid {
-		return nil, fmt.Errorf("token is invalid")
+		return nil, errors.New("token is invalid")
 	}
 	if claims.RangerHandle() == "" {
-		return nil, fmt.Errorf("ranger handle is required")
+		return nil, errors.New("ranger handle is required")
 	}
 	return &claims, nil
 }

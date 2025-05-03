@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package integration
+package integration_test
 
 import (
 	"bytes"
@@ -38,6 +38,7 @@ type ApiHelper struct {
 }
 
 func (a ApiHelper) postAuth(req api.PostAuthRequest) (statusCode int, body, validJWT string) {
+	a.t.Helper()
 	response := &api.PostAuthResponse{}
 	resp := a.imsPost(req, a.serverURL.JoinPath("/ims/api/auth").String())
 	b, err := io.ReadAll(resp.Body)
@@ -52,6 +53,7 @@ func (a ApiHelper) postAuth(req api.PostAuthRequest) (statusCode int, body, vali
 }
 
 func (a ApiHelper) refreshAccessToken(refreshCookie *http.Cookie) (statusCode int, result *api.RefreshAccessTokenResponse) {
+	a.t.Helper()
 	response := &api.RefreshAccessTokenResponse{}
 	postBody, err := json.Marshal(struct{}{})
 	require.NoError(a.t, err)
@@ -79,6 +81,7 @@ func (a ApiHelper) refreshAccessToken(refreshCookie *http.Cookie) (statusCode in
 }
 
 func (a ApiHelper) getAuth(eventName string) (api.GetAuthResponse, *http.Response) {
+	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/auth").String()
 	if eventName != "" {
 		path = path + "?event_id=" + eventName
@@ -88,10 +91,12 @@ func (a ApiHelper) getAuth(eventName string) (api.GetAuthResponse, *http.Respons
 }
 
 func (a ApiHelper) editTypes(req imsjson.EditIncidentTypesRequest) *http.Response {
+	a.t.Helper()
 	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/incident_types").String())
 }
 
 func (a ApiHelper) getTypes(includeHidden bool) (imsjson.IncidentTypes, *http.Response) {
+	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/incident_types").String()
 	if includeHidden {
 		path = path + "?hidden=true"
@@ -101,46 +106,54 @@ func (a ApiHelper) getTypes(includeHidden bool) (imsjson.IncidentTypes, *http.Re
 }
 
 func (a ApiHelper) newIncident(req imsjson.Incident) *http.Response {
+	a.t.Helper()
 	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/incidents").String())
 }
 
 func (a ApiHelper) newIncidentSuccess(incidentReq imsjson.Incident) (incidentNumber int32) {
+	a.t.Helper()
 	resp := a.newIncident(incidentReq)
 	require.Equal(a.t, http.StatusCreated, resp.StatusCode)
 	numStr := resp.Header.Get("X-IMS-Incident-Number")
 	require.NotEmpty(a.t, numStr)
 	num, err := strconv.ParseInt(numStr, 10, 32)
 	require.NoError(a.t, err)
-	require.Greater(a.t, num, int64(0))
+	require.Positive(a.t, num)
 	return int32(num)
 }
 
 func (a ApiHelper) getIncident(eventName string, incident int32) (imsjson.Incident, *http.Response) {
-	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", fmt.Sprint(incident)).String()
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String()
 	bod, resp := a.imsGet(path, &imsjson.Incident{})
 	return *bod.(*imsjson.Incident), resp
 }
 
 func (a ApiHelper) updateIncident(eventName string, incident int32, req imsjson.Incident) *http.Response {
-	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", fmt.Sprint(incident)).String())
+	a.t.Helper()
+	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String())
 }
 
 func (a ApiHelper) getIncidents(eventName string) (imsjson.Incidents, *http.Response) {
+	a.t.Helper()
 	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/incidents")).String()
 	bod, resp := a.imsGet(path, &imsjson.Incidents{})
 	return *bod.(*imsjson.Incidents), resp
 }
 
 func (a ApiHelper) editEvent(req imsjson.EditEventsRequest) *http.Response {
+	a.t.Helper()
 	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/events").String())
 }
 
 func (a ApiHelper) getEvents() (imsjson.Events, *http.Response) {
+	a.t.Helper()
 	bod, resp := a.imsGet(a.serverURL.JoinPath("/ims/api/events").String(), &imsjson.Events{})
 	return *bod.(*imsjson.Events), resp
 }
 
 func (a ApiHelper) addWriter(eventName, handle string) *http.Response {
+	a.t.Helper()
 	return a.editAccess(imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
 			Writers: []imsjson.AccessRule{{
@@ -152,15 +165,18 @@ func (a ApiHelper) addWriter(eventName, handle string) *http.Response {
 }
 
 func (a ApiHelper) editAccess(req imsjson.EventsAccess) *http.Response {
+	a.t.Helper()
 	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/access").String())
 }
 
 func (a ApiHelper) getAccess() (imsjson.EventsAccess, *http.Response) {
+	a.t.Helper()
 	bod, resp := a.imsGet(a.serverURL.JoinPath("/ims/api/access").String(), &imsjson.EventsAccess{})
 	return *bod.(*imsjson.EventsAccess), resp
 }
 
 func (a ApiHelper) imsPost(body any, path string) *http.Response {
+	a.t.Helper()
 	postBody, err := json.Marshal(body)
 	require.NoError(a.t, err)
 	httpPost, err := http.NewRequest("POST", path, bytes.NewReader(postBody))
@@ -178,6 +194,7 @@ func (a ApiHelper) imsPost(body any, path string) *http.Response {
 }
 
 func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
+	a.t.Helper()
 	httpReq, err := http.NewRequest("GET", path, nil)
 	require.NoError(a.t, err)
 	if a.jwt != "" {
@@ -200,6 +217,7 @@ func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
 }
 
 func jwtForRealTestUser(t *testing.T) string {
+	t.Helper()
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 	statusCode, _, token := apisNotAuthenticated.postAuth(api.PostAuthRequest{
 		Identification: userAliceEmail,
@@ -210,6 +228,7 @@ func jwtForRealTestUser(t *testing.T) string {
 }
 
 func jwtForTestAdminRanger(t *testing.T) string {
+	t.Helper()
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 	statusCode, _, token := apisNotAuthenticated.postAuth(api.PostAuthRequest{
 		Identification: userAdminEmail,

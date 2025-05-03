@@ -14,12 +14,11 @@
 // limitations under the License.
 //
 
-package integration
+package integration_test
 
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/auth/password"
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -28,6 +27,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"log"
 	"log/slog"
 	"net/http/httptest"
 	"net/url"
@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered from panic")
+			log.Println("Recovered from panic")
 			shutdown(ctx)
 		}
 	}()

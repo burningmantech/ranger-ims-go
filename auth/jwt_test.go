@@ -14,16 +14,18 @@
 // limitations under the License.
 //
 
-package auth
+package auth_test
 
 import (
+	"github.com/burningmantech/ranger-ims-go/auth"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
 
 func TestCreateAndGetValidJWT(t *testing.T) {
-	jwter := JWTer{"some-secret"}
+	t.Parallel()
+	jwter := auth.JWTer{SecretKey: "some-secret"}
 	j, err := jwter.CreateAccessToken(
 		"Hardware",
 		12345,
@@ -41,11 +43,12 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 	require.Equal(t, "12345", sub)
 	require.Equal(t, []string{"Fluffer", "Operator"}, claims.RangerPositions())
 	require.Equal(t, []string{"Fluff Squad"}, claims.RangerTeams())
-	require.Equal(t, true, claims.RangerOnSite())
+	require.True(t, claims.RangerOnSite())
 }
 
 func TestCreateAndGetInvalidJWTs(t *testing.T) {
-	jwter := JWTer{"some-secret"}
+	t.Parallel()
+	jwter := auth.JWTer{SecretKey: "some-secret"}
 	expiredJWT, err := jwter.CreateAccessToken(
 		"Hardware",
 		1,
@@ -55,7 +58,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		time.Now().Add(-1*time.Hour),
 	)
 	require.NoError(t, err)
-	differentKeyJWT, err := JWTer{"some-other-secret"}.CreateAccessToken(
+	differentKeyJWT, err := auth.JWTer{"some-other-secret"}.CreateAccessToken(
 		"Hardware",
 		1,
 		nil,

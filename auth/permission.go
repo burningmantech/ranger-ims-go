@@ -52,7 +52,7 @@ const (
 )
 
 const (
-	// Event-specific permissions
+	// Event-specific permissions.
 
 	EventReadIncidents EventPermissionMask = 1 << iota
 	EventWriteIncidents
@@ -64,7 +64,7 @@ const (
 )
 
 const (
-	// Permissions that aren't event-specific
+	// Permissions that aren't event-specific.
 
 	GlobalListEvents GlobalPermissionMask = 1 << iota
 	GlobalReadIncidentTypes
@@ -115,7 +115,6 @@ func ManyEventPermissions(
 	positions []string,
 	teams []string,
 ) (eventPermissions map[int32]EventPermissionMask, globalPermissions GlobalPermissionMask) {
-
 	eventPermissions = make(map[int32]EventPermissionMask)
 	globalPermissions = GlobalNoPermissions
 

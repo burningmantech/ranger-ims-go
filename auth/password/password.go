@@ -20,7 +20,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"strings"
 )
 
@@ -31,12 +31,12 @@ const (
 func Verify(password, storedValue string) (isValid bool, err error) {
 	salt, storedHash, found := strings.Cut(storedValue, saltPasswordSep)
 	if !found {
-		return false, fmt.Errorf("invalid hashed password")
+		return false, errors.New("invalid hashed password")
 	}
-	return hash(password, salt) == storedHash, nil
+	return Hash(password, salt) == storedHash, nil
 }
 
-func hash(password, salt string) string {
+func Hash(password, salt string) string {
 	hasher := sha1.New()
 	hasher.Write([]byte(salt + password))
 	return hex.EncodeToString(hasher.Sum(nil))
@@ -44,5 +44,5 @@ func hash(password, salt string) string {
 
 func NewSalted(password string) string {
 	salt := rand.Text()
-	return salt + ":" + hash(password, salt)
+	return salt + ":" + Hash(password, salt)
 }

@@ -379,7 +379,7 @@ export async function commonPageInit(): Promise<PageInitResult> {
 export async function redirectToLogin(): Promise<void> {
     await fetch(url_logout);
     console.log("Logged out. Redirecting to login page")
-    window.location.replace(`${url_login}?o=${window.location.pathname}`);
+    window.location.replace(`${url_login}?o=${encodeURIComponent(window.location.pathname)}`);
 }
 
 function renderCommonPageItems(authInfo: AuthInfo): void {

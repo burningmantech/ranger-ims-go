@@ -42,7 +42,15 @@ async function login() {
     ims.setAccessToken(json.token);
     ims.setRefreshTokenBy(json.expires_unix_ms);
     const redirect = new URLSearchParams(window.location.search).get("o");
-    if (redirect != null) {
+    // There are dangers with using redirects to destinations from unsafe strings.
+    // We can limit this by requiring the destination be within IMS and not contain
+    // exotic characters.
+    //
+    // https://github.com/burningmantech/ranger-ims-go/security/code-scanning/4
+    // https://github.com/burningmantech/ranger-ims-go/security/code-scanning/6
+    const internalDest = (str) => str.startsWith("/ims/");
+    const looksSafe = (str) => /^[\w\-/?=]+$/.test(str);
+    if (redirect != null && internalDest(redirect) && looksSafe(redirect)) {
         window.location.replace(redirect);
     }
     else {

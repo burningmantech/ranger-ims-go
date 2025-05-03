@@ -333,7 +333,7 @@ export async function commonPageInit() {
 export async function redirectToLogin() {
     await fetch(url_logout);
     console.log("Logged out. Redirecting to login page");
-    window.location.replace(`${url_login}?o=${window.location.pathname}`);
+    window.location.replace(`${url_login}?o=${encodeURIComponent(window.location.pathname)}`);
 }
 function renderCommonPageItems(authInfo) {
     if (authInfo.authenticated) {

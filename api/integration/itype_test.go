@@ -26,35 +26,37 @@ import (
 
 func TestIncidentTypesAPIAuthorization(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Any authenticated user can call GetIncidentTypes
-	_, resp := apisNotAuthenticated.getTypes(false)
+	_, resp := apisNotAuthenticated.getTypes(ctx, false)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	_, resp = apisNonAdmin.getTypes(false)
+	_, resp = apisNonAdmin.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	_, resp = apisAdmin.getTypes(false)
+	_, resp = apisAdmin.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// Only admins can hit the EditIncidentTypes endpoint
 	// An unauthenticated client will get a 401
 	// An unauthorized user will get a 403
 	editTypesReq := imsjson.EditIncidentTypesRequest{}
-	resp = apisNotAuthenticated.editTypes(editTypesReq)
+	resp = apisNotAuthenticated.editTypes(ctx, editTypesReq)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	resp = apisNonAdmin.editTypes(editTypesReq)
+	resp = apisNonAdmin.editTypes(ctx, editTypesReq)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	resp = apisAdmin.editTypes(editTypesReq)
+	resp = apisAdmin.editTypes(ctx, editTypesReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 }
 
 func TestCreateIncident(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
 
 	// Make three new incident types
 	typeA, typeB, typeC := uuid.New().String(), uuid.New().String(), uuid.New().String()
@@ -63,10 +65,10 @@ func TestCreateIncident(t *testing.T) {
 		Hide: nil,
 		Show: nil,
 	}
-	apis.editTypes(createTypes)
+	apis.editTypes(ctx, createTypes)
 
 	// All three types should now be retrievable and non-hidden
-	typesResp, resp := apis.getTypes(false)
+	typesResp, resp := apis.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, typesResp, typeA)
 	require.Contains(t, typesResp, typeB)
@@ -76,16 +78,16 @@ func TestCreateIncident(t *testing.T) {
 	hideOne := imsjson.EditIncidentTypesRequest{
 		Hide: imsjson.IncidentTypes{typeA},
 	}
-	apis.editTypes(hideOne)
+	apis.editTypes(ctx, hideOne)
 
 	// That type should no longer appear from the standard incident type query
-	typesVisibleOnly, resp := apis.getTypes(false)
+	typesVisibleOnly, resp := apis.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NotContains(t, typesVisibleOnly, typeA)
 	require.Contains(t, typesVisibleOnly, typeB)
 	require.Contains(t, typesVisibleOnly, typeC)
 	// but it will still appears when includeHidden=true
-	typesIncludeHidden, resp := apis.getTypes(true)
+	typesIncludeHidden, resp := apis.getTypes(ctx, true)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, typesIncludeHidden, typeA)
 	require.Contains(t, typesIncludeHidden, typeB)
@@ -95,9 +97,9 @@ func TestCreateIncident(t *testing.T) {
 	showItAgain := imsjson.EditIncidentTypesRequest{
 		Show: imsjson.IncidentTypes{typeA, typeB},
 	}
-	apis.editTypes(showItAgain)
+	apis.editTypes(ctx, showItAgain)
 	// and see that it's back in the standard incident type query results
-	typesVisibleOnly, resp = apis.getTypes(false)
+	typesVisibleOnly, resp = apis.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, typesVisibleOnly, typeA)
 	require.Contains(t, typesVisibleOnly, typeB)

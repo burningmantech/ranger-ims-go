@@ -18,6 +18,7 @@ package integration_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
@@ -37,10 +38,10 @@ type ApiHelper struct {
 	jwt       string
 }
 
-func (a ApiHelper) postAuth(req api.PostAuthRequest) (statusCode int, body, validJWT string) {
+func (a ApiHelper) postAuth(ctx context.Context, req api.PostAuthRequest) (statusCode int, body, validJWT string) {
 	a.t.Helper()
 	response := &api.PostAuthResponse{}
-	resp := a.imsPost(req, a.serverURL.JoinPath("/ims/api/auth").String())
+	resp := a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/auth").String())
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(a.t, resp.Body.Close())
 	require.NoError(a.t, err)
@@ -52,12 +53,12 @@ func (a ApiHelper) postAuth(req api.PostAuthRequest) (statusCode int, body, vali
 	return resp.StatusCode, string(b), response.Token
 }
 
-func (a ApiHelper) refreshAccessToken(refreshCookie *http.Cookie) (statusCode int, result *api.RefreshAccessTokenResponse) {
+func (a ApiHelper) refreshAccessToken(ctx context.Context, refreshCookie *http.Cookie) (statusCode int, result *api.RefreshAccessTokenResponse) {
 	a.t.Helper()
 	response := &api.RefreshAccessTokenResponse{}
 	postBody, err := json.Marshal(struct{}{})
 	require.NoError(a.t, err)
-	httpPost, err := http.NewRequest("POST", a.serverURL.JoinPath("/ims/api/auth/refresh").String(), bytes.NewReader(postBody))
+	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, a.serverURL.JoinPath("/ims/api/auth/refresh").String(), bytes.NewReader(postBody))
 	require.NoError(a.t, err)
 	if a.jwt != "" {
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
@@ -80,39 +81,39 @@ func (a ApiHelper) refreshAccessToken(refreshCookie *http.Cookie) (statusCode in
 	return resp.StatusCode, response
 }
 
-func (a ApiHelper) getAuth(eventName string) (api.GetAuthResponse, *http.Response) {
+func (a ApiHelper) getAuth(ctx context.Context, eventName string) (api.GetAuthResponse, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/auth").String()
 	if eventName != "" {
 		path = path + "?event_id=" + eventName
 	}
-	bod, resp := a.imsGet(path, &api.GetAuthResponse{})
+	bod, resp := a.imsGet(ctx, path, &api.GetAuthResponse{})
 	return *bod.(*api.GetAuthResponse), resp
 }
 
-func (a ApiHelper) editTypes(req imsjson.EditIncidentTypesRequest) *http.Response {
+func (a ApiHelper) editTypes(ctx context.Context, req imsjson.EditIncidentTypesRequest) *http.Response {
 	a.t.Helper()
-	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/incident_types").String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/incident_types").String())
 }
 
-func (a ApiHelper) getTypes(includeHidden bool) (imsjson.IncidentTypes, *http.Response) {
+func (a ApiHelper) getTypes(ctx context.Context, includeHidden bool) (imsjson.IncidentTypes, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/incident_types").String()
 	if includeHidden {
 		path = path + "?hidden=true"
 	}
-	bod, resp := a.imsGet(path, &imsjson.IncidentTypes{})
+	bod, resp := a.imsGet(ctx, path, &imsjson.IncidentTypes{})
 	return *bod.(*imsjson.IncidentTypes), resp
 }
 
-func (a ApiHelper) newIncident(req imsjson.Incident) *http.Response {
+func (a ApiHelper) newIncident(ctx context.Context, req imsjson.Incident) *http.Response {
 	a.t.Helper()
-	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/incidents").String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/incidents").String())
 }
 
-func (a ApiHelper) newIncidentSuccess(incidentReq imsjson.Incident) (incidentNumber int32) {
+func (a ApiHelper) newIncidentSuccess(ctx context.Context, incidentReq imsjson.Incident) (incidentNumber int32) {
 	a.t.Helper()
-	resp := a.newIncident(incidentReq)
+	resp := a.newIncident(ctx, incidentReq)
 	require.Equal(a.t, http.StatusCreated, resp.StatusCode)
 	numStr := resp.Header.Get("X-IMS-Incident-Number")
 	require.NotEmpty(a.t, numStr)
@@ -122,39 +123,39 @@ func (a ApiHelper) newIncidentSuccess(incidentReq imsjson.Incident) (incidentNum
 	return int32(num)
 }
 
-func (a ApiHelper) getIncident(eventName string, incident int32) (imsjson.Incident, *http.Response) {
+func (a ApiHelper) getIncident(ctx context.Context, eventName string, incident int32) (imsjson.Incident, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String()
-	bod, resp := a.imsGet(path, &imsjson.Incident{})
+	bod, resp := a.imsGet(ctx, path, &imsjson.Incident{})
 	return *bod.(*imsjson.Incident), resp
 }
 
-func (a ApiHelper) updateIncident(eventName string, incident int32, req imsjson.Incident) *http.Response {
+func (a ApiHelper) updateIncident(ctx context.Context, eventName string, incident int32, req imsjson.Incident) *http.Response {
 	a.t.Helper()
-	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String())
 }
 
-func (a ApiHelper) getIncidents(eventName string) (imsjson.Incidents, *http.Response) {
+func (a ApiHelper) getIncidents(ctx context.Context, eventName string) (imsjson.Incidents, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/incidents")).String()
-	bod, resp := a.imsGet(path, &imsjson.Incidents{})
+	bod, resp := a.imsGet(ctx, path, &imsjson.Incidents{})
 	return *bod.(*imsjson.Incidents), resp
 }
 
-func (a ApiHelper) editEvent(req imsjson.EditEventsRequest) *http.Response {
+func (a ApiHelper) editEvent(ctx context.Context, req imsjson.EditEventsRequest) *http.Response {
 	a.t.Helper()
-	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/events").String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events").String())
 }
 
-func (a ApiHelper) getEvents() (imsjson.Events, *http.Response) {
+func (a ApiHelper) getEvents(ctx context.Context) (imsjson.Events, *http.Response) {
 	a.t.Helper()
-	bod, resp := a.imsGet(a.serverURL.JoinPath("/ims/api/events").String(), &imsjson.Events{})
+	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/events").String(), &imsjson.Events{})
 	return *bod.(*imsjson.Events), resp
 }
 
-func (a ApiHelper) addWriter(eventName, handle string) *http.Response {
+func (a ApiHelper) addWriter(ctx context.Context, eventName, handle string) *http.Response {
 	a.t.Helper()
-	return a.editAccess(imsjson.EventsAccess{
+	return a.editAccess(ctx, imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
 			Writers: []imsjson.AccessRule{{
 				Expression: "person:" + handle,
@@ -164,22 +165,22 @@ func (a ApiHelper) addWriter(eventName, handle string) *http.Response {
 	})
 }
 
-func (a ApiHelper) editAccess(req imsjson.EventsAccess) *http.Response {
+func (a ApiHelper) editAccess(ctx context.Context, req imsjson.EventsAccess) *http.Response {
 	a.t.Helper()
-	return a.imsPost(req, a.serverURL.JoinPath("/ims/api/access").String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/access").String())
 }
 
-func (a ApiHelper) getAccess() (imsjson.EventsAccess, *http.Response) {
+func (a ApiHelper) getAccess(ctx context.Context) (imsjson.EventsAccess, *http.Response) {
 	a.t.Helper()
-	bod, resp := a.imsGet(a.serverURL.JoinPath("/ims/api/access").String(), &imsjson.EventsAccess{})
+	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/access").String(), &imsjson.EventsAccess{})
 	return *bod.(*imsjson.EventsAccess), resp
 }
 
-func (a ApiHelper) imsPost(body any, path string) *http.Response {
+func (a ApiHelper) imsPost(ctx context.Context, body any, path string) *http.Response {
 	a.t.Helper()
 	postBody, err := json.Marshal(body)
 	require.NoError(a.t, err)
-	httpPost, err := http.NewRequest("POST", path, bytes.NewReader(postBody))
+	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, path, bytes.NewReader(postBody))
 	require.NoError(a.t, err)
 	if a.jwt != "" {
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
@@ -193,9 +194,9 @@ func (a ApiHelper) imsPost(body any, path string) *http.Response {
 	// require.Equal(a.t, http.StatusNoContent, resp.StatusCode)
 }
 
-func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
+func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *http.Response) {
 	a.t.Helper()
-	httpReq, err := http.NewRequest("GET", path, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	require.NoError(a.t, err)
 	if a.jwt != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+a.jwt)
@@ -216,10 +217,10 @@ func (a ApiHelper) imsGet(path string, resp any) (any, *http.Response) {
 	return resp, get
 }
 
-func jwtForRealTestUser(t *testing.T) string {
+func jwtForRealTestUser(t *testing.T, ctx context.Context) string {
 	t.Helper()
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
-	statusCode, _, token := apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, _, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
 		Identification: userAliceEmail,
 		Password:       userAlicePassword,
 	})
@@ -227,10 +228,10 @@ func jwtForRealTestUser(t *testing.T) string {
 	return token
 }
 
-func jwtForTestAdminRanger(t *testing.T) string {
+func jwtForTestAdminRanger(ctx context.Context, t *testing.T) string {
 	t.Helper()
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
-	statusCode, _, token := apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, _, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
 		Identification: userAdminEmail,
 		Password:       userAdminPassword,
 	})

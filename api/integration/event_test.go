@@ -27,35 +27,37 @@ import (
 
 func TestEventAPIAuthorization(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Any authenticated user can call GetEvents
-	_, resp := apisNotAuthenticated.getEvents()
+	_, resp := apisNotAuthenticated.getEvents(ctx)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	_, resp = apisNonAdmin.getEvents()
+	_, resp = apisNonAdmin.getEvents(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	_, resp = apisAdmin.getEvents()
+	_, resp = apisAdmin.getEvents(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// Only admins can hit the EditEvents endpoint
 	// An unauthenticated client will get a 401
 	// An unauthorized user will get a 403
 	editEventReq := imsjson.EditEventsRequest{}
-	resp = apisNotAuthenticated.editEvent(editEventReq)
+	resp = apisNotAuthenticated.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	resp = apisNonAdmin.editEvent(editEventReq)
+	resp = apisNonAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	resp = apisAdmin.editEvent(editEventReq)
+	resp = apisAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 }
 
 func TestGetAndEditEvent(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
 
 	testEventName := uuid.New().String()
 
@@ -63,7 +65,7 @@ func TestGetAndEditEvent(t *testing.T) {
 		Add: []string{testEventName},
 	}
 
-	resp := apisAdmin.editEvent(editEventReq)
+	resp := apisAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
 	accessReq := imsjson.EventsAccess{
@@ -76,7 +78,7 @@ func TestGetAndEditEvent(t *testing.T) {
 			},
 		},
 	}
-	resp = apisAdmin.editAccess(accessReq)
+	resp = apisAdmin.editAccess(ctx, accessReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
 	expectedAccessResult := imsjson.EventAccess{
@@ -84,11 +86,11 @@ func TestGetAndEditEvent(t *testing.T) {
 		Readers:   []imsjson.AccessRule{},
 		Reporters: []imsjson.AccessRule{},
 	}
-	accessResult, httpResp := apisAdmin.getAccess()
+	accessResult, httpResp := apisAdmin.getAccess(ctx)
 	require.Equal(t, http.StatusOK, httpResp.StatusCode)
 	require.Equal(t, expectedAccessResult, accessResult[testEventName])
 
-	events, resp := apisAdmin.getEvents()
+	events, resp := apisAdmin.getEvents(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	// The list may include events from other tests, and we can't be sure of this event's numeric ID.
 	// The best we can do is loop through the events and make sure there's one that matches.
@@ -105,8 +107,9 @@ func TestGetAndEditEvent(t *testing.T) {
 
 func TestEditEvent_errors(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
 
 	testEventName := "This name is ugly (has spaces and parentheses)"
 
@@ -114,7 +117,7 @@ func TestEditEvent_errors(t *testing.T) {
 		Add: []string{testEventName},
 	}
 
-	resp := apisAdmin.editEvent(editEventReq)
+	resp := apisAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)

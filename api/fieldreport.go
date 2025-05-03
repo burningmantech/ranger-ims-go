@@ -402,11 +402,12 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	author := jwtCtx.Claims.RangerHandle()
 	numUntyped, err := imsdb.New(action.imsDB).MaxFieldReportNumber(ctx, event.ID)
-	if err != nil {
+	numTyped, ok := numUntyped.(int64)
+	if err != nil || !ok {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to find next Field Report number", err)
 		return
 	}
-	newFrNum := numUntyped.(int64) + 1
+	newFrNum := numTyped + 1
 
 	txn, err := action.imsDB.Begin()
 	if err != nil {

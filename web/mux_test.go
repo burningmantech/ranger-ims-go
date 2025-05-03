@@ -46,6 +46,7 @@ var templEndpoints = []string{
 // HTML pages and serve them at the correct paths.
 func TestTemplEndpoints(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	cfg := conf.DefaultIMS()
 	s := httptest.NewServer(web.AddToMux(nil, cfg))
 	defer s.Close()
@@ -55,7 +56,7 @@ func TestTemplEndpoints(t *testing.T) {
 		Timeout: 10 * time.Second,
 	}
 	for _, endpoint := range templEndpoints {
-		httpReq, err := http.NewRequest("GET", serverURL.JoinPath(endpoint).String(), nil)
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, serverURL.JoinPath(endpoint).String(), nil)
 		require.NoError(t, err)
 		resp, err := client.Do(httpReq)
 		require.NoError(t, err)
@@ -69,6 +70,7 @@ func TestTemplEndpoints(t *testing.T) {
 
 func TestCatchall(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	cfg := conf.DefaultIMS()
 	s := httptest.NewServer(web.AddToMux(nil, cfg))
 	defer s.Close()
@@ -81,7 +83,7 @@ func TestCatchall(t *testing.T) {
 	// Note the trailing slash. This should get caught by the catchall handler,
 	// which will send us to the same URL without that trailing slash.
 	path := serverURL.JoinPath("/ims/app/events/SomeEvent/incidents/")
-	httpReq, err := http.NewRequest("GET", path.String(), nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
 	resp, err := client.Do(httpReq)
 	require.NoError(t, err)
@@ -91,7 +93,7 @@ func TestCatchall(t *testing.T) {
 
 	// This won't match any endpoint
 	path = serverURL.JoinPath("/ims/app/events/SomeEvent/book_reports")
-	httpReq, err = http.NewRequest("GET", path.String(), nil)
+	httpReq, err = http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
 	resp, err = client.Do(httpReq)
 	require.NoError(t, err)

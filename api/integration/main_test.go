@@ -142,7 +142,7 @@ func setup(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
-	port, _ := strconv.Atoi(strings.TrimPrefix(endpoint, "localhost:"))
+	port, _ := strconv.ParseInt(strings.TrimPrefix(endpoint, "localhost:"), 0, 32)
 	shared.cfg.Store.MySQL.HostPort = int32(port)
 	db := store.MariaDB(ctx, shared.cfg)
 	shared.imsDB = &store.DB{DB: db}

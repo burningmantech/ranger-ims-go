@@ -17,12 +17,10 @@
 package integration
 
 import (
-	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 )
@@ -50,17 +48,14 @@ func sampleIncident1(eventName string) imsjson.Incident {
 }
 
 func TestIncidentAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	adminUser := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
-	aliceUser := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForRealTestUser(t)}
-	notAuthenticated := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	notAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Make an event to which no one has any access
-	eventName := "IncidentEvent-943034"
+	eventName := uuid.New().String()
 	resp := adminUser.editEvent(imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
@@ -113,17 +108,14 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 }
 
 func TestCreateAndGetIncident(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForRealTestUser(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
-	eventName := "IncidentEvent-1"
+	eventName := uuid.New().String()
 	resp := apisAdmin.editEvent(imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	apisAdmin.addWriter(eventName, userAliceHandle)
@@ -169,17 +161,14 @@ func TestCreateAndGetIncident(t *testing.T) {
 }
 
 func TestCreateAndUpdateIncident(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForRealTestUser(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
-	eventName := "IncidentEvent-3829"
+	eventName := uuid.New().String()
 	resp := apisAdmin.editEvent(imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	apisAdmin.addWriter(eventName, userAliceHandle)

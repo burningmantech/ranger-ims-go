@@ -17,25 +17,20 @@
 package integration
 
 import (
-	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 )
 
 func TestEventAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForRealTestUser(t)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Any authenticated user can call GetEvents
 	_, resp := apisNotAuthenticated.getEvents()
@@ -58,14 +53,11 @@ func TestEventAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAndEditEvent(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
 
-	testEventName := "TestGetAndEditEvent"
+	testEventName := uuid.New().String()
 
 	editEventReq := imsjson.EditEventsRequest{
 		Add: []string{testEventName},
@@ -87,6 +79,15 @@ func TestGetAndEditEvent(t *testing.T) {
 	resp = apisAdmin.editAccess(accessReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
+	expectedAccessResult := imsjson.EventAccess{
+		Writers:   accessReq[testEventName].Writers,
+		Readers:   []imsjson.AccessRule{},
+		Reporters: []imsjson.AccessRule{},
+	}
+	accessResult, httpResp := apisAdmin.getAccess()
+	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+	require.Equal(t, expectedAccessResult, accessResult[testEventName])
+
 	events, resp := apisAdmin.getEvents()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	// The list may include events from other tests, and we can't be sure of this event's numeric ID.
@@ -103,12 +104,9 @@ func TestGetAndEditEvent(t *testing.T) {
 }
 
 func TestEditEvent_errors(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
 
 	testEventName := "This name is ugly (has spaces and parentheses)"
 

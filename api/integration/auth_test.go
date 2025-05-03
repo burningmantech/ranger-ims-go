@@ -21,22 +21,18 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 )
 
 func TestPostAuthAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// A user who doesn't exist gets s 401
 	statusCode, body, token := apisNotAuthenticated.postAuth(api.PostAuthRequest{
@@ -74,14 +70,11 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForRealTestUser(t)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// non-admin user can authenticate
 	getAuth, resp := apisNonAdmin.getAuth("")
@@ -113,15 +106,12 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthWithEvent(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
 
 	// create event and give this user permissions on it
-	eventName := "TestGetAuthWithEvent"
+	eventName := uuid.New().String()
 	resp := apisAdmin.editEvent(imsjson.EditEventsRequest{
 		Add: []string{eventName},
 	})
@@ -154,12 +144,9 @@ func TestGetAuthWithEvent(t *testing.T) {
 }
 
 func TestPostAuthMakesRefreshCookie(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// A user with the correct password can log in and get refresh and access tokens
 	req := api.PostAuthRequest{
@@ -167,7 +154,7 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 		Password:       userAlicePassword,
 	}
 	response := &api.PostAuthResponse{}
-	resp := apisNotAuthenticated.imsPost(req, serverURL.JoinPath("/ims/api/auth").String())
+	resp := apisNotAuthenticated.imsPost(req, shared.serverURL.JoinPath("/ims/api/auth").String())
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())

@@ -25,9 +25,12 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log/slog"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -42,11 +45,12 @@ var mainTestInternal struct {
 // shared contains fields that may be used by any test in the integration package.
 // These are fields from the common setup performed in main_test.go.
 var shared struct {
-	cfg   *conf.IMSConfig
-	imsDB *store.DB
-	// jwtAdmin, jwtNormalUser string
-	userStore *directory.UserStore
-	es        *api.EventSourcerer
+	cfg        *conf.IMSConfig
+	imsDB      *store.DB
+	userStore  *directory.UserStore
+	es         *api.EventSourcerer
+	testServer *httptest.Server
+	serverURL  *url.URL
 }
 
 const (
@@ -142,10 +146,17 @@ func setup(ctx context.Context) {
 	shared.cfg.Store.MySQL.HostPort = int32(port)
 	db := store.MariaDB(ctx, shared.cfg)
 	shared.imsDB = &store.DB{DB: db}
-
+	// Use faster/less-secure UUID generation for tests
+	uuid.EnableRandPool()
+	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
+	shared.serverURL, err = url.Parse(shared.testServer.URL)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func shutdown(ctx context.Context) {
+	shared.testServer.Close()
 	_ = shared.imsDB.Close()
 	err := mainTestInternal.imsDBContainer.Terminate(ctx)
 	if err != nil {

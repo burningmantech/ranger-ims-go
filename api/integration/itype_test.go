@@ -17,24 +17,19 @@
 package integration
 
 import (
-	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 )
 
 func TestIncidentTypesAPIAuthorization(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForRealTestUser(t)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Any authenticated user can call GetIncidentTypes
 	_, resp := apisNotAuthenticated.getTypes(false)
@@ -57,15 +52,12 @@ func TestIncidentTypesAPIAuthorization(t *testing.T) {
 }
 
 func TestCreateIncident(t *testing.T) {
-	s := httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, nil))
-	defer s.Close()
-	serverURL, err := url.Parse(s.URL)
-	require.NoError(t, err)
+	t.Parallel()
 
-	apis := ApiHelper{t: t, serverURL: serverURL, jwt: jwtForTestAdminRanger(t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
 
 	// Make three new incident types
-	typeA, typeB, typeC := "Cat", "Dog", "Emu"
+	typeA, typeB, typeC := uuid.New().String(), uuid.New().String(), uuid.New().String()
 	createTypes := imsjson.EditIncidentTypesRequest{
 		Add:  imsjson.IncidentTypes{typeA, typeB, typeC},
 		Hide: nil,

@@ -25,26 +25,27 @@ import (
 
 func TestEventAccessAPIAuthorization(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
-	_, resp := apisNotAuthenticated.getAccess()
+	_, resp := apisNotAuthenticated.getAccess(ctx)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	_, resp = apisNonAdmin.getAccess()
+	_, resp = apisNonAdmin.getAccess(ctx)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	_, resp = apisAdmin.getAccess()
+	_, resp = apisAdmin.getAccess(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// Only admins can hit the EditEvents endpoint
 	// An unauthenticated client will get a 401
 	// An unauthorized user will get a 403
 	editAccessReq := imsjson.EventsAccess{}
-	resp = apisNotAuthenticated.editAccess(editAccessReq)
+	resp = apisNotAuthenticated.editAccess(ctx, editAccessReq)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	resp = apisNonAdmin.editAccess(editAccessReq)
+	resp = apisNonAdmin.editAccess(ctx, editAccessReq)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	resp = apisAdmin.editAccess(editAccessReq)
+	resp = apisAdmin.editAccess(ctx, editAccessReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 }

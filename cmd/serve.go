@@ -76,7 +76,6 @@ func runServer(cmd *cobra.Command, args []string) {
 	imsDB := store.MariaDB(ctx, imsCfg)
 
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
@@ -112,9 +111,10 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	// Tell the server to shut down, giving it this much time to do so gracefully.
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 	err = s.Shutdown(timeoutCtx)
 	slog.Error("Server shut down", "err", err)
+	stop()
+	cancel()
 	os.Exit(1)
 }
 

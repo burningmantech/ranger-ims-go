@@ -18,7 +18,7 @@ package password
 
 import (
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" //nolint: gosec // this is the algorithm Clubhouse uses
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -37,7 +37,7 @@ func Verify(password, storedValue string) (isValid bool, err error) {
 }
 
 func Hash(password, salt string) string {
-	hasher := sha1.New()
+	hasher := sha1.New() //nolint: gosec // this is the algorithm Clubhouse uses
 	hasher.Write([]byte(salt + password))
 	return hex.EncodeToString(hasher.Sum(nil))
 }

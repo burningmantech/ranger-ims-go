@@ -31,11 +31,12 @@ import (
 
 func TestPostAuthAPIAuthorization(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// A user who doesn't exist gets s 401
-	statusCode, body, token := apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, body, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
 		Identification: "Not a real user",
 		Password:       "password123",
 	})
@@ -44,7 +45,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 	require.Empty(t, token)
 
 	// A user with the correct password gets logged in and gets a JWT
-	statusCode, _, token = apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, _, token = apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
 		Identification: userAliceEmail,
 		Password:       userAlicePassword,
 	})
@@ -52,7 +53,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 	require.NotEmpty(t, token)
 
 	// That same valid user can also log in by handle
-	statusCode, _, token = apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, _, token = apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
 		Identification: userAliceHandle,
 		Password:       userAlicePassword,
 	})
@@ -60,7 +61,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 	require.NotEmpty(t, token)
 
 	// A valid user with the wrong password gets denied entry
-	statusCode, body, token = apisNotAuthenticated.postAuth(api.PostAuthRequest{
+	statusCode, body, token = apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
 		Identification: userAliceHandle,
 		Password:       "not my password",
 	})
@@ -71,13 +72,14 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 
 func TestGetAuthAPIAuthorization(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// non-admin user can authenticate
-	getAuth, resp := apisNonAdmin.getAuth("")
+	getAuth, resp := apisNonAdmin.getAuth(ctx, "")
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, api.GetAuthResponse{
@@ -88,7 +90,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	// admin user can authenticate
-	getAuth, resp = apisAdmin.getAuth("")
+	getAuth, resp = apisAdmin.getAuth(ctx, "")
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, api.GetAuthResponse{
@@ -99,7 +101,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	// unauthenticated client cannot authenticate
-	getAuth, resp = apisNotAuthenticated.getAuth("someNonExistentEvent")
+	getAuth, resp = apisNotAuthenticated.getAuth(ctx, "someNonExistentEvent")
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, api.GetAuthResponse{
@@ -110,16 +112,17 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 
 func TestGetAuthWithEvent(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(t)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
 
 	// create event and give this user permissions on it
 	eventName := uuid.New().String()
-	resp := apisAdmin.editEvent(imsjson.EditEventsRequest{
+	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{
 		Add: []string{eventName},
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	resp = apisAdmin.editAccess(imsjson.EventsAccess{
+	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
 			Readers: []imsjson.AccessRule{imsjson.AccessRule{
 				Expression: "person:" + userAdminHandle,
@@ -130,7 +133,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	authResp, resp := apisAdmin.getAuth(eventName)
+	authResp, resp := apisAdmin.getAuth(ctx, eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, api.GetAuthResponse{
 		Authenticated: true,
@@ -149,6 +152,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 
 func TestPostAuthMakesRefreshCookie(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
@@ -158,7 +162,7 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 		Password:       userAlicePassword,
 	}
 	response := &api.PostAuthResponse{}
-	resp := apisNotAuthenticated.imsPost(req, shared.serverURL.JoinPath("/ims/api/auth").String())
+	resp := apisNotAuthenticated.imsPost(ctx, req, shared.serverURL.JoinPath("/ims/api/auth").String())
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
@@ -184,7 +188,7 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 	require.Equal(t, userAliceHandle, claims.RangerHandle())
 
 	// now use the refresh token to get a fresh access token
-	code, refreshResp := apisNotAuthenticated.refreshAccessToken(cookie)
+	code, refreshResp := apisNotAuthenticated.refreshAccessToken(ctx, cookie)
 	require.Equal(t, http.StatusOK, code)
 	// and confirm the new access token's validity
 	claims, err = jwter.AuthenticateJWT(refreshResp.Token)

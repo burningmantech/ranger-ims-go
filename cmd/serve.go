@@ -38,6 +38,8 @@ import (
 	"time"
 )
 
+const envfileFlagName = "envfile"
+
 // serveCmd represents the serve command.
 var serveCmd = &cobra.Command{
 	Use:   "serve",
@@ -134,15 +136,20 @@ func lookupEnv(key string) (string, bool) {
 // initConfig reads in the .env file and ENV variables if set.
 func initConfig() {
 	newCfg := conf.DefaultIMS()
-	err := godotenv.Load()
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			slog.Info("No .env file found. Carrying on with IMSConfig defaults and environment variable overrides")
-		} else {
-			slog.Error("Exiting due to error loading .env file", "err", err)
+	err := godotenv.Load(envFilename)
+
+	if err != nil && !os.IsNotExist(err) {
+		slog.Error("Exiting due to error loading .env file", "err", err)
+		os.Exit(1)
+	}
+	if os.IsNotExist(err) {
+		if serveCmd.Flags().Lookup(envfileFlagName).Changed {
+			slog.Error("envfile was set by the caller, but the file was not found. Exiting...", "envFilename", envFilename)
 			os.Exit(1)
 		}
+		slog.Info("No .env file found. Carrying on with IMSConfig defaults and environment variable overrides")
 	}
+
 	if v, ok := lookupEnv("IMS_HOSTNAME"); ok {
 		newCfg.Core.Host = v
 	}
@@ -237,9 +244,13 @@ func initConfig() {
 	conf.Cfg = newCfg
 }
 
+var envFilename string
+
 func init() {
 	rootCmd.AddCommand(serveCmd)
-
+	serveCmd.Flags().StringVar(&envFilename, envfileFlagName, ".env",
+		"An env file from which to load IMS server configuration. "+
+			"Defaults to '.env' in the current directory")
 	cobra.OnInitialize(initConfig)
 }
 

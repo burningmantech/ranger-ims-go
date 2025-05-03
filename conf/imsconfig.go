@@ -17,9 +17,12 @@
 package conf
 
 import (
+	"bytes"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
+	"io"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -60,15 +63,98 @@ func DefaultIMS() *IMSConfig {
 	}
 }
 
-func (c *IMSConfig) String() string {
-	if c == nil {
-		return "nil"
+func printRedacted(w io.Writer, v reflect.Value, indent string) error {
+	const nestIndent = "    "
+	s := v
+	typeOfT := s.Type()
+	for i := 0; i < s.NumField(); i++ {
+		f := s.Field(i)
+
+		redact := strings.EqualFold(typeOfT.Field(i).Tag.Get("redact"), "true")
+
+		switch f.Kind() {
+		case reflect.Struct:
+			x1 := reflect.ValueOf(f.Interface())
+			_, err := fmt.Fprintf(w, "%v%v\n", indent, typeOfT.Field(i).Name)
+			if err != nil {
+				return err
+			}
+			if redact {
+				_, err = fmt.Fprintf(w, "%v🤐🤐🤐🤐🤐\n", indent+nestIndent)
+				if err != nil {
+					return err
+				}
+			} else {
+				err = printRedacted(w, x1, indent+nestIndent)
+				if err != nil {
+					return err
+				}
+			}
+		case reflect.Slice:
+			x1 := reflect.ValueOf(f.Interface())
+			sliceElemType := f.Type().Elem()
+			if sliceElemType.Kind() != reflect.Struct {
+				printVal := "[🤐🤐🤐🤐]"
+				if !redact {
+					printVal = fmt.Sprint(f.Interface())
+				}
+				_, err := fmt.Fprintf(w, "%v%v = %v\n", indent, typeOfT.Field(i).Name, printVal)
+				if err != nil {
+					return err
+				}
+			} else {
+				for j := 0; j < x1.Len(); j++ {
+					_, err := fmt.Fprintf(w, "%v%v[%d]\n", indent, typeOfT.Field(i).Name, j)
+					if err != nil {
+						return err
+					}
+					if redact {
+						_, err = fmt.Fprintf(w, "%v🤐🤐\n", indent+nestIndent)
+						if err != nil {
+							return err
+						}
+					} else {
+						err = printRedacted(w, x1.Index(j), indent+nestIndent)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
+			reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+			printVal := "🤐🤐🤐"
+			if !redact {
+				printVal = fmt.Sprint(f.Interface())
+			}
+			_, err := fmt.Fprintf(w, "%v%v = %v\n", indent, typeOfT.Field(i).Name, printVal)
+			if err != nil {
+				return err
+			}
+		default:
+			// e.g. we haven't bothered adding map support, because it hasn't been needed yet
+			panic("unsupported field kind: " + f.Kind().String())
+		}
 	}
-	marshalled, err := json.MarshalIndent(*c, "", "  ")
+	return nil
+}
+
+func (c *IMSConfig) PrintRedacted() (string, error) {
+	output := &bytes.Buffer{}
+	err := printRedacted(output, reflect.ValueOf(c).Elem(), "")
 	if err != nil {
-		return "failed to marshal IMSConfig"
+		return "", fmt.Errorf("[printRedacted]: %w", err)
 	}
-	return string(marshalled)
+	return output.String(), nil
+}
+
+func (c *IMSConfig) String() string {
+	s, err := c.PrintRedacted()
+	if err != nil {
+		panic(err)
+	}
+	return s
 }
 
 type IMSConfig struct {
@@ -77,7 +163,7 @@ type IMSConfig struct {
 	AttachmentsStore struct {
 		S3 struct {
 			S3AccessKeyId     string
-			S3SecretAccessKey string
+			S3SecretAccessKey string `redact:"true"`
 			S3DefaultRegion   string
 			S3Bucket          string
 		}
@@ -121,11 +207,10 @@ type ConfigCore struct {
 	AccessTokenLifetime  time.Duration
 	RefreshTokenLifetime time.Duration
 	Admins               []string
-	MasterKey            string
-	// JWTSecret won't get marshalled as part of String() due to the json "-" tag.
-	JWTSecret        string `json:"-"`
-	AttachmentsStore string
-	Deployment       string
+	MasterKey            string `redact:"true"`
+	JWTSecret            string `redact:"true"`
+	AttachmentsStore     string
+	Deployment           string
 
 	// LogLevel should be one of DEBUG, INFO, WARN, or ERROR
 	LogLevel string
@@ -140,8 +225,7 @@ type StoreMySQL struct {
 	HostPort int32
 	Database string
 	Username string
-	// Password won't get marshalled as part of String() due to the json "-" tag.
-	Password string `json:"-"`
+	Password string `redact:"true"`
 }
 
 type TestUser struct {
@@ -149,7 +233,7 @@ type TestUser struct {
 	Email       string
 	Status      string
 	DirectoryID int64
-	Password    string
+	Password    string `redact:"true"`
 	Onsite      bool
 	Positions   []string
 	Teams       []string
@@ -165,6 +249,5 @@ type ClubhouseDB struct {
 	Hostname string
 	Database string
 	Username string
-	// Password won't get marshalled as part of String() due to the json "-" tag.
-	Password string `json:"-"`
+	Password string `redact:"true"`
 }

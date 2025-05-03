@@ -38,7 +38,7 @@ import (
 	"time"
 )
 
-// serveCmd represents the serve command
+// serveCmd represents the serve command.
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Launch the IMS server",
@@ -214,11 +214,11 @@ func initConfig() {
 	must(newCfg.Directory.Directory.Validate())
 	if newCfg.Core.Deployment != "dev" {
 		if newCfg.Directory.Directory == conf.DirectoryTypeTestUsers {
-			must(fmt.Errorf("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
+			must(errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
 		}
 	}
 	if newCfg.Core.AccessTokenLifetime > newCfg.Core.RefreshTokenLifetime {
-		must(fmt.Errorf("access token lifetime should not be greater than refresh token lifetime"))
+		must(errors.New("access token lifetime should not be greater than refresh token lifetime"))
 	}
 
 	conf.Cfg = newCfg

@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package integration
+package integration_test
 
 import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -237,6 +237,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 // requireEqualIncident is a hacky way of checking two incident responses are the same.
 // It does not consider ReportEntries.
 func requireEqualIncident(t *testing.T, before imsjson.Incident, after imsjson.Incident) {
+	t.Helper()
 	// This field isn't in use in the client yet
 	// require.Equal(t, before.EventID, after.EventID)
 	require.Equal(t, before.Event, after.Event)
@@ -259,17 +260,6 @@ func requireEqualIncident(t *testing.T, before imsjson.Incident, after imsjson.I
 	require.Equal(t, before.FieldReports, after.FieldReports)
 	// these will always be different. Check them separately of this function
 	// require.Equal(t, before.ReportEntries, after.ReportEntries)
-
-	//before.EventID = 0
-	//after.EventID = 0
-	//before.Created = time.Time{}
-	//after.Created = time.Time{}
-	//before.LastModified = time.Time{}
-	//after.LastModified = time.Time{}
-	//after.ReportEntries = nil
-	//before.ReportEntries = nil
-	//
-	//require.Equal(t, before, after)
 }
 
 func ptr[T any](s T) *T {

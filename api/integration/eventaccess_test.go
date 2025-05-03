@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package integration
+package integration_test
 
 import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"

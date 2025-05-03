@@ -18,6 +18,7 @@ package directory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	clubhousequeries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
@@ -32,10 +33,10 @@ type UserStore struct {
 
 func NewUserStore(testUsers []conf.TestUser, clubhouseDB *DB) (*UserStore, error) {
 	if clubhouseDB == nil && testUsers == nil {
-		return nil, fmt.Errorf("NewUserStore: exactly one of clubhouseDB or testUsers must be provided (got none)")
+		return nil, errors.New("NewUserStore: exactly one of clubhouseDB or testUsers must be provided (got none)")
 	}
 	if clubhouseDB != nil && testUsers != nil {
-		return nil, fmt.Errorf("NewUserStore: exactly one of clubhouseDB or testUsers must be provided (got both)")
+		return nil, errors.New("NewUserStore: exactly one of clubhouseDB or testUsers must be provided (got both)")
 	}
 	return &UserStore{
 		testUsers:   testUsers,
@@ -44,9 +45,8 @@ func NewUserStore(testUsers []conf.TestUser, clubhouseDB *DB) (*UserStore, error
 }
 
 func (users UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error) {
-	var response []imsjson.Person
-
 	if users.testUsers != nil {
+		response := make([]imsjson.Person, 0, len(users.testUsers))
 		for _, user := range users.testUsers {
 			response = append(response, imsjson.Person{
 				Handle:      user.Handle,
@@ -65,6 +65,7 @@ func (users UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error)
 		return nil, fmt.Errorf("[RangersById] %w", err)
 	}
 
+	response := make([]imsjson.Person, 0, len(results))
 	for _, r := range results {
 		response = append(response, imsjson.Person{
 			Handle:      r.Callsign,

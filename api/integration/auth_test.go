@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package integration
+package integration_test
 
 import (
 	"encoding/json"
@@ -85,6 +85,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 		User:          userAliceHandle,
 		Admin:         false,
 	}, getAuth)
+	require.NoError(t, resp.Body.Close())
 
 	// admin user can authenticate
 	getAuth, resp = apisAdmin.getAuth("")
@@ -95,6 +96,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 		User:          userAdminHandle,
 		Admin:         true,
 	}, getAuth)
+	require.NoError(t, resp.Body.Close())
 
 	// unauthenticated client cannot authenticate
 	getAuth, resp = apisNotAuthenticated.getAuth("someNonExistentEvent")
@@ -103,6 +105,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 	require.Equal(t, api.GetAuthResponse{
 		Authenticated: false,
 	}, getAuth)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestGetAuthWithEvent(t *testing.T) {
@@ -125,6 +128,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 		},
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	authResp, resp := apisAdmin.getAuth(eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)

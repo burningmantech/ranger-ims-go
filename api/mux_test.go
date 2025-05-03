@@ -14,11 +14,12 @@
 // limitations under the License.
 //
 
-package api
+package api_test
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -32,7 +33,7 @@ func (e exampleAction) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintln(e.output, "      in the action")
 }
 
-func firstAdapter(output *bytes.Buffer) Adapter {
+func firstAdapter(output *bytes.Buffer) api.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(output, "firstAdapter before")
@@ -42,7 +43,7 @@ func firstAdapter(output *bytes.Buffer) Adapter {
 	}
 }
 
-func secondAdapter(output *bytes.Buffer) Adapter {
+func secondAdapter(output *bytes.Buffer) api.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(output, "  secondAdapter before")
@@ -52,7 +53,7 @@ func secondAdapter(output *bytes.Buffer) Adapter {
 	}
 }
 
-func thirdAdapter(output *bytes.Buffer) Adapter {
+func thirdAdapter(output *bytes.Buffer) api.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(output, "    thirdAdapter before")
@@ -62,10 +63,11 @@ func thirdAdapter(output *bytes.Buffer) Adapter {
 	}
 }
 
-// TestAdapt demonstrates how the Adapter pattern works
+// TestAdapt demonstrates how the Adapter pattern works.
 func TestAdapt(t *testing.T) {
+	t.Parallel()
 	b := bytes.Buffer{}
-	Adapt(
+	api.Adapt(
 		exampleAction{output: &b},
 		firstAdapter(&b),
 		secondAdapter(&b),

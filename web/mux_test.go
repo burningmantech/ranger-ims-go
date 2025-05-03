@@ -14,10 +14,11 @@
 // limitations under the License.
 //
 
-package web
+package web_test
 
 import (
 	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -44,8 +45,9 @@ var templEndpoints = []string{
 // TestTemplEndpoints tests that the IMS server can render all the
 // HTML pages and serve them at the correct paths.
 func TestTemplEndpoints(t *testing.T) {
+	t.Parallel()
 	cfg := conf.DefaultIMS()
-	s := httptest.NewServer(AddToMux(nil, cfg))
+	s := httptest.NewServer(web.AddToMux(nil, cfg))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
@@ -66,8 +68,9 @@ func TestTemplEndpoints(t *testing.T) {
 }
 
 func TestCatchall(t *testing.T) {
+	t.Parallel()
 	cfg := conf.DefaultIMS()
-	s := httptest.NewServer(AddToMux(nil, cfg))
+	s := httptest.NewServer(web.AddToMux(nil, cfg))
 	defer s.Close()
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)

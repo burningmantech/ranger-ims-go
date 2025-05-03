@@ -292,8 +292,8 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("X-IMS-Incident-Number", fmt.Sprint(newIncident.Number))
-	w.Header().Set("Location", "/ims/api/events/"+event.Name+"/incidents/"+fmt.Sprint(newIncident.Number))
+	w.Header().Set("X-IMS-Incident-Number", strconv.Itoa(int(newIncident.Number)))
+	w.Header().Set("Location", "/ims/api/events/"+event.Name+"/incidents/"+strconv.Itoa(int(newIncident.Number)))
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
 

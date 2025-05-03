@@ -84,6 +84,22 @@ func NewEventSourcerer() *EventSourcerer {
 	return es
 }
 
+func (es *EventSourcerer) Replay(channel, id string) chan eventsource.Event {
+	if channel != EventSourceChannel {
+		return nil
+	}
+	out := make(chan eventsource.Event, 1)
+	out <- IMSEvent{
+		EventID: es.IdCounter.Load(),
+		EventData: IMSEventData{
+			InitialEvent: true,
+			Comment:      "The most recent SSE ID is provided in this message",
+		},
+	}
+	close(out)
+	return out
+}
+
 func (es *EventSourcerer) notifyFieldReportUpdate(eventName string, frNumber int32) {
 	if frNumber == 0 {
 		return
@@ -108,20 +124,4 @@ func (es *EventSourcerer) notifyIncidentUpdate(eventName string, incidentNumber 
 			IncidentNumber: incidentNumber,
 		},
 	})
-}
-
-func (es *EventSourcerer) Replay(channel, id string) chan eventsource.Event {
-	if channel != EventSourceChannel {
-		return nil
-	}
-	out := make(chan eventsource.Event, 1)
-	out <- IMSEvent{
-		EventID: es.IdCounter.Load(),
-		EventData: IMSEventData{
-			InitialEvent: true,
-			Comment:      "The most recent SSE ID is provided in this message",
-		},
-	}
-	close(out)
-	return out
 }

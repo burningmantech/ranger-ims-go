@@ -21,7 +21,7 @@ import (
 	"os"
 )
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
 	Use:   "ranger-ims-go",
 	Short: "The Ranger IMS server",

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	imspassword "github.com/burningmantech/ranger-ims-go/auth/password"
 	"github.com/spf13/cobra"
+	"log"
+	"os"
 )
 
 var hashPasswordCmd = &cobra.Command{
@@ -14,7 +16,7 @@ var hashPasswordCmd = &cobra.Command{
 	Run: runHashPassword,
 }
 
-// password gets passed in as a flag
+// password gets passed in as a flag.
 var password string
 
 func init() {
@@ -25,5 +27,8 @@ func init() {
 }
 
 func runHashPassword(cmd *cobra.Command, args []string) {
-	fmt.Println(imspassword.NewSalted(password))
+	_, err := fmt.Fprintln(os.Stdout, imspassword.NewSalted(password))
+	if err != nil {
+		log.Fatal(err)
+	}
 }

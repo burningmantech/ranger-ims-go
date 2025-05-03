@@ -29,7 +29,7 @@ func main() {
 	}
 
 	staticExtDir := filepath.Join(repoRoot, "web", "static", "ext")
-	must(os.MkdirAll(staticExtDir, 0755))
+	must(os.MkdirAll(staticExtDir, 0750))
 
 	must(existOrFetch(
 		path.Join(staticExtDir, "bootstrap.min.css"),

@@ -126,12 +126,13 @@ export function compareReportEntries(a: ReportEntry, b: ReportEntry): number {
 //
 
 export async function fetchJsonNoThrow<T>(url: string, init: RequestInit|null): Promise<FetchRes<T>> {
-    if (url != url_authRefresh && getAccessToken()) {
+    if (url !== url_authRefresh && getAccessToken()) {
         if ((refreshTokenAfter()??0) < new Date().getTime()) {
             const {json, err} = await fetchJsonNoThrow<AuthRefreshResponse>(url_authRefresh, {body: JSON.stringify({})});
             if (err != null || json == null) {
                 clearAccessToken();
-                return {resp: null, json: null, err: "Access token couldn't be refreshed"};
+                // TODO: I think this is right to leave out. We want the original call to proceed.
+                // return {resp: null, json: null, err: "Access token couldn't be refreshed"};
             } else {
                 setAccessToken(json.token);
                 setRefreshTokenBy(json.expires_unix_ms);

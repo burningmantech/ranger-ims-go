@@ -24,7 +24,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 )
@@ -40,7 +39,7 @@ var CurrentSchema string
 //go:embed schema/*-from-*.sql
 var Migrations embed.FS
 
-func MariaDB(ctx context.Context, mariaCfg conf.StoreMariaDB, migrateDB bool) *sql.DB {
+func MariaDB(ctx context.Context, mariaCfg conf.StoreMariaDB, migrateDB bool) (*sql.DB, error) {
 	slog.Info("Setting up IMS DB connection")
 
 	// Capture connection properties.
@@ -54,29 +53,26 @@ func MariaDB(ctx context.Context, mariaCfg conf.StoreMariaDB, migrateDB bool) *s
 	// Get a database handle.
 	db, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
-		slog.Error("Failed to open IMS DB connection", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("[sql.Open]: %ws", err)
 	}
 	// Some arbitrary value. We'll get errors from MariaDB if the server
 	// hits the DB with too many parallel requests.
 	db.SetMaxOpenConns(20)
-	pingErr := db.Ping()
+	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
-		slog.Error("Failed ping attempt to IMS DB", "error", pingErr)
-		os.Exit(1)
+		return nil, fmt.Errorf("[db.PingContext]: %ws", pingErr)
 	}
 
 	if migrateDB {
 		if err = MigrateDB(ctx, db); err != nil {
-			slog.Error("Failed to migrate IMS DB", "error", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("[MigrateDB]: %w", err)
 		}
 	} else {
 		slog.Info("IMS DB migration not requested")
 	}
 
 	slog.Info("Connected to IMS MariaDB")
-	return db
+	return db, nil
 }
 
 type DB struct {

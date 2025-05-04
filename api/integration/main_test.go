@@ -144,7 +144,10 @@ func setup(ctx context.Context) {
 	}
 	port, _ := strconv.ParseInt(strings.TrimPrefix(endpoint, "localhost:"), 0, 32)
 	shared.cfg.Store.MariaDB.HostPort = int32(port)
-	db := store.MariaDB(ctx, shared.cfg.Store.MariaDB, true)
+	db, err := store.MariaDB(ctx, shared.cfg.Store.MariaDB, true)
+	if err != nil {
+		panic(err)
+	}
 	shared.imsDB = &store.DB{DB: db}
 	// Use faster/less-secure UUID generation for tests
 	uuid.EnableRandPool()
@@ -156,11 +159,17 @@ func setup(ctx context.Context) {
 }
 
 func shutdown(ctx context.Context) {
-	shared.testServer.Close()
-	_ = shared.imsDB.Close()
-	err := mainTestInternal.imsDBContainer.Terminate(ctx)
-	if err != nil {
-		// log and continue
-		slog.Error("Failed to terminate container", "error", err)
+	if shared.testServer != nil {
+		shared.testServer.Close()
+	}
+	if shared.imsDB != nil {
+		_ = shared.imsDB.Close()
+	}
+	if mainTestInternal.imsDBContainer != nil {
+		err := mainTestInternal.imsDBContainer.Terminate(ctx)
+		if err != nil {
+			// log and continue
+			slog.Error("Failed to terminate container", "error", err)
+		}
 	}
 }

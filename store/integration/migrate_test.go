@@ -33,9 +33,9 @@ var schema06 string
 // tables, and for each table, we expect them to have the same
 // "CREATE TABLE" SQL. If the "CREATE TABLE" statements are different
 // from one side to the other, presumably a new migration should be
-// created that gets them back in sync
+// created that gets them back in sync.
 func TestMigrateSameAsCurrentSchema(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	database := rand.Text()
@@ -53,7 +53,7 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	require.NoError(t, err)
 	// now migrate to current schema version
 	err = store.MigrateDB(ctx, db1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// DB and container 1 starts with no tables, then gets migrated
 	container2, db2 := newDB(t, ctx, database, username, password)
@@ -63,25 +63,33 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	}()
 	// migrate to current schema version
 	err = store.MigrateDB(ctx, db2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// the two databases should have the same set of tables
 	var tableNamesDB1 []string
-	rows, err := db1.QueryContext(ctx, `show tables`)
+	rows1, err := db1.QueryContext(ctx, `show tables`)
 	require.NoError(t, err)
-	for rows.Next() {
+	defer func() {
+		_ = rows1.Close()
+	}()
+	for rows1.Next() {
 		var tableName string
-		require.NoError(t, rows.Scan(&tableName))
+		require.NoError(t, rows1.Scan(&tableName))
 		tableNamesDB1 = append(tableNamesDB1, tableName)
 	}
+	require.NoError(t, rows1.Err())
 	var tableNamesDB2 []string
-	rows, err = db2.QueryContext(ctx, `show tables`)
+	rows2, err := db2.QueryContext(ctx, `show tables`)
 	require.NoError(t, err)
-	for rows.Next() {
+	defer func() {
+		_ = rows2.Close()
+	}()
+	for rows2.Next() {
 		var tableName string
-		require.NoError(t, rows.Scan(&tableName))
+		require.NoError(t, rows2.Scan(&tableName))
 		tableNamesDB2 = append(tableNamesDB2, tableName)
 	}
+	require.NoError(t, rows2.Err())
 	slices.Sort(tableNamesDB1)
 	slices.Sort(tableNamesDB2)
 	require.Equal(t, tableNamesDB1, tableNamesDB2)
@@ -130,13 +138,14 @@ func newDB(t *testing.T, ctx context.Context, database, username, password strin
 	port, err := strconv.ParseInt(strings.TrimPrefix(endpoint, "localhost:"), 0, 32)
 	require.NoError(t, err)
 	dbHostPort := int32(port)
-	db := store.MariaDB(ctx, conf.StoreMariaDB{
+	db, err := store.MariaDB(ctx, conf.StoreMariaDB{
 		HostName: "",
 		HostPort: dbHostPort,
 		Database: database,
 		Username: username,
 		Password: password,
 	}, false)
+	require.NoError(t, err)
 	return container, db
 }
 

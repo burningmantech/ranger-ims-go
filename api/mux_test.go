@@ -65,7 +65,7 @@ func thirdAdapter(output *bytes.Buffer) api.Adapter {
 
 // TestAdapt demonstrates how the Adapter pattern works.
 func TestAdapt(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	b := bytes.Buffer{}
 	api.Adapt(
 		exampleAction{output: &b},

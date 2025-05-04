@@ -19,15 +19,15 @@ package directory
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 )
 
-func MariaDB(imsCfg *conf.IMSConfig) *DB {
+func MariaDB(ctx context.Context, imsCfg *conf.IMSConfig) (*DB, error) {
 	slog.Info("Setting up Clubhouse DB connection")
 
 	// Capture connection properties.
@@ -41,19 +41,17 @@ func MariaDB(imsCfg *conf.IMSConfig) *DB {
 	// Get a database handle.
 	db, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
-		slog.Error("Failed to open Clubhouse DB connection", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("[sql.Open]: %w", err)
 	}
 	// Some arbitrary value. We'll get errors from MariaDB if the server
 	// hits the DB with too many parallel requests.
 	db.SetMaxOpenConns(20)
-	pingErr := db.Ping()
+	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
-		slog.Error("Failed ping attempt to Clubhouse DB", "error", pingErr)
-		os.Exit(1)
+		return nil, fmt.Errorf("[PingContext]: %w", pingErr)
 	}
 	slog.Info("Connected to Clubhouse MariaDB")
-	return &DB{DB: db}
+	return &DB{DB: db}, nil
 }
 
 type DB struct {

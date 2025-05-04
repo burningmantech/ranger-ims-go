@@ -48,7 +48,7 @@ func sampleIncident1(eventName string) imsjson.Incident {
 }
 
 func TestIncidentAPIAuthorization(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -127,7 +127,7 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 }
 
 func TestCreateAndGetIncident(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -188,7 +188,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 }
 
 func TestCreateAndUpdateIncident(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}

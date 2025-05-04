@@ -45,7 +45,7 @@ var templEndpoints = []string{
 // TestTemplEndpoints tests that the IMS server can render all the
 // HTML pages and serve them at the correct paths.
 func TestTemplEndpoints(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 	cfg := conf.DefaultIMS()
 	s := httptest.NewServer(web.AddToMux(nil, cfg))
@@ -70,7 +70,7 @@ func TestTemplEndpoints(t *testing.T) {
 }
 
 func TestCatchall(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 	cfg := conf.DefaultIMS()
 	s := httptest.NewServer(web.AddToMux(nil, cfg))

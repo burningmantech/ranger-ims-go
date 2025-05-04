@@ -25,7 +25,7 @@ import (
 )
 
 func TestIncidentTypesAPIAuthorization(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -59,7 +59,7 @@ func TestIncidentTypesAPIAuthorization(t *testing.T) {
 }
 
 func TestCreateIncident(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}

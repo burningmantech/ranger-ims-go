@@ -24,7 +24,7 @@ import (
 )
 
 func TestCreateAndGetValidJWT(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	jwter := auth.JWTer{SecretKey: "some-secret"}
 	j, err := jwter.CreateAccessToken(
 		"Hardware",
@@ -47,7 +47,7 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 }
 
 func TestCreateAndGetInvalidJWTs(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	jwter := auth.JWTer{SecretKey: "some-secret"}
 	expiredJWT, err := jwter.CreateAccessToken(
 		"Hardware",

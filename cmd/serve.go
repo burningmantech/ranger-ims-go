@@ -66,14 +66,18 @@ func runServer(cmd *cobra.Command, args []string) {
 	var userStore *directory.UserStore
 	switch imsCfg.Directory.Directory {
 	case conf.DirectoryTypeClubhouseDB:
-		userStore, err = directory.NewUserStore(nil, directory.MariaDB(imsCfg))
+		db, err := directory.MariaDB(ctx, imsCfg)
+		must(err)
+		userStore, err = directory.NewUserStore(nil, db)
+		must(err)
 	case conf.DirectoryTypeTestUsers:
 		userStore, err = directory.NewUserStore(imsCfg.Directory.TestUsers, nil)
 	default:
 		err = fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory)
 	}
 	must(err)
-	imsDB := store.MariaDB(ctx, imsCfg.Store.MariaDB, true)
+	imsDB, err := store.MariaDB(ctx, imsCfg.Store.MariaDB, true)
+	must(err)
 
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 

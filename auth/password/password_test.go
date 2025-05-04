@@ -24,7 +24,7 @@ import (
 )
 
 func TestVerifyPassword_success(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	pw, s := "Hardware", "my_little_salty"
 	hashed := "ee9a23000af19a22acd0d9a22dfe9558580771dc"
 	assert.Equal(t, hashed, password.Hash(pw, s))
@@ -40,7 +40,7 @@ func TestVerifyPassword_success(t *testing.T) {
 }
 
 func TestVerifyPassword_badStoredValue(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	noColonInThisString := "abcdefg"
 	_, err := password.Verify("some_password", noColonInThisString)
 	require.Error(t, err)
@@ -48,7 +48,7 @@ func TestVerifyPassword_badStoredValue(t *testing.T) {
 }
 
 func TestNewSalted(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	pw := "this is my password"
 	saltedPw := password.NewSalted(pw)
 	isValid, err := password.Verify(pw, saltedPw)

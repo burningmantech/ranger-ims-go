@@ -30,7 +30,7 @@ import (
 )
 
 func TestPostAuthAPIAuthorization(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
@@ -71,7 +71,7 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthAPIAuthorization(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -111,7 +111,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAuthWithEvent(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -153,7 +153,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 }
 
 func TestPostAuthMakesRefreshCookie(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}

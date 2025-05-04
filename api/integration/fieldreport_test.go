@@ -20,7 +20,7 @@ func sampleFieldReport1(eventName string) imsjson.FieldReport {
 }
 
 func TestCreateAndGetFieldReport(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -81,7 +81,7 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 }
 
 func TestCreateAndUpdateFieldReport(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}

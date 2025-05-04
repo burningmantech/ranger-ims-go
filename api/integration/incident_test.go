@@ -59,53 +59,71 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 	eventName := uuid.New().String()
 	resp := adminUser.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// Alright, now test hitting all the Incident endpoints
 
 	// For the user who isn't authenticated at all (no JWT)
 	_, resp = notAuthenticated.getIncidents(ctx, eventName)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = notAuthenticated.getIncident(ctx, eventName, 1)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = notAuthenticated.newIncident(ctx, imsjson.Incident{Event: eventName})
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = notAuthenticated.updateIncident(ctx, eventName, 1, imsjson.Incident{})
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// For a normal user without permissions on the event
 	_, resp = aliceUser.getIncidents(ctx, eventName)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = aliceUser.getIncident(ctx, eventName, 1)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = aliceUser.updateIncident(ctx, eventName, 1, imsjson.Incident{})
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = aliceUser.newIncident(ctx, imsjson.Incident{Event: eventName})
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// For an admin user without permissions on the event
 	// (an admin has no special privileges on each event)
 	_, resp = adminUser.getIncidents(ctx, eventName)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = adminUser.getIncident(ctx, eventName, 1)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = adminUser.newIncident(ctx, imsjson.Incident{Event: eventName})
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = adminUser.updateIncident(ctx, eventName, 1, imsjson.Incident{})
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// make Alice a writer
 	resp = adminUser.addWriter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// Now Alice get access all the Incidents endpoints for this event
 	_, resp = aliceUser.getIncidents(ctx, eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = aliceUser.getIncident(ctx, eventName, 1)
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = aliceUser.newIncident(ctx, imsjson.Incident{Event: eventName})
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = aliceUser.updateIncident(ctx, eventName, 1, imsjson.Incident{})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestCreateAndGetIncident(t *testing.T) {
@@ -120,8 +138,10 @@ func TestCreateAndGetIncident(t *testing.T) {
 	eventName := uuid.New().String()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	apisAdmin.addWriter(ctx, eventName, userAliceHandle)
+	require.NoError(t, resp.Body.Close())
+	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// Use normal user to create a new Incident
 	incidentReq := sampleIncident1(eventName)
@@ -132,6 +152,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 	// Use normal user to fetch that Incident from the API and check it over
 	retrievedIncident, resp := apisNonAdmin.getIncident(ctx, eventName, num)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	require.NotNil(t, retrievedIncident)
 	require.WithinDuration(t, time.Now(), retrievedIncident.Created, 5*time.Minute)
 	require.WithinDuration(t, time.Now(), retrievedIncident.LastModified, 5*time.Minute)
@@ -149,6 +170,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 	// Now get the incident via the GetIncidents (plural) endpoint, and repeat the validation
 	retrievedIncidents, resp := apisNonAdmin.getIncidents(ctx, eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	require.Len(t, retrievedIncidents, 1)
 
 	// The first entry will be the system entry. The second should be the one we sent in the request
@@ -174,15 +196,18 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 	eventName := uuid.New().String()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	apisAdmin.addWriter(ctx, eventName, userAliceHandle)
+	require.NoError(t, resp.Body.Close())
+	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// Use normal user to create a new Incident
 	incidentReq := sampleIncident1(eventName)
 	num := apisNonAdmin.newIncidentSuccess(ctx, incidentReq)
 	incidentReq.Number = num
 
-	retrievedNewIncident, _ := apisNonAdmin.getIncident(ctx, eventName, num)
+	retrievedNewIncident, resp := apisNonAdmin.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
 
 	// Now let's update the incident. First let's try changing nothing.
 	updates := imsjson.Incident{
@@ -192,9 +217,11 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 
 	resp = apisNonAdmin.updateIncident(ctx, eventName, num, updates)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	retrievedIncidentAfterUpdate, resp := apisNonAdmin.getIncident(ctx, eventName, num)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	requireEqualIncident(t, retrievedNewIncident, retrievedIncidentAfterUpdate)
 
 	// now let's set all fields to empty
@@ -219,9 +246,11 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 	}
 	resp = apisNonAdmin.updateIncident(ctx, eventName, num, updates)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	// then check the result
 	retrievedIncidentAfterUpdate, resp = apisNonAdmin.getIncident(ctx, eventName, num)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	expected := imsjson.Incident{
 		Event:    eventName,
 		Number:   num,

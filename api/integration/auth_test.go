@@ -122,6 +122,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 		Add: []string{eventName},
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
 			Readers: []imsjson.AccessRule{imsjson.AccessRule{
@@ -148,6 +149,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 			},
 		},
 	}, authResp)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestPostAuthMakesRefreshCookie(t *testing.T) {

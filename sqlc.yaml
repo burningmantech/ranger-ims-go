@@ -17,3 +17,37 @@ sql:
     go:
       package: "clubhousedb"
       out: "directory/clubhousedb"
+      overrides:
+        # The column types in Clubhouse are inconsistent with one
+        # another, e.g. person.id is int64 but person_team.person_id
+        # is int32, even though those are the same IDs. For our purposes,
+        # it's simpler to just assume all of these are int64s, so that
+        # we can avoid lots of casting.
+        - column: "person.id"
+          go_type:
+            type: "int64"
+            pointer: false
+        - column: "person_position.person_id"
+          go_type:
+            type: "int64"
+            pointer: false
+        - column: "person_team.person_id"
+          go_type:
+            type: "int64"
+            pointer: false
+        - column: "position.id"
+          go_type:
+            type: "int64"
+            pointer: false
+        - column: "person_position.position_id"
+          go_type:
+            type: "int64"
+            pointer: false
+        - column: "team.id"
+          go_type:
+            type: "int64"
+            pointer: false
+        - column: "person_team.team_id"
+          go_type:
+            type: "int64"
+            pointer: false

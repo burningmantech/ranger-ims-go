@@ -109,12 +109,12 @@ func (users UserStore) GetUserPositionsTeams(ctx context.Context, userID int64) 
 		return nil, nil, fmt.Errorf("[PersonPositions]: %w", err)
 	}
 
-	var foundPositions []uint64
+	var foundPositions []int64
 	var foundPositionNames []string
-	var foundTeams []int32
+	var foundTeams []int64
 	var foundTeamNames []string
 	for _, pp := range personPositions {
-		if pp.PersonID == uint64(userID) {
+		if pp.PersonID == userID {
 			foundPositions = append(foundPositions, pp.PositionID)
 		}
 	}
@@ -124,12 +124,12 @@ func (users UserStore) GetUserPositionsTeams(ctx context.Context, userID int64) 
 		}
 	}
 	for _, pt := range personTeams {
-		if pt.PersonID == int32(userID) {
+		if pt.PersonID == userID {
 			foundTeams = append(foundTeams, pt.TeamID)
 		}
 	}
 	for _, team := range teamRows {
-		if slices.Contains(foundTeams, int32(team.ID)) {
+		if slices.Contains(foundTeams, team.ID) {
 			foundTeamNames = append(foundTeamNames, team.Title)
 		}
 	}

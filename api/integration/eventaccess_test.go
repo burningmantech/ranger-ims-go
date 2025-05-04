@@ -33,10 +33,13 @@ func TestEventAccessAPIAuthorization(t *testing.T) {
 
 	_, resp := apisNotAuthenticated.getAccess(ctx)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = apisNonAdmin.getAccess(ctx)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = apisAdmin.getAccess(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// Only admins can hit the EditEvents endpoint
 	// An unauthenticated client will get a 401
@@ -44,8 +47,11 @@ func TestEventAccessAPIAuthorization(t *testing.T) {
 	editAccessReq := imsjson.EventsAccess{}
 	resp = apisNotAuthenticated.editAccess(ctx, editAccessReq)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = apisNonAdmin.editAccess(ctx, editAccessReq)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.editAccess(ctx, editAccessReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }

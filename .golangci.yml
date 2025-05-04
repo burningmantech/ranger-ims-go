@@ -1,0 +1,44 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    # Maybe later
+    - canonicalheader  # we'd need to rename X-IMS headers to X-Ims
+    - cyclop  # many functions are too complex currently
+    - depguard  # seems very interesting, but needs setup
+    - dupl  # meh
+    - err113  # meh
+    - forcetypeassert  # seems fine to have these in tests
+    - funlen  # meh
+    - gochecknoglobals  # there are a bunch of globals that could be cleaned up
+    - gocognit  # many functions are too complex currently
+    - gocyclo  # many functions are too complex currently
+    - maintidx  # many functions are too complex currently
+    - mnd  # magic numbers can often be obvious enough. Maybe...
+    - nestif  # many functions are too complex currently
+    - revive  # we should have documentation on exported fields/functions/methods
+    - tagliatelle  # we use snake-case JSON tags
+    - unparam  # annoying
+    - wrapcheck  # would have to ignore generated code
+
+    # Uberbonked
+    - dogsled  # dumb
+    - exhaustruct  # more annoying than useful
+    - gochecknoinits  # init functions are sometimes ok
+    - godox  # TODOs are fine
+    - ireturn  # not helpful
+    - lll  # long lines are sometimes alright
+    - nlreturn  # seems unnecessary
+    - nonamedreturns  # namedreturns are often nice as documentation
+    - prealloc  # more annoying than useful
+    - varnamelen  # complains about a lot of reasonable variable names
+    - wsl  # too annoying
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    gosec:
+      excludes:
+        - G115  # integer overflow conversion
+    gocritic:
+      disabled-checks:
+        - exitAfterDefer

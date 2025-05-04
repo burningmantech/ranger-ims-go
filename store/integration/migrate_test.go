@@ -11,10 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/testcontainers/testcontainers-go/modules/mariadb"
 	"slices"
-	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -35,7 +33,7 @@ var schema06 string
 // from one side to the other, presumably a new migration should be
 // created that gets them back in sync.
 func TestMigrateSameAsCurrentSchema(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	ctx := t.Context()
 
 	database := rand.Text()
@@ -43,9 +41,8 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	password := rand.Text()
 
 	// DB 1 start with schema version 6, then gets migrated
-	container1, db1 := newDB(t, ctx, database, username, password)
+	_, db1 := newUnmigratedDB(t, ctx, database, username, password)
 	defer func() {
-		_ = container1.Terminate(ctx)
 		_ = db1.Close()
 	}()
 	// Run the 6 migration
@@ -56,9 +53,8 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	require.NoError(t, err)
 
 	// DB and container 1 starts with no tables, then gets migrated
-	container2, db2 := newDB(t, ctx, database, username, password)
+	_, db2 := newUnmigratedDB(t, ctx, database, username, password)
 	defer func() {
-		_ = container2.Terminate(ctx)
 		_ = db2.Close()
 	}()
 	// migrate to current schema version
@@ -112,32 +108,21 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	}
 }
 
-func newDB(t *testing.T, ctx context.Context, database, username, password string) (testcontainers.Container, *sql.DB) {
+func newUnmigratedDB(t *testing.T, ctx context.Context, database, username, password string) (testcontainers.Container, *sql.DB) {
 	t.Helper()
 
-	req := testcontainers.ContainerRequest{
-		Image:        store.MariaDBDockerImage,
-		ExposedPorts: []string{"3306/tcp"},
-		WaitingFor:   wait.ForListeningPort("3306/tcp"),
-		Env: map[string]string{
-			"MARIADB_RANDOM_ROOT_PASSWORD": "true",
-			"MARIADB_DATABASE":             database,
-			"MARIADB_USER":                 username,
-			"MARIADB_PASSWORD":             password,
-		},
-	}
-	container, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		},
+	ctr, err := mariadb.Run(ctx, store.MariaDBDockerImage,
+		mariadb.WithDatabase(database),
+		mariadb.WithUsername(username),
+		mariadb.WithPassword(password),
 	)
+	testcontainers.CleanupContainer(t, ctr)
 	require.NoError(t, err)
-	endpoint, err := container.Endpoint(ctx, "")
+	port, err := ctr.MappedPort(ctx, "3306/tcp")
 	require.NoError(t, err)
-	port, err := strconv.ParseInt(strings.TrimPrefix(endpoint, "localhost:"), 0, 32)
+
 	require.NoError(t, err)
-	dbHostPort := int32(port)
+	dbHostPort := int32(port.Int())
 	db, err := store.MariaDB(ctx, conf.StoreMariaDB{
 		HostName: "",
 		HostPort: dbHostPort,
@@ -146,7 +131,7 @@ func newDB(t *testing.T, ctx context.Context, database, username, password strin
 		Password: password,
 	}, false)
 	require.NoError(t, err)
-	return container, db
+	return ctr, db
 }
 
 func runScript(ctx context.Context, imsDB *sql.DB, sql string) error {

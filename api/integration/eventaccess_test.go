@@ -24,7 +24,7 @@ import (
 )
 
 func TestEventAccessAPIAuthorization(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}

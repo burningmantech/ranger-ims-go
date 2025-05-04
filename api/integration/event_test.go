@@ -26,7 +26,7 @@ import (
 )
 
 func TestEventAPIAuthorization(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -60,7 +60,7 @@ func TestEventAPIAuthorization(t *testing.T) {
 }
 
 func TestGetAndEditEvent(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
@@ -116,7 +116,7 @@ func TestGetAndEditEvent(t *testing.T) {
 }
 
 func TestEditEvent_errors(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}

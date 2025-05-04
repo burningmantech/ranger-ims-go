@@ -26,6 +26,7 @@ import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -270,9 +271,14 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// First create the incident, to lock in the incident number reservation
 	numUntyped, err := imsdb.New(action.imsDB).MaxIncidentNumber(ctx, event.ID)
-	numTyped, ok := numUntyped.(int64)
-	if err != nil || !ok {
+	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to find next Incident number", err)
+		return
+	}
+	numTyped, ok := numUntyped.(int64)
+	if !ok || numTyped > math.MaxInt32-1 {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to find valid next Incident number",
+			fmt.Errorf("failed to read Incident number. Wanted an int64 that's less than MaxInt32-1, found %v", numTyped))
 		return
 	}
 	newIncident.EventID = event.ID

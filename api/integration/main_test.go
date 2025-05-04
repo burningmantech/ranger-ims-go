@@ -84,9 +84,9 @@ func setup(ctx context.Context) {
 	shared.cfg = conf.DefaultIMS()
 	shared.cfg.Core.JWTSecret = rand.Text()
 	shared.cfg.Core.Admins = []string{userAdminHandle}
-	shared.cfg.Store.MySQL.Database = "ims"
-	shared.cfg.Store.MySQL.Username = "rangers"
-	shared.cfg.Store.MySQL.Password = rand.Text()
+	shared.cfg.Store.MariaDB.Database = "ims"
+	shared.cfg.Store.MariaDB.Username = "rangers"
+	shared.cfg.Store.MariaDB.Password = rand.Text()
 	shared.cfg.Directory.Directory = conf.DirectoryTypeTestUsers
 	shared.cfg.Directory.TestUsers = []conf.TestUser{
 		{
@@ -117,14 +117,14 @@ func setup(ctx context.Context) {
 	}
 	shared.userStore = userStore
 	req := testcontainers.ContainerRequest{
-		Image:        "mariadb:10.5.27",
+		Image:        store.MariaDBDockerImage,
 		ExposedPorts: []string{"3306/tcp"},
 		WaitingFor:   wait.ForListeningPort("3306/tcp"),
 		Env: map[string]string{
 			"MARIADB_RANDOM_ROOT_PASSWORD": "true",
-			"MARIADB_DATABASE":             shared.cfg.Store.MySQL.Database,
-			"MARIADB_USER":                 shared.cfg.Store.MySQL.Username,
-			"MARIADB_PASSWORD":             shared.cfg.Store.MySQL.Password,
+			"MARIADB_DATABASE":             shared.cfg.Store.MariaDB.Database,
+			"MARIADB_USER":                 shared.cfg.Store.MariaDB.Username,
+			"MARIADB_PASSWORD":             shared.cfg.Store.MariaDB.Password,
 		},
 	}
 	mainTestInternal.imsDBContainer, err = testcontainers.GenericContainer(ctx,
@@ -143,8 +143,8 @@ func setup(ctx context.Context) {
 		panic(err)
 	}
 	port, _ := strconv.ParseInt(strings.TrimPrefix(endpoint, "localhost:"), 0, 32)
-	shared.cfg.Store.MySQL.HostPort = int32(port)
-	db := store.MariaDB(ctx, shared.cfg)
+	shared.cfg.Store.MariaDB.HostPort = int32(port)
+	db := store.MariaDB(ctx, shared.cfg.Store.MariaDB, true)
 	shared.imsDB = &store.DB{DB: db}
 	// Use faster/less-secure UUID generation for tests
 	uuid.EnableRandPool()

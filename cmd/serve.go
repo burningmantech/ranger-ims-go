@@ -73,7 +73,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		err = fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory)
 	}
 	must(err)
-	imsDB := store.MariaDB(ctx, imsCfg)
+	imsDB := store.MariaDB(ctx, imsCfg.Store.MariaDB, true)
 
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
@@ -201,21 +201,21 @@ func initConfig() {
 		newCfg.Core.JWTSecret = v
 	}
 	if v, ok := lookupEnv("IMS_DB_HOST_NAME"); ok {
-		newCfg.Store.MySQL.HostName = v
+		newCfg.Store.MariaDB.HostName = v
 	}
 	if v, ok := lookupEnv("IMS_DB_HOST_POST"); ok {
 		num, err := strconv.ParseInt(v, 10, 32)
 		must(err)
-		newCfg.Store.MySQL.HostPort = int32(num)
+		newCfg.Store.MariaDB.HostPort = int32(num)
 	}
 	if v, ok := lookupEnv("IMS_DB_DATABASE"); ok {
-		newCfg.Store.MySQL.Database = v
+		newCfg.Store.MariaDB.Database = v
 	}
 	if v, ok := lookupEnv("IMS_DB_USER_NAME"); ok {
-		newCfg.Store.MySQL.Username = v
+		newCfg.Store.MariaDB.Username = v
 	}
 	if v, ok := lookupEnv("IMS_DB_PASSWORD"); ok {
-		newCfg.Store.MySQL.Password = v
+		newCfg.Store.MariaDB.Password = v
 	}
 	if v, ok := lookupEnv("IMS_DMS_HOSTNAME"); ok {
 		newCfg.Directory.ClubhouseDB.Hostname = v

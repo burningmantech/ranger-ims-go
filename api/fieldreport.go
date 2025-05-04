@@ -25,6 +25,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -103,7 +104,7 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 			Number:        fr.FieldReport.Number,
 			Created:       time.Unix(int64(fr.FieldReport.Created), 0),
 			Summary:       stringOrNil(fr.FieldReport.Summary),
-			Incident:      fr.FieldReport.IncidentNumber.Int32,
+			Incident:      int32OrNil(fr.FieldReport.IncidentNumber),
 			ReportEntries: entriesByFR[fr.FieldReport.Number],
 		})
 	}
@@ -191,7 +192,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		Number:        fr.Number,
 		Created:       time.Unix(int64(fr.Created), 0),
 		Summary:       stringOrNil(fr.Summary),
-		Incident:      fr.IncidentNumber.Int32,
+		Incident:      int32OrNil(fr.IncidentNumber),
 		ReportEntries: []imsjson.ReportEntry{},
 	}
 	response.ReportEntries = entries
@@ -396,21 +397,24 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	if fr.Incident != 0 {
+	if fr.Incident != nil {
 		handleErr(w, req, http.StatusBadRequest, "A new Field Report may not be attached to an incident", nil)
 		return
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
 	numUntyped, err := imsdb.New(action.imsDB).MaxFieldReportNumber(ctx, event.ID)
-	// This field comes back from sql.DB as an int64, even though it's the MAX of an int32 column.
-	// We therefore must type-check it as int64, even though it's less than MaxInt32
-	numTyped, ok := numUntyped.(int64)
-	if err != nil || !ok {
+	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to find next Field Report number", err)
 		return
 	}
-	newFrNum := numTyped + 1
+	numTyped, ok := numUntyped.(int64)
+	if !ok || numTyped > math.MaxInt32-1 {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to find valid next Field Report number",
+			fmt.Errorf("failed to read Field Report number. Wanted an int64 that's less than MaxInt32-1, found %v", numTyped))
+		return
+	}
+	newFrNum := int32(numTyped) + 1
 
 	txn, err := action.imsDB.Begin()
 	if err != nil {
@@ -422,7 +426,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	err = dbTxn.CreateFieldReport(ctx, imsdb.CreateFieldReportParams{
 		Event:          event.ID,
-		Number:         int32(newFrNum),
+		Number:         newFrNum,
 		Created:        float64(time.Now().Unix()),
 		Summary:        sqlNullString(fr.Summary),
 		IncidentNumber: sql.NullInt32{},
@@ -432,22 +436,22 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	for _, entry := range fr.ReportEntries {
-		if entry.Text == "" {
-			continue
-		}
-		err = addFRReportEntry(ctx, dbTxn, event.ID, int32(newFrNum), author, entry.Text, false)
+	if fr.Summary != nil {
+		text := "Changed summary to: " + *fr.Summary
+		err = addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, text, true)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Error adding Report Entry", err)
+			handleErr(w, req, http.StatusInternalServerError, "Error changing Field Report summary", err)
 			return
 		}
 	}
 
-	if fr.Summary != nil {
-		text := "Changed summary to: " + *fr.Summary
-		err = addFRReportEntry(ctx, dbTxn, event.ID, int32(newFrNum), author, text, true)
+	for _, entry := range fr.ReportEntries {
+		if entry.Text == "" {
+			continue
+		}
+		err = addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, entry.Text, false)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Error changing Field Report summary", err)
+			handleErr(w, req, http.StatusInternalServerError, "Error adding Report Entry", err)
 			return
 		}
 	}
@@ -460,7 +464,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, newFrNum)
 	w.Header().Set("X-IMS-Field-Report-Number", strconv.Itoa(int(newFrNum)))
 	w.Header().Set("Location", loc)
-	defer action.eventSource.notifyFieldReportUpdate(event.Name, int32(newFrNum))
+	defer action.eventSource.notifyFieldReportUpdate(event.Name, newFrNum)
 
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }

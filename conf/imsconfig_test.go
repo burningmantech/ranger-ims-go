@@ -13,7 +13,7 @@ func TestPrintRedacted(t *testing.T) {
 			Admins: []string{"admin user"},
 		},
 		Store: conf.Store{
-			MySQL: conf.StoreMySQL{
+			MariaDB: conf.StoreMariaDB{
 				Username: "db username",
 				Password: "db password",
 			},

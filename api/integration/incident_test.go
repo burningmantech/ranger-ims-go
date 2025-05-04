@@ -51,8 +51,8 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
+	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
 	notAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Make an event to which no one has any access
@@ -130,8 +130,8 @@ func TestCreateAndGetIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -149,47 +149,50 @@ func TestCreateAndGetIncident(t *testing.T) {
 	num := apisNonAdmin.newIncidentSuccess(ctx, incidentReq)
 	incidentReq.Number = num
 
-	// Use normal user to fetch that Incident from the API and check it over
-	retrievedIncident, resp := apisNonAdmin.getIncident(ctx, eventName, num)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.NotNil(t, retrievedIncident)
-	require.WithinDuration(t, time.Now(), retrievedIncident.Created, 5*time.Minute)
-	require.WithinDuration(t, time.Now(), retrievedIncident.LastModified, 5*time.Minute)
-	require.Len(t, retrievedIncident.ReportEntries, 2)
+	{
+		// Use normal user to fetch that Incident from the API and check it over
+		retrievedIncident, resp := apisNonAdmin.getIncident(ctx, eventName, num)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.NotNil(t, retrievedIncident)
+		require.WithinDuration(t, time.Now(), retrievedIncident.Created, 5*time.Minute)
+		require.WithinDuration(t, time.Now(), retrievedIncident.LastModified, 5*time.Minute)
+		require.Len(t, retrievedIncident.ReportEntries, 2)
 
-	// The first report entry will be the system entry. The second should be the one we sent in the request
-	retrievedUserEntry := retrievedIncident.ReportEntries[1]
-	retrievedUserEntry.ID = 0
-	require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
-	retrievedUserEntry.Created = time.Time{}
-	entryReq.Author = userAliceHandle
-	require.Equal(t, entryReq, retrievedUserEntry)
-	requireEqualIncident(t, incidentReq, retrievedIncident)
+		// The first report entry will be the system entry. The second should be the one we sent in the request
+		retrievedUserEntry := retrievedIncident.ReportEntries[1]
+		retrievedUserEntry.ID = 0
+		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
+		retrievedUserEntry.Created = time.Time{}
+		entryReq.Author = userAliceHandle
+		require.Equal(t, entryReq, retrievedUserEntry)
+		requireEqualIncident(t, incidentReq, retrievedIncident)
+	}
 
-	// Now get the incident via the GetIncidents (plural) endpoint, and repeat the validation
-	retrievedIncidents, resp := apisNonAdmin.getIncidents(ctx, eventName)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Len(t, retrievedIncidents, 1)
+	{
+		// Now get the incident via the GetIncidents (plural) endpoint, and repeat the validation
+		retrievedIncidents, resp := apisNonAdmin.getIncidents(ctx, eventName)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.Len(t, retrievedIncidents, 1)
 
-	// The first entry will be the system entry. The second should be the one we sent in the request
-	retrievedUserEntry = retrievedIncident.ReportEntries[1]
-	retrievedUserEntry.ID = 0
-	require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
-	retrievedUserEntry.Created = time.Time{}
-	entryReq.Author = userAliceHandle
-	require.Equal(t, entryReq, retrievedUserEntry)
-
-	requireEqualIncident(t, incidentReq, retrievedIncidents[0])
+		// The first entry will be the system entry. The second should be the one we sent in the request
+		retrievedUserEntry := retrievedIncidents[0].ReportEntries[1]
+		retrievedUserEntry.ID = 0
+		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
+		retrievedUserEntry.Created = time.Time{}
+		entryReq.Author = userAliceHandle
+		require.Equal(t, entryReq, retrievedUserEntry)
+		requireEqualIncident(t, incidentReq, retrievedIncidents[0])
+	}
 }
 
 func TestCreateAndUpdateIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -268,7 +271,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 
 // requireEqualIncident is a hacky way of checking two incident responses are the same.
 // It does not consider ReportEntries.
-func requireEqualIncident(t *testing.T, before imsjson.Incident, after imsjson.Incident) {
+func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	t.Helper()
 	// This field isn't in use in the client yet
 	// require.Equal(t, before.EventID, after.EventID)

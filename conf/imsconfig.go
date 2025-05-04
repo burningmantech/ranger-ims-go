@@ -48,7 +48,7 @@ func DefaultIMS() *IMSConfig {
 			CacheControlLong:     2 * time.Hour,
 		},
 		Store: Store{
-			MySQL: StoreMySQL{
+			MariaDB: StoreMariaDB{
 				HostName: "localhost",
 				HostPort: 3306,
 				Database: "ims",
@@ -229,10 +229,10 @@ type ConfigCore struct {
 }
 
 type Store struct {
-	MySQL StoreMySQL
+	MariaDB StoreMariaDB
 }
 
-type StoreMySQL struct {
+type StoreMariaDB struct {
 	HostName string
 	HostPort int32
 	Database string

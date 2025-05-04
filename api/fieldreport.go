@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 	if ok = mustParseForm(w, req); !ok {
 		return
 	}
-	generatedLTE := req.Form.Get("exclude_system_entries") != "true" // false means to exclude
+	generatedLTE := !strings.EqualFold("exclude_system_entries", "true") // false means to exclude
 
 	reportEntries, err := imsdb.New(action.imsDB).FieldReports_ReportEntries(req.Context(),
 		imsdb.FieldReports_ReportEntriesParams{
@@ -402,6 +403,8 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	author := jwtCtx.Claims.RangerHandle()
 	numUntyped, err := imsdb.New(action.imsDB).MaxFieldReportNumber(ctx, event.ID)
+	// This field comes back from sql.DB as an int64, even though it's the MAX of an int32 column.
+	// We therefore must type-check it as int64, even though it's less than MaxInt32
 	numTyped, ok := numUntyped.(int64)
 	if err != nil || !ok {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to find next Field Report number", err)

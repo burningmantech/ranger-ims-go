@@ -287,20 +287,20 @@ type Person struct {
 
 // links person to position
 type PersonPosition struct {
-	PersonID   uint64
-	PositionID uint64
+	PersonID   int64
+	PositionID int64
 }
 
 type PersonTeam struct {
 	ID        uint64
-	PersonID  int32
-	TeamID    int32
+	PersonID  int64
+	TeamID    int64
 	CreatedAt sql.NullTime
 	UpdatedAt sql.NullTime
 }
 
 type Position struct {
-	ID              uint64
+	ID              int64
 	Title           string
 	NewUserEligible bool
 	AllRangers      bool
@@ -339,7 +339,7 @@ type Position struct {
 }
 
 type Team struct {
-	ID          uint64
+	ID          int64
 	Title       string
 	Type        string
 	Active      bool

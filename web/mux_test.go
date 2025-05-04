@@ -63,6 +63,7 @@ func TestTemplEndpoints(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
 		bod, err := io.ReadAll(resp.Body)
+		require.NoError(t, resp.Body.Close())
 		require.NoError(t, err)
 		require.Contains(t, string(bod), "IMS Software © Burning Man Project and its contributors")
 	}
@@ -88,6 +89,7 @@ func TestCatchall(t *testing.T) {
 	resp, err := client.Do(httpReq)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	// Ta-da! Now there's no trailing slash
 	require.Equal(t, "/ims/app/events/SomeEvent/incidents", resp.Request.URL.Path)
 
@@ -98,4 +100,5 @@ func TestCatchall(t *testing.T) {
 	resp, err = client.Do(httpReq)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }

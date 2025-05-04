@@ -100,7 +100,7 @@ func (a ApiHelper) getTypes(ctx context.Context, includeHidden bool) (imsjson.In
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/incident_types").String()
 	if includeHidden {
-		path = path + "?hidden=true"
+		path += "?hidden=true"
 	}
 	bod, resp := a.imsGet(ctx, path, &imsjson.IncidentTypes{})
 	return *bod.(*imsjson.IncidentTypes), resp
@@ -116,6 +116,7 @@ func (a ApiHelper) newIncidentSuccess(ctx context.Context, incidentReq imsjson.I
 	resp := a.newIncident(ctx, incidentReq)
 	require.Equal(a.t, http.StatusCreated, resp.StatusCode)
 	numStr := resp.Header.Get("X-IMS-Incident-Number")
+	require.NoError(a.t, resp.Body.Close())
 	require.NotEmpty(a.t, numStr)
 	num, err := strconv.ParseInt(numStr, 10, 32)
 	require.NoError(a.t, err)

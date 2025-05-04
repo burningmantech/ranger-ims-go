@@ -42,8 +42,8 @@ select person_id, team_id from person_team
 `
 
 type PersonTeamsRow struct {
-	PersonID int32
-	TeamID   int32
+	PersonID int64
+	TeamID   int64
 }
 
 func (q *Queries) PersonTeams(ctx context.Context) ([]PersonTeamsRow, error) {
@@ -74,7 +74,7 @@ select id, title from position where all_rangers = 0
 `
 
 type PositionsRow struct {
-	ID    uint64
+	ID    int64
 	Title string
 }
 
@@ -157,7 +157,7 @@ select id, title from team where active
 `
 
 type TeamsRow struct {
-	ID    uint64
+	ID    int64
 	Title string
 }
 

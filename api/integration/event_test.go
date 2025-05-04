@@ -36,10 +36,13 @@ func TestEventAPIAuthorization(t *testing.T) {
 	// Any authenticated user can call GetEvents
 	_, resp := apisNotAuthenticated.getEvents(ctx)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = apisNonAdmin.getEvents(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	_, resp = apisAdmin.getEvents(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// Only admins can hit the EditEvents endpoint
 	// An unauthenticated client will get a 401
@@ -47,10 +50,13 @@ func TestEventAPIAuthorization(t *testing.T) {
 	editEventReq := imsjson.EditEventsRequest{}
 	resp = apisNotAuthenticated.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = apisNonAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestGetAndEditEvent(t *testing.T) {
@@ -67,6 +73,7 @@ func TestGetAndEditEvent(t *testing.T) {
 
 	resp := apisAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	accessReq := imsjson.EventsAccess{
 		testEventName: {
@@ -80,6 +87,7 @@ func TestGetAndEditEvent(t *testing.T) {
 	}
 	resp = apisAdmin.editAccess(ctx, accessReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	expectedAccessResult := imsjson.EventAccess{
 		Writers:   accessReq[testEventName].Writers,
@@ -89,9 +97,11 @@ func TestGetAndEditEvent(t *testing.T) {
 	accessResult, httpResp := apisAdmin.getAccess(ctx)
 	require.Equal(t, http.StatusOK, httpResp.StatusCode)
 	require.Equal(t, expectedAccessResult, accessResult[testEventName])
+	require.NoError(t, httpResp.Body.Close())
 
 	events, resp := apisAdmin.getEvents(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	// The list may include events from other tests, and we can't be sure of this event's numeric ID.
 	// The best we can do is loop through the events and make sure there's one that matches.
 	var foundEvent *imsjson.Event

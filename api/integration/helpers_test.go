@@ -106,6 +106,43 @@ func (a ApiHelper) getTypes(ctx context.Context, includeHidden bool) (imsjson.In
 	return *bod.(*imsjson.IncidentTypes), resp
 }
 
+func (a ApiHelper) newFieldReport(ctx context.Context, req imsjson.FieldReport) *http.Response {
+	a.t.Helper()
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/field_reports").String())
+}
+
+func (a ApiHelper) newFieldReportSuccess(ctx context.Context, fieldReportReq imsjson.FieldReport) (fieldReport int32) {
+	a.t.Helper()
+	httpResp := a.newFieldReport(ctx, fieldReportReq)
+	require.Equal(a.t, http.StatusCreated, httpResp.StatusCode)
+	numStr := httpResp.Header.Get("X-IMS-Field-Report-Number")
+	require.NoError(a.t, httpResp.Body.Close())
+	require.NotEmpty(a.t, numStr)
+	num, err := strconv.ParseInt(numStr, 10, 32)
+	require.NoError(a.t, err)
+	require.Positive(a.t, num)
+	return int32(num)
+}
+
+func (a ApiHelper) getFieldReport(ctx context.Context, eventName string, fieldReport int32) (imsjson.FieldReport, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/", strconv.Itoa(int(fieldReport))).String()
+	bod, resp := a.imsGet(ctx, path, &imsjson.FieldReport{})
+	return *bod.(*imsjson.FieldReport), resp
+}
+
+func (a ApiHelper) getFieldReports(ctx context.Context, eventName string) (imsjson.FieldReports, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/field_reports")).String()
+	bod, resp := a.imsGet(ctx, path, &imsjson.FieldReports{})
+	return *bod.(*imsjson.FieldReports), resp
+}
+
+func (a ApiHelper) updateFieldReport(ctx context.Context, eventName string, fieldReport int32, req imsjson.FieldReport) *http.Response {
+	a.t.Helper()
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/", strconv.Itoa(int(fieldReport))).String())
+}
+
 func (a ApiHelper) newIncident(ctx context.Context, req imsjson.Incident) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/incidents").String())
@@ -166,6 +203,18 @@ func (a ApiHelper) addWriter(ctx context.Context, eventName, handle string) *htt
 	})
 }
 
+func (a ApiHelper) addReporter(ctx context.Context, eventName, handle string) *http.Response {
+	a.t.Helper()
+	return a.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Reporters: []imsjson.AccessRule{{
+				Expression: "person:" + handle,
+				Validity:   "always",
+			}},
+		},
+	})
+}
+
 func (a ApiHelper) editAccess(ctx context.Context, req imsjson.EventsAccess) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/access").String())
@@ -218,7 +267,7 @@ func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *htt
 	return resp, get
 }
 
-func jwtForRealTestUser(t *testing.T, ctx context.Context) string {
+func jwtForAlice(t *testing.T, ctx context.Context) string {
 	t.Helper()
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 	statusCode, _, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
@@ -229,7 +278,7 @@ func jwtForRealTestUser(t *testing.T, ctx context.Context) string {
 	return token
 }
 
-func jwtForTestAdminRanger(ctx context.Context, t *testing.T) string {
+func jwtForAdmin(ctx context.Context, t *testing.T) string {
 	t.Helper()
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 	statusCode, _, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{

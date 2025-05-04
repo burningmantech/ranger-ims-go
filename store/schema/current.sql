@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (13);
+insert into SCHEMA_INFO (VERSION) values (14);
 
 
 create table EVENT (
@@ -41,12 +41,12 @@ insert into INCIDENT_TYPE (NAME, HIDDEN) values ('Junk' , 0);
 
 
 create table REPORT_ENTRY (
-    ID        integer     not null auto_increment,
-    AUTHOR    varchar(64) not null,
-    TEXT      text        not null,
-    CREATED   double      not null,
+    ID        integer       not null auto_increment,
+    AUTHOR    varchar(64)   not null,
+    TEXT      mediumtext    not null,
+    CREATED   double        not null,
     `GENERATED` boolean     not null,
-    STRICKEN  boolean     not null,
+    STRICKEN  boolean       not null,
 
     ATTACHED_FILE varchar(128),
 
@@ -137,7 +137,7 @@ create table EVENT_ACCESS (
     MODE     enum ('read', 'write', 'report') not null,
     VALIDITY enum ('always', 'onsite') not null default 'always',
 
-    foreign key (EVENT) references EVENT(ID),
+    foreign key `EVENT_ACCESS_TO_EVENT` (EVENT) references EVENT(ID),
 
     primary key (ID)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -163,10 +163,11 @@ create table FIELD_REPORT__REPORT_ENTRY (
     FIELD_REPORT_NUMBER    integer not null,
     REPORT_ENTRY           integer not null,
 
-    foreign key (EVENT) references EVENT(ID),
-    foreign key (EVENT, FIELD_REPORT_NUMBER)
+    foreign key `FIELD_REPORT__REPORT_ENTRY_ibfk_1` (EVENT) references EVENT(ID),
+    foreign key `FIELD_REPORT__REPORT_ENTRY___FIELD_REPORT_FK` (EVENT, FIELD_REPORT_NUMBER)
         references FIELD_REPORT(EVENT, NUMBER),
-    foreign key (REPORT_ENTRY) references REPORT_ENTRY(ID),
+    foreign key `FR_REPORT_ENTRY_TO_REPORT_ENTRY` (REPORT_ENTRY)
+        references REPORT_ENTRY(ID),
 
     primary key (EVENT, FIELD_REPORT_NUMBER, REPORT_ENTRY)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

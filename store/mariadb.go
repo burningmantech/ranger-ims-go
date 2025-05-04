@@ -29,22 +29,27 @@ import (
 	"time"
 )
 
+const (
+	MariaDBVersion     = "10.5.27"
+	MariaDBDockerImage = "mariadb:" + MariaDBVersion
+)
+
 //go:embed schema/current.sql
 var CurrentSchema string
 
 //go:embed schema/*-from-*.sql
 var Migrations embed.FS
 
-func MariaDB(ctx context.Context, imsCfg *conf.IMSConfig) *sql.DB {
+func MariaDB(ctx context.Context, mariaCfg conf.StoreMariaDB, migrateDB bool) *sql.DB {
 	slog.Info("Setting up IMS DB connection")
 
 	// Capture connection properties.
 	cfg := mysql.NewConfig()
-	cfg.User = imsCfg.Store.MySQL.Username
-	cfg.Passwd = imsCfg.Store.MySQL.Password
+	cfg.User = mariaCfg.Username
+	cfg.Passwd = mariaCfg.Password
 	cfg.Net = "tcp"
-	cfg.Addr = fmt.Sprintf("%v:%v", imsCfg.Store.MySQL.HostName, imsCfg.Store.MySQL.HostPort)
-	cfg.DBName = imsCfg.Store.MySQL.Database
+	cfg.Addr = fmt.Sprintf("%v:%v", mariaCfg.HostName, mariaCfg.HostPort)
+	cfg.DBName = mariaCfg.Database
 
 	// Get a database handle.
 	db, err := sql.Open("mysql", cfg.FormatDSN())
@@ -61,9 +66,13 @@ func MariaDB(ctx context.Context, imsCfg *conf.IMSConfig) *sql.DB {
 		os.Exit(1)
 	}
 
-	if err = MigrateDB(ctx, db); err != nil {
-		slog.Error("Failed to migrate IMS DB", "error", err)
-		os.Exit(1)
+	if migrateDB {
+		if err = MigrateDB(ctx, db); err != nil {
+			slog.Error("Failed to migrate IMS DB", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		slog.Info("IMS DB migration not requested")
 	}
 
 	slog.Info("Connected to IMS MariaDB")

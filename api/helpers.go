@@ -193,6 +193,13 @@ func stringOrNil(v sql.NullString) *string {
 	return nil
 }
 
+func int32OrNil(v sql.NullInt32) *int32 {
+	if v.Valid {
+		return &v.Int32
+	}
+	return nil
+}
+
 func rollback(txn *sql.Tx) {
 	err := txn.Rollback()
 	if err != nil && !errors.Is(err, sql.ErrTxDone) {

@@ -28,8 +28,8 @@ func TestIncidentTypesAPIAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForRealTestUser(t, ctx)}
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Any authenticated user can call GetIncidentTypes
@@ -62,7 +62,7 @@ func TestCreateIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForTestAdminRanger(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
 	// Make three new incident types
 	typeA, typeB, typeC := uuid.New().String(), uuid.New().String(), uuid.New().String()

@@ -26,14 +26,12 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/testcontainers/testcontainers-go/modules/mariadb"
 	"log"
 	"log/slog"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -116,34 +114,20 @@ func setup(ctx context.Context) {
 		panic(err)
 	}
 	shared.userStore = userStore
-	req := testcontainers.ContainerRequest{
-		Image:        store.MariaDBDockerImage,
-		ExposedPorts: []string{"3306/tcp"},
-		WaitingFor:   wait.ForListeningPort("3306/tcp"),
-		Env: map[string]string{
-			"MARIADB_RANDOM_ROOT_PASSWORD": "true",
-			"MARIADB_DATABASE":             shared.cfg.Store.MariaDB.Database,
-			"MARIADB_USER":                 shared.cfg.Store.MariaDB.Username,
-			"MARIADB_PASSWORD":             shared.cfg.Store.MariaDB.Password,
-		},
-	}
-	mainTestInternal.imsDBContainer, err = testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-			// This logging is useful for debugging container startup issues
-			//Logger:           log.New(os.Stdout, "MariaDB ", log.LstdFlags),
-		},
+	ctr, err := mariadb.Run(ctx, store.MariaDBDockerImage,
+		mariadb.WithDatabase(shared.cfg.Store.MariaDB.Database),
+		mariadb.WithUsername(shared.cfg.Store.MariaDB.Username),
+		mariadb.WithPassword(shared.cfg.Store.MariaDB.Password),
 	)
+	mainTestInternal.imsDBContainer = ctr
 	if err != nil {
 		panic(err)
 	}
-	endpoint, err := mainTestInternal.imsDBContainer.Endpoint(ctx, "")
+	port, err := ctr.MappedPort(ctx, "3306/tcp")
 	if err != nil {
 		panic(err)
 	}
-	port, _ := strconv.ParseInt(strings.TrimPrefix(endpoint, "localhost:"), 0, 32)
-	shared.cfg.Store.MariaDB.HostPort = int32(port)
+	shared.cfg.Store.MariaDB.HostPort = int32(port.Int())
 	db, err := store.MariaDB(ctx, shared.cfg.Store.MariaDB, true)
 	if err != nil {
 		panic(err)

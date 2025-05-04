@@ -7,7 +7,7 @@ import (
 )
 
 func TestPrintRedacted(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	cfg := conf.IMSConfig{
 		Core: conf.ConfigCore{
 			Admins: []string{"admin user"},

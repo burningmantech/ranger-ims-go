@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/mariadb"
+	"github.com/testcontainers/testcontainers-go/wait"
+	"golang.org/x/sync/errgroup"
+	"io"
 	"slices"
 	"testing"
 )
@@ -40,59 +42,55 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	username := rand.Text()
 	password := rand.Text()
 
-	// DB 1 start with schema version 6, then gets migrated
-	_, db1 := newUnmigratedDB(t, ctx, database, username, password)
-	defer func() {
-		_ = db1.Close()
-	}()
-	// Run the 6 migration
+	// Bring up two DB containers in parallel
+	var db1, db2 *sql.DB
+	group, _ := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		_, db1 = newUnmigratedDB(t, ctx, database, username, password)
+		return nil
+	})
+	group.Go(func() error {
+		_, db2 = newUnmigratedDB(t, ctx, database, username, password)
+		return nil
+	})
+	require.NoError(t, group.Wait())
+	defer shut(db1)
+	defer shut(db2)
+
+	// DB 1 start with schema version 6, then gets migrated to the latest
+	// DB 2 starts with no tables, then gets migrated to the latest
+
+	// DB1: Run the version 6 migration
 	err := runScript(ctx, db1, schema06)
 	require.NoError(t, err)
-	// now migrate to current schema version
+	// DB1: Now migrate to current schema version
 	err = store.MigrateDB(ctx, db1)
 	require.NoError(t, err)
 
-	// DB and container 1 starts with no tables, then gets migrated
-	_, db2 := newUnmigratedDB(t, ctx, database, username, password)
-	defer func() {
-		_ = db2.Close()
-	}()
-	// migrate to current schema version
+	// DB2: migrate straight up to current schema version
 	err = store.MigrateDB(ctx, db2)
 	require.NoError(t, err)
 
-	// the two databases should have the same set of tables
-	var tableNamesDB1 []string
-	rows1, err := db1.QueryContext(ctx, `show tables`)
-	require.NoError(t, err)
-	defer func() {
-		_ = rows1.Close()
-	}()
-	for rows1.Next() {
-		var tableName string
-		require.NoError(t, rows1.Scan(&tableName))
-		tableNamesDB1 = append(tableNamesDB1, tableName)
+	// The two databases should have the same set of tables
+	var dbTables [2][]string
+
+	for i, db := range []*sql.DB{db1, db2} {
+		rows, err := db.QueryContext(ctx, `show tables`)
+		require.NoError(t, err)
+		defer shut(rows)
+		for rows.Next() {
+			var tableName string
+			require.NoError(t, rows.Scan(&tableName))
+			dbTables[i] = append(dbTables[i], tableName)
+		}
+		require.NoError(t, rows.Err())
+		slices.Sort(dbTables[i])
 	}
-	require.NoError(t, rows1.Err())
-	var tableNamesDB2 []string
-	rows2, err := db2.QueryContext(ctx, `show tables`)
-	require.NoError(t, err)
-	defer func() {
-		_ = rows2.Close()
-	}()
-	for rows2.Next() {
-		var tableName string
-		require.NoError(t, rows2.Scan(&tableName))
-		tableNamesDB2 = append(tableNamesDB2, tableName)
-	}
-	require.NoError(t, rows2.Err())
-	slices.Sort(tableNamesDB1)
-	slices.Sort(tableNamesDB2)
-	require.Equal(t, tableNamesDB1, tableNamesDB2)
+	require.Equal(t, dbTables[0], dbTables[1])
 
 	// for each table, check that the two databases have the same
 	// "CREATE TABLE" statement.
-	for _, tableName := range tableNamesDB1 {
+	for _, tableName := range dbTables[0] {
 		row1 := db1.QueryRowContext(ctx, `show create table `+tableName)
 		require.NoError(t, err)
 		var tableName string
@@ -111,16 +109,25 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 func newUnmigratedDB(t *testing.T, ctx context.Context, database, username, password string) (testcontainers.Container, *sql.DB) {
 	t.Helper()
 
-	ctr, err := mariadb.Run(ctx, store.MariaDBDockerImage,
-		mariadb.WithDatabase(database),
-		mariadb.WithUsername(username),
-		mariadb.WithPassword(password),
+	ctr, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        store.MariaDBDockerImage,
+				ExposedPorts: []string{"3306/tcp"},
+				WaitingFor:   wait.ForLog("port: 3306  mariadb.org binary distribution"),
+				Env: map[string]string{
+					"MARIADB_RANDOM_ROOT_PASSWORD": "true",
+					"MARIADB_DATABASE":             database,
+					"MARIADB_USER":                 username,
+					"MARIADB_PASSWORD":             password,
+				},
+			},
+			Started: true,
+		},
 	)
 	testcontainers.CleanupContainer(t, ctr)
 	require.NoError(t, err)
 	port, err := ctr.MappedPort(ctx, "3306/tcp")
-	require.NoError(t, err)
-
 	require.NoError(t, err)
 	dbHostPort := int32(port.Int())
 	db, err := store.MariaDB(ctx, conf.StoreMariaDB{
@@ -141,4 +148,8 @@ func runScript(ctx context.Context, imsDB *sql.DB, sql string) error {
 		return fmt.Errorf("[ExecContext]: %w", err)
 	}
 	return nil
+}
+
+func shut(c io.Closer) {
+	_ = c.Close()
 }

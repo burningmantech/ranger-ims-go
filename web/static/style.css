@@ -329,3 +329,11 @@ h1 {
   content: '✓';
   font-weight: 600;
 }
+
+#queue_table>tbody>tr {
+  cursor: pointer;
+}
+
+#field_reports_table>tbody>tr {
+  cursor: pointer;
+}

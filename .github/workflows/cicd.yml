@@ -21,13 +21,17 @@ jobs:
       with:
         egress-policy: block
         allowed-endpoints: >
+          *.codecov.io:443
           *.docker.com:443
           *.docker.io:443
+          *.ingest.us.sentry.io:443
           api.github.com:443
           cdn.datatables.net:443
           cdn.jsdelivr.net:443
           code.jquery.com:443
+          codecov.io:443
           github.com:443
+          keybase.io:443
           objects.githubusercontent.com:443
           proxy.golang.org:443
           storage.googleapis.com:443
@@ -50,8 +54,51 @@ jobs:
     #  do these on the developer's computer, and this can be
     #  enforced by pre-commit.
 
-    - name: Build
-      run: go build -v ./...
+    - name: Compile, test, and cover
+      run: go test -race -covermode=atomic -coverprofile=coverage.out --coverpkg ./... ./...
 
-    - name: Test
-      run: go test -v ./...
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: coverage.out
+        env_vars: GITHUB_REF,GITHUB_COMMIT,GITHUB_USER,GITHUB_WORKFLOW
+        fail_ci_if_error: false
+        verbose: true
+      env:
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_COMMIT: ${{ github.sha }}
+        GITHUB_USER: ${{ github.actor }}
+        GITHUB_WORKFLOW: ${{ github.workflow }}
+
+# TODO: get this working next
+#  docker-build:
+#    name: Build Docker image
+#
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 10
+#
+#    steps:
+#
+#      - name: Harden CI
+#        uses: step-security/harden-runner@v2.12.0
+#        with:
+#          disable-sudo: true
+#          egress-policy: audit
+#          allowed-endpoints: >
+#            *.docker.io:443
+#
+#      - name: Checkout source code
+#        uses: actions/checkout@v4
+#
+#      - name: Build Docker image
+#        run: ./bin/build
+#
+#      - name: Save Docker image
+#        run: docker image save ranger-ims-server:dev | gzip -9 > docker_image.tgz
+#
+#      - name: Upload Docker image artifacts
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: docker
+#          path: docker_image.tgz

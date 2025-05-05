@@ -26,7 +26,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/mariadb"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
 	"log/slog"
 	"net/http/httptest"
@@ -37,7 +37,7 @@ import (
 
 // mainTestInternal contains fields to be used only within main_test.go.
 var mainTestInternal struct {
-	imsDBContainer testcontainers.Container
+	dbCtr testcontainers.Container
 }
 
 // shared contains fields that may be used by any test in the integration package.
@@ -80,11 +80,11 @@ func TestMain(m *testing.M) {
 
 func setup(ctx context.Context) {
 	shared.cfg = conf.DefaultIMS()
-	shared.cfg.Core.JWTSecret = rand.Text()
+	shared.cfg.Core.JWTSecret = "jwtsecret-" + rand.Text()
 	shared.cfg.Core.Admins = []string{userAdminHandle}
-	shared.cfg.Store.MariaDB.Database = "ims"
-	shared.cfg.Store.MariaDB.Username = "rangers"
-	shared.cfg.Store.MariaDB.Password = rand.Text()
+	shared.cfg.Store.MariaDB.Database = "ims-" + rand.Text()
+	shared.cfg.Store.MariaDB.Username = "rangers-" + rand.Text()
+	shared.cfg.Store.MariaDB.Password = "password-" + rand.Text()
 	shared.cfg.Directory.Directory = conf.DirectoryTypeTestUsers
 	shared.cfg.Directory.TestUsers = []conf.TestUser{
 		{
@@ -110,33 +110,39 @@ func setup(ctx context.Context) {
 	}
 	shared.es = api.NewEventSourcerer()
 	userStore, err := directory.NewUserStore(shared.cfg.Directory.TestUsers, nil)
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	shared.userStore = userStore
-	ctr, err := mariadb.Run(ctx, store.MariaDBDockerImage,
-		mariadb.WithDatabase(shared.cfg.Store.MariaDB.Database),
-		mariadb.WithUsername(shared.cfg.Store.MariaDB.Username),
-		mariadb.WithPassword(shared.cfg.Store.MariaDB.Password),
+	mainTestInternal.dbCtr, err = testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        store.MariaDBDockerImage,
+				ExposedPorts: []string{"3306/tcp"},
+				WaitingFor:   wait.ForLog("port: 3306  mariadb.org binary distribution"),
+				Env: map[string]string{
+					"MARIADB_RANDOM_ROOT_PASSWORD": "true",
+					"MARIADB_DATABASE":             shared.cfg.Store.MariaDB.Database,
+					"MARIADB_USER":                 shared.cfg.Store.MariaDB.Username,
+					"MARIADB_PASSWORD":             shared.cfg.Store.MariaDB.Password,
+				},
+			},
+			Started: true,
+		},
 	)
-	mainTestInternal.imsDBContainer = ctr
-	if err != nil {
-		panic(err)
-	}
-	port, err := ctr.MappedPort(ctx, "3306/tcp")
-	if err != nil {
-		panic(err)
-	}
+	must(err)
+	port, err := mainTestInternal.dbCtr.MappedPort(ctx, "3306/tcp")
+	must(err)
 	shared.cfg.Store.MariaDB.HostPort = int32(port.Int())
 	db, err := store.MariaDB(ctx, shared.cfg.Store.MariaDB, true)
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	shared.imsDB = &store.DB{DB: db}
 	// Use faster/less-secure UUID generation for tests
 	uuid.EnableRandPool()
 	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	shared.serverURL, err = url.Parse(shared.testServer.URL)
+	must(err)
+}
+
+func must(err error) {
 	if err != nil {
 		panic(err)
 	}
@@ -149,8 +155,8 @@ func shutdown(ctx context.Context) {
 	if shared.imsDB != nil {
 		_ = shared.imsDB.Close()
 	}
-	if mainTestInternal.imsDBContainer != nil {
-		err := mainTestInternal.imsDBContainer.Terminate(ctx)
+	if mainTestInternal.dbCtr != nil {
+		err := mainTestInternal.dbCtr.Terminate(ctx)
 		if err != nil {
 			// log and continue
 			slog.Error("Failed to terminate container", "error", err)

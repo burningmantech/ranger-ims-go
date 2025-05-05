@@ -19,8 +19,8 @@ package integration_test
 import (
 	"encoding/json"
 	"github.com/burningmantech/ranger-ims-go/api"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -173,7 +173,7 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 	require.NoError(t, err)
 
 	// check that the returned access token looks good
-	jwter := auth.JWTer{SecretKey: shared.cfg.Core.JWTSecret}
+	jwter := authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}
 	claims, err := jwter.AuthenticateJWT(response.Token)
 	require.NoError(t, err)
 	require.Equal(t, userAliceHandle, claims.RangerHandle())

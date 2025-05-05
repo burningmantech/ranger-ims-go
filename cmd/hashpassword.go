@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	imspassword "github.com/burningmantech/ranger-ims-go/auth/password"
+	imspassword "github.com/burningmantech/ranger-ims-go/lib/authn"
 	"github.com/spf13/cobra"
 	"log"
 	"os"

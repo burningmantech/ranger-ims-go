@@ -14,10 +14,10 @@
 // limitations under the License.
 //
 
-package auth_test
+package authz_test
 
 import (
-	"github.com/burningmantech/ranger-ims-go/auth"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -25,7 +25,7 @@ import (
 
 func TestCreateAndGetValidJWT(t *testing.T) {
 	t.Parallel()
-	jwter := auth.JWTer{SecretKey: "some-secret"}
+	jwter := authz.JWTer{SecretKey: "some-secret"}
 	j, err := jwter.CreateAccessToken(
 		"Hardware",
 		12345,
@@ -48,7 +48,7 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 
 func TestCreateAndGetInvalidJWTs(t *testing.T) {
 	t.Parallel()
-	jwter := auth.JWTer{SecretKey: "some-secret"}
+	jwter := authz.JWTer{SecretKey: "some-secret"}
 	expiredJWT, err := jwter.CreateAccessToken(
 		"Hardware",
 		1,
@@ -58,7 +58,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		time.Now().Add(-1*time.Hour),
 	)
 	require.NoError(t, err)
-	differentKeyJWT, err := auth.JWTer{"some-other-secret"}.CreateAccessToken(
+	differentKeyJWT, err := authz.JWTer{"some-other-secret"}.CreateAccessToken(
 		"Hardware",
 		1,
 		nil,

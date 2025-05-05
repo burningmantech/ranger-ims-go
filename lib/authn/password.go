@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package password
+package authn
 
 import (
 	"crypto/rand"

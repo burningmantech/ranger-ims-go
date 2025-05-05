@@ -18,10 +18,10 @@ package api
 
 import (
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
-	"github.com/burningmantech/ranger-ims-go/auth/password"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authn"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"log/slog"
 	"net/http"
@@ -81,7 +81,7 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	correct, err := password.Verify(vals.Password, matchedPerson.Password)
+	correct, err := authn.Verify(vals.Password, matchedPerson.Password)
 	if !correct {
 		handleErr(w, req, http.StatusUnauthorized, "Failed login attempt (bad credentials)",
 			fmt.Errorf("bad password for valid user. Identification: %v", vals.Identification))
@@ -100,18 +100,18 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
-	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.
+	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to create access token", err)
 	}
 
-	suggestedRefreshTime := accessTokenExpiration.Add(auth.SuggestedEarlyAccessTokenRefresh).UnixMilli()
+	suggestedRefreshTime := accessTokenExpiration.Add(authz.SuggestedEarlyAccessTokenRefresh).UnixMilli()
 	resp := PostAuthResponse{Token: jwt, ExpiresUnixMs: suggestedRefreshTime}
 
 	// The refresh token should be valid much longer than the access token.
 	refreshTokenExpiration := time.Now().Add(action.refreshTokenDuration)
-	refreshToken, err := auth.JWTer{SecretKey: action.jwtSecret}.
+	refreshToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateRefreshToken(matchedPerson.Handle, matchedPerson.DirectoryID, refreshTokenExpiration)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to create refresh token", err)
@@ -119,7 +119,7 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     auth.RefreshTokenCookieName,
+		Name:     authz.RefreshTokenCookieName,
 		Value:    refreshToken,
 		Path:     "/",
 		MaxAge:   int(action.refreshTokenDuration.Milliseconds() / 1000),
@@ -165,13 +165,13 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	claims := jwtCtx.Claims
 	handle := claims.RangerHandle()
-	var roles []auth.Role
+	var roles []authz.Role
 	if slices.Contains(action.admins, handle) {
-		roles = append(roles, auth.Administrator)
+		roles = append(roles, authz.Administrator)
 	}
 	resp.Authenticated = true
 	resp.User = handle
-	resp.Admin = slices.Contains(roles, auth.Administrator)
+	resp.Admin = slices.Contains(roles, authz.Administrator)
 
 	if ok := mustParseForm(w, req); !ok {
 		return
@@ -183,7 +183,7 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		eventPermissions, _, err := auth.EventPermissions(req.Context(), &event.ID, action.imsDB, action.admins, *claims)
+		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDB, action.admins, *claims)
 		if err != nil {
 			handleErr(w, req, http.StatusInternalServerError, "Failed to fetch event permissions", err)
 			return
@@ -191,9 +191,9 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		resp.EventAccess = map[string]AccessForEvent{
 			eventName: {
-				ReadIncidents:     eventPermissions[event.ID]&auth.EventReadIncidents != 0,
-				WriteIncidents:    eventPermissions[event.ID]&auth.EventWriteIncidents != 0,
-				WriteFieldReports: eventPermissions[event.ID]&(auth.EventWriteOwnFieldReports|auth.EventWriteAllFieldReports) != 0,
+				ReadIncidents:     eventPermissions[event.ID]&authz.EventReadIncidents != 0,
+				WriteIncidents:    eventPermissions[event.ID]&authz.EventWriteIncidents != 0,
+				WriteFieldReports: eventPermissions[event.ID]&(authz.EventWriteOwnFieldReports|authz.EventWriteAllFieldReports) != 0,
 				AttachFiles:       false,
 			},
 		}
@@ -215,12 +215,12 @@ type RefreshAccessTokenResponse struct {
 }
 
 func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	refreshCookie, err := req.Cookie(auth.RefreshTokenCookieName)
+	refreshCookie, err := req.Cookie(authz.RefreshTokenCookieName)
 	if err != nil {
 		handleErr(w, req, http.StatusUnauthorized, "Bad or no refresh token cookie found", err)
 		return
 	}
-	jwt, err := auth.JWTer{SecretKey: action.jwtSecret}.AuthenticateRefreshToken(refreshCookie.Value)
+	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.AuthenticateRefreshToken(refreshCookie.Value)
 	if err != nil {
 		handleErr(w, req, http.StatusUnauthorized, "Failed to authenticate refresh token", err)
 		return
@@ -248,11 +248,11 @@ func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Requ
 		return
 	}
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
-	accessToken, err := auth.JWTer{SecretKey: action.jwtSecret}.
+	accessToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(jwt.RangerHandle(), matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to create access token", err)
 	}
-	resp := RefreshAccessTokenResponse{Token: accessToken, ExpiresUnixMs: accessTokenExpiration.Add(auth.SuggestedEarlyAccessTokenRefresh).UnixMilli()}
+	resp := RefreshAccessTokenResponse{Token: accessToken, ExpiresUnixMs: accessTokenExpiration.Add(authz.SuggestedEarlyAccessTokenRefresh).UnixMilli()}
 	mustWriteJSON(w, resp)
 }

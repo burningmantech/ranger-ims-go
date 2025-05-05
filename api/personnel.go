@@ -18,9 +18,9 @@ package api
 
 import (
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"net/http"
 	"time"
@@ -41,7 +41,7 @@ func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalReadPersonnel == 0 {
+	if globalPermissions&authz.GlobalReadPersonnel == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalReadPersonnel permission", nil)
 		return
 	}

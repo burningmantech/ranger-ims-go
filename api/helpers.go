@@ -20,7 +20,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/burningmantech/ranger-ims-go/auth"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"io"
@@ -117,7 +117,7 @@ func mustGetJwtCtx(w http.ResponseWriter, req *http.Request) (JWTContext, bool) 
 	return jwtCtx, true
 }
 
-func mustGetEventPermissions(w http.ResponseWriter, req *http.Request, imsDB *store.DB, imsAdmins []string) (imsdb.Event, JWTContext, auth.EventPermissionMask, bool) {
+func mustGetEventPermissions(w http.ResponseWriter, req *http.Request, imsDB *store.DB, imsAdmins []string) (imsdb.Event, JWTContext, authz.EventPermissionMask, bool) {
 	event, ok := mustGetEvent(w, req, req.PathValue("eventName"), imsDB)
 	if !ok {
 		return imsdb.Event{}, JWTContext{}, 0, false
@@ -126,7 +126,7 @@ func mustGetEventPermissions(w http.ResponseWriter, req *http.Request, imsDB *st
 	if !ok {
 		return imsdb.Event{}, JWTContext{}, 0, false
 	}
-	eventPermissions, _, err := auth.EventPermissions(req.Context(), &event.ID, imsDB, imsAdmins, *jwtCtx.Claims)
+	eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
 		slog.Error("Failed to compute permissions", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -135,12 +135,12 @@ func mustGetEventPermissions(w http.ResponseWriter, req *http.Request, imsDB *st
 	return event, jwtCtx, eventPermissions[event.ID], true
 }
 
-func mustGetGlobalPermissions(w http.ResponseWriter, req *http.Request, imsDB *store.DB, imsAdmins []string) (JWTContext, auth.GlobalPermissionMask, bool) {
+func mustGetGlobalPermissions(w http.ResponseWriter, req *http.Request, imsDB *store.DB, imsAdmins []string) (JWTContext, authz.GlobalPermissionMask, bool) {
 	jwtCtx, ok := mustGetJwtCtx(w, req)
 	if !ok {
 		return JWTContext{}, 0, false
 	}
-	_, globalPermissions, err := auth.EventPermissions(req.Context(), nil, imsDB, imsAdmins, *jwtCtx.Claims)
+	_, globalPermissions, err := authz.EventPermissions(req.Context(), nil, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
 		slog.Error("Failed to compute permissions", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)

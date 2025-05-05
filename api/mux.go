@@ -18,9 +18,9 @@ package api
 
 import (
 	"context"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"log/slog"
 	"net/http"
@@ -34,7 +34,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 		mux = http.NewServeMux()
 	}
 
-	jwter := auth.JWTer{SecretKey: cfg.Core.JWTSecret}
+	jwter := authz.JWTer{SecretKey: cfg.Core.JWTSecret}
 
 	mux.Handle("GET /ims/api/access",
 		Adapt(
@@ -324,11 +324,11 @@ type ContextKey string
 const JWTContextKey ContextKey = "JWTContext"
 
 type JWTContext struct {
-	Claims *auth.IMSClaims
+	Claims *authz.IMSClaims
 	Error  error
 }
 
-func OptionalAuthN(j auth.JWTer) Adapter {
+func OptionalAuthN(j authz.JWTer) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
@@ -342,7 +342,7 @@ func OptionalAuthN(j auth.JWTer) Adapter {
 	}
 }
 
-func RequireAuthN(j auth.JWTer) Adapter {
+func RequireAuthN(j authz.JWTer) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")

@@ -20,9 +20,9 @@ import (
 	"context"
 	"crypto/rand"
 	"github.com/burningmantech/ranger-ims-go/api"
-	"github.com/burningmantech/ranger-ims-go/auth/password"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
@@ -92,7 +92,7 @@ func setup(ctx context.Context) {
 			Email:       userAliceEmail,
 			Status:      "active",
 			DirectoryID: 80808,
-			Password:    password.NewSalted("password"),
+			Password:    authn.NewSalted("password"),
 			Onsite:      true,
 			Positions:   nil,
 			Teams:       nil,
@@ -102,7 +102,7 @@ func setup(ctx context.Context) {
 			Email:       userAdminEmail,
 			Status:      "active",
 			DirectoryID: 70707,
-			Password:    password.NewSalted(")'("),
+			Password:    authn.NewSalted(")'("),
 			Onsite:      true,
 			Positions:   nil,
 			Teams:       nil,

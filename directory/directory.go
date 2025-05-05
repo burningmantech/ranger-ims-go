@@ -18,55 +18,57 @@ package directory
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	clubhousequeries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/cache"
+	"hash/fnv"
 	"slices"
+	"time"
 )
 
 type UserStore struct {
 	testUsers   []conf.TestUser
 	clubhouseDB *DB
+
+	personCache          *cache.InMemory[[]clubhousequeries.RangersByIdRow]
+	teamsCache           *cache.InMemory[[]clubhousequeries.TeamsRow]
+	positionsCache       *cache.InMemory[[]clubhousequeries.PositionsRow]
+	personTeamsCache     *cache.InMemory[[]clubhousequeries.PersonTeamsRow]
+	personPositionsCache *cache.InMemory[[]clubhousequeries.PersonPosition]
 }
 
-func NewUserStore(testUsers []conf.TestUser, clubhouseDB *DB) (*UserStore, error) {
+func NewUserStore(testUsers []conf.TestUser, clubhouseDB *DB, cacheTTL time.Duration) (*UserStore, error) {
 	if clubhouseDB == nil && testUsers == nil {
 		return nil, errors.New("NewUserStore: exactly one of clubhouseDB or testUsers must be provided (got none)")
 	}
 	if clubhouseDB != nil && testUsers != nil {
 		return nil, errors.New("NewUserStore: exactly one of clubhouseDB or testUsers must be provided (got both)")
 	}
-	return &UserStore{
+
+	us := &UserStore{
 		testUsers:   testUsers,
 		clubhouseDB: clubhouseDB,
-	}, nil
+	}
+	us.personCache = cache.New[[]clubhousequeries.RangersByIdRow](cacheTTL, us.getRangersByIdRow)
+	us.teamsCache = cache.New[[]clubhousequeries.TeamsRow](cacheTTL, us.getTeamsRows)
+	us.positionsCache = cache.New[[]clubhousequeries.PositionsRow](cacheTTL, us.getPositionsRows)
+	us.personTeamsCache = cache.New[[]clubhousequeries.PersonTeamsRow](cacheTTL, us.getPersonTeamsRows)
+	us.personPositionsCache = cache.New[[]clubhousequeries.PersonPosition](cacheTTL, us.getPersonPositionsRows)
+	return us, nil
 }
 
-func (users UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error) {
-	if users.testUsers != nil {
-		response := make([]imsjson.Person, 0, len(users.testUsers))
-		for _, user := range users.testUsers {
-			response = append(response, imsjson.Person{
-				Handle:      user.Handle,
-				Email:       user.Email,
-				Password:    user.Password,
-				Status:      user.Status,
-				Onsite:      user.Onsite,
-				DirectoryID: user.DirectoryID,
-			})
-		}
-		return response, nil
-	}
-
-	results, err := clubhousequeries.New(users.clubhouseDB).RangersById(ctx)
+func (store *UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error) {
+	results, err := store.personCache.Get(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("[RangersById] %w", err)
+		return nil, fmt.Errorf("[personCache.Get] %w", err)
 	}
 
-	response := make([]imsjson.Person, 0, len(results))
-	for _, r := range results {
+	response := make([]imsjson.Person, 0, len(*results))
+	for _, r := range *results {
 		response = append(response, imsjson.Person{
 			Handle:      r.Callsign,
 			Email:       r.Email.String,
@@ -80,58 +82,170 @@ func (users UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error)
 	return response, nil
 }
 
-func (users UserStore) GetUserPositionsTeams(ctx context.Context, userID int64) (positions, teams []string, err error) {
-	if users.testUsers != nil {
-		for _, user := range users.testUsers {
-			if user.DirectoryID == userID {
-				positions = append(positions, user.Positions...)
-				teams = append(teams, user.Teams...)
-				break
-			}
-		}
-		return positions, teams, nil
-	}
-
-	teamRows, err := clubhousequeries.New(users.clubhouseDB).Teams(ctx)
+func (store *UserStore) GetUserPositionsTeams(ctx context.Context, userID int64) (positions, teams []string, err error) {
+	teamRows, err := store.teamsCache.Get(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("[Teams]: %w", err)
 	}
-	positionRows, err := clubhousequeries.New(users.clubhouseDB).Positions(ctx)
+	positionRows, err := store.positionsCache.Get(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("[Positions]: %w", err)
 	}
-	personTeams, err := clubhousequeries.New(users.clubhouseDB).PersonTeams(ctx)
+	personTeams, err := store.personTeamsCache.Get(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("[PersonTeams]: %w", err)
 	}
-	personPositions, err := clubhousequeries.New(users.clubhouseDB).PersonPositions(ctx)
+	personPositions, err := store.personPositionsCache.Get(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("[PersonPositions]: %w", err)
 	}
 
 	var foundPositions []int64
 	var foundPositionNames []string
-	var foundTeams []int64
-	var foundTeamNames []string
-	for _, pp := range personPositions {
+	for _, pp := range *personPositions {
 		if pp.PersonID == userID {
 			foundPositions = append(foundPositions, pp.PositionID)
 		}
 	}
-	for _, pos := range positionRows {
+	for _, pos := range *positionRows {
 		if slices.Contains(foundPositions, pos.ID) {
 			foundPositionNames = append(foundPositionNames, pos.Title)
 		}
 	}
-	for _, pt := range personTeams {
+
+	var foundTeams []int64
+	var foundTeamNames []string
+	for _, pt := range *personTeams {
 		if pt.PersonID == userID {
 			foundTeams = append(foundTeams, pt.TeamID)
 		}
 	}
-	for _, team := range teamRows {
+	for _, team := range *teamRows {
 		if slices.Contains(foundTeams, team.ID) {
 			foundTeamNames = append(foundTeamNames, team.Title)
 		}
 	}
 	return foundPositionNames, foundTeamNames, nil
+}
+
+func (store *UserStore) getRangersByIdRow(ctx context.Context) ([]clubhousequeries.RangersByIdRow, error) {
+	if store.testUsers == nil {
+		results, err := clubhousequeries.New(store.clubhouseDB).RangersById(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("[RangersById] %w", err)
+		}
+		return results, nil
+	}
+
+	var rows []clubhousequeries.RangersByIdRow
+	for _, tu := range store.testUsers {
+		rows = append(rows, clubhousequeries.RangersByIdRow{
+			ID:       tu.DirectoryID,
+			Callsign: tu.Handle,
+			Email:    sql.NullString{String: tu.Email, Valid: true},
+			Status:   clubhousequeries.PersonStatus(tu.Status),
+			OnSite:   tu.Onsite,
+			Password: sql.NullString{String: tu.Password, Valid: true},
+		})
+	}
+	return rows, nil
+}
+
+func (store *UserStore) getTeamsRows(ctx context.Context) ([]clubhousequeries.TeamsRow, error) {
+	if store.testUsers == nil {
+		teamRows, err := clubhousequeries.New(store.clubhouseDB).Teams(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("[Teams]: %w", err)
+		}
+		return teamRows, nil
+	}
+
+	var rows []clubhousequeries.TeamsRow
+	for _, tu := range store.testUsers {
+		for _, team := range tu.Teams {
+			newRow := clubhousequeries.TeamsRow{
+				ID:    nonCryptoHash(team),
+				Title: team,
+			}
+			if !slices.Contains(rows, newRow) {
+				rows = append(rows, newRow)
+			}
+		}
+	}
+	return rows, nil
+}
+
+func (store *UserStore) getPositionsRows(ctx context.Context) ([]clubhousequeries.PositionsRow, error) {
+	if store.testUsers == nil {
+		posRows, err := clubhousequeries.New(store.clubhouseDB).Positions(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("[Positions]: %w", err)
+		}
+		return posRows, nil
+	}
+
+	var rows []clubhousequeries.PositionsRow
+	for _, tu := range store.testUsers {
+		for _, pos := range tu.Positions {
+			newRow := clubhousequeries.PositionsRow{
+				ID:    nonCryptoHash(pos),
+				Title: pos,
+			}
+			if !slices.Contains(rows, newRow) {
+				rows = append(rows, newRow)
+			}
+		}
+	}
+	return rows, nil
+}
+
+func (store *UserStore) getPersonTeamsRows(ctx context.Context) ([]clubhousequeries.PersonTeamsRow, error) {
+	if store.testUsers == nil {
+		rows, err := clubhousequeries.New(store.clubhouseDB).PersonTeams(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("[PersonTeams]: %w", err)
+		}
+		return rows, nil
+	}
+
+	var rows []clubhousequeries.PersonTeamsRow
+	for _, tu := range store.testUsers {
+		for _, team := range tu.Teams {
+			newRow := clubhousequeries.PersonTeamsRow{
+				PersonID: tu.DirectoryID,
+				TeamID:   nonCryptoHash(team),
+			}
+			rows = append(rows, newRow)
+		}
+	}
+	return rows, nil
+}
+
+func (store *UserStore) getPersonPositionsRows(ctx context.Context) ([]clubhousequeries.PersonPosition, error) {
+	if store.testUsers == nil {
+		rows, err := clubhousequeries.New(store.clubhouseDB).PersonPositions(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("[PersonPositions]: %w", err)
+		}
+		return rows, nil
+	}
+
+	var rows []clubhousequeries.PersonPosition
+	for _, tu := range store.testUsers {
+		for _, position := range tu.Positions {
+			newRow := clubhousequeries.PersonPosition{
+				PersonID:   tu.DirectoryID,
+				PositionID: nonCryptoHash(position),
+			}
+			rows = append(rows, newRow)
+		}
+	}
+	return rows, nil
+}
+
+func nonCryptoHash(s string) int64 {
+	hasher := fnv.New64()
+	_, _ = hasher.Write([]byte(s))
+	// allow twos-complement wraparound, because we just want any number
+	return int64(hasher.Sum64())
 }

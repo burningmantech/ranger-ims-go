@@ -68,10 +68,10 @@ func runServer(cmd *cobra.Command, args []string) {
 	case conf.DirectoryTypeClubhouseDB:
 		db, err := directory.MariaDB(ctx, imsCfg)
 		must(err)
-		userStore, err = directory.NewUserStore(nil, db)
+		userStore, err = directory.NewUserStore(nil, db, imsCfg.Directory.InMemoryCacheTTL)
 		must(err)
 	case conf.DirectoryTypeTestUsers:
-		userStore, err = directory.NewUserStore(imsCfg.Directory.TestUsers, nil)
+		userStore, err = directory.NewUserStore(imsCfg.Directory.TestUsers, nil, imsCfg.Directory.InMemoryCacheTTL)
 	default:
 		err = fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory)
 	}
@@ -183,6 +183,11 @@ func initConfig() {
 		dur, err := time.ParseDuration(v)
 		must(err)
 		newCfg.Core.CacheControlShort = dur
+	}
+	if v, ok := lookupEnv("IMS_DIRECTORY_CACHE_TTL"); ok {
+		dur, err := time.ParseDuration(v)
+		must(err)
+		newCfg.Directory.InMemoryCacheTTL = dur
 	}
 	if v, ok := lookupEnv("IMS_CACHE_CONTROL_LONG"); ok {
 		// These values must be given with a time unit in the env variable,

@@ -44,13 +44,13 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 
 	// Bring up two DB containers in parallel
 	var db1, db2 *sql.DB
-	group, _ := errgroup.WithContext(ctx)
+	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
-		_, db1 = newUnmigratedDB(t, ctx, database, username, password)
+		_, db1 = newUnmigratedDB(t, groupCtx, database, username, password)
 		return nil
 	})
 	group.Go(func() error {
-		_, db2 = newUnmigratedDB(t, ctx, database, username, password)
+		_, db2 = newUnmigratedDB(t, groupCtx, database, username, password)
 		return nil
 	})
 	require.NoError(t, group.Wait())

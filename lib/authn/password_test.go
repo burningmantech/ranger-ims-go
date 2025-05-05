@@ -14,10 +14,10 @@
 // limitations under the License.
 //
 
-package password_test
+package authn_test
 
 import (
-	"github.com/burningmantech/ranger-ims-go/auth/password"
+	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -27,14 +27,14 @@ func TestVerifyPassword_success(t *testing.T) {
 	t.Parallel()
 	pw, s := "Hardware", "my_little_salty"
 	hashed := "ee9a23000af19a22acd0d9a22dfe9558580771dc"
-	assert.Equal(t, hashed, password.Hash(pw, s))
+	assert.Equal(t, hashed, authn.Hash(pw, s))
 
 	stored := "my_little_salty:" + hashed
-	vp, err := password.Verify(pw, stored)
+	vp, err := authn.Verify(pw, stored)
 	require.NoError(t, err)
 	assert.True(t, vp)
 
-	vp, err = password.Verify("wrong password", stored)
+	vp, err = authn.Verify("wrong password", stored)
 	require.NoError(t, err)
 	assert.False(t, vp)
 }
@@ -42,7 +42,7 @@ func TestVerifyPassword_success(t *testing.T) {
 func TestVerifyPassword_badStoredValue(t *testing.T) {
 	t.Parallel()
 	noColonInThisString := "abcdefg"
-	_, err := password.Verify("some_password", noColonInThisString)
+	_, err := authn.Verify("some_password", noColonInThisString)
 	require.Error(t, err)
 	require.Contains(t, "invalid hashed password", err.Error())
 }
@@ -50,8 +50,8 @@ func TestVerifyPassword_badStoredValue(t *testing.T) {
 func TestNewSalted(t *testing.T) {
 	t.Parallel()
 	pw := "this is my password"
-	saltedPw := password.NewSalted(pw)
-	isValid, err := password.Verify(pw, saltedPw)
+	saltedPw := authn.NewSalted(pw)
+	isValid, err := authn.Verify(pw, saltedPw)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }

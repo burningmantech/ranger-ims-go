@@ -20,8 +20,8 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
@@ -44,7 +44,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// This is the first level of authorization. Per-event filtering is done farther down.
-	if globalPermissions&auth.GlobalListEvents == 0 {
+	if globalPermissions&authz.GlobalListEvents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalListEvents permission", nil)
 		return
 	}
@@ -62,7 +62,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	var authorizedEvents []imsdb.EventsRow
 	for _, eve := range allEvents {
-		if permissionsByEvent[eve.Event.ID]&auth.EventReadEventName != 0 {
+		if permissionsByEvent[eve.Event.ID]&authz.EventReadEventName != 0 {
 			authorizedEvents = append(authorizedEvents, eve)
 		}
 	}
@@ -82,7 +82,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mustWriteJSON(w, resp)
 }
 
-func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContext) (map[int32]auth.EventPermissionMask, error) {
+func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContext) (map[int32]authz.EventPermissionMask, error) {
 	accessRows, err := imsdb.New(action.imsDB).EventAccessAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("[EventAccessAll]: %w", err)
@@ -92,7 +92,7 @@ func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContex
 		accessRowByEventID[ar.EventAccess.Event] = append(accessRowByEventID[ar.EventAccess.Event], ar.EventAccess)
 	}
 
-	permissionsByEvent, _ := auth.ManyEventPermissions(
+	permissionsByEvent, _ := authz.ManyEventPermissions(
 		accessRowByEventID,
 		action.imsAdmins,
 		jwtCtx.Claims.RangerHandle(),
@@ -117,7 +117,7 @@ func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalAdministrateEvents == 0 {
+	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalAdministrateEvents permission", nil)
 		return
 	}

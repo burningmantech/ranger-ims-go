@@ -20,8 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
@@ -40,7 +40,7 @@ func (action GetEventAccesses) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalAdministrateEvents == 0 {
+	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalAdministrateEvents permission", nil)
 		return
 	}
@@ -108,7 +108,7 @@ func (action PostEventAccess) ServeHTTP(w http.ResponseWriter, req *http.Request
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalAdministrateEvents == 0 {
+	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalAdministrate permission", nil)
 		return
 	}

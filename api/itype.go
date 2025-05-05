@@ -18,8 +18,8 @@ package api
 
 import (
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
@@ -39,7 +39,7 @@ func (action GetIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalReadIncidentTypes == 0 {
+	if globalPermissions&authz.GlobalReadIncidentTypes == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalReadIncidentTypes permission", nil)
 		return
 	}
@@ -76,7 +76,7 @@ func (action EditIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Reque
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalAdministrateIncidentTypes == 0 {
+	if globalPermissions&authz.GlobalAdministrateIncidentTypes == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalAdministrateIncidentTypes permission", nil)
 		return
 	}

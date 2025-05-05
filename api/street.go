@@ -18,8 +18,8 @@ package api
 
 import (
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
@@ -39,7 +39,7 @@ func (action GetStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalReadStreets == 0 {
+	if globalPermissions&authz.GlobalReadStreets == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalReadStreets permission", nil)
 		return
 	}
@@ -92,7 +92,7 @@ func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if globalPermissions&auth.GlobalAdministrateStreets == 0 {
+	if globalPermissions&authz.GlobalAdministrateStreets == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalAdministrateStreets permission", nil)
 		return
 	}

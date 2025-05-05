@@ -18,8 +18,8 @@ package api
 
 import (
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
@@ -37,7 +37,7 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 	if !ok {
 		return
 	}
-	if eventPermissions&(auth.EventWriteAllFieldReports|auth.EventWriteOwnFieldReports) == 0 {
+	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to write Field Reports on this Event", nil)
 		return
 	}
@@ -113,7 +113,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 	if !ok {
 		return
 	}
-	if eventPermissions&(auth.EventWriteIncidents) == 0 {
+	if eventPermissions&(authz.EventWriteIncidents) == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to write Report Entries on this Event", nil)
 		return
 	}

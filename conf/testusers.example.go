@@ -17,7 +17,7 @@
 package conf
 
 import (
-	"github.com/burningmantech/ranger-ims-go/auth/password"
+	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	"runtime"
 	"strings"
 )
@@ -33,7 +33,7 @@ func init() {
 			Email:       "hardware@rangers.brc",
 			Status:      "active",
 			DirectoryID: 10101,
-			Password:    password.NewSalted("Hardware"),
+			Password:    authn.NewSalted("Hardware"),
 			Onsite:      true,
 			Positions:   []string{"Driver", "Dancer"},
 			Teams:       []string{"Driving Team"},
@@ -43,7 +43,7 @@ func init() {
 			Email:       "parenthetical@rangers.brc",
 			Status:      "active",
 			DirectoryID: 90909,
-			Password:    password.NewSalted("Parenthetical"),
+			Password:    authn.NewSalted("Parenthetical"),
 			Onsite:      true,
 			Positions:   nil,
 			Teams:       nil,
@@ -53,7 +53,7 @@ func init() {
 			Email:       "defect@rangers.brc",
 			Status:      "active",
 			DirectoryID: 20202,
-			Password:    password.NewSalted("Defect"),
+			Password:    authn.NewSalted("Defect"),
 			Onsite:      true,
 			Positions:   []string{},
 			Teams:       []string{},
@@ -63,7 +63,7 @@ func init() {
 			Email:       "irate@rangers.brc",
 			Status:      "active",
 			DirectoryID: 50505,
-			Password:    password.NewSalted("Irate"),
+			Password:    authn.NewSalted("Irate"),
 			Onsite:      false,
 			Positions:   []string{},
 			Teams:       []string{},
@@ -73,7 +73,7 @@ func init() {
 			Email:       "loosy@rangers.brc",
 			Status:      "active",
 			DirectoryID: 70707,
-			Password:    password.NewSalted("Loosy"),
+			Password:    authn.NewSalted("Loosy"),
 			Onsite:      true,
 			Positions:   []string{},
 			Teams:       []string{},

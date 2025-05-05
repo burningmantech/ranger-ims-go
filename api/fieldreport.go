@@ -20,8 +20,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
@@ -43,12 +43,12 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 	if !ok {
 		return
 	}
-	if eventPermissions&(auth.EventReadAllFieldReports|auth.EventReadOwnFieldReports) == 0 {
+	if eventPermissions&(authz.EventReadAllFieldReports|authz.EventReadOwnFieldReports) == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to read Field Reports on this Event", nil)
 		return
 	}
 	// i.e. the user has EventReadOwnFieldReports, but not EventReadAllFieldReports
-	limitedAccess := eventPermissions&auth.EventReadAllFieldReports == 0
+	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
 
 	if ok = mustParseForm(w, req); !ok {
 		return
@@ -133,12 +133,12 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	if !ok {
 		return
 	}
-	if eventPermissions&(auth.EventReadAllFieldReports|auth.EventReadOwnFieldReports) == 0 {
+	if eventPermissions&(authz.EventReadAllFieldReports|authz.EventReadOwnFieldReports) == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to read Field Reports on this Event", nil)
 		return
 	}
 	// i.e. they have EventReadOwnFieldReports, but not EventReadAllFieldReports
-	limitedAccess := eventPermissions&auth.EventReadAllFieldReports == 0
+	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
 
 	ctx := req.Context()
 
@@ -210,12 +210,12 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 	if !ok {
 		return
 	}
-	if eventPermissions&(auth.EventWriteAllFieldReports|auth.EventWriteOwnFieldReports) == 0 {
+	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to edit Field Reports on this Event", nil)
 		return
 	}
 	// i.e. they have EventWriteOwnFieldReports, but not EventWriteAllFieldReports
-	limitedAccess := eventPermissions&auth.EventWriteAllFieldReports == 0
+	limitedAccess := eventPermissions&authz.EventWriteAllFieldReports == 0
 
 	ctx := req.Context()
 	if ok = mustParseForm(w, req); !ok {
@@ -386,7 +386,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	if !ok {
 		return
 	}
-	if eventPermissions&(auth.EventWriteAllFieldReports|auth.EventWriteOwnFieldReports) == 0 {
+	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to write Field Reports on this Event", nil)
 		return
 	}

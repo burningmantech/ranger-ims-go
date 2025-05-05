@@ -14,10 +14,10 @@
 // limitations under the License.
 //
 
-package auth_test
+package authz_test
 
 import (
-	. "github.com/burningmantech/ranger-ims-go/auth"
+	. "github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/stretchr/testify/require"
 	"testing"

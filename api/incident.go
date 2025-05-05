@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/auth"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"math"
@@ -49,7 +49,7 @@ func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if eventPermissions&auth.EventReadIncidents == 0 {
+	if eventPermissions&authz.EventReadIncidents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have EventReadIncidents permission on this Event", nil)
 		return
 	}
@@ -133,7 +133,7 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if eventPermissions&auth.EventReadIncidents == 0 {
+	if eventPermissions&authz.EventReadIncidents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have EventReadIncidents permission on this Event", nil)
 		return
 	}
@@ -257,7 +257,7 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if eventPermissions&auth.EventWriteIncidents == 0 {
+	if eventPermissions&authz.EventWriteIncidents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have EventWriteIncidents permission on this Event", nil)
 		return
 	}
@@ -558,7 +558,7 @@ func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	if eventPermissions&auth.EventWriteIncidents == 0 {
+	if eventPermissions&authz.EventWriteIncidents == 0 {
 		handleErr(w, req, http.StatusForbidden, "The requestor does not have EventWriteIncidents permission on this Event", nil)
 		return
 	}

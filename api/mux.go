@@ -18,6 +18,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -294,10 +295,11 @@ func LogBeforeAfter() Adapter {
 			if jwtCtx.Claims != nil {
 				username = jwtCtx.Claims.RangerHandle()
 			}
-			slog.Debug("Done serving request",
-				"duration", time.Since(start).Round(100*time.Microsecond),
-				"method", r.Method,
+			// TODO: log to ERROR if it was an error
+			slog.Debug("APILog",
 				"path", r.URL.Path,
+				"duration", fmt.Sprint(time.Since(start).Microseconds(), "µs"),
+				"method", r.Method,
 				"user", username,
 			)
 		})

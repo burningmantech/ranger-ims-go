@@ -61,6 +61,7 @@ func DefaultIMS() *IMSConfig {
 				Hostname: "localhost:3306",
 				Database: "rangers",
 			},
+			InMemoryCacheTTL: 10 * time.Minute,
 		},
 	}
 }
@@ -252,9 +253,10 @@ type TestUser struct {
 }
 
 type Directory struct {
-	Directory   DirectoryType
-	TestUsers   []TestUser
-	ClubhouseDB ClubhouseDB
+	Directory        DirectoryType
+	TestUsers        []TestUser
+	ClubhouseDB      ClubhouseDB
+	InMemoryCacheTTL time.Duration
 }
 
 type ClubhouseDB struct {

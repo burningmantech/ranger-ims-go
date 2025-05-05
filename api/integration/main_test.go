@@ -109,7 +109,7 @@ func setup(ctx context.Context) {
 		},
 	}
 	shared.es = api.NewEventSourcerer()
-	userStore, err := directory.NewUserStore(shared.cfg.Directory.TestUsers, nil)
+	userStore, err := directory.NewUserStore(shared.cfg.Directory.TestUsers, nil, shared.cfg.Directory.InMemoryCacheTTL)
 	must(err)
 	shared.userStore = userStore
 	mainTestInternal.dbCtr, err = testcontainers.GenericContainer(ctx,

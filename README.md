@@ -19,7 +19,7 @@ that occur in Black Rock City.
 
 ## Run tests
 
-To run all the non-Playwright tests, just do:
+To run all the tests (excluding Playwright), just do:
 
 ```shell
 go test ./...
@@ -33,7 +33,8 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
 
 ## Run IMS locally
 
-1. Have a local MariaDB server running. An empty database is fine. e.g.
+1. Have a local MariaDB server running. An empty database is fine, as the IMS program will
+   migrate your DB automatically on startup. e.g.
    ```shell
    password=$(openssl rand -hex 16)
    echo "Password is ${password}"

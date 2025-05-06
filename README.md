@@ -58,7 +58,9 @@ docker run --env-file .env -it -p 80:8080 ranger-ims-go:latest
 
 ## Upgrade Go dependencies
 
-Upgrade the Go toolchain by setting the value in `go.mod`.
+Upgrade the Go toolchain simply by increasing the Go value in `go.mod`, e.g. https://github.com/burningmantech/ranger-ims-go/pull/64. Even Go major version upgrades (e.g. 1.23 to 1.24) are very unlikely to break anything, thanks to the Go 1.0 backward compatibility guarantee. If all the tests pass, you're all good.
+
+This line in go.mod should be left as the only line in the repo that specifies the Go version. For example, the Dockerfile depends on Go, but it inherits the value in go.mod.
 
 Upgrade all Go dependencies by running:
 

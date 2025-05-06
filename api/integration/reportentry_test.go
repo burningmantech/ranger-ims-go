@@ -20,6 +20,6 @@ import (
 	"testing"
 )
 
-func TestEventAccessTODO(t *testing.T) {
+func TestReportEntryTODO(t *testing.T) {
 	t.Parallel()
 }

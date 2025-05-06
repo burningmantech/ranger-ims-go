@@ -315,9 +315,7 @@ export async function commonPageInit() {
     }
     let eds = Promise.resolve(null);
     if (authInfo.authenticated) {
-        if (authInfo.event_access?.[pathIds.eventID] != null) {
-            eventAccess = authInfo.event_access?.[pathIds.eventID];
-        }
+        eventAccess = authInfo.event_access?.[pathIds.eventID] ?? null;
         eds = fetchJsonNoThrow(url_events, null).then(result => {
             if (result.err != null || result.json == null) {
                 console.log(`Failed to fetch events: ${result.err}`);
@@ -702,30 +700,30 @@ function reportEntryElement(entry) {
     metaDataContainer.classList.add("report_entry_metadata");
     if (strikable) {
         const strikeContainer = document.createElement("button");
-        const entryId = parseInt10(entry.id);
+        const entryId = entry.id;
         const entryStricken = entry.stricken;
         if (pathIds.incidentNumber != null) {
             // we're on the incident page
             if (entry.merged) {
                 const entryMerged = entry.merged;
                 // this is an entry from a field report, as shown on the incident page
-                strikeContainer.onclick = (_e) => {
-                    setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
+                strikeContainer.onclick = async (_e) => {
+                    await setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
                 };
             }
             else {
                 const incidentNum = pathIds.incidentNumber;
                 // this is an incident entry on the incident page
-                strikeContainer.onclick = (_e) => {
-                    setStrikeIncidentEntry(incidentNum, entryId, !entryStricken);
+                strikeContainer.onclick = async (_e) => {
+                    await setStrikeIncidentEntry(incidentNum, entryId, !entryStricken);
                 };
             }
         }
         else if (pathIds.fieldReportNumber != null) {
             // we're on the field report page
             const fieldReportNum = pathIds.fieldReportNumber;
-            strikeContainer.onclick = (_e) => {
-                setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
+            strikeContainer.onclick = async (_e) => {
+                await setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
             };
         }
         strikeContainer.classList.add("badge", "btn", "btn-danger", "remove-badge", "float-end");

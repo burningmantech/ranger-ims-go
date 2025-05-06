@@ -358,9 +358,7 @@ export async function commonPageInit(): Promise<PageInitResult> {
     }
     let eds: Promise<EventData[]|null> = Promise.resolve(null);
     if (authInfo.authenticated) {
-        if (authInfo.event_access?.[pathIds.eventID!] != null) {
-            eventAccess = authInfo.event_access?.[pathIds.eventID!]!;
-        }
+        eventAccess = authInfo.event_access?.[pathIds.eventID!]??null;
         eds = fetchJsonNoThrow<EventData[]>(url_events, null).then(
             result => {
                 if (result.err != null || result.json == null) {
@@ -821,28 +819,28 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 
     if (strikable) {
         const strikeContainer: HTMLButtonElement = document.createElement("button");
-        const entryId = parseInt10(entry.id)!;
+        const entryId = entry.id!;
         const entryStricken = entry.stricken!;
         if (pathIds.incidentNumber != null) {
             // we're on the incident page
             if (entry.merged) {
                 const entryMerged = entry.merged;
                 // this is an entry from a field report, as shown on the incident page
-                strikeContainer.onclick = (_e: MouseEvent): any => {
-                    setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
+                strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
+                    await setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
                 }
             } else {
                 const incidentNum = pathIds.incidentNumber;
                 // this is an incident entry on the incident page
-                strikeContainer.onclick = (_e: MouseEvent): any => {
-                    setStrikeIncidentEntry(incidentNum, entryId, !entryStricken);
+                strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
+                    await setStrikeIncidentEntry(incidentNum, entryId, !entryStricken);
                 }
             }
         } else if (pathIds.fieldReportNumber != null) {
             // we're on the field report page
             const fieldReportNum = pathIds.fieldReportNumber;
-            strikeContainer.onclick =  (_e: MouseEvent): any => {
-                setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
+            strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
+                await setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
             }
         }
         strikeContainer.classList.add("badge", "btn", "btn-danger", "remove-badge", "float-end");
@@ -987,8 +985,8 @@ async function setStrikeFieldReportEntry(fieldReportNumber: number, reportEntryI
 // version, depending on the current page in scope. The ims.ts TypeScript file should
 // not depend on those files (lest there be a circular dependency), so we let those
 // files register their functions here instead.
-let sendEditsFunc: ((edits: any)=>Promise<{err:string|null}>)|null = null;
-export function setSendEdits(func: ((edits: any)=>Promise<{err:string|null}>)): void {
+let sendEditsFunc: ((edits: Incident|FieldReport)=>Promise<{err:string|null}>)|null = null;
+export function setSendEdits(func: ((edits: Incident|FieldReport)=>Promise<{err:string|null}>)): void {
     sendEditsFunc = func;
 }
 
@@ -1338,7 +1336,7 @@ export type EventData = {
 }
 
 export interface ReportEntry {
-    id?: string|null;
+    id?: number|null;
     created?: string|null;
     author?: string|null;
     merged?: number|null,

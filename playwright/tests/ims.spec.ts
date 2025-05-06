@@ -132,7 +132,7 @@ test("admin_events", async ({ browser }) => {
   await addEvent(page, eventName);
   await addWriter(page, eventName, "person:SomeGuy");
 
-  let writers = page.locator("div.card").filter({has: page.getByText(`Access for ${eventName} (writers)`)});
+  const writers = page.locator("div.card").filter({has: page.getByText(`Access for ${eventName} (writers)`)});
   // it's hard to tell on the client side when this has completed, hence the toPass block below
   await writers.locator("select").selectOption("On-Site");
 
@@ -140,7 +140,7 @@ test("admin_events", async ({ browser }) => {
   await login(page2);
   await eventsPage(page2);
   await expect(async (): Promise<void> => {
-    let writers = page2.locator("div.card").filter({has: page2.getByText(`Access for ${eventName} (writers)`)});
+    const writers = page2.locator("div.card").filter({has: page2.getByText(`Access for ${eventName} (writers)`)});
     await expect(writers).toBeVisible();
     await expect(writers.getByText("person:SomeGuy")).toBeVisible();
     await expect(writers.locator("select")).toHaveValue("onsite");

@@ -1,0 +1,277 @@
+package integration_test
+
+import (
+	"crypto/rand"
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/stretchr/testify/require"
+	"io"
+	"net/http"
+	"slices"
+	"testing"
+	"time"
+)
+
+type MethodURL struct {
+	Method string
+	Path   string
+}
+
+func TestAdminOnlyEndpoints(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+
+	adminOnly := []MethodURL{
+		{http.MethodGet, "/ims/api/access"},
+		{http.MethodPost, "/ims/api/access"},
+		{http.MethodPost, "/ims/api/events"},
+		{http.MethodPost, "/ims/api/streets"},
+		{http.MethodPost, "/ims/api/incident_types"},
+	}
+
+	for _, api := range adminOnly {
+		// admin is allowed in
+		resp := apiCall(t, api, apisAdmin)
+		require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+
+		// nonadmin is forbidden
+		resp = apiCall(t, api, apisNonAdmin)
+		require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+
+		// unauthenticated is unauthorized
+		resp = apiCall(t, api, apisNotAuthenticated)
+		require.True(t, unauthorized(resp.StatusCode), "%v %v wanted 401 status code, got %v", api.Method, api.Path, resp.StatusCode)
+	}
+}
+
+func TestAnyUnauthenticatedUserEndpoints(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+
+	anyAuthenticatedUserEndpoints := []MethodURL{
+		{http.MethodGet, "/ims/api/streets"},
+		{http.MethodGet, "/ims/api/personnel"},
+		{http.MethodGet, "/ims/api/incident_types"},
+		{http.MethodGet, "/ims/api/events"},
+	}
+
+	for _, api := range anyAuthenticatedUserEndpoints {
+		// admin is allowed in
+		resp := apiCall(t, api, apisAdmin)
+		require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+
+		// nonadmin is allowed in
+		resp = apiCall(t, api, apisNonAdmin)
+		require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+
+		// unauthenticated is unauthorized
+		resp = apiCall(t, api, apisNotAuthenticated)
+		require.True(t, unauthorized(resp.StatusCode), "%v %v wanted 401 status code, got %v", api.Method, api.Path, resp.StatusCode)
+	}
+}
+
+func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+
+	eventName := rand.Text()
+	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	eventPath := "/ims/api/events/" + eventName
+	getIncidents := MethodURL{http.MethodGet, eventPath + "/incidents"}
+	getIncident := MethodURL{http.MethodGet, eventPath + "/incidents/1"}
+	postIncident := MethodURL{http.MethodPost, eventPath + "/incidents/1"}
+	postIncidentRE := MethodURL{http.MethodPost, eventPath + "/incidents/1/report_entries/2"}
+	getFieldReports := MethodURL{http.MethodGet, eventPath + "/field_reports"}
+	getFieldReport := MethodURL{http.MethodGet, eventPath + "/field_reports/1"}
+	postFieldReport := MethodURL{http.MethodPost, eventPath + "/field_reports/1"}
+	postFieldReportRE := MethodURL{http.MethodPost, eventPath + "/field_reports/1/report_entries/2"}
+
+	allPerms := []MethodURL{
+		getIncidents,
+		getIncident,
+		postIncident,
+		postIncidentRE,
+		getFieldReports,
+		getFieldReport,
+		postFieldReport,
+		postFieldReportRE,
+	}
+	reporter := []MethodURL{
+		getFieldReports,
+		getFieldReport,
+		postFieldReport,
+		postFieldReportRE,
+	}
+	reader := []MethodURL{
+		getIncidents,
+		getIncident,
+		getFieldReports,
+		getFieldReport,
+	}
+	writer := slices.Clone(allPerms)
+
+	for _, api := range allPerms {
+		// unauthenticated is unauthorized
+		resp = apiCall(t, api, apisNotAuthenticated)
+		require.True(t, unauthorized(resp.StatusCode), "%v %v wanted 401 status code, got %v", api.Method, api.Path, resp.StatusCode)
+	}
+
+	// to begin, the user has no permission
+	for _, api := range allPerms {
+		// forbidden
+		resp = apiCall(t, api, apisAdmin)
+		require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+	}
+
+	// make the user a reporter
+	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Reporters: []imsjson.AccessRule{{
+				Expression: "person:" + userAdminHandle,
+				Validity:   "always",
+			}},
+		}},
+	)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	// now the user can hit some more endpoints
+	for _, api := range allPerms {
+		switch {
+		case api == getFieldReport || api == postFieldReport:
+			// the user won't be able to read/write an FR for which they're not an author,
+			// e.g. the one in this dummy call, so we should expect a 403, but we
+			// can confirm they got the right error message
+			resp = apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		case slices.Contains(reporter, api):
+			// permitted
+			resp = apiCall(t, api, apisAdmin)
+			require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		default:
+			// forbidden
+			resp = apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		}
+	}
+
+	// make the user a reader
+	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Readers: []imsjson.AccessRule{{
+				Expression: "person:" + userAdminHandle,
+				Validity:   "always",
+			}},
+		}},
+	)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	// now the user can hit some other endpoints
+	for _, api := range allPerms {
+		if slices.Contains(reader, api) {
+			// permitted
+			resp = apiCall(t, api, apisAdmin)
+			require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		} else {
+			// forbidden
+			resp = apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		}
+	}
+
+	// finally, make the user a writer
+	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Writers: []imsjson.AccessRule{{
+				Expression: "person:" + userAdminHandle,
+				Validity:   "always",
+			}},
+		}},
+	)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	// now the user can hit many more endpoints
+	for _, api := range allPerms {
+		if slices.Contains(writer, api) {
+			// permitted
+			resp = apiCall(t, api, apisAdmin)
+			require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		} else {
+			// forbidden
+			resp = apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		}
+	}
+}
+
+func TestPublicAPIs_RequireNoAuthn(t *testing.T) {
+	t.Parallel()
+	public := []MethodURL{
+		{http.MethodGet, "/ims/api/ping"},
+		{http.MethodGet, "/ims/api/debug/buildinfo"},
+	}
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	for _, api := range public {
+		resp := apiCall(t, api, apisNotAuthenticated)
+		require.Equalf(t, http.StatusOK, resp.StatusCode, "Got status code %v for %v %v", resp.StatusCode, api.Method, api.Path)
+	}
+}
+
+func TestEventSource_RequiresNoAuthn(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	path := shared.serverURL.JoinPath("ims/api/eventsource")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
+	require.NoError(t, err)
+	client := http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// The response body will keep streaming until the test ends, so we can just read
+	// a prefix of the expect response to know that things look good.
+	expectedFirstBytes := []byte("id: 0\nevent: InitialEvent")
+	buf := make([]byte, len(expectedFirstBytes))
+	_, err = io.ReadFull(resp.Body, buf)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+}
+
+func apiCall(t *testing.T, api MethodURL, user ApiHelper) (resp *http.Response) {
+	t.Helper()
+	ctx := t.Context()
+	var httpResp *http.Response
+	switch api.Method {
+	case http.MethodGet:
+		_, httpResp = user.imsGetBodyBytes(ctx, user.serverURL.JoinPath(api.Path).String())
+	case http.MethodPost:
+		httpResp = user.imsPost(ctx, map[string]any{}, user.serverURL.JoinPath(api.Path).String())
+	}
+	require.NotNil(t, httpResp)
+	return httpResp
+}
+
+func permitted(status int) bool {
+	return !unauthorized(status) && !forbidden(status)
+}
+
+func unauthorized(status int) bool {
+	return status == http.StatusUnauthorized
+}
+
+func forbidden(status int) bool {
+	return status == http.StatusForbidden
+}

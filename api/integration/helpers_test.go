@@ -25,6 +25,7 @@ import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/stretchr/testify/require"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -241,7 +242,12 @@ func (a ApiHelper) imsPost(ctx context.Context, body any, path string) *http.Res
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp
-	// require.Equal(a.t, http.StatusNoContent, resp.StatusCode)
+}
+
+func (a ApiHelper) imsGetBodyBytes(ctx context.Context, path string) ([]byte, *http.Response) {
+	a.t.Helper()
+	outBytes, httpResp := a.imsGet(ctx, path, nil)
+	return outBytes.([]byte), httpResp
 }
 
 func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *http.Response) {
@@ -259,10 +265,14 @@ func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *htt
 	b, err := io.ReadAll(get.Body)
 	require.NoError(a.t, err)
 	require.NoError(a.t, get.Body.Close())
-	if get.StatusCode != http.StatusOK {
-		return resp, get
+	if resp == nil {
+		log.Println(string(b))
+		return b, get
 	}
 	err = json.Unmarshal(b, &resp)
+	if err != nil && get.StatusCode != http.StatusOK {
+		return resp, get
+	}
 	require.NoError(a.t, err)
 	return resp, get
 }

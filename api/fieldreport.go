@@ -172,7 +172,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	}
 	if limitedAccess {
 		if !containsAuthor(entries, jwtCtx.Claims.RangerHandle()) {
-			handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to read this Field Report", nil)
+			handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to read this particular Field Report", nil)
 			return
 		}
 	}

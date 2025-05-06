@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/lib/redact"
+	"os"
 	"time"
 )
 
@@ -60,6 +61,9 @@ func DefaultIMS() *IMSConfig {
 			},
 			InMemoryCacheTTL: 10 * time.Minute,
 		},
+		AttachmentsStore: AttachmentsStore{
+			Type: AttachmentsStoreNone,
+		},
 	}
 }
 
@@ -77,29 +81,26 @@ func (c *IMSConfig) String() string {
 }
 
 type IMSConfig struct {
-	Core ConfigCore
-	// TODO: finish attachments feature
-	AttachmentsStore struct {
-		S3 struct {
-			S3AccessKeyId     string
-			S3SecretAccessKey string `redact:"true"`
-			S3DefaultRegion   string
-			S3Bucket          string
-		}
-	}
-	Store     Store
-	Directory Directory
+	Core             ConfigCore
+	AttachmentsStore AttachmentsStore
+	Store            Store
+	Directory        Directory
 }
 
 type DirectoryType string
+
+type AttachmentsStoreType string
 type DeploymentType string
 
 const (
-	DirectoryTypeClubhouseDB DirectoryType = "clubhousedb"
-	DirectoryTypeTestUsers   DirectoryType = "testusers"
-	DeploymentTypeDev                      = "dev"
-	DeploymentTypeStaging                  = "staging"
-	DeploymentTypeProduction               = "production"
+	DirectoryTypeClubhouseDB DirectoryType        = "clubhousedb"
+	DirectoryTypeTestUsers   DirectoryType        = "testusers"
+	AttachmentsStoreLocal    AttachmentsStoreType = "local"
+	AttachmentsStoreS3       AttachmentsStoreType = "s3"
+	AttachmentsStoreNone     AttachmentsStoreType = "local"
+	DeploymentTypeDev                             = "dev"
+	DeploymentTypeStaging                         = "staging"
+	DeploymentTypeProduction                      = "production"
 )
 
 func (d DirectoryType) Validate() error {
@@ -108,6 +109,15 @@ func (d DirectoryType) Validate() error {
 		return nil
 	default:
 		return fmt.Errorf("unknown directory type %v", d)
+	}
+}
+
+func (a AttachmentsStoreType) Validate() error {
+	switch a {
+	case AttachmentsStoreLocal, AttachmentsStoreS3:
+		return nil
+	default:
+		return fmt.Errorf("unknown attachments store type %v", a)
 	}
 }
 
@@ -128,7 +138,7 @@ type ConfigCore struct {
 	Admins               []string
 	MasterKey            string `redact:"true"`
 	JWTSecret            string `redact:"true"`
-	AttachmentsStore     string
+	AttachmentsStore     AttachmentsStoreType
 	Deployment           string
 
 	// CacheControlShort is the duration we set in various responses' Cache-Control headers
@@ -175,9 +185,26 @@ type Directory struct {
 	InMemoryCacheTTL time.Duration
 }
 
+type AttachmentsStore struct {
+	Type  AttachmentsStoreType
+	Local LocalAttachments
+	S3    S3Attachments
+}
+
 type ClubhouseDB struct {
 	Hostname string
 	Database string
 	Username string
 	Password string `redact:"true"`
+}
+
+type LocalAttachments struct {
+	Dir *os.Root
+}
+
+type S3Attachments struct {
+	S3AccessKeyId     string
+	S3SecretAccessKey string `redact:"true"`
+	S3DefaultRegion   string
+	S3Bucket          string
 }

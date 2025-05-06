@@ -885,17 +885,33 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 
         entryContainer.append(textContainer);
     }
-    if (entry.has_attachment && pathIds.incidentNumber != null) {
-        const url = urlReplace(url_incidentAttachmentNumber)
-            .replace("<incident_number>", pathIds.incidentNumber.toString())
+    if (entry.has_attachment && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
+        const url: string = urlReplace(url_incidentAttachmentNumber)
+            // Only one of these next two substitutions can actually take effect.
+            .replace("<incident_number>", (pathIds.incidentNumber??"wontHappen").toString())
+            .replace("<field_report_number>", (pathIds.fieldReportNumber??"wontHappen").toString())
             .replace("<attachment_number>", entry.id!.toString());
 
         const attachmentLink: HTMLAnchorElement = document.createElement("a");
-        attachmentLink.href = url;
+        attachmentLink.href = "#";
         attachmentLink.textContent = "Attached file";
 
-        entryContainer.append(attachmentLink);
+        // We need to do a JavaScript fetch of the file, rather than simply
+        // opening a new browser tab that GETs it, because we have to send
+        // the Authorization header.
+        attachmentLink.onclick = async (e: MouseEvent): Promise<void> => {
+            e.preventDefault();
+            const {resp, err} = await fetchJsonNoThrow(url, {});
+            if (err != null || resp == null) {
+                setErrorMessage("Failed to fetch attachment");
+                return;
+            }
+            const blobUrl = window.URL.createObjectURL(await resp.blob())
+            window.open(blobUrl, '_blank');
+            URL.revokeObjectURL(blobUrl);
+        };
 
+        entryContainer.append(attachmentLink);
     }
 
     // Add a horizontal line after each entry

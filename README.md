@@ -56,6 +56,20 @@ docker build --tag ranger-ims-go .
 docker run --env-file .env -it -p 80:8080 ranger-ims-go:latest
 ```
 
+## Upgrade Go dependencies
+
+Upgrade the Go toolchain by setting the value in `go.mod`.
+
+Upgrade all Go dependencies by running:
+
+```shell
+# Upgrade all normal and test dependencies
+go get -t -u ./...
+
+# Tidy up go.mod and go.sum
+go mod tidy
+```
+
 ## Differences between the Go and Python IMS servers
 
 1. We didn't bring over support for a SQLite IMS database, so MariaDB is the only option currently.

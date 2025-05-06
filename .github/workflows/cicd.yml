@@ -21,13 +21,17 @@ jobs:
       with:
         egress-policy: block
         allowed-endpoints: >
+          *.codecov.io:443
           *.docker.com:443
           *.docker.io:443
+          *.ingest.us.sentry.io:443
           api.github.com:443
           cdn.datatables.net:443
           cdn.jsdelivr.net:443
           code.jquery.com:443
+          codecov.io:443
           github.com:443
+          keybase.io:443
           objects.githubusercontent.com:443
           proxy.golang.org:443
           storage.googleapis.com:443
@@ -50,8 +54,5 @@ jobs:
     #  do these on the developer's computer, and this can be
     #  enforced by pre-commit.
 
-    - name: Build
-      run: go build -v ./...
-
-    - name: Test
-      run: go test -v ./...
+    - name: Compile, test, and generate coverage
+      run: go test -race -covermode=atomic -coverprofile=coverage.out --coverpkg ./... ./...

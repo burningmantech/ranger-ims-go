@@ -17,12 +17,9 @@
 package conf
 
 import (
-	"bytes"
 	"crypto/rand"
 	"fmt"
-	"io"
-	"reflect"
-	"strings"
+	"github.com/burningmantech/ranger-ims-go/lib/redact"
 	"time"
 )
 
@@ -66,98 +63,17 @@ func DefaultIMS() *IMSConfig {
 	}
 }
 
-func printRedacted(w io.Writer, v reflect.Value, indent string) error {
-	const nestIndent = "    "
-	s := v
-	typeOfT := s.Type()
-	for i := range s.NumField() {
-		f := s.Field(i)
-
-		redact := strings.EqualFold(typeOfT.Field(i).Tag.Get("redact"), "true")
-
-		switch f.Kind() {
-		case reflect.Struct:
-			x1 := reflect.ValueOf(f.Interface())
-			_, err := fmt.Fprintf(w, "%v%v\n", indent, typeOfT.Field(i).Name)
-			if err != nil {
-				return err
-			}
-			if redact {
-				_, err = fmt.Fprintf(w, "%v🤐🤐🤐🤐🤐\n", indent+nestIndent)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = printRedacted(w, x1, indent+nestIndent)
-				if err != nil {
-					return err
-				}
-			}
-		case reflect.Slice:
-			x1 := reflect.ValueOf(f.Interface())
-			sliceElemType := f.Type().Elem()
-			if sliceElemType.Kind() != reflect.Struct {
-				printVal := "[🤐🤐🤐🤐]"
-				if !redact {
-					printVal = fmt.Sprint(f.Interface())
-				}
-				_, err := fmt.Fprintf(w, "%v%v = %v\n", indent, typeOfT.Field(i).Name, printVal)
-				if err != nil {
-					return err
-				}
-			} else {
-				for j := range x1.Len() {
-					_, err := fmt.Fprintf(w, "%v%v[%d]\n", indent, typeOfT.Field(i).Name, j)
-					if err != nil {
-						return err
-					}
-					if redact {
-						_, err = fmt.Fprintf(w, "%v🤐🤐\n", indent+nestIndent)
-						if err != nil {
-							return err
-						}
-					} else {
-						err = printRedacted(w, x1.Index(j), indent+nestIndent)
-						if err != nil {
-							return err
-						}
-					}
-				}
-			}
-		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
-			reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-			printVal := "🤐🤐🤐"
-			if !redact {
-				printVal = fmt.Sprint(f.Interface())
-			}
-			_, err := fmt.Fprintf(w, "%v%v = %v\n", indent, typeOfT.Field(i).Name, printVal)
-			if err != nil {
-				return err
-			}
-		default:
-			// e.g. we haven't bothered adding map support, because it hasn't been needed yet
-			panic("unsupported field kind: " + f.Kind().String())
-		}
-	}
-	return nil
-}
-
 func (c *IMSConfig) PrintRedacted() (string, error) {
-	output := &bytes.Buffer{}
-	err := printRedacted(output, reflect.ValueOf(c).Elem(), "")
-	if err != nil {
-		return "", fmt.Errorf("[printRedacted]: %w", err)
-	}
-	return output.String(), nil
+	b, err := redact.ToBytes(c)
+	return string(b), err
 }
 
 func (c *IMSConfig) String() string {
-	s, err := c.PrintRedacted()
+	b, err := redact.ToBytes(c)
 	if err != nil {
 		panic(err)
 	}
-	return s
+	return string(b)
 }
 
 type IMSConfig struct {

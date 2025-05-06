@@ -238,9 +238,20 @@ func initConfig() {
 	if v, ok := lookupEnv("IMS_DMS_PASSWORD"); ok {
 		newCfg.Directory.ClubhouseDB.Password = v
 	}
+	if v, ok := lookupEnv("IMS_ATTACHMENTS_STORE"); ok {
+		newCfg.AttachmentsStore.Type = conf.AttachmentsStoreType(v)
+	}
+	if v, ok := lookupEnv("IMS_ATTACHMENTS_LOCAL_DIR"); ok {
+		err := os.MkdirAll(v, 0750)
+		must(err)
+		root, err := os.OpenRoot(v)
+		must(err)
+		newCfg.AttachmentsStore.Local.Dir = root
+	}
 
 	// Validations on the config created above
 	must(newCfg.Directory.Directory.Validate())
+	must(newCfg.AttachmentsStore.Type.Validate())
 	if newCfg.Core.Deployment != "dev" {
 		if newCfg.Directory.Directory == conf.DirectoryTypeTestUsers {
 			must(errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))

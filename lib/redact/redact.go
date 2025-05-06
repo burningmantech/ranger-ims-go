@@ -40,7 +40,7 @@ func toWriter(w io.Writer, v reflect.Value, indent string) error {
 			}
 		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
 			reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+			reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128, reflect.Pointer:
 			// For simple types, we can just print them on one line
 			printVal := "🤐🤐🤐"
 			if !redact {
@@ -51,7 +51,7 @@ func toWriter(w io.Writer, v reflect.Value, indent string) error {
 				return err
 			}
 		case reflect.Invalid, reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
-			reflect.Pointer, reflect.UnsafePointer:
+			reflect.UnsafePointer:
 			fallthrough
 		default:
 			return fmt.Errorf("unsupported field kind: %v", f.Kind().String())

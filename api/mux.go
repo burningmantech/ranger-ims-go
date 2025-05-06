@@ -138,6 +138,15 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 		),
 	)
 
+	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}",
+		Adapt(
+			GetIncidentAttachment{db, cfg.AttachmentsStore.Local.Dir, cfg.Core.Admins},
+			RecoverOnPanic(),
+			RequireAuthN(jwter),
+			LogBeforeAfter(),
+		),
+	)
+
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}",
 		Adapt(
 			EditIncidentReportEntry{db, es, cfg.Core.Admins},

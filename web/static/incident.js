@@ -889,7 +889,8 @@ async function attachFile() {
     const attachFile = document.getElementById("attach_file_input");
     const formData = new FormData();
     for (const f of attachFile.files ?? []) {
-        formData.append("files", f);
+        // this must match the key sought by the server
+        formData.append("imsAttachment", f);
     }
     const attachURL = ims.urlReplace(url_incidentAttachments)
         .replace("<incident_number>", (ims.pathIds.incidentNumber ?? "").toString());

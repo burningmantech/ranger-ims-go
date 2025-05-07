@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/stretchr/testify/require"
 	"io"
 	"log"
@@ -119,10 +120,10 @@ func (a ApiHelper) newFieldReportSuccess(ctx context.Context, fieldReportReq ims
 	numStr := httpResp.Header.Get("X-IMS-Field-Report-Number")
 	require.NoError(a.t, httpResp.Body.Close())
 	require.NotEmpty(a.t, numStr)
-	num, err := strconv.ParseInt(numStr, 10, 32)
+	num, err := conv.ParseInt32(numStr)
 	require.NoError(a.t, err)
 	require.Positive(a.t, num)
-	return int32(num)
+	return num
 }
 
 func (a ApiHelper) getFieldReport(ctx context.Context, eventName string, fieldReport int32) (imsjson.FieldReport, *http.Response) {
@@ -156,10 +157,10 @@ func (a ApiHelper) newIncidentSuccess(ctx context.Context, incidentReq imsjson.I
 	numStr := resp.Header.Get("X-IMS-Incident-Number")
 	require.NoError(a.t, resp.Body.Close())
 	require.NotEmpty(a.t, numStr)
-	num, err := strconv.ParseInt(numStr, 10, 32)
+	num, err := conv.ParseInt32(numStr)
 	require.NoError(a.t, err)
 	require.Positive(a.t, num)
-	return int32(num)
+	return num
 }
 
 func (a ApiHelper) getIncident(ctx context.Context, eventName string, incident int32) (imsjson.Incident, *http.Response) {

@@ -67,6 +67,13 @@ func DefaultIMS() *IMSConfig {
 	}
 }
 
+// TODO: the validations in initConfig() should happen in this file instead,
+//  so that integration tests can also get the benefit of the validations
+//
+//func (c *IMSConfig) Validate() error {
+//
+//}
+
 func (c *IMSConfig) PrintRedacted() (string, error) {
 	b, err := redact.ToBytes(c)
 	return string(b), err
@@ -97,7 +104,7 @@ const (
 	DirectoryTypeTestUsers   DirectoryType        = "testusers"
 	AttachmentsStoreLocal    AttachmentsStoreType = "local"
 	AttachmentsStoreS3       AttachmentsStoreType = "s3"
-	AttachmentsStoreNone     AttachmentsStoreType = "local"
+	AttachmentsStoreNone     AttachmentsStoreType = "none"
 	DeploymentTypeDev                             = "dev"
 	DeploymentTypeStaging                         = "staging"
 	DeploymentTypeProduction                      = "production"
@@ -114,7 +121,7 @@ func (d DirectoryType) Validate() error {
 
 func (a AttachmentsStoreType) Validate() error {
 	switch a {
-	case AttachmentsStoreLocal, AttachmentsStoreS3:
+	case AttachmentsStoreLocal, AttachmentsStoreS3, AttachmentsStoreNone:
 		return nil
 	default:
 		return fmt.Errorf("unknown attachments store type %v", a)

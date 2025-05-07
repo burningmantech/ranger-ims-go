@@ -26,7 +26,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 )
 
 func mustParseForm(w http.ResponseWriter, req *http.Request) (success bool) {
@@ -39,7 +38,7 @@ func mustParseForm(w http.ResponseWriter, req *http.Request) (success bool) {
 }
 
 func mustReadBodyAs[T any](w http.ResponseWriter, req *http.Request) (t T, success bool) {
-	defer logClose(req.Body)
+	defer shut(req.Body)
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		slog.Error("Failed to read request body", "error", err)
@@ -154,52 +153,6 @@ func handleErr(w http.ResponseWriter, req *http.Request, statusCode int, errorFo
 	http.Error(w, errorForUser, statusCode)
 }
 
-func formatInt16(i sql.NullInt16) *string {
-	if i.Valid {
-		result := strconv.FormatInt(int64(i.Int16), 10)
-		return &result
-	}
-	return nil
-}
-
-func parseInt16(s *string) sql.NullInt16 {
-	if s == nil {
-		return sql.NullInt16{}
-	}
-	parsed, err := strconv.ParseInt(*s, 10, 16)
-	if err != nil {
-		return sql.NullInt16{}
-	}
-	return sql.NullInt16{
-		Int16: int16(parsed),
-		Valid: true,
-	}
-}
-
-func isInt32(s string) bool {
-	_, err := strconv.ParseInt(s, 10, 32)
-	return err == nil
-}
-
-func toInt32(s string) int32 {
-	i, _ := strconv.ParseInt(s, 10, 32)
-	return int32(i)
-}
-
-func stringOrNil(v sql.NullString) *string {
-	if v.Valid {
-		return &v.String
-	}
-	return nil
-}
-
-func int32OrNil(v sql.NullInt32) *int32 {
-	if v.Valid {
-		return &v.Int32
-	}
-	return nil
-}
-
 func rollback(txn *sql.Tx) {
 	err := txn.Rollback()
 	if err != nil && !errors.Is(err, sql.ErrTxDone) {
@@ -207,8 +160,8 @@ func rollback(txn *sql.Tx) {
 	}
 }
 
-func logClose(closer io.Closer) {
-	if err := closer.Close(); err != nil {
-		slog.Error("Failed to close connection", "error", err)
+func shut(c io.Closer) {
+	if err := c.Close(); err != nil {
+		slog.Error("Failed to close Closer", "error", err)
 	}
 }

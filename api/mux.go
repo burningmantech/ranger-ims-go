@@ -36,6 +36,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 	}
 
 	jwter := authz.JWTer{SecretKey: cfg.Core.JWTSecret}
+	attachmentsEnabled := cfg.AttachmentsStore.Type != conf.AttachmentsStoreNone
 
 	mux.Handle("GET /ims/api/access",
 		Adapt(
@@ -78,6 +79,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 				db,
 				cfg.Core.JWTSecret,
 				cfg.Core.Admins,
+				attachmentsEnabled,
 			},
 			RecoverOnPanic(),
 			// This endpoint does not require authentication or authorization, by design
@@ -104,7 +106,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents",
 		Adapt(
-			GetIncidents{db, cfg.Core.Admins},
+			GetIncidents{db, cfg.Core.Admins, attachmentsEnabled},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -122,7 +124,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}",
 		Adapt(
-			GetIncident{db, cfg.Core.Admins},
+			GetIncident{db, cfg.Core.Admins, attachmentsEnabled},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -140,7 +142,16 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}",
 		Adapt(
-			GetIncidentAttachment{db, cfg.AttachmentsStore.Local.Dir, cfg.Core.Admins},
+			GetIncidentAttachment{db, cfg.AttachmentsStore, cfg.Core.Admins},
+			RecoverOnPanic(),
+			RequireAuthN(jwter),
+			LogBeforeAfter(),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments",
+		Adapt(
+			AttachToIncident{db, es, cfg.AttachmentsStore, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -158,7 +169,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports",
 		Adapt(
-			GetFieldReports{db, cfg.Core.Admins},
+			GetFieldReports{db, cfg.Core.Admins, attachmentsEnabled},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -176,7 +187,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
 		Adapt(
-			GetFieldReport{db, cfg.Core.Admins},
+			GetFieldReport{db, cfg.Core.Admins, attachmentsEnabled},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),

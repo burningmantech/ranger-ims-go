@@ -107,7 +107,9 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	eventPath := "/ims/api/events/" + eventName
 	getIncidents := MethodURL{http.MethodGet, eventPath + "/incidents"}
 	getIncident := MethodURL{http.MethodGet, eventPath + "/incidents/1"}
+	getIncidentAttachment := MethodURL{http.MethodGet, eventPath + "/incidents/1/attachments/1"}
 	postIncident := MethodURL{http.MethodPost, eventPath + "/incidents/1"}
+	postIncidentAttachment := MethodURL{http.MethodPost, eventPath + "/incidents/1/attachments"}
 	postIncidentRE := MethodURL{http.MethodPost, eventPath + "/incidents/1/report_entries/2"}
 	getFieldReports := MethodURL{http.MethodGet, eventPath + "/field_reports"}
 	getFieldReport := MethodURL{http.MethodGet, eventPath + "/field_reports/1"}
@@ -117,7 +119,9 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	allPerms := []MethodURL{
 		getIncidents,
 		getIncident,
+		getIncidentAttachment,
 		postIncident,
+		postIncidentAttachment,
 		postIncidentRE,
 		getFieldReports,
 		getFieldReport,
@@ -133,6 +137,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	reader := []MethodURL{
 		getIncidents,
 		getIncident,
+		getIncidentAttachment,
 		getFieldReports,
 		getFieldReport,
 	}

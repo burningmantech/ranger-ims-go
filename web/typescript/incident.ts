@@ -1127,7 +1127,8 @@ async function attachFile(): Promise<void> {
     const formData = new FormData();
 
     for (const f of attachFile.files??[]) {
-        formData.append("files", f);
+        // this must match the key sought by the server
+        formData.append("imsAttachment", f);
     }
 
     const attachURL = ims.urlReplace(url_incidentAttachments)

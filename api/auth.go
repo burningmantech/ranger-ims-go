@@ -134,9 +134,10 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 type GetAuth struct {
-	imsDB     *store.DB
-	jwtSecret string
-	admins    []string
+	imsDB              *store.DB
+	jwtSecret          string
+	admins             []string
+	attachmentsEnabled bool
 }
 
 type GetAuthResponse struct {
@@ -194,7 +195,7 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				ReadIncidents:     eventPermissions[event.ID]&authz.EventReadIncidents != 0,
 				WriteIncidents:    eventPermissions[event.ID]&authz.EventWriteIncidents != 0,
 				WriteFieldReports: eventPermissions[event.ID]&(authz.EventWriteOwnFieldReports|authz.EventWriteAllFieldReports) != 0,
-				AttachFiles:       false,
+				AttachFiles:       action.attachmentsEnabled,
 			},
 		}
 	}

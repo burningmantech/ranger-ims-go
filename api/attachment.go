@@ -17,22 +17,33 @@
 package api
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
+	"fmt"
+	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"io"
+	"log/slog"
+	"mime"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 )
 
-type AttachToIncident struct{}
+type AttachToIncident struct {
+	imsDB            *store.DB
+	es               *EventSourcerer
+	attachmentsStore conf.AttachmentsStore
+	imsAdmins        []string
+}
 type AttachToFieldReport struct{}
 type GetIncidentAttachment struct {
-	imsDB              *store.DB
-	localAttachmentDir *os.Root
-	imsAdmins          []string
+	imsDB            *store.DB
+	attachmentsStore conf.AttachmentsStore
+	imsAdmins        []string
 }
 
 type GetFieldReportAttachment struct{}
@@ -48,19 +59,18 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 	}
 	ctx := req.Context()
 
-	incidentNumber, err := strconv.ParseInt(req.PathValue("incidentNumber"), 10, 32)
+	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
 		handleErr(w, req, http.StatusBadRequest, "Failed to parse incident number", err)
 		return
 	}
-	attachmentNumber64, err := strconv.ParseInt(req.PathValue("attachmentNumber"), 10, 32)
+	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
 	if err != nil {
 		handleErr(w, req, http.StatusBadRequest, "Failed to parse attachment number", err)
 		return
 	}
-	attachmentNumber := int32(attachmentNumber64)
 
-	_, reportEntries, err := fetchIncident(ctx, action.imsDB, event.ID, int32(incidentNumber))
+	_, reportEntries, err := fetchIncident(ctx, action.imsDB, event.ID, incidentNumber)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			handleErr(w, req, http.StatusNotFound, "No such incident", err)
@@ -81,10 +91,115 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 		handleErr(w, req, http.StatusNotFound, "No attachment for this ID", err)
 		return
 	}
-	file, err := action.localAttachmentDir.Open(filename)
-	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
+
+	var file io.ReadSeeker
+	switch action.attachmentsStore.Type {
+	case conf.AttachmentsStoreLocal:
+		file, err = action.attachmentsStore.Local.Dir.Open(filename)
+		if err != nil {
+			handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
+			return
+		}
+	case conf.AttachmentsStoreS3:
+		fallthrough
+	case conf.AttachmentsStoreNone:
+		fallthrough
+	default:
+		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 		return
 	}
-	http.ServeContent(w, req, "some attachment", time.Now(), file)
+
+	http.ServeContent(w, req, "Attached File", time.Now(), file)
+}
+
+func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	event, jwtCtx, eventPermissions, ok := mustGetEventPermissions(w, req, action.imsDB, action.imsAdmins)
+	if !ok {
+		return
+	}
+	if eventPermissions&authz.EventWriteIncidents == 0 {
+		handleErr(w, req, http.StatusForbidden, "The requestor does not have EventWriteIncidents permission on this Event", nil)
+		return
+	}
+	ctx := req.Context()
+
+	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
+	if err != nil {
+		handleErr(w, req, http.StatusBadRequest, "Failed to parse incident number", err)
+		return
+	}
+
+	// this must match the key sent by the client
+	fi, fiHead, err := req.FormFile("imsAttachment")
+	if err != nil {
+		handleErr(w, req, http.StatusBadRequest, "Failed to parse file", err)
+		return
+	}
+	defer shut(fi)
+
+	// This must be >= http.sniffLen (it's a private field, so we can't read it)
+	const sniffLen = 512
+	head := make([]byte, sniffLen)
+	if _, err = fi.ReadAt(head, 0); err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to read head of file", err)
+		return
+	}
+
+	// We'll detect the contentType and file extension, rather than trust any value from the client.
+	sniffedContentType := http.DetectContentType(head)
+	var extension string
+	extensions, err := mime.ExtensionsByType(sniffedContentType)
+	if err == nil && len(extensions) > 0 {
+		extension = extensions[0]
+	} else {
+		slog.Info("Unable to determine a good file type for %v",
+			"sniffedContentType", sniffedContentType,
+			"error", err,
+		)
+	}
+
+	newFileName := fmt.Sprintf("event_%05d_incident_%05d_%v%v", event.ID, incidentNumber, rand.Text(), extension)
+	slog.Info("User is uploaded an incident attachment",
+		"user", jwtCtx.Claims.RangerHandle(),
+		"eventName", event.Name,
+		"incidentNumber", incidentNumber,
+		"originalName", fiHead.Filename,
+		"newFileName", newFileName,
+		"size", fiHead.Size,
+		"contentType", sniffedContentType,
+		"extension", extension,
+	)
+
+	switch action.attachmentsStore.Type {
+	case conf.AttachmentsStoreLocal:
+		outFi, err := action.attachmentsStore.Local.Dir.Create(newFileName)
+		if err != nil {
+			handleErr(w, req, http.StatusInternalServerError, "Failed to create file", err)
+			return
+		}
+		defer shut(outFi)
+		if _, err = io.Copy(outFi, fi); err != nil {
+			handleErr(w, req, http.StatusInternalServerError, "Failed to write file", err)
+			return
+		}
+	case conf.AttachmentsStoreS3:
+		fallthrough
+	case conf.AttachmentsStoreNone:
+		fallthrough
+	default:
+		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
+	}
+
+	const MiB float64 = 1 << 20
+	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %.3f MiB",
+		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, float64(fiHead.Size)/MiB)
+	err = addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
+		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to add incident report entry", err)
+		return
+	}
+
+	slog.Info("Saved incident attachment")
+	action.es.notifyIncidentUpdate(event.Name, incidentNumber)
 }

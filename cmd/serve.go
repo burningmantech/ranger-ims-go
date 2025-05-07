@@ -18,7 +18,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -28,6 +27,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"log"
 	"log/slog"
 	"net/http"
@@ -51,7 +51,7 @@ var serveCmd = &cobra.Command{
 
 func runServer(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	imsCfg := conf.Cfg
+	imsCfg := mustInitConfig(cmd.Flags().Lookup(envfileFlagName))
 
 	var logLevel slog.Level
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
@@ -137,8 +137,8 @@ func lookupEnv(key string) (string, bool) {
 	return v, true
 }
 
-// initConfig reads in the .env file and ENV variables if set.
-func initConfig() {
+// mustInitConfig reads in the .env file and ENV variables if set.
+func mustInitConfig(envfileFlag *pflag.Flag) *conf.IMSConfig {
 	newCfg := conf.DefaultIMS()
 	err := godotenv.Load(envFilename)
 
@@ -147,7 +147,7 @@ func initConfig() {
 		os.Exit(1)
 	}
 	if os.IsNotExist(err) {
-		if serveCmd.Flags().Lookup(envfileFlagName).Changed {
+		if envfileFlag.Changed {
 			slog.Error("envfile was set by the caller, but the file was not found. Exiting...", "envFilename", envFilename)
 			os.Exit(1)
 		}
@@ -238,30 +238,17 @@ func initConfig() {
 	}
 	if v, ok := lookupEnv("IMS_ATTACHMENTS_STORE"); ok {
 		newCfg.AttachmentsStore.Type = conf.AttachmentsStoreType(v)
-		localDir, ok := lookupEnv("IMS_ATTACHMENTS_LOCAL_DIR")
-		if !ok {
-			panic("IMS_ATTACHMENTS_STORE is set to 'local', so an IMS_ATTACHMENTS_LOCAL_DIR must be provided")
-		}
-		err = os.MkdirAll(localDir, 0750)
+	}
+	if v, ok := lookupEnv("IMS_ATTACHMENTS_LOCAL_DIR"); ok {
+		err = os.MkdirAll(v, 0750)
 		must(err)
-		root, err := os.OpenRoot(localDir)
+		root, err := os.OpenRoot(v)
 		must(err)
 		newCfg.AttachmentsStore.Local.Dir = root
 	}
 
-	// Validations on the config created above
-	must(newCfg.Directory.Directory.Validate())
-	must(newCfg.AttachmentsStore.Type.Validate())
-	if newCfg.Core.Deployment != "dev" {
-		if newCfg.Directory.Directory == conf.DirectoryTypeTestUsers {
-			must(errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
-		}
-	}
-	if newCfg.Core.AccessTokenLifetime > newCfg.Core.RefreshTokenLifetime {
-		must(errors.New("access token lifetime should not be greater than refresh token lifetime"))
-	}
-
-	conf.Cfg = newCfg
+	must(newCfg.Validate())
+	return newCfg
 }
 
 var envFilename string
@@ -271,7 +258,6 @@ func init() {
 	serveCmd.Flags().StringVar(&envFilename, envfileFlagName, ".env",
 		"An env file from which to load IMS server configuration. "+
 			"Defaults to '.env' in the current directory")
-	cobra.OnInitialize(initConfig)
 }
 
 // must logs an error and kills the program. This should only be done for

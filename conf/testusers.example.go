@@ -27,7 +27,7 @@ func init() {
 	if strings.Contains(filename, ".example") {
 		return
 	}
-	testUsers = append(testUsers,
+	defaultTestUsers = append(defaultTestUsers,
 		TestUser{
 			Handle:      "Hardware",
 			Email:       "hardware@rangers.brc",

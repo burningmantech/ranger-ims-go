@@ -18,16 +18,14 @@ package conf
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/lib/redact"
 	"os"
 	"time"
 )
 
-var (
-	Cfg       *IMSConfig
-	testUsers []TestUser
-)
+var defaultTestUsers []TestUser
 
 // DefaultIMS is the base configuration used for the IMS server.
 // It gets overridden by values in conf/imsd.toml, then the result
@@ -54,7 +52,7 @@ func DefaultIMS() *IMSConfig {
 		},
 		Directory: Directory{
 			Directory: DirectoryTypeClubhouseDB,
-			TestUsers: testUsers,
+			TestUsers: defaultTestUsers,
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",
@@ -67,12 +65,27 @@ func DefaultIMS() *IMSConfig {
 	}
 }
 
-// TODO: the validations in initConfig() should happen in this file instead,
-//  so that integration tests can also get the benefit of the validations
-//
-//func (c *IMSConfig) Validate() error {
-//
-//}
+// Validate should be called after an IMSConfig has been fully configured
+func (c *IMSConfig) Validate() error {
+	var errs []error
+	errs = append(errs, c.Directory.Directory.Validate())
+	errs = append(errs, c.AttachmentsStore.Type.Validate())
+	if c.AttachmentsStore.Type == AttachmentsStoreLocal {
+		if c.AttachmentsStore.Local.Dir == nil {
+			errs = append(errs, errors.New("local attachments store has been requested, "+
+				"so a local directory must be provided"))
+		}
+	}
+	if c.Core.Deployment != "dev" {
+		if c.Directory.Directory == DirectoryTypeTestUsers {
+			errs = append(errs, errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
+		}
+	}
+	if c.Core.AccessTokenLifetime > c.Core.RefreshTokenLifetime {
+		errs = append(errs, errors.New("access token lifetime should not be greater than refresh token lifetime"))
+	}
+	return errors.Join(errs...)
+}
 
 func (c *IMSConfig) PrintRedacted() (string, error) {
 	b, err := redact.ToBytes(c)

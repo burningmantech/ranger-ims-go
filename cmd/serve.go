@@ -23,6 +23,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/joho/godotenv"
@@ -32,7 +33,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -158,9 +158,8 @@ func initConfig() {
 		newCfg.Core.Host = v
 	}
 	if v, ok := lookupEnv("IMS_PORT"); ok {
-		num, err := strconv.ParseInt(v, 10, 32)
+		newCfg.Core.Port, err = conv.ParseInt32(v)
 		must(err)
-		newCfg.Core.Port = int32(num)
 	}
 	if v, ok := lookupEnv("IMS_DEPLOYMENT"); ok {
 		newCfg.Core.Deployment = strings.ToLower(v)
@@ -170,12 +169,12 @@ func initConfig() {
 	// to convey, i.e. the maximum duration for a session, is now what we mean
 	// when we talk about a refresh token's lifetime.
 	if v, ok := lookupEnv("IMS_TOKEN_LIFETIME"); ok {
-		seconds, err := strconv.ParseInt(v, 10, 64)
+		seconds, err := conv.ParseInt64(v)
 		must(err)
 		newCfg.Core.RefreshTokenLifetime = time.Duration(seconds) * time.Second
 	}
 	if v, ok := lookupEnv("IMS_ACCESS_TOKEN_LIFETIME"); ok {
-		seconds, err := strconv.ParseInt(v, 10, 64)
+		seconds, err := conv.ParseInt64(v)
 		must(err)
 		newCfg.Core.AccessTokenLifetime = time.Duration(seconds) * time.Second
 	}
@@ -213,9 +212,8 @@ func initConfig() {
 		newCfg.Store.MariaDB.HostName = v
 	}
 	if v, ok := lookupEnv("IMS_DB_HOST_POST"); ok {
-		num, err := strconv.ParseInt(v, 10, 32)
+		newCfg.Store.MariaDB.HostPort, err = conv.ParseInt32(v)
 		must(err)
-		newCfg.Store.MariaDB.HostPort = int32(num)
 	}
 	if v, ok := lookupEnv("IMS_DB_DATABASE"); ok {
 		newCfg.Store.MariaDB.Database = v
@@ -240,11 +238,13 @@ func initConfig() {
 	}
 	if v, ok := lookupEnv("IMS_ATTACHMENTS_STORE"); ok {
 		newCfg.AttachmentsStore.Type = conf.AttachmentsStoreType(v)
-	}
-	if v, ok := lookupEnv("IMS_ATTACHMENTS_LOCAL_DIR"); ok {
-		err := os.MkdirAll(v, 0750)
+		localDir, ok := lookupEnv("IMS_ATTACHMENTS_LOCAL_DIR")
+		if !ok {
+			panic("IMS_ATTACHMENTS_STORE is set to 'local', so an IMS_ATTACHMENTS_LOCAL_DIR must be provided")
+		}
+		err = os.MkdirAll(localDir, 0750)
 		must(err)
-		root, err := os.OpenRoot(v)
+		root, err := os.OpenRoot(localDir)
 		must(err)
 		newCfg.AttachmentsStore.Local.Dir = root
 	}

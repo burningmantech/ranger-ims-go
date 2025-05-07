@@ -17,8 +17,8 @@
 package authz
 
 import (
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/golang-jwt/jwt/v5"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -105,7 +105,7 @@ func (c IMSClaims) DirectoryID() int64 {
 	if err != nil {
 		return -1
 	}
-	subN, err := strconv.ParseInt(sub, 10, 64)
+	subN, err := conv.ParseInt64(sub)
 	if err != nil {
 		return -1
 	}

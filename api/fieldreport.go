@@ -22,6 +22,7 @@ import (
 	"fmt"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
@@ -33,8 +34,9 @@ import (
 )
 
 type GetFieldReports struct {
-	imsDB     *store.DB
-	imsAdmins []string
+	imsDB              *store.DB
+	imsAdmins          []string
+	attachmentsEnabled bool
 }
 
 func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -68,15 +70,7 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 	entriesByFR := make(map[int32][]imsjson.ReportEntry)
 	for _, row := range reportEntries {
 		re := row.ReportEntry
-		entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], imsjson.ReportEntry{
-			ID:            re.ID,
-			Created:       time.Unix(int64(re.Created), 0),
-			Author:        re.Author,
-			SystemEntry:   re.Generated,
-			Text:          re.Text,
-			Stricken:      re.Stricken,
-			HasAttachment: re.AttachedFile.String != "",
-		})
+		entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], reportEntryToJSON(re, action.attachmentsEnabled))
 	}
 
 	storedFRs, err := imsdb.New(action.imsDB).FieldReports(req.Context(), event.ID)
@@ -103,8 +97,8 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 			Event:         event.Name,
 			Number:        fr.FieldReport.Number,
 			Created:       time.Unix(int64(fr.FieldReport.Created), 0),
-			Summary:       stringOrNil(fr.FieldReport.Summary),
-			Incident:      int32OrNil(fr.FieldReport.IncidentNumber),
+			Summary:       conv.StringOrNil(fr.FieldReport.Summary),
+			Incident:      conv.Int32OrNil(fr.FieldReport.IncidentNumber),
 			ReportEntries: entriesByFR[fr.FieldReport.Number],
 		})
 	}
@@ -122,8 +116,9 @@ func containsAuthor(entries []imsjson.ReportEntry, author string) bool {
 }
 
 type GetFieldReport struct {
-	imsDB     *store.DB
-	imsAdmins []string
+	imsDB              *store.DB
+	imsAdmins          []string
+	attachmentsEnabled bool
 }
 
 func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -142,7 +137,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	ctx := req.Context()
 
-	fieldReportNumber, err := strconv.ParseInt(req.PathValue("fieldReportNumber"), 10, 32)
+	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
 	if err != nil {
 		handleErr(w, req, http.StatusBadRequest, "Invalid field report number", err)
 		return
@@ -151,7 +146,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	reportEntryRows, err := imsdb.New(action.imsDB).FieldReport_ReportEntries(ctx,
 		imsdb.FieldReport_ReportEntriesParams{
 			Event:             event.ID,
-			FieldReportNumber: int32(fieldReportNumber),
+			FieldReportNumber: fieldReportNumber,
 		})
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to get FR report entries", err)
@@ -160,15 +155,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	entries := make([]imsjson.ReportEntry, 0)
 	for _, rer := range reportEntryRows {
 		re := rer.ReportEntry
-		entries = append(entries, imsjson.ReportEntry{
-			ID:            re.ID,
-			Created:       time.Unix(int64(re.Created), 0),
-			Author:        re.Author,
-			SystemEntry:   re.Generated,
-			Text:          re.Text,
-			Stricken:      re.Stricken,
-			HasAttachment: re.AttachedFile.String != "",
-		})
+		entries = append(entries, reportEntryToJSON(re, action.attachmentsEnabled))
 	}
 	if limitedAccess {
 		if !containsAuthor(entries, jwtCtx.Claims.RangerHandle()) {
@@ -179,7 +166,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	frRow, err := imsdb.New(action.imsDB).FieldReport(ctx, imsdb.FieldReportParams{
 		Event:  event.ID,
-		Number: int32(fieldReportNumber),
+		Number: fieldReportNumber,
 	})
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Field Report", err)
@@ -191,8 +178,8 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		Event:         event.Name,
 		Number:        fr.Number,
 		Created:       time.Unix(int64(fr.Created), 0),
-		Summary:       stringOrNil(fr.Summary),
-		Incident:      int32OrNil(fr.IncidentNumber),
+		Summary:       conv.StringOrNil(fr.Summary),
+		Incident:      conv.Int32OrNil(fr.IncidentNumber),
 		ReportEntries: []imsjson.ReportEntry{},
 	}
 	response.ReportEntries = entries
@@ -221,12 +208,11 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 	if ok = mustParseForm(w, req); !ok {
 		return
 	}
-	fieldReportNumber64, err := strconv.ParseInt(req.PathValue("fieldReportNumber"), 10, 32)
+	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
 	if err != nil {
 		handleErr(w, req, http.StatusBadRequest, "Invalid field report number", err)
 		return
 	}
-	fieldReportNumber := int32(fieldReportNumber64)
 	author := jwt.Claims.RangerHandle()
 	if limitedAccess {
 		if ok = action.mustCheckIfPreviousAuthor(w, req, event.ID, fieldReportNumber, author); !ok {
@@ -252,12 +238,12 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 		var entryText string
 		switch queryAction {
 		case "attach":
-			num, err := strconv.ParseInt(req.FormValue("incident"), 10, 32)
+			num, err := conv.ParseInt32(req.FormValue("incident"))
 			if err != nil {
 				handleErr(w, req, http.StatusBadRequest, "Invalid incident number for attachment of FR", err)
 				return
 			}
-			newIncident = sql.NullInt32{Int32: int32(num), Valid: true}
+			newIncident = sql.NullInt32{Int32: num, Valid: true}
 			entryText = fmt.Sprintf("Attached to incident: %v", num)
 		case "detach":
 			newIncident = sql.NullInt32{Valid: false}

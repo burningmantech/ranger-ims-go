@@ -80,6 +80,7 @@ func TestMain(m *testing.M) {
 
 func setup(ctx context.Context) {
 	shared.cfg = conf.DefaultIMS()
+	must(shared.cfg.Validate())
 	shared.cfg.Core.JWTSecret = "jwtsecret-" + rand.Text()
 	shared.cfg.Core.Admins = []string{userAdminHandle}
 	shared.cfg.Store.MariaDB.Database = "ims-" + rand.Text()

@@ -271,7 +271,7 @@ templ Incident(deployment string) {
                      onchange="drawMergedReportEntries()"/>
               Show attached entries
             </label>
-            <div id="report_entries"/>
+            <div id="report_entries"></div>
           </div>
           <div class="card-footer">
             <textarea
@@ -280,7 +280,7 @@ templ Incident(deployment string) {
                     class="form-control no-print"
                     placeholder="Press &quot;a&quot; to add report text"
                     onchange="reportEntryEdited()"
-            />
+            ></textarea>
             <div class="d-flex justify-content-between">
               <button
                       id="report_entry_submit"
@@ -297,7 +297,7 @@ templ Incident(deployment string) {
               <input
                       id="attach_file"
                       type="button"
-                      class="btn btn-default btn-sm btn-block btn-secondary my-1 no-print hidden"
+                      class="btn btn-default btn-sm btn-block btn-secondary my-1 form-control-lite no-print hidden"
                       value="Attach file"
                       onclick="document.getElementById('attach_file_input').click();"
               />

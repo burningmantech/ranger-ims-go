@@ -203,6 +203,24 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 		),
 	)
 
+	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}",
+		Adapt(
+			GetFieldReportAttachment{db, cfg.AttachmentsStore, cfg.Core.Admins},
+			RecoverOnPanic(),
+			RequireAuthN(jwter),
+			LogBeforeAfter(),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments",
+		Adapt(
+			AttachToFieldReport{db, es, cfg.AttachmentsStore, cfg.Core.Admins},
+			RecoverOnPanic(),
+			RequireAuthN(jwter),
+			LogBeforeAfter(),
+		),
+	)
+
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}",
 		Adapt(
 			EditFieldReportReportEntry{db, es, cfg.Core.Admins},

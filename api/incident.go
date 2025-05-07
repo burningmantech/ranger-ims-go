@@ -202,8 +202,9 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func fetchIncident(ctx context.Context, imsDB *store.DB, eventID, incidentNumber int32) (
-	incident imsdb.IncidentRow, reportEntries []imsdb.ReportEntry, err error,
+	imsdb.IncidentRow, []imsdb.ReportEntry, error,
 ) {
+	var reportEntries []imsdb.ReportEntry
 	incidentRow, err := imsdb.New(imsDB).Incident(ctx, imsdb.IncidentParams{
 		Event:  eventID,
 		Number: incidentNumber,

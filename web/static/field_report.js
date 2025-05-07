@@ -30,6 +30,7 @@ async function initFieldReportPage() {
     window.toggleShowHistory = ims.toggleShowHistory;
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
+    window.attachFile = attachFile;
     ims.disableEditing();
     await loadAndDisplayFieldReport();
     if (fieldReport == null) {
@@ -151,6 +152,9 @@ async function loadAndDisplayFieldReport() {
     document.getElementById("report_entry_add").addEventListener("input", ims.reportEntryEdited);
     if (ims.eventAccess?.writeFieldReports) {
         ims.enableEditing();
+    }
+    if (ims.eventAccess?.attachFiles) {
+        document.getElementById("attach_file").classList.remove("hidden");
     }
 }
 //
@@ -322,3 +326,31 @@ async function frOnStrikeSuccess() {
     ims.clearErrorMessage();
 }
 ims.setOnStrikeSuccess(frOnStrikeSuccess);
+async function attachFile() {
+    if (ims.pathIds.fieldReportNumber == null) {
+        // Field Report doesn't exist yet.  Create it first.
+        const { err } = await frSendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
+    const attachFile = document.getElementById("attach_file_input");
+    const formData = new FormData();
+    for (const f of attachFile.files ?? []) {
+        // this must match the key sought by the server
+        formData.append("imsAttachment", f);
+    }
+    const attachURL = ims.urlReplace(url_fieldReportAttachments)
+        .replace("<field_report_number>", (ims.pathIds.fieldReportNumber ?? "").toString());
+    const { err } = await ims.fetchJsonNoThrow(attachURL, {
+        body: formData
+    });
+    if (err != null) {
+        const message = `Failed to attach file: ${err}`;
+        ims.setErrorMessage(message);
+        return;
+    }
+    ims.clearErrorMessage();
+    attachFile.value = "";
+    await loadAndDisplayFieldReport();
+}

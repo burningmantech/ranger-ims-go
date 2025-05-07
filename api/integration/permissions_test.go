@@ -113,7 +113,9 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	postIncidentRE := MethodURL{http.MethodPost, eventPath + "/incidents/1/report_entries/2"}
 	getFieldReports := MethodURL{http.MethodGet, eventPath + "/field_reports"}
 	getFieldReport := MethodURL{http.MethodGet, eventPath + "/field_reports/1"}
+	getFieldReportAttachment := MethodURL{http.MethodGet, eventPath + "/field_reports/1/attachments/1"}
 	postFieldReport := MethodURL{http.MethodPost, eventPath + "/field_reports/1"}
+	postFieldReportAttachment := MethodURL{http.MethodPost, eventPath + "/field_reports/1/attachments"}
 	postFieldReportRE := MethodURL{http.MethodPost, eventPath + "/field_reports/1/report_entries/2"}
 
 	allPerms := []MethodURL{
@@ -125,13 +127,17 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		postIncidentRE,
 		getFieldReports,
 		getFieldReport,
+		getFieldReportAttachment,
 		postFieldReport,
+		postFieldReportAttachment,
 		postFieldReportRE,
 	}
 	reporter := []MethodURL{
 		getFieldReports,
 		getFieldReport,
+		getFieldReportAttachment,
 		postFieldReport,
+		postFieldReportAttachment,
 		postFieldReportRE,
 	}
 	reader := []MethodURL{
@@ -140,6 +146,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getIncidentAttachment,
 		getFieldReports,
 		getFieldReport,
+		getFieldReportAttachment,
 	}
 	writer := slices.Clone(allPerms)
 
@@ -295,4 +302,8 @@ func unauthorized(status int) bool {
 
 func forbidden(status int) bool {
 	return status == http.StatusForbidden
+}
+
+func notFound(status int) bool {
+	return status == http.StatusNotFound
 }

@@ -251,6 +251,7 @@ function enable(elements) {
 // Disable editing for an element
 export function disableEditing() {
     disable(document.querySelectorAll(".form-control"));
+    disable(document.querySelectorAll(".form-control-lite"));
     // these forms don't actually exist
     // disable(document.querySelectorAll("#entries-form input,select,textarea,button"));
     // disable(document.querySelectorAll("#attach-file-form input,select,textarea,button"));
@@ -260,6 +261,7 @@ export function disableEditing() {
 // Enable editing for an element
 export function enableEditing() {
     enable(document.querySelectorAll(".form-control"));
+    enable(document.querySelectorAll(".form-control-lite"));
     // these forms don't actually exist
     // enable(document.querySelectorAll("#entries-form input,select,textarea,button"));
     // enable(document.querySelectorAll("#attach-file-form :input,select,textarea,button"));
@@ -756,11 +758,17 @@ function reportEntryElement(entry) {
         entryContainer.append(textContainer);
     }
     if (entry.has_attachment && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
-        const url = urlReplace(url_incidentAttachmentNumber)
-            // Only one of these next two substitutions can actually take effect.
-            .replace("<incident_number>", (pathIds.incidentNumber ?? "wontHappen").toString())
-            .replace("<field_report_number>", (pathIds.fieldReportNumber ?? "wontHappen").toString())
-            .replace("<attachment_number>", entry.id.toString());
+        let url = "";
+        if (pathIds.incidentNumber != null) {
+            url = urlReplace(url_incidentAttachmentNumber)
+                .replace("<incident_number>", pathIds.incidentNumber.toString())
+                .replace("<attachment_number>", entry.id.toString());
+        }
+        else {
+            url = urlReplace(url_fieldReportAttachmentNumber)
+                .replace("<field_report_number>", (pathIds.fieldReportNumber ?? "wontHappen").toString())
+                .replace("<attachment_number>", entry.id.toString());
+        }
         const attachmentLink = document.createElement("a");
         attachmentLink.href = "#";
         attachmentLink.textContent = "Attached file";

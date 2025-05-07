@@ -165,7 +165,7 @@ templ FieldReport(deployment string) {
             <input id="history_checkbox" type="checkbox" onchange="toggleShowHistory()"/>
             Show history and stricken
           </label>
-          <div id="report_entries"/>
+          <div id="report_entries"></div>
           <div class="card-footer">
             <textarea
                     id="report_entry_add"
@@ -173,16 +173,28 @@ templ FieldReport(deployment string) {
                     class="form-control no-print input-sm"
                     placeholder="Press &quot;a&quot; to add report text"
                     onchange="reportEntryEdited()"
-            />
-            <button
-                    id="report_entry_submit"
-                    aria-label="Submit report entry"
-                    type="submit"
-                    class="btn btn-default btn-sm my-1 btn-block disabled"
-                    onclick="submitReportEntry()"
-            >
-              Add Entry (Control ⏎)
-            </button>
+            ></textarea>
+            <div class="d-flex justify-content-between">
+              <button
+                      id="report_entry_submit"
+                      aria-label="Submit report entry"
+                      type="submit"
+                      class="btn btn-default btn-sm my-1 btn-block disabled"
+                      onclick="submitReportEntry()"
+              >
+                Add Entry (Control ⏎)
+              </button>
+              <!-- File attachment -->
+              <label class="input-group-text hidden" for="attach_file_input">Attach file</label>
+              <input type="file" class="form-control hidden" id="attach_file_input" name="filename" onchange="attachFile();" />
+              <input
+                      id="attach_file"
+                      type="button"
+                      class="btn btn-default btn-sm btn-block btn-secondary my-1 form-control-lite no-print hidden"
+                      value="Attach file"
+                      onclick="document.getElementById('attach_file_input').click();"
+               />
+            </div>
           </div>
         </div>
       </div>

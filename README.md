@@ -8,11 +8,10 @@ that occur in Black Rock City.
 ## Getting started with IMS development:
 
 1. Clone the repo
-2. Install a recent version of Go. Have `go` on your PATH. https://go.dev/dl
-3. (Optional: if you're doing TypeScript work in the repo) install the TypeScript transpiler and have `tsc` on your PATH: https://www.typescriptlang.org/download
-4. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
-6. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
-7. Do a one-time fetch of external client deps into your repo, by running
+2. Install Go and have `go` on your PATH. https://go.dev/dl
+3. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
+4. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
+5. Do a one-time fetch of external client deps into your repo, by running
    ```shell
     go run bin/fetchclientdeps/fetchclientdeps.go
    ```
@@ -47,7 +46,10 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
    ```
 2. Copy `.env.example` as `.env`, and set the various flags. Especially read the part in
    `.env.example` about `IMS_DIRECTORY` if you want to use TestUsers rather than a Clubhouse DB.
-3. Run the following to build and launch the server: `bin/build.sh && ./ranger-ims-go serve`
+3. Run the following to build and launch the server:
+   ```shell
+   go run bin/build/build.go && ./ranger-ims-go serve
+   ```
 
 ## Build and run with Docker
 

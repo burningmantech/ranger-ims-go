@@ -665,17 +665,17 @@ async function sendEdits(edits) {
         // We created a new incident.
         // We need to find out the created incident number so that future
         // edits don't keep creating new resources.
-        let newNumber = resp.headers.get("X-IMS-Incident-Number");
+        let newNumber = resp.headers.get("IMS-Incident-Number");
         // Check that we got a value back
         if (newNumber == null) {
-            const msg = "No X-IMS-Incident-Number header provided.";
+            const msg = "No IMS-Incident-Number header provided.";
             ims.setErrorMessage(msg);
             return { err: msg };
         }
         newNumber = ims.parseInt10(newNumber);
         // Check that the value we got back is valid
         if (newNumber == null) {
-            const msg = "Non-integer X-IMS-Incident-Number header provided:" + newNumber;
+            const msg = "Non-integer IMS-Incident-Number header provided:" + newNumber;
             ims.setErrorMessage(msg);
             return { err: msg };
         }

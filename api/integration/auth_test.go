@@ -117,7 +117,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
 	// create event and give this user permissions on it
-	eventName := uuid.New().String()
+	eventName := uuid.NewString()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{
 		Add: []string{eventName},
 	})
@@ -145,7 +145,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 				ReadIncidents:     true,
 				WriteIncidents:    false,
 				WriteFieldReports: false,
-				AttachFiles:       false,
+				AttachFiles:       true,
 			},
 		},
 	}, authResp)

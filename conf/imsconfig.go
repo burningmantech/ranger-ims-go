@@ -65,7 +65,7 @@ func DefaultIMS() *IMSConfig {
 	}
 }
 
-// Validate should be called after an IMSConfig has been fully configured
+// Validate should be called after an IMSConfig has been fully configured.
 func (c *IMSConfig) Validate() error {
 	var errs []error
 	errs = append(errs, c.Directory.Directory.Validate())
@@ -158,7 +158,6 @@ type ConfigCore struct {
 	Admins               []string
 	MasterKey            string `redact:"true"`
 	JWTSecret            string `redact:"true"`
-	AttachmentsStore     AttachmentsStoreType
 	Deployment           string
 
 	// CacheControlShort is the duration we set in various responses' Cache-Control headers
@@ -223,8 +222,9 @@ type LocalAttachments struct {
 }
 
 type S3Attachments struct {
-	S3AccessKeyId     string
+	S3AccessKeyID     string
 	S3SecretAccessKey string `redact:"true"`
 	S3DefaultRegion   string
 	S3Bucket          string
+	S3BucketSubPath   string
 }

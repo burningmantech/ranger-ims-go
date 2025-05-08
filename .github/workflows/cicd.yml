@@ -57,13 +57,13 @@ jobs:
     #  enforced by pre-commit.
 
     - name: Compile, test, and cover
-      run: go test -race -covermode=atomic -coverprofile=coverage.out --coverpkg ./... ./...
+      run: go test -race -covermode=atomic -coverprofile=coverage.txt --coverpkg ./... ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: coverage.out
+        files: coverage.txt
         env_vars: GITHUB_REF,GITHUB_COMMIT,GITHUB_USER,GITHUB_WORKFLOW
         fail_ci_if_error: false
         verbose: true

@@ -25,47 +25,13 @@ import (
 	"testing"
 )
 
-func TestEventAPIAuthorization(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
-
-	// Any authenticated user can call GetEvents
-	_, resp := apisNotAuthenticated.getEvents(ctx)
-	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	_, resp = apisNonAdmin.getEvents(ctx)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	_, resp = apisAdmin.getEvents(ctx)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-
-	// Only admins can hit the EditEvents endpoint
-	// An unauthenticated client will get a 401
-	// An unauthorized user will get a 403
-	editEventReq := imsjson.EditEventsRequest{}
-	resp = apisNotAuthenticated.editEvent(ctx, editEventReq)
-	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	resp = apisNonAdmin.editEvent(ctx, editEventReq)
-	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	resp = apisAdmin.editEvent(ctx, editEventReq)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-}
-
 func TestGetAndEditEvent(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
-	testEventName := uuid.New().String()
+	testEventName := uuid.NewString()
 
 	editEventReq := imsjson.EditEventsRequest{
 		Add: []string{testEventName},

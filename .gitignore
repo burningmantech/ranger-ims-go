@@ -8,7 +8,7 @@
 *.so
 *.dylib
 
-# Docker compose data
+# Docker compose data dir
 .docker
 
 # Test binary, built with `go test -c`
@@ -24,8 +24,10 @@
 go.work
 go.work.sum
 
-# env file
+# user-customized env file
 .env
 
 # compiled program
 ranger-ims-go
+
+node_modules

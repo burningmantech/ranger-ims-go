@@ -8,18 +8,17 @@ that occur in Black Rock City.
 ## Getting started with IMS development:
 
 1. Clone the repo
-2. Install a recent version of Go. Have `go` on your PATH. https://go.dev/dl
-3. (Optional: if you're doing TypeScript work in the repo) install the TypeScript transpiler and have `tsc` on your PATH: https://www.typescriptlang.org/download
-4. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
-6. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
-7. Do a one-time fetch of external client deps into your repo, by running
+2. Install Go and have `go` on your PATH. https://go.dev/dl
+3. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
+4. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
+5. Do a one-time fetch of external client deps into your repo, by running
    ```shell
     go run bin/fetchclientdeps/fetchclientdeps.go
    ```
 
 ## Run tests
 
-To run all the non-Playwright tests, just do:
+To run all the tests (excluding Playwright), just do:
 
 ```shell
 go test ./...
@@ -33,7 +32,8 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
 
 ## Run IMS locally
 
-1. Have a local MariaDB server running. An empty database is fine. e.g.
+1. Have a local MariaDB server running. An empty database is fine, as the IMS program will
+   migrate your DB automatically on startup. e.g.
    ```shell
    password=$(openssl rand -hex 16)
    echo "Password is ${password}"
@@ -46,13 +46,32 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
    ```
 2. Copy `.env.example` as `.env`, and set the various flags. Especially read the part in
    `.env.example` about `IMS_DIRECTORY` if you want to use TestUsers rather than a Clubhouse DB.
-3. Run the following to build and launch the server: `bin/build.sh && ./ranger-ims-go serve`
+3. Run the following to build and launch the server:
+   ```shell
+   go run bin/build/build.go && ./ranger-ims-go serve
+   ```
 
 ## Build and run with Docker
 
 ```shell
 docker build --tag ranger-ims-go .
 docker run --env-file .env -it -p 80:8080 ranger-ims-go:latest
+```
+
+## Upgrade Go dependencies
+
+Upgrade the Go toolchain simply by increasing the Go value in `go.mod`, e.g. https://github.com/burningmantech/ranger-ims-go/pull/64. Even Go major version upgrades (e.g. 1.23 to 1.24) are very unlikely to break anything, thanks to the Go 1.0 backward compatibility guarantee. If all the tests pass, you're all good.
+
+This line in go.mod should be left as the only line in the repo that specifies the Go version. For example, the Dockerfile depends on Go, but it inherits the value in go.mod.
+
+Upgrade all Go dependencies by running:
+
+```shell
+# Upgrade all normal and test dependencies
+go get -t -u ./...
+
+# Tidy up go.mod and go.sum
+go mod tidy
 ```
 
 ## Differences between the Go and Python IMS servers

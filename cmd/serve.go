@@ -18,21 +18,21 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -51,7 +51,7 @@ var serveCmd = &cobra.Command{
 
 func runServer(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	imsCfg := conf.Cfg
+	imsCfg := mustInitConfig(cmd.Flags().Lookup(envfileFlagName))
 
 	var logLevel slog.Level
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
@@ -137,8 +137,8 @@ func lookupEnv(key string) (string, bool) {
 	return v, true
 }
 
-// initConfig reads in the .env file and ENV variables if set.
-func initConfig() {
+// mustInitConfig reads in the .env file and ENV variables if set.
+func mustInitConfig(envfileFlag *pflag.Flag) *conf.IMSConfig {
 	newCfg := conf.DefaultIMS()
 	err := godotenv.Load(envFilename)
 
@@ -147,7 +147,7 @@ func initConfig() {
 		os.Exit(1)
 	}
 	if os.IsNotExist(err) {
-		if serveCmd.Flags().Lookup(envfileFlagName).Changed {
+		if envfileFlag.Changed {
 			slog.Error("envfile was set by the caller, but the file was not found. Exiting...", "envFilename", envFilename)
 			os.Exit(1)
 		}
@@ -158,9 +158,8 @@ func initConfig() {
 		newCfg.Core.Host = v
 	}
 	if v, ok := lookupEnv("IMS_PORT"); ok {
-		num, err := strconv.ParseInt(v, 10, 32)
+		newCfg.Core.Port, err = conv.ParseInt32(v)
 		must(err)
-		newCfg.Core.Port = int32(num)
 	}
 	if v, ok := lookupEnv("IMS_DEPLOYMENT"); ok {
 		newCfg.Core.Deployment = strings.ToLower(v)
@@ -170,12 +169,12 @@ func initConfig() {
 	// to convey, i.e. the maximum duration for a session, is now what we mean
 	// when we talk about a refresh token's lifetime.
 	if v, ok := lookupEnv("IMS_TOKEN_LIFETIME"); ok {
-		seconds, err := strconv.ParseInt(v, 10, 64)
+		seconds, err := conv.ParseInt64(v)
 		must(err)
 		newCfg.Core.RefreshTokenLifetime = time.Duration(seconds) * time.Second
 	}
 	if v, ok := lookupEnv("IMS_ACCESS_TOKEN_LIFETIME"); ok {
-		seconds, err := strconv.ParseInt(v, 10, 64)
+		seconds, err := conv.ParseInt64(v)
 		must(err)
 		newCfg.Core.AccessTokenLifetime = time.Duration(seconds) * time.Second
 	}
@@ -213,9 +212,8 @@ func initConfig() {
 		newCfg.Store.MariaDB.HostName = v
 	}
 	if v, ok := lookupEnv("IMS_DB_HOST_POST"); ok {
-		num, err := strconv.ParseInt(v, 10, 32)
+		newCfg.Store.MariaDB.HostPort, err = conv.ParseInt32(v)
 		must(err)
-		newCfg.Store.MariaDB.HostPort = int32(num)
 	}
 	if v, ok := lookupEnv("IMS_DB_DATABASE"); ok {
 		newCfg.Store.MariaDB.Database = v
@@ -238,19 +236,19 @@ func initConfig() {
 	if v, ok := lookupEnv("IMS_DMS_PASSWORD"); ok {
 		newCfg.Directory.ClubhouseDB.Password = v
 	}
-
-	// Validations on the config created above
-	must(newCfg.Directory.Directory.Validate())
-	if newCfg.Core.Deployment != "dev" {
-		if newCfg.Directory.Directory == conf.DirectoryTypeTestUsers {
-			must(errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
-		}
+	if v, ok := lookupEnv("IMS_ATTACHMENTS_STORE"); ok {
+		newCfg.AttachmentsStore.Type = conf.AttachmentsStoreType(v)
 	}
-	if newCfg.Core.AccessTokenLifetime > newCfg.Core.RefreshTokenLifetime {
-		must(errors.New("access token lifetime should not be greater than refresh token lifetime"))
+	if v, ok := lookupEnv("IMS_ATTACHMENTS_LOCAL_DIR"); ok {
+		err = os.MkdirAll(v, 0750)
+		must(err)
+		root, err := os.OpenRoot(v)
+		must(err)
+		newCfg.AttachmentsStore.Local.Dir = root
 	}
 
-	conf.Cfg = newCfg
+	must(newCfg.Validate())
+	return newCfg
 }
 
 var envFilename string
@@ -260,7 +258,6 @@ func init() {
 	serveCmd.Flags().StringVar(&envFilename, envfileFlagName, ".env",
 		"An env file from which to load IMS server configuration. "+
 			"Defaults to '.env' in the current directory")
-	cobra.OnInitialize(initConfig)
 }
 
 // must logs an error and kills the program. This should only be done for

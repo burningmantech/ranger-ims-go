@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+"use strict";
+
 import * as ims from "./ims.ts";
 
 declare global {
@@ -369,13 +371,14 @@ function initDataTables(): void {
 
 function renderSummary(_data: string|null, type: string, incident: ims.Incident): string|undefined {
     switch (type) {
-        case "display":
+        case "display": {
             const maxDisplayLength = 250;
             let summarized = ims.summarizeIncidentOrFR(incident);
             if (summarized.length > maxDisplayLength) {
-                summarized = summarized.substring(0, maxDisplayLength-3) + "...";
+                summarized = summarized.substring(0, maxDisplayLength - 3) + "...";
             }
             return ims.textAsHTML(summarized);
+        }
         case "sort":
             return ims.summarizeIncidentOrFR(incident);
         case "filter":

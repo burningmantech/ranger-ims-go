@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+"use strict";
+
 import * as ims from "./ims.ts";
 
 declare global {
@@ -21,6 +23,7 @@ declare global {
         toggleShowHistory: ()=>void;
         reportEntryEdited: ()=>void;
         submitReportEntry: ()=>Promise<void>;
+        attachFile: ()=>Promise<void>;
     }
 }
 
@@ -44,6 +47,7 @@ async function initFieldReportPage(): Promise<void> {
     window.toggleShowHistory = ims.toggleShowHistory;
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
+    window.attachFile = attachFile;
 
     ims.disableEditing();
     await loadAndDisplayFieldReport();
@@ -182,6 +186,10 @@ async function loadAndDisplayFieldReport(): Promise<void> {
     if (ims.eventAccess?.writeFieldReports) {
         ims.enableEditing();
     }
+
+    if (ims.eventAccess?.attachFiles) {
+        (document.getElementById("attach_file") as HTMLInputElement).classList.remove("hidden");
+    }
 }
 
 
@@ -293,16 +301,16 @@ async function frSendEdits(edits: ims.FieldReport): Promise<{err:string|null}> {
         // We need to find out the created field report number so that
         // future edits don't keep creating new resources.
 
-        const newNumber: string|null = resp?.headers.get("X-IMS-Field-Report-Number")??null;
+        const newNumber: string|null = resp?.headers.get("IMS-Field-Report-Number")??null;
         // Check that we got a value back
         if (newNumber == null) {
-            return {err: "No X-IMS-Field-Report-Number header provided."};
+            return {err: "No IMS-Field-Report-Number header provided."};
         }
 
         const newAsNumber = ims.parseInt10(newNumber);
         // Check that the value we got back is valid
         if (newAsNumber == null) {
-            return {err: "Non-integer X-IMS-Field-Report-Number header provided: " + newAsNumber};
+            return {err: "Non-integer IMS-Field-Report-Number header provided: " + newAsNumber};
         }
 
         // Store the new number in our field report object
@@ -354,7 +362,7 @@ async function makeIncident(): Promise<void> {
         ims.setErrorMessage(`Failed to create incident: ${err}`);
         return;
     }
-    const newNum: string|null = resp.headers.get("X-IMS-Incident-Number");
+    const newNum: string|null = resp.headers.get("IMS-Incident-Number");
     if (newNum == null) {
         ims.disableEditing();
         ims.setErrorMessage("Failed to create incident: no IMS Incident Number provided");
@@ -385,3 +393,34 @@ async function frOnStrikeSuccess(): Promise<void> {
     ims.clearErrorMessage();
 }
 ims.setOnStrikeSuccess(frOnStrikeSuccess);
+
+async function attachFile(): Promise<void> {
+    if (ims.pathIds.fieldReportNumber == null) {
+        // Field Report doesn't exist yet.  Create it first.
+        const {err} = await frSendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
+    const attachFile = document.getElementById("attach_file_input") as HTMLInputElement;
+    const formData = new FormData();
+
+    for (const f of attachFile.files??[]) {
+        // this must match the key sought by the server
+        formData.append("imsAttachment", f);
+    }
+
+    const attachURL = ims.urlReplace(url_fieldReportAttachments)
+        .replace("<field_report_number>", (ims.pathIds.fieldReportNumber??"").toString());
+    const {err} = await ims.fetchJsonNoThrow(attachURL, {
+        body: formData
+    });
+    if (err != null) {
+        const message = `Failed to attach file: ${err}`;
+        ims.setErrorMessage(message);
+        return;
+    }
+    ims.clearErrorMessage();
+    attachFile.value = "";
+    await loadAndDisplayFieldReport();
+}

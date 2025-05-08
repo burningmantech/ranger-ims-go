@@ -77,7 +77,6 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	for i, db := range []*sql.DB{db1, db2} {
 		rows, err := db.QueryContext(ctx, `show tables`)
 		require.NoError(t, err)
-		defer shut(rows)
 		for rows.Next() {
 			var tableName string
 			require.NoError(t, rows.Scan(&tableName))
@@ -85,6 +84,7 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 		}
 		require.NoError(t, rows.Err())
 		slices.Sort(dbTables[i])
+		shut(rows)
 	}
 	require.Equal(t, dbTables[0], dbTables[1])
 

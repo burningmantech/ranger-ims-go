@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+"use strict";
+
 //
 // Globals
 //
@@ -283,6 +285,7 @@ function enable(elements: Iterable<Element>) {
 // Disable editing for an element
 export function disableEditing() {
     disable(document.querySelectorAll(".form-control"));
+    disable(document.querySelectorAll(".form-control-lite"));
     // these forms don't actually exist
     // disable(document.querySelectorAll("#entries-form input,select,textarea,button"));
     // disable(document.querySelectorAll("#attach-file-form input,select,textarea,button"));
@@ -294,6 +297,7 @@ export function disableEditing() {
 // Enable editing for an element
 export function enableEditing() {
     enable(document.querySelectorAll(".form-control"));
+    enable(document.querySelectorAll(".form-control-lite"));
     // these forms don't actually exist
     // enable(document.querySelectorAll("#entries-form input,select,textarea,button"));
     // enable(document.querySelectorAll("#attach-file-form :input,select,textarea,button"));
@@ -358,9 +362,7 @@ export async function commonPageInit(): Promise<PageInitResult> {
     }
     let eds: Promise<EventData[]|null> = Promise.resolve(null);
     if (authInfo.authenticated) {
-        if (authInfo.event_access?.[pathIds.eventID!] != null) {
-            eventAccess = authInfo.event_access?.[pathIds.eventID!]!;
-        }
+        eventAccess = authInfo.event_access?.[pathIds.eventID!]??null;
         eds = fetchJsonNoThrow<EventData[]>(url_events, null).then(
             result => {
                 if (result.err != null || result.json == null) {
@@ -821,28 +823,28 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 
     if (strikable) {
         const strikeContainer: HTMLButtonElement = document.createElement("button");
-        const entryId = parseInt10(entry.id)!;
+        const entryId = entry.id!;
         const entryStricken = entry.stricken!;
         if (pathIds.incidentNumber != null) {
             // we're on the incident page
             if (entry.merged) {
                 const entryMerged = entry.merged;
                 // this is an entry from a field report, as shown on the incident page
-                strikeContainer.onclick = (_e: MouseEvent): any => {
-                    setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
+                strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
+                    await setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
                 }
             } else {
                 const incidentNum = pathIds.incidentNumber;
                 // this is an incident entry on the incident page
-                strikeContainer.onclick = (_e: MouseEvent): any => {
-                    setStrikeIncidentEntry(incidentNum, entryId, !entryStricken);
+                strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
+                    await setStrikeIncidentEntry(incidentNum, entryId, !entryStricken);
                 }
             }
         } else if (pathIds.fieldReportNumber != null) {
             // we're on the field report page
             const fieldReportNum = pathIds.fieldReportNumber;
-            strikeContainer.onclick =  (_e: MouseEvent): any => {
-                setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
+            strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
+                await setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
             }
         }
         strikeContainer.classList.add("badge", "btn", "btn-danger", "remove-badge", "float-end");
@@ -887,17 +889,38 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 
         entryContainer.append(textContainer);
     }
-    if (entry.has_attachment && pathIds.incidentNumber != null) {
-        const url = urlReplace(url_incidentAttachmentNumber)
-            .replace("<incident_number>", pathIds.incidentNumber.toString())
-            .replace("<attachment_number>", entry.id!.toString());
+    if (entry.has_attachment && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
+        let url = "";
+        if (pathIds.incidentNumber != null) {
+            url = urlReplace(url_incidentAttachmentNumber)
+                .replace("<incident_number>", pathIds.incidentNumber.toString())
+                .replace("<attachment_number>", entry.id!.toString());
+        } else {
+            url = urlReplace(url_fieldReportAttachmentNumber)
+                .replace("<field_report_number>", (pathIds.fieldReportNumber??"wontHappen").toString())
+                .replace("<attachment_number>", entry.id!.toString());
+        }
 
         const attachmentLink: HTMLAnchorElement = document.createElement("a");
-        attachmentLink.href = url;
+        attachmentLink.href = "#";
         attachmentLink.textContent = "Attached file";
 
-        entryContainer.append(attachmentLink);
+        // We need to do a JavaScript fetch of the file, rather than simply
+        // opening a new browser tab that GETs it, because we have to send
+        // the Authorization header.
+        attachmentLink.onclick = async (e: MouseEvent): Promise<void> => {
+            e.preventDefault();
+            const {resp, err} = await fetchJsonNoThrow(url, {});
+            if (err != null || resp == null) {
+                setErrorMessage(`Failed to fetch attachment: ${err}`);
+                return;
+            }
+            const blobUrl = window.URL.createObjectURL(await resp.blob())
+            window.open(blobUrl, '_blank');
+            URL.revokeObjectURL(blobUrl);
+        };
 
+        entryContainer.append(attachmentLink);
     }
 
     // Add a horizontal line after each entry
@@ -987,8 +1010,8 @@ async function setStrikeFieldReportEntry(fieldReportNumber: number, reportEntryI
 // version, depending on the current page in scope. The ims.ts TypeScript file should
 // not depend on those files (lest there be a circular dependency), so we let those
 // files register their functions here instead.
-let sendEditsFunc: ((edits: any)=>Promise<{err:string|null}>)|null = null;
-export function setSendEdits(func: ((edits: any)=>Promise<{err:string|null}>)): void {
+let sendEditsFunc: ((edits: Incident|FieldReport)=>Promise<{err:string|null}>)|null = null;
+export function setSendEdits(func: ((edits: Incident|FieldReport)=>Promise<{err:string|null}>)): void {
     sendEditsFunc = func;
 }
 
@@ -1338,7 +1361,7 @@ export type EventData = {
 }
 
 export interface ReportEntry {
-    id?: string|null;
+    id?: number|null;
     created?: string|null;
     author?: string|null;
     merged?: number|null,

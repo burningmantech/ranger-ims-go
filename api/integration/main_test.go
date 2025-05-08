@@ -18,7 +18,6 @@ package integration_test
 
 import (
 	"context"
-	"crypto/rand"
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -66,25 +65,37 @@ const (
 // that once for the whole suite of test files.
 func TestMain(m *testing.M) {
 	ctx := context.Background()
+	tempDir, err := os.MkdirTemp("", "imstest-*")
+	must(err)
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("Recovered from panic")
-			shutdown(ctx)
+			shutdown(ctx, tempDir)
 		}
 	}()
-	setup(ctx)
+	setup(ctx, tempDir)
 	code := m.Run()
-	shutdown(ctx)
+	shutdown(ctx, tempDir)
 	os.Exit(code)
 }
 
-func setup(ctx context.Context) {
+func setup(ctx context.Context, tempDir string) {
+	tempRoot, err := os.OpenRoot(tempDir)
+	must(err)
+	// Use faster/less-secure UUID generation for tests. This drops UUID generation down from
+	// 180ns to 40ns on an M4 Mac, as compared to 200ns for rand.Text().
+	uuid.EnableRandPool()
+
 	shared.cfg = conf.DefaultIMS()
-	shared.cfg.Core.JWTSecret = "jwtsecret-" + rand.Text()
+	shared.cfg.Core.JWTSecret = "jwtsecret-" + uuid.NewString()
 	shared.cfg.Core.Admins = []string{userAdminHandle}
-	shared.cfg.Store.MariaDB.Database = "ims-" + rand.Text()
-	shared.cfg.Store.MariaDB.Username = "rangers-" + rand.Text()
-	shared.cfg.Store.MariaDB.Password = "password-" + rand.Text()
+	shared.cfg.AttachmentsStore.Type = conf.AttachmentsStoreLocal
+	shared.cfg.AttachmentsStore.Local = conf.LocalAttachments{
+		Dir: tempRoot,
+	}
+	shared.cfg.Store.MariaDB.Database = "ims-" + uuid.NewString()
+	shared.cfg.Store.MariaDB.Username = "rangers-" + uuid.NewString()
+	shared.cfg.Store.MariaDB.Password = "password-" + uuid.NewString()
 	shared.cfg.Directory.Directory = conf.DirectoryTypeTestUsers
 	shared.cfg.Directory.TestUsers = []conf.TestUser{
 		{
@@ -108,6 +119,7 @@ func setup(ctx context.Context) {
 			Teams:       nil,
 		},
 	}
+	must(shared.cfg.Validate())
 	shared.es = api.NewEventSourcerer()
 	userStore, err := directory.NewUserStore(shared.cfg.Directory.TestUsers, nil, shared.cfg.Directory.InMemoryCacheTTL)
 	must(err)
@@ -135,8 +147,6 @@ func setup(ctx context.Context) {
 	db, err := store.MariaDB(ctx, shared.cfg.Store.MariaDB, true)
 	must(err)
 	shared.imsDB = &store.DB{DB: db}
-	// Use faster/less-secure UUID generation for tests
-	uuid.EnableRandPool()
 	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
 	shared.serverURL, err = url.Parse(shared.testServer.URL)
 	must(err)
@@ -148,7 +158,8 @@ func must(err error) {
 	}
 }
 
-func shutdown(ctx context.Context) {
+func shutdown(ctx context.Context, tempDir string) {
+	_ = os.RemoveAll(tempDir)
 	if shared.testServer != nil {
 		shared.testServer.Close()
 	}

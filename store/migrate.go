@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
-	"strconv"
 	"strings"
 )
 
@@ -31,7 +31,7 @@ func repoSchemaVersion() (schemaVersion, error) {
 		return 0, errors.New("couldn't find `)` after SCHEMA_INFO insert in current.sql")
 	}
 
-	vers, err := strconv.ParseInt(strings.TrimSpace(endParen[0]), 10, 16)
+	vers, err := conv.ParseInt16(strings.TrimSpace(endParen[0]))
 	return schemaVersion(vers), err
 }
 

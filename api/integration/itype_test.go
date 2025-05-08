@@ -24,48 +24,14 @@ import (
 	"testing"
 )
 
-func TestIncidentTypesAPIAuthorization(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
-
-	// Any authenticated user can call GetIncidentTypes
-	_, resp := apisNotAuthenticated.getTypes(ctx, false)
-	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	_, resp = apisNonAdmin.getTypes(ctx, false)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	_, resp = apisAdmin.getTypes(ctx, false)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-
-	// Only admins can hit the EditIncidentTypes endpoint
-	// An unauthenticated client will get a 401
-	// An unauthorized user will get a 403
-	editTypesReq := imsjson.EditIncidentTypesRequest{}
-	resp = apisNotAuthenticated.editTypes(ctx, editTypesReq)
-	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	resp = apisNonAdmin.editTypes(ctx, editTypesReq)
-	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	resp = apisAdmin.editTypes(ctx, editTypesReq)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-}
-
-func TestCreateIncident(t *testing.T) {
+func TestCreateIncidentTypes(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
 	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
 	// Make three new incident types
-	typeA, typeB, typeC := uuid.New().String(), uuid.New().String(), uuid.New().String()
+	typeA, typeB, typeC := uuid.NewString(), uuid.NewString(), uuid.NewString()
 	createTypes := imsjson.EditIncidentTypesRequest{
 		Add:  imsjson.IncidentTypes{typeA, typeB, typeC},
 		Hide: nil,

@@ -23,8 +23,11 @@ import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -115,13 +118,13 @@ func (a ApiHelper) newFieldReportSuccess(ctx context.Context, fieldReportReq ims
 	a.t.Helper()
 	httpResp := a.newFieldReport(ctx, fieldReportReq)
 	require.Equal(a.t, http.StatusCreated, httpResp.StatusCode)
-	numStr := httpResp.Header.Get("X-IMS-Field-Report-Number")
+	numStr := httpResp.Header.Get("IMS-Field-Report-Number")
 	require.NoError(a.t, httpResp.Body.Close())
 	require.NotEmpty(a.t, numStr)
-	num, err := strconv.ParseInt(numStr, 10, 32)
+	num, err := conv.ParseInt32(numStr)
 	require.NoError(a.t, err)
 	require.Positive(a.t, num)
-	return int32(num)
+	return num
 }
 
 func (a ApiHelper) getFieldReport(ctx context.Context, eventName string, fieldReport int32) (imsjson.FieldReport, *http.Response) {
@@ -152,13 +155,13 @@ func (a ApiHelper) newIncidentSuccess(ctx context.Context, incidentReq imsjson.I
 	a.t.Helper()
 	resp := a.newIncident(ctx, incidentReq)
 	require.Equal(a.t, http.StatusCreated, resp.StatusCode)
-	numStr := resp.Header.Get("X-IMS-Incident-Number")
+	numStr := resp.Header.Get("IMS-Incident-Number")
 	require.NoError(a.t, resp.Body.Close())
 	require.NotEmpty(a.t, numStr)
-	num, err := strconv.ParseInt(numStr, 10, 32)
+	num, err := conv.ParseInt32(numStr)
 	require.NoError(a.t, err)
 	require.Positive(a.t, num)
-	return int32(num)
+	return num
 }
 
 func (a ApiHelper) getIncident(ctx context.Context, eventName string, incident int32) (imsjson.Incident, *http.Response) {
@@ -226,6 +229,82 @@ func (a ApiHelper) getAccess(ctx context.Context) (imsjson.EventsAccess, *http.R
 	return *bod.(*imsjson.EventsAccess), resp
 }
 
+func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, incident int32, fileBytes []byte) (int32, *http.Response) {
+	a.t.Helper()
+
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt32(incident), "attachments")
+
+	// Create a `multipart/form-data`-encoded request, with a single form file inside
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, "irrelevant-filename-"+uuid.NewString())
+	require.NoError(a.t, err)
+	_, err = part.Write(fileBytes)
+	require.NoError(a.t, err)
+	require.NoError(a.t, writer.Close())
+
+	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, path.String(), &requestBody)
+	require.NoError(a.t, err)
+	if a.jwt != "" {
+		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
+	}
+	httpPost.Header.Set("Content-Type", writer.FormDataContentType())
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Do(httpPost)
+	require.NoError(a.t, err)
+
+	reID, err := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
+	require.NoError(a.t, err)
+
+	return reID, resp
+}
+
+func (a ApiHelper) getIncidentAttachment(ctx context.Context, eventName string, incident, reID int32) ([]byte, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt32(incident), "attachments", conv.FormatInt32(reID)).String()
+	return a.imsGetBodyBytes(ctx, path)
+}
+
+func (a ApiHelper) attachFileToFieldReport(ctx context.Context, eventName string, fieldReport int32, fileBytes []byte) (int32, *http.Response) {
+	a.t.Helper()
+
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "field_reports", conv.FormatInt32(fieldReport), "attachments")
+
+	// Create a `multipart/form-data`-encoded request, with a single form file inside
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, "irrelevant-filename-"+uuid.NewString())
+	require.NoError(a.t, err)
+	_, err = part.Write(fileBytes)
+	require.NoError(a.t, err)
+	require.NoError(a.t, writer.Close())
+
+	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, path.String(), &requestBody)
+	require.NoError(a.t, err)
+	if a.jwt != "" {
+		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
+	}
+	httpPost.Header.Set("Content-Type", writer.FormDataContentType())
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Do(httpPost)
+	require.NoError(a.t, err)
+
+	reID, err := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
+	require.NoError(a.t, err)
+
+	return reID, resp
+}
+
+func (a ApiHelper) getFieldReportAttachment(ctx context.Context, eventName string, fieldReport, reID int32) ([]byte, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "field_reports", conv.FormatInt32(fieldReport), "attachments", conv.FormatInt32(reID)).String()
+	return a.imsGetBodyBytes(ctx, path)
+}
+
 func (a ApiHelper) imsPost(ctx context.Context, body any, path string) *http.Response {
 	a.t.Helper()
 	postBody, err := json.Marshal(body)
@@ -241,7 +320,12 @@ func (a ApiHelper) imsPost(ctx context.Context, body any, path string) *http.Res
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp
-	// require.Equal(a.t, http.StatusNoContent, resp.StatusCode)
+}
+
+func (a ApiHelper) imsGetBodyBytes(ctx context.Context, path string) ([]byte, *http.Response) {
+	a.t.Helper()
+	outBytes, httpResp := a.imsGet(ctx, path, nil)
+	return outBytes.([]byte), httpResp
 }
 
 func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *http.Response) {
@@ -259,10 +343,13 @@ func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *htt
 	b, err := io.ReadAll(get.Body)
 	require.NoError(a.t, err)
 	require.NoError(a.t, get.Body.Close())
-	if get.StatusCode != http.StatusOK {
-		return resp, get
+	if resp == nil {
+		return b, get
 	}
 	err = json.Unmarshal(b, &resp)
+	if err != nil && get.StatusCode != http.StatusOK {
+		return resp, get
+	}
 	require.NoError(a.t, err)
 	return resp, get
 }

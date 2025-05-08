@@ -20,6 +20,7 @@ import (
 	"fmt"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
@@ -45,18 +46,14 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	var fieldReportNumber int32
-	if isInt32(req.PathValue("fieldReportNumber")) {
-		fieldReportNumber = toInt32(req.PathValue("fieldReportNumber"))
-	} else {
-		handleErr(w, req, http.StatusBadRequest, "Got a nonnumeric Field Report Number", nil)
+	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
+	if err != nil {
+		handleErr(w, req, http.StatusBadRequest, "Failed to parse fieldReportNumber", err)
 		return
 	}
-	var reportEntryId int32
-	if isInt32(req.PathValue("reportEntryId")) {
-		reportEntryId = toInt32(req.PathValue("reportEntryId"))
-	} else {
-		handleErr(w, req, http.StatusBadRequest, "Got a nonnumeric Report Entry ID", nil)
+	reportEntryId, err := conv.ParseInt32(req.PathValue("reportEntryId"))
+	if err != nil {
+		handleErr(w, req, http.StatusBadRequest, "Failed to parse reportEntryId", err)
 		return
 	}
 
@@ -87,7 +84,7 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	err = addFRReportEntry(ctx, dbTxn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true)
+	_, err = addFRReportEntry(ctx, dbTxn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Error adding report entry", err)
 		return
@@ -121,18 +118,14 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	var incidentNumber int32
-	if isInt32(req.PathValue("incidentNumber")) {
-		incidentNumber = toInt32(req.PathValue("incidentNumber"))
-	} else {
-		handleErr(w, req, http.StatusBadRequest, "Got a nonnumeric Incident Number", nil)
+	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
+	if err != nil {
+		handleErr(w, req, http.StatusBadRequest, "Failed to parse incidentNumber", err)
 		return
 	}
-	var reportEntryId int32
-	if isInt32(req.PathValue("reportEntryId")) {
-		reportEntryId = toInt32(req.PathValue("reportEntryId"))
-	} else {
-		handleErr(w, req, http.StatusBadRequest, "Got a nonnumeric Report Entry ID", nil)
+	reportEntryId, err := conv.ParseInt32(req.PathValue("reportEntryId"))
+	if err != nil {
+		handleErr(w, req, http.StatusBadRequest, "Failed to parse reportEntryId", err)
 		return
 	}
 
@@ -163,7 +156,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	err = addIncidentReportEntry(ctx, dbTxn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true)
+	_, err = addIncidentReportEntry(ctx, dbTxn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Error adding report entry", err)
 		return
@@ -178,7 +171,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 	http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
 }
 
-func reportEntryToJSON(re imsdb.ReportEntry) imsjson.ReportEntry {
+func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.ReportEntry {
 	return imsjson.ReportEntry{
 		ID:            re.ID,
 		Created:       time.Unix(int64(re.Created), 0),
@@ -186,6 +179,6 @@ func reportEntryToJSON(re imsdb.ReportEntry) imsjson.ReportEntry {
 		SystemEntry:   re.Generated,
 		Text:          re.Text,
 		Stricken:      re.Stricken,
-		HasAttachment: re.AttachedFile.String != "",
+		HasAttachment: attachmentsEnabled && re.AttachedFile.String != "",
 	}
 }

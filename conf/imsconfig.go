@@ -17,19 +17,15 @@
 package conf
 
 import (
-	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
-	"io"
-	"reflect"
-	"strings"
+	"github.com/burningmantech/ranger-ims-go/lib/redact"
+	"os"
 	"time"
 )
 
-var (
-	Cfg       *IMSConfig
-	testUsers []TestUser
-)
+var defaultTestUsers []TestUser
 
 // DefaultIMS is the base configuration used for the IMS server.
 // It gets overridden by values in conf/imsd.toml, then the result
@@ -56,134 +52,75 @@ func DefaultIMS() *IMSConfig {
 		},
 		Directory: Directory{
 			Directory: DirectoryTypeClubhouseDB,
-			TestUsers: testUsers,
+			TestUsers: defaultTestUsers,
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",
 			},
 			InMemoryCacheTTL: 10 * time.Minute,
 		},
+		AttachmentsStore: AttachmentsStore{
+			Type: AttachmentsStoreNone,
+		},
 	}
 }
 
-func printRedacted(w io.Writer, v reflect.Value, indent string) error {
-	const nestIndent = "    "
-	s := v
-	typeOfT := s.Type()
-	for i := range s.NumField() {
-		f := s.Field(i)
-
-		redact := strings.EqualFold(typeOfT.Field(i).Tag.Get("redact"), "true")
-
-		switch f.Kind() {
-		case reflect.Struct:
-			x1 := reflect.ValueOf(f.Interface())
-			_, err := fmt.Fprintf(w, "%v%v\n", indent, typeOfT.Field(i).Name)
-			if err != nil {
-				return err
-			}
-			if redact {
-				_, err = fmt.Fprintf(w, "%v🤐🤐🤐🤐🤐\n", indent+nestIndent)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = printRedacted(w, x1, indent+nestIndent)
-				if err != nil {
-					return err
-				}
-			}
-		case reflect.Slice:
-			x1 := reflect.ValueOf(f.Interface())
-			sliceElemType := f.Type().Elem()
-			if sliceElemType.Kind() != reflect.Struct {
-				printVal := "[🤐🤐🤐🤐]"
-				if !redact {
-					printVal = fmt.Sprint(f.Interface())
-				}
-				_, err := fmt.Fprintf(w, "%v%v = %v\n", indent, typeOfT.Field(i).Name, printVal)
-				if err != nil {
-					return err
-				}
-			} else {
-				for j := range x1.Len() {
-					_, err := fmt.Fprintf(w, "%v%v[%d]\n", indent, typeOfT.Field(i).Name, j)
-					if err != nil {
-						return err
-					}
-					if redact {
-						_, err = fmt.Fprintf(w, "%v🤐🤐\n", indent+nestIndent)
-						if err != nil {
-							return err
-						}
-					} else {
-						err = printRedacted(w, x1.Index(j), indent+nestIndent)
-						if err != nil {
-							return err
-						}
-					}
-				}
-			}
-		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
-			reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-			printVal := "🤐🤐🤐"
-			if !redact {
-				printVal = fmt.Sprint(f.Interface())
-			}
-			_, err := fmt.Fprintf(w, "%v%v = %v\n", indent, typeOfT.Field(i).Name, printVal)
-			if err != nil {
-				return err
-			}
-		default:
-			// e.g. we haven't bothered adding map support, because it hasn't been needed yet
-			panic("unsupported field kind: " + f.Kind().String())
+// Validate should be called after an IMSConfig has been fully configured.
+func (c *IMSConfig) Validate() error {
+	var errs []error
+	errs = append(errs, c.Directory.Directory.Validate())
+	errs = append(errs, c.AttachmentsStore.Type.Validate())
+	if c.AttachmentsStore.Type == AttachmentsStoreLocal {
+		if c.AttachmentsStore.Local.Dir == nil {
+			errs = append(errs, errors.New("local attachments store has been requested, "+
+				"so a local directory must be provided"))
 		}
 	}
-	return nil
+	if c.Core.Deployment != "dev" {
+		if c.Directory.Directory == DirectoryTypeTestUsers {
+			errs = append(errs, errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
+		}
+	}
+	if c.Core.AccessTokenLifetime > c.Core.RefreshTokenLifetime {
+		errs = append(errs, errors.New("access token lifetime should not be greater than refresh token lifetime"))
+	}
+	return errors.Join(errs...)
 }
 
 func (c *IMSConfig) PrintRedacted() (string, error) {
-	output := &bytes.Buffer{}
-	err := printRedacted(output, reflect.ValueOf(c).Elem(), "")
-	if err != nil {
-		return "", fmt.Errorf("[printRedacted]: %w", err)
-	}
-	return output.String(), nil
+	b, err := redact.ToBytes(c)
+	return string(b), err
 }
 
 func (c *IMSConfig) String() string {
-	s, err := c.PrintRedacted()
+	b, err := redact.ToBytes(c)
 	if err != nil {
 		panic(err)
 	}
-	return s
+	return string(b)
 }
 
 type IMSConfig struct {
-	Core ConfigCore
-	// TODO: finish attachments feature
-	AttachmentsStore struct {
-		S3 struct {
-			S3AccessKeyId     string
-			S3SecretAccessKey string `redact:"true"`
-			S3DefaultRegion   string
-			S3Bucket          string
-		}
-	}
-	Store     Store
-	Directory Directory
+	Core             ConfigCore
+	AttachmentsStore AttachmentsStore
+	Store            Store
+	Directory        Directory
 }
 
 type DirectoryType string
+
+type AttachmentsStoreType string
 type DeploymentType string
 
 const (
-	DirectoryTypeClubhouseDB DirectoryType = "clubhousedb"
-	DirectoryTypeTestUsers   DirectoryType = "testusers"
-	DeploymentTypeDev                      = "dev"
-	DeploymentTypeStaging                  = "staging"
-	DeploymentTypeProduction               = "production"
+	DirectoryTypeClubhouseDB DirectoryType        = "clubhousedb"
+	DirectoryTypeTestUsers   DirectoryType        = "testusers"
+	AttachmentsStoreLocal    AttachmentsStoreType = "local"
+	AttachmentsStoreS3       AttachmentsStoreType = "s3"
+	AttachmentsStoreNone     AttachmentsStoreType = "none"
+	DeploymentTypeDev                             = "dev"
+	DeploymentTypeStaging                         = "staging"
+	DeploymentTypeProduction                      = "production"
 )
 
 func (d DirectoryType) Validate() error {
@@ -192,6 +129,15 @@ func (d DirectoryType) Validate() error {
 		return nil
 	default:
 		return fmt.Errorf("unknown directory type %v", d)
+	}
+}
+
+func (a AttachmentsStoreType) Validate() error {
+	switch a {
+	case AttachmentsStoreLocal, AttachmentsStoreS3, AttachmentsStoreNone:
+		return nil
+	default:
+		return fmt.Errorf("unknown attachments store type %v", a)
 	}
 }
 
@@ -212,7 +158,6 @@ type ConfigCore struct {
 	Admins               []string
 	MasterKey            string `redact:"true"`
 	JWTSecret            string `redact:"true"`
-	AttachmentsStore     string
 	Deployment           string
 
 	// CacheControlShort is the duration we set in various responses' Cache-Control headers
@@ -259,9 +204,27 @@ type Directory struct {
 	InMemoryCacheTTL time.Duration
 }
 
+type AttachmentsStore struct {
+	Type  AttachmentsStoreType
+	Local LocalAttachments
+	S3    S3Attachments
+}
+
 type ClubhouseDB struct {
 	Hostname string
 	Database string
 	Username string
 	Password string `redact:"true"`
+}
+
+type LocalAttachments struct {
+	Dir *os.Root
+}
+
+type S3Attachments struct {
+	S3AccessKeyID     string
+	S3SecretAccessKey string `redact:"true"`
+	S3DefaultRegion   string
+	S3Bucket          string
+	S3BucketSubPath   string
 }

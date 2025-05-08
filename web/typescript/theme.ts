@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+"use strict";
 
 // Set the theme immediately, before the rest of the page loads, so that there's
 // no flickering. We'll then come back later to applyTheme, which sets the navbar

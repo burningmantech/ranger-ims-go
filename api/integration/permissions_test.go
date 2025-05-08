@@ -17,8 +17,8 @@
 package integration_test
 
 import (
-	"crypto/rand"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -50,16 +50,16 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 
 	for _, api := range adminOnly {
 		// admin is allowed in
-		resp := apiCall(t, api, apisAdmin)
-		require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code := apiCall(t, api, apisAdmin)
+		require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
 
 		// nonadmin is forbidden
-		resp = apiCall(t, api, apisNonAdmin)
-		require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code = apiCall(t, api, apisNonAdmin)
+		require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
 
 		// unauthenticated is unauthorized
-		resp = apiCall(t, api, apisNotAuthenticated)
-		require.True(t, unauthorized(resp.StatusCode), "%v %v wanted 401 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code = apiCall(t, api, apisNotAuthenticated)
+		require.True(t, unauthorized(code), "%v %v wanted 401 status code, got %v", api.Method, api.Path, code)
 	}
 }
 
@@ -80,16 +80,16 @@ func TestAnyUnauthenticatedUserEndpoints(t *testing.T) {
 
 	for _, api := range anyAuthenticatedUserEndpoints {
 		// admin is allowed in
-		resp := apiCall(t, api, apisAdmin)
-		require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code := apiCall(t, api, apisAdmin)
+		require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
 
 		// nonadmin is allowed in
-		resp = apiCall(t, api, apisNonAdmin)
-		require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code = apiCall(t, api, apisNonAdmin)
+		require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
 
 		// unauthenticated is unauthorized
-		resp = apiCall(t, api, apisNotAuthenticated)
-		require.True(t, unauthorized(resp.StatusCode), "%v %v wanted 401 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code = apiCall(t, api, apisNotAuthenticated)
+		require.True(t, unauthorized(code), "%v %v wanted 401 status code, got %v", api.Method, api.Path, code)
 	}
 }
 
@@ -100,9 +100,10 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
-	eventName := rand.Text()
+	eventName := uuid.NewString()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	eventPath := "/ims/api/events/" + eventName
 	getIncidents := MethodURL{http.MethodGet, eventPath + "/incidents"}
@@ -152,15 +153,15 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 
 	for _, api := range allPerms {
 		// unauthenticated is unauthorized
-		resp = apiCall(t, api, apisNotAuthenticated)
-		require.True(t, unauthorized(resp.StatusCode), "%v %v wanted 401 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code := apiCall(t, api, apisNotAuthenticated)
+		require.True(t, unauthorized(code), "%v %v wanted 401 status code, got %v", api.Method, api.Path, code)
 	}
 
 	// to begin, the user has no permission
 	for _, api := range allPerms {
 		// forbidden
-		resp = apiCall(t, api, apisAdmin)
-		require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+		code := apiCall(t, api, apisAdmin)
+		require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
 	}
 
 	// make the user a reporter
@@ -173,6 +174,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		}},
 	)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// now the user can hit some more endpoints
 	for _, api := range allPerms {
@@ -181,16 +183,16 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 			// the user won't be able to read/write an FR for which they're not an author,
 			// e.g. the one in this dummy call, so we should expect a 403, but we
 			// can confirm they got the right error message
-			resp = apiCall(t, api, apisAdmin)
-			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+			code := apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
 		case slices.Contains(reporter, api):
 			// permitted
-			resp = apiCall(t, api, apisAdmin)
-			require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+			code := apiCall(t, api, apisAdmin)
+			require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
 		default:
 			// forbidden
-			resp = apiCall(t, api, apisAdmin)
-			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+			code := apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
 		}
 	}
 
@@ -204,17 +206,18 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		}},
 	)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// now the user can hit some other endpoints
 	for _, api := range allPerms {
 		if slices.Contains(reader, api) {
 			// permitted
-			resp = apiCall(t, api, apisAdmin)
-			require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+			code := apiCall(t, api, apisAdmin)
+			require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
 		} else {
 			// forbidden
-			resp = apiCall(t, api, apisAdmin)
-			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+			code := apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
 		}
 	}
 
@@ -228,17 +231,18 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		}},
 	)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// now the user can hit many more endpoints
 	for _, api := range allPerms {
 		if slices.Contains(writer, api) {
 			// permitted
-			resp = apiCall(t, api, apisAdmin)
-			require.True(t, permitted(resp.StatusCode), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+			code := apiCall(t, api, apisAdmin)
+			require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
 		} else {
 			// forbidden
-			resp = apiCall(t, api, apisAdmin)
-			require.True(t, forbidden(resp.StatusCode), "%v %v wanted 403 status code, got %v", api.Method, api.Path, resp.StatusCode)
+			code := apiCall(t, api, apisAdmin)
+			require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
 		}
 	}
 }
@@ -251,8 +255,8 @@ func TestPublicAPIs_RequireNoAuthn(t *testing.T) {
 	}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 	for _, api := range public {
-		resp := apiCall(t, api, apisNotAuthenticated)
-		require.Equalf(t, http.StatusOK, resp.StatusCode, "Got status code %v for %v %v", resp.StatusCode, api.Method, api.Path)
+		code := apiCall(t, api, apisNotAuthenticated)
+		require.Equalf(t, http.StatusOK, code, "Got status code %v for %v %v", code, api.Method, api.Path)
 	}
 }
 
@@ -278,7 +282,7 @@ func TestEventSource_RequiresNoAuthn(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 }
 
-func apiCall(t *testing.T, api MethodURL, user ApiHelper) (resp *http.Response) {
+func apiCall(t *testing.T, api MethodURL, user ApiHelper) (statusCode int) {
 	t.Helper()
 	ctx := t.Context()
 	var httpResp *http.Response
@@ -289,7 +293,8 @@ func apiCall(t *testing.T, api MethodURL, user ApiHelper) (resp *http.Response) 
 		httpResp = user.imsPost(ctx, map[string]any{}, user.serverURL.JoinPath(api.Path).String())
 	}
 	require.NotNil(t, httpResp)
-	return httpResp
+	require.NoError(t, httpResp.Body.Close())
+	return httpResp.StatusCode
 }
 
 func permitted(status int) bool {
@@ -302,8 +307,4 @@ func unauthorized(status int) bool {
 
 func forbidden(status int) bool {
 	return status == http.StatusForbidden
-}
-
-func notFound(status int) bool {
-	return status == http.StatusNotFound
 }

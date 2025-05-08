@@ -250,15 +250,15 @@ async function frSendEdits(edits) {
         // We created a new field report.
         // We need to find out the created field report number so that
         // future edits don't keep creating new resources.
-        const newNumber = resp?.headers.get("X-IMS-Field-Report-Number") ?? null;
+        const newNumber = resp?.headers.get("IMS-Field-Report-Number") ?? null;
         // Check that we got a value back
         if (newNumber == null) {
-            return { err: "No X-IMS-Field-Report-Number header provided." };
+            return { err: "No IMS-Field-Report-Number header provided." };
         }
         const newAsNumber = ims.parseInt10(newNumber);
         // Check that the value we got back is valid
         if (newAsNumber == null) {
-            return { err: "Non-integer X-IMS-Field-Report-Number header provided: " + newAsNumber };
+            return { err: "Non-integer IMS-Field-Report-Number header provided: " + newAsNumber };
         }
         // Store the new number in our field report object
         ims.pathIds.fieldReportNumber = fieldReport.number = newAsNumber;
@@ -299,7 +299,7 @@ async function makeIncident() {
         ims.setErrorMessage(`Failed to create incident: ${err}`);
         return;
     }
-    const newNum = resp.headers.get("X-IMS-Incident-Number");
+    const newNum = resp.headers.get("IMS-Incident-Number");
     if (newNum == null) {
         ims.disableEditing();
         ims.setErrorMessage("Failed to create incident: no IMS Incident Number provided");

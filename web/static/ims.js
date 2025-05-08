@@ -779,7 +779,7 @@ function reportEntryElement(entry) {
             e.preventDefault();
             const { resp, err } = await fetchJsonNoThrow(url, {});
             if (err != null || resp == null) {
-                setErrorMessage("Failed to fetch attachment");
+                setErrorMessage(`Failed to fetch attachment: ${err}`);
                 return;
             }
             const blobUrl = window.URL.createObjectURL(await resp.blob());

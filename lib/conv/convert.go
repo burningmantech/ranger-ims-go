@@ -2,6 +2,7 @@ package conv
 
 import (
 	"database/sql"
+	"math"
 	"strconv"
 )
 
@@ -54,6 +55,17 @@ func ParseInt32(s string) (int32, error) {
 	return int32(i), nil
 }
 
+func FormatInt32(i int32) string {
+	return strconv.FormatInt(int64(i), 10)
+}
+
 func ParseInt64(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
+}
+
+func MustInt32(i int64) int32 {
+	if i < math.MinInt32 || i > math.MaxInt32 {
+		panic("int32 overflow")
+	}
+	return int32(i)
 }

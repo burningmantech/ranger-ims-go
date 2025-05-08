@@ -291,7 +291,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 			handleErr(w, req, http.StatusInternalServerError, "Failed to attach Field Report to Incident", err)
 			return
 		}
-		err = addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber, author, entryText, true, "")
+		_, err = addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber, author, entryText, true, "")
 		if err != nil {
 			handleErr(w, req, http.StatusInternalServerError, "Failed to attach Report Entry to Field Report", err)
 			return
@@ -324,7 +324,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 	if requestFR.Summary != nil {
 		storedFR.Summary = sqlNullString(requestFR.Summary)
 		text := "Changed summary to: " + *requestFR.Summary
-		err = addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, text, true, "")
+		_, err = addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, text, true, "")
 		if err != nil {
 			handleErr(w, req, http.StatusInternalServerError, "Error adding system Field Report ReportEntry", err)
 			return
@@ -344,7 +344,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 		if entry.Text == "" {
 			continue
 		}
-		err = addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, entry.Text, false, "")
+		_, err = addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, entry.Text, false, "")
 		if err != nil {
 			handleErr(w, req, http.StatusInternalServerError, "Error adding Field Report ReportEntry", err)
 			return
@@ -454,7 +454,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	if fr.Summary != nil {
 		text := "Changed summary to: " + *fr.Summary
-		err = addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, text, true, "")
+		_, err = addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, text, true, "")
 		if err != nil {
 			handleErr(w, req, http.StatusInternalServerError, "Error changing Field Report summary", err)
 			return
@@ -465,7 +465,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		if entry.Text == "" {
 			continue
 		}
-		err = addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, entry.Text, false, "")
+		_, err = addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, entry.Text, false, "")
 		if err != nil {
 			handleErr(w, req, http.StatusInternalServerError, "Error adding Report Entry", err)
 			return
@@ -478,15 +478,15 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	}
 
 	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, newFrNum)
-	w.Header().Set("X-IMS-Field-Report-Number", strconv.Itoa(int(newFrNum)))
+	w.Header().Set("IMS-Field-Report-Number", strconv.Itoa(int(newFrNum)))
 	w.Header().Set("Location", loc)
 	defer action.eventSource.notifyFieldReportUpdate(event.Name, newFrNum)
 
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
 
-func addFRReportEntry(ctx context.Context, q *imsdb.Queries, eventID, frNum int32, author, text string, generated bool, attachment string) error {
-	reID, err := q.CreateReportEntry(ctx, imsdb.CreateReportEntryParams{
+func addFRReportEntry(ctx context.Context, q *imsdb.Queries, eventID, frNum int32, author, text string, generated bool, attachment string) (int32, error) {
+	reID64, err := q.CreateReportEntry(ctx, imsdb.CreateReportEntryParams{
 		Author:       author,
 		Text:         text,
 		Created:      float64(time.Now().Unix()),
@@ -494,18 +494,20 @@ func addFRReportEntry(ctx context.Context, q *imsdb.Queries, eventID, frNum int3
 		Stricken:     false,
 		AttachedFile: sqlNullString(&attachment),
 	})
+	// This column is an int32, so this is safe
+	reID := conv.MustInt32(reID64)
 	if err != nil {
-		return fmt.Errorf("[CreateReportEntry]: %w", err)
+		return 0, fmt.Errorf("[CreateReportEntry]: %w", err)
 	}
 	err = q.AttachReportEntryToFieldReport(ctx, imsdb.AttachReportEntryToFieldReportParams{
 		Event:             eventID,
 		FieldReportNumber: frNum,
-		ReportEntry:       int32(reID),
+		ReportEntry:       reID,
 	})
 	if err != nil {
-		return fmt.Errorf("[AttachReportEntryToFieldReport]: %w", err)
+		return 0, fmt.Errorf("[AttachReportEntryToFieldReport]: %w", err)
 	}
-	return nil
+	return reID, nil
 }
 
 func sqlNullString(s *string) sql.NullString {

@@ -56,7 +56,7 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 	notAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	// Make an event to which no one has any access
-	eventName := uuid.New().String()
+	eventName := uuid.NewString()
 	resp := adminUser.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -135,7 +135,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
-	eventName := uuid.New().String()
+	eventName := uuid.NewString()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -196,7 +196,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
-	eventName := uuid.New().String()
+	eventName := uuid.NewString()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -267,6 +267,41 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		RangerHandles: &[]string{},
 	}
 	requireEqualIncident(t, expected, retrievedIncidentAfterUpdate)
+}
+
+func TestCreateAndAttachFileToIncident(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	// Use the admin JWT to create a new event,
+	// then give the normal user Writer role on that event
+	eventName := uuid.NewString()
+	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Use normal user to create a new Incident
+	incidentReq := sampleIncident1(eventName)
+	num := apisNonAdmin.newIncidentSuccess(ctx, incidentReq)
+	incidentReq.Number = num
+
+	// Now we'll upload an attachment. The "file" will just be this slice of bytes.
+	fileBytes := []byte("This is a text file maybe?")
+	reID, resp := apisNonAdmin.attachFileToIncident(ctx, eventName, num, fileBytes)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	// Now call to fetch the attachment and check that it's the same as what we sent.
+	returnedAttachment, resp := apisNonAdmin.getIncidentAttachment(ctx, eventName, num, reID)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, fileBytes, returnedAttachment)
 }
 
 // requireEqualIncident is a hacky way of checking two incident responses are the same.

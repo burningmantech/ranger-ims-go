@@ -84,7 +84,7 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	err = addFRReportEntry(ctx, dbTxn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	_, err = addFRReportEntry(ctx, dbTxn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Error adding report entry", err)
 		return
@@ -156,7 +156,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	err = addIncidentReportEntry(ctx, dbTxn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	_, err = addIncidentReportEntry(ctx, dbTxn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Error adding report entry", err)
 		return

@@ -29,9 +29,13 @@ import (
 	"io"
 	"log/slog"
 	"mime"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"time"
 )
+
+const IMSAttachmentFormKey = "imsAttachment"
 
 type GetIncidentAttachment struct {
 	imsDB            *store.DB
@@ -108,6 +112,10 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 	case conf.AttachmentsStoreLocal:
 		file, err = action.attachmentsStore.Local.Dir.Open(filename)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				handleErr(w, req, http.StatusNotFound, "File doesn't exist", err)
+				return
+			}
 			handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
 			return
 		}
@@ -181,6 +189,10 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 	case conf.AttachmentsStoreLocal:
 		file, err = action.attachmentsStore.Local.Dir.Open(filename)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				handleErr(w, req, http.StatusNotFound, "File doesn't exist", err)
+				return
+			}
 			handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
 			return
 		}
@@ -214,36 +226,20 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	}
 
 	// this must match the key sent by the client
-	fi, fiHead, err := req.FormFile("imsAttachment")
+	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
 		handleErr(w, req, http.StatusBadRequest, "Failed to parse file", err)
 		return
 	}
 	defer shut(fi)
 
-	// This must be >= http.sniffLen (it's a private field, so we can't read it)
-	const sniffLen = 512
-	head := make([]byte, sniffLen)
-	if _, err = fi.ReadAt(head, 0); err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to read head of file", err)
-		return
-	}
-
-	// We'll detect the contentType and file extension, rather than trust any value from the client.
-	sniffedContentType := http.DetectContentType(head)
-	var extension string
-	extensions, err := mime.ExtensionsByType(sniffedContentType)
-	if err == nil && len(extensions) > 0 {
-		extension = extensions[0]
-	} else {
-		slog.Info("Unable to determine a good file type for attachment. We'll leave it extension-free.",
-			"sniffedContentType", sniffedContentType,
-			"error", err,
-		)
+	sniffedContentType, extension, err := sniffFile(fi)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to read provided file", err)
 	}
 
 	newFileName := fmt.Sprintf("event_%05d_incident_%05d_%v%v", event.ID, incidentNumber, rand.Text(), extension)
-	slog.Info("User is uploaded an incident attachment",
+	slog.Info("User uploaded an incident attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,
 		"incidentNumber", incidentNumber,
@@ -277,14 +273,16 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	const MiB float64 = 1 << 20
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %.3f MiB",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, float64(fiHead.Size)/MiB)
-	err = addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
+	reID, err := addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to add incident report entry", err)
 		return
 	}
 
-	slog.Info("Saved incident attachment")
+	slog.Info("Saved Incident attachment")
+	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt32(reID))
+	http.Error(w, "Saved Incident attachment", http.StatusNoContent)
 	action.es.notifyIncidentUpdate(event.Name, incidentNumber)
 }
 
@@ -320,36 +318,20 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	}
 
 	// this must match the key sent by the client
-	fi, fiHead, err := req.FormFile("imsAttachment")
+	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
 		handleErr(w, req, http.StatusBadRequest, "Failed to parse file", err)
 		return
 	}
 	defer shut(fi)
 
-	// This must be >= http.sniffLen (it's a private field, so we can't read it directly)
-	const sniffLen = 512
-	head := make([]byte, sniffLen)
-	if _, err = fi.ReadAt(head, 0); err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to read head of file", err)
-		return
-	}
-
-	// We'll detect the contentType and file extension, rather than trust any value from the client.
-	sniffedContentType := http.DetectContentType(head)
-	var extension string
-	extensions, err := mime.ExtensionsByType(sniffedContentType)
-	if err == nil && len(extensions) > 0 {
-		extension = extensions[0]
-	} else {
-		slog.Info("Unable to determine a good file type for attachment. We'll leave it extension-free.",
-			"sniffedContentType", sniffedContentType,
-			"error", err,
-		)
+	sniffedContentType, extension, err := sniffFile(fi)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to read provided file", err)
 	}
 
 	newFileName := fmt.Sprintf("event_%05d_fieldreport_%05d_%v%v", event.ID, fieldReportNumber, rand.Text(), extension)
-	slog.Info("User is uploaded a Field Report attachment",
+	slog.Info("User uploaded a Field Report attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,
 		"fieldReportNumber", fieldReportNumber,
@@ -383,7 +365,7 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	const MiB float64 = 1 << 20
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %.3f MiB",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, float64(fiHead.Size)/MiB)
-	err = addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber,
+	reID, err := addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to add Field Report report entry", err)
@@ -391,8 +373,38 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	}
 
 	slog.Info("Saved Field Report attachment")
+	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt32(reID))
+	http.Error(w, "Saved Field Report attachment", http.StatusNoContent)
 	action.es.notifyFieldReportUpdate(event.Name, fieldReportNumber)
 	if fieldReport.IncidentNumber.Valid {
 		action.es.notifyIncidentUpdate(event.Name, fieldReport.IncidentNumber.Int32)
 	}
+}
+
+func sniffFile(fi multipart.File) (contentType string, extension string, err error) {
+	// This must be >= http.sniffLen (it's a private field, so we can't read it directly)
+	const sniffLen = 512
+	head := make([]byte, sniffLen)
+	if n, err := fi.ReadAt(head, 0); err != nil {
+		// It's fine if the file is less than sniffLen bytes long.
+		// We just need to shorten the byte slice afterward to the actual file length.
+		if errors.Is(err, io.EOF) {
+			head = head[:n]
+		} else {
+			return "", "", fmt.Errorf("[ReadAt]: %w", err)
+		}
+	}
+
+	// We'll detect the contentType and file extension, rather than trust any value from the client.
+	sniffedContentType := http.DetectContentType(head)
+	extensions, err := mime.ExtensionsByType(sniffedContentType)
+	if err == nil && len(extensions) > 0 {
+		extension = extensions[0]
+	} else {
+		slog.Info("Unable to determine a good file type for attachment. We'll leave it extension-free.",
+			"sniffedContentType", sniffedContentType,
+			"error", err,
+		)
+	}
+	return sniffedContentType, extension, nil
 }

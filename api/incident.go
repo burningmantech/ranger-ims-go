@@ -227,8 +227,8 @@ func fetchIncident(ctx context.Context, imsDB *store.DB, eventID, incidentNumber
 	return incidentRow, reportEntries, nil
 }
 
-func addIncidentReportEntry(ctx context.Context, q *imsdb.Queries, eventID, incidentNum int32, author, text string, generated bool, attachment string) error {
-	reID, err := q.CreateReportEntry(ctx, imsdb.CreateReportEntryParams{
+func addIncidentReportEntry(ctx context.Context, q *imsdb.Queries, eventID, incidentNum int32, author, text string, generated bool, attachment string) (int32, error) {
+	reID64, err := q.CreateReportEntry(ctx, imsdb.CreateReportEntryParams{
 		Author:       author,
 		Text:         text,
 		Created:      float64(time.Now().Unix()),
@@ -236,18 +236,20 @@ func addIncidentReportEntry(ctx context.Context, q *imsdb.Queries, eventID, inci
 		Stricken:     false,
 		AttachedFile: sqlNullString(&attachment),
 	})
+	// This column is an int32, so this is safe
+	reID := conv.MustInt32(reID64)
 	if err != nil {
-		return fmt.Errorf("[CreateReportEntry]: %w", err)
+		return 0, fmt.Errorf("[CreateReportEntry]: %w", err)
 	}
 	err = q.AttachReportEntryToIncident(ctx, imsdb.AttachReportEntryToIncidentParams{
 		Event:          eventID,
 		IncidentNumber: incidentNum,
-		ReportEntry:    int32(reID),
+		ReportEntry:    reID,
 	})
 	if err != nil {
-		return fmt.Errorf("[AttachReportEntryToIncident]: %w", err)
+		return 0, fmt.Errorf("[AttachReportEntryToIncident]: %w", err)
 	}
-	return nil
+	return reID, nil
 }
 
 type NewIncident struct {
@@ -307,7 +309,7 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("X-IMS-Incident-Number", strconv.Itoa(int(newIncident.Number)))
+	w.Header().Set("IMS-Incident-Number", strconv.Itoa(int(newIncident.Number)))
 	w.Header().Set("Location", "/ims/api/events/"+event.Name+"/incidents/"+strconv.Itoa(int(newIncident.Number)))
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
@@ -513,7 +515,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 	}
 
 	if len(logs) > 0 {
-		err = addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, strings.Join(logs, "\n"), true, "")
+		_, err = addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, strings.Join(logs, "\n"), true, "")
 		if err != nil {
 			return fmt.Errorf("[addIncidentReportEntry]: %w", err)
 		}
@@ -523,7 +525,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 		if entry.Text == "" {
 			continue
 		}
-		err = addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, entry.Text, false, "")
+		_, err = addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, entry.Text, false, "")
 		if err != nil {
 			return fmt.Errorf("[addIncidentReportEntry]: %w", err)
 		}

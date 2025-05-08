@@ -31,7 +31,7 @@ func TestCreateIncidentTypes(t *testing.T) {
 	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
 	// Make three new incident types
-	typeA, typeB, typeC := uuid.New().String(), uuid.New().String(), uuid.New().String()
+	typeA, typeB, typeC := uuid.NewString(), uuid.NewString(), uuid.NewString()
 	createTypes := imsjson.EditIncidentTypesRequest{
 		Add:  imsjson.IncidentTypes{typeA, typeB, typeC},
 		Hide: nil,

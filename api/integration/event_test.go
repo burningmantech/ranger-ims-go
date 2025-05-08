@@ -31,7 +31,7 @@ func TestGetAndEditEvent(t *testing.T) {
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
-	testEventName := uuid.New().String()
+	testEventName := uuid.NewString()
 
 	editEventReq := imsjson.EditEventsRequest{
 		Add: []string{testEventName},

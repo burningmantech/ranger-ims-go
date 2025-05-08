@@ -63,7 +63,7 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	var matchedPerson *imsjson.Person
 	for _, person := range rangers {
-		callsignMatch := person.Handle != "" || strings.EqualFold(person.Handle, vals.Identification)
+		callsignMatch := person.Handle != "" && strings.EqualFold(person.Handle, vals.Identification)
 		if callsignMatch {
 			matchedPerson = &person
 			break

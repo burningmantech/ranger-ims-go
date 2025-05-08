@@ -18,7 +18,7 @@ package json
 
 type Events []Event
 type Event struct {
-	ID   int32  `json:"id"`
+	ID   int32  `json:"ids"`
 	Name string `json:"name"`
 }
 type EditEventsRequest struct {

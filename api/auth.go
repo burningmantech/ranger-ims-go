@@ -245,6 +245,9 @@ func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Requ
 	}
 	foundPositionNames, foundTeamNames, err := action.userStore.GetUserPositionsTeams(req.Context(), matchedPerson.DirectoryID)
 	if err != nil {
+		if err == nil {
+			handleErr(w, req, http.StatusInternalServerError, "This code is not reachable", err)
+		}
 		handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Clubhouse positions/teams data", err)
 		return
 	}

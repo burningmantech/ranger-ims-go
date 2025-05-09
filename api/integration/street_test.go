@@ -17,9 +17,66 @@
 package integration_test
 
 import (
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"net/http"
 	"testing"
 )
 
-func TestStreetTODO(t *testing.T) {
+func TestCreateStreets(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
+
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	// Make an event
+	eventName := uuid.NewString()
+	resp := apis.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Set some streets on that event
+	createStreets := imsjson.EventsStreets{
+		eventName: imsjson.EventStreets{
+			"1": "Esplanade",
+			"5": "Emu St",
+		},
+	}
+	resp = apis.editStreets(ctx, createStreets)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Try add one more, and try to modify one of those streets (the update won't work,
+	// as that's not currently supported).
+	editStreets := imsjson.EventsStreets{
+		eventName: imsjson.EventStreets{
+			"1": "A Street",
+			"2": "Cat St",
+		},
+	}
+	resp = apis.editStreets(ctx, editStreets)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	expected := imsjson.EventsStreets{
+		eventName: imsjson.EventStreets{
+			"1": "Esplanade",
+			"2": "Cat St",
+			"5": "Emu St",
+		},
+	}
+
+	// Get the streets from the API, make sure they match what we sent
+	resultStreets, resp := apis.getStreets(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, expected, resultStreets)
+
+	// Get the streets again from the API, without specifying the event name.
+	// We'll get back streets for every event.
+	resultStreets, resp = apis.getStreets(ctx, "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, expected[eventName], resultStreets[eventName])
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -419,18 +418,11 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
-	numUntyped, err := imsdb.New(action.imsDB).MaxFieldReportNumber(ctx, event.ID)
+	newFrNum, err := imsdb.New(action.imsDB).NextFieldReportNumber(ctx, event.ID)
 	if err != nil {
 		handleErr(w, req, http.StatusInternalServerError, "Failed to find next Field Report number", err)
 		return
 	}
-	numTyped, ok := numUntyped.(int64)
-	if !ok || numTyped > math.MaxInt32-1 {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to find valid next Field Report number",
-			fmt.Errorf("failed to read Field Report number. Wanted an int64 that's less than MaxInt32-1, found %v", numTyped))
-		return
-	}
-	newFrNum := int32(numTyped) + 1
 
 	txn, err := action.imsDB.Begin()
 	if err != nil {

@@ -41,11 +41,19 @@ type Querier interface {
 	Incident_ReportEntries(ctx context.Context, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
 	Incidents(ctx context.Context, event int32) ([]IncidentsRow, error)
 	Incidents_ReportEntries(ctx context.Context, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error)
-	MaxFieldReportNumber(ctx context.Context, event int32) (interface{}, error)
-	MaxIncidentNumber(ctx context.Context, event int32) (interface{}, error)
+	// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+	NextFieldReportNumber(ctx context.Context, event int32) (int32, error)
+	// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+	NextIncidentNumber(ctx context.Context, event int32) (int32, error)
 	QueryEventID(ctx context.Context, name string) (QueryEventIDRow, error)
 	SchemaVersion(ctx context.Context) (int16, error)
 	SetFieldReportReportEntryStricken(ctx context.Context, arg SetFieldReportReportEntryStrickenParams) error
+	//
+	// The "stricken" queries seem bloated at first blush, because the whole
+	// "where ID in (..." could just be "where ID =". What it's doing though is
+	// ensuring that the provided eventID and incidentNumber actually align with
+	// the reportEntryID in question, and that's important for authorization purposes.
+	//
 	SetIncidentReportEntryStricken(ctx context.Context, arg SetIncidentReportEntryStrickenParams) error
 	UpdateFieldReport(ctx context.Context, arg UpdateFieldReportParams) error
 	UpdateIncident(ctx context.Context, arg UpdateIncidentParams) error

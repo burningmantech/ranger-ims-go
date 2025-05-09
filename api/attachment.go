@@ -119,10 +119,6 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 			handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
 			return
 		}
-	case conf.AttachmentsStoreS3:
-		fallthrough
-	case conf.AttachmentsStoreNone:
-		fallthrough
 	default:
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 		return
@@ -196,10 +192,6 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 			handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
 			return
 		}
-	case conf.AttachmentsStoreS3:
-		fallthrough
-	case conf.AttachmentsStoreNone:
-		fallthrough
 	default:
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 		return
@@ -262,10 +254,6 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 			handleErr(w, req, http.StatusInternalServerError, "Failed to write file", err)
 			return
 		}
-	case conf.AttachmentsStoreS3:
-		fallthrough
-	case conf.AttachmentsStoreNone:
-		fallthrough
 	default:
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 	}
@@ -354,10 +342,6 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 			handleErr(w, req, http.StatusInternalServerError, "Failed to write file", err)
 			return
 		}
-	case conf.AttachmentsStoreS3:
-		fallthrough
-	case conf.AttachmentsStoreNone:
-		fallthrough
 	default:
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 	}
@@ -400,11 +384,26 @@ func sniffFile(fi multipart.File) (contentType string, extension string, err err
 	extensions, err := mime.ExtensionsByType(sniffedContentType)
 	if err == nil && len(extensions) > 0 {
 		extension = extensions[0]
-	} else {
-		slog.Info("Unable to determine a good file type for attachment. We'll leave it extension-free.",
-			"sniffedContentType", sniffedContentType,
-			"error", err,
-		)
 	}
 	return sniffedContentType, extension, nil
+}
+
+func extensionByType(contentType string) string {
+	var extension string
+
+	// We mostly rely on mime.ExtensionsByType, but just picking the first element of that list
+	// often gives a weird extension. e.g. image/jpeg --> ".jpe". Hence, we special-case some
+	// common MIME types below.
+	switch contentType {
+	case "image/jpeg", "image/jpg":
+		extension = ".jpg"
+	case "text/plain":
+		extension = ".txt"
+	default:
+		extensions, _ := mime.ExtensionsByType(contentType)
+		if len(extensions) > 0 {
+			extension = extensions[0]
+		}
+	}
+	return extension
 }

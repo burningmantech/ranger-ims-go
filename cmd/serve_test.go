@@ -3,37 +3,36 @@ package cmd
 import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 	"time"
 )
 
 func TestMustInitConfig(t *testing.T) {
 	tempDir := t.TempDir()
-	setenv(t, "IMS_HOSTNAME", "host")
-	setenv(t, "IMS_PORT", "1234")
-	setenv(t, "IMS_PASSWORD", "password")
-	setenv(t, "IMS_DEPLOYMENT", "dev")
-	setenv(t, "IMS_TOKEN_LIFETIME", "1000")
-	setenv(t, "IMS_ACCESS_TOKEN_LIFETIME", "100")
-	setenv(t, "IMS_CACHE_CONTROL_SHORT", "3m")
-	setenv(t, "IMS_CACHE_CONTROL_LONG", "7m")
-	setenv(t, "IMS_DIRECTORY_CACHE_TTL", "15m")
-	setenv(t, "IMS_LOG_LEVEL", "WARN")
-	setenv(t, "IMS_DIRECTORY", "clubhousedb")
-	setenv(t, "IMS_ADMINS", "alice,bob")
-	setenv(t, "IMS_JWT_SECRET", "shhh")
-	setenv(t, "IMS_DB_HOST_NAME", "db")
-	setenv(t, "IMS_DB_HOST_POST", "555")
-	setenv(t, "IMS_DB_DATABASE", "ims")
-	setenv(t, "IMS_DB_USER_NAME", "me")
-	setenv(t, "IMS_DB_PASSWORD", "boo")
-	setenv(t, "IMS_DMS_HOSTNAME", "db2")
-	setenv(t, "IMS_DMS_DATABASE", "rangerz")
-	setenv(t, "IMS_DMS_USERNAME", "me2")
-	setenv(t, "IMS_DMS_PASSWORD", "woo")
-	setenv(t, "IMS_ATTACHMENTS_STORE", "local")
-	setenv(t, "IMS_ATTACHMENTS_LOCAL_DIR", tempDir)
+	t.Setenv("IMS_HOSTNAME", "host")
+	t.Setenv("IMS_PORT", "1234")
+	t.Setenv("IMS_PASSWORD", "password")
+	t.Setenv("IMS_DEPLOYMENT", "dev")
+	t.Setenv("IMS_TOKEN_LIFETIME", "1000")
+	t.Setenv("IMS_ACCESS_TOKEN_LIFETIME", "100")
+	t.Setenv("IMS_CACHE_CONTROL_SHORT", "3m")
+	t.Setenv("IMS_CACHE_CONTROL_LONG", "7m")
+	t.Setenv("IMS_DIRECTORY_CACHE_TTL", "15m")
+	t.Setenv("IMS_LOG_LEVEL", "WARN")
+	t.Setenv("IMS_DIRECTORY", "clubhousedb")
+	t.Setenv("IMS_ADMINS", "alice,bob")
+	t.Setenv("IMS_JWT_SECRET", "shhh")
+	t.Setenv("IMS_DB_HOST_NAME", "db")
+	t.Setenv("IMS_DB_HOST_POST", "555")
+	t.Setenv("IMS_DB_DATABASE", "ims")
+	t.Setenv("IMS_DB_USER_NAME", "me")
+	t.Setenv("IMS_DB_PASSWORD", "boo")
+	t.Setenv("IMS_DMS_HOSTNAME", "db2")
+	t.Setenv("IMS_DMS_DATABASE", "rangerz")
+	t.Setenv("IMS_DMS_USERNAME", "me2")
+	t.Setenv("IMS_DMS_PASSWORD", "woo")
+	t.Setenv("IMS_ATTACHMENTS_STORE", "local")
+	t.Setenv("IMS_ATTACHMENTS_LOCAL_DIR", tempDir)
 
 	cfg := mustInitConfig(serveCmd.Flags().Lookup(envfileFlagName))
 
@@ -60,9 +59,4 @@ func TestMustInitConfig(t *testing.T) {
 	assert.Equal(t, "woo", cfg.Directory.ClubhouseDB.Password)
 	assert.Equal(t, conf.AttachmentsStoreLocal, cfg.AttachmentsStore.Type)
 	assert.Equal(t, tempDir, cfg.AttachmentsStore.Local.Dir.Name())
-}
-
-func setenv(t *testing.T, name, value string) {
-	t.Helper()
-	assert.NoError(t, os.Setenv(name, value))
 }

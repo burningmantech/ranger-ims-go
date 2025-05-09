@@ -46,9 +46,11 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
    ```
 2. Copy `.env.example` as `.env`, and set the various flags. Especially read the part in
    `.env.example` about `IMS_DIRECTORY` if you want to use TestUsers rather than a Clubhouse DB.
-3. Run the following to build and launch the server:
+3. Run the following to build and launch the server. These *should* work on Windows as well as OSX
+   and Linux, but Windows is so far untested.
    ```shell
-   go run bin/build/build.go && ./ranger-ims-go serve
+   go run bin/build/build.go
+   ./ranger-ims-go serve
    ```
 
 ## Build and run with Docker

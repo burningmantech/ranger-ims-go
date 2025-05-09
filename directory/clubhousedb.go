@@ -27,16 +27,16 @@ import (
 	"time"
 )
 
-func MariaDB(ctx context.Context, imsCfg *conf.IMSConfig) (*DB, error) {
+func MariaDB(ctx context.Context, imsCfg conf.ClubhouseDB) (*sql.DB, error) {
 	slog.Info("Setting up Clubhouse DB connection")
 
 	// Capture connection properties.
 	cfg := mysql.NewConfig()
-	cfg.User = imsCfg.Directory.ClubhouseDB.Username
-	cfg.Passwd = imsCfg.Directory.ClubhouseDB.Password
+	cfg.User = imsCfg.Username
+	cfg.Passwd = imsCfg.Password
 	cfg.Net = "tcp"
-	cfg.Addr = imsCfg.Directory.ClubhouseDB.Hostname
-	cfg.DBName = imsCfg.Directory.ClubhouseDB.Database
+	cfg.Addr = imsCfg.Hostname
+	cfg.DBName = imsCfg.Database
 
 	// Get a database handle.
 	db, err := sql.Open("mysql", cfg.FormatDSN())
@@ -51,7 +51,7 @@ func MariaDB(ctx context.Context, imsCfg *conf.IMSConfig) (*DB, error) {
 		return nil, fmt.Errorf("[PingContext]: %w", pingErr)
 	}
 	slog.Info("Connected to Clubhouse MariaDB")
-	return &DB{DB: db}, nil
+	return db, nil
 }
 
 type DB struct {

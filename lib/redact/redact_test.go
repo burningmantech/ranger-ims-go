@@ -8,11 +8,12 @@ import (
 )
 
 type ExampleType struct {
-	SomeString string
-	SomeNum    int
-	Passwords  []string `redact:"true"`
-	Secret     Secret   `redact:"true"`
-	Secrets    []Secret `redact:"true"`
+	SomeString  string
+	SomeNum     int
+	Passwords   []string `redact:"true"`
+	Secret      Secret   `redact:"true"`
+	Secrets     []Secret `redact:"true"`
+	MoreSecrets []Secret `redact:"true"`
 }
 
 type Secret struct {
@@ -46,6 +47,7 @@ Secrets[0]
     🤐🤐
 Secrets[1]
     🤐🤐
+MoreSecrets[]: [empty]
 `
 	b := redact.ToBytes(&e)
 	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(string(b)))

@@ -25,6 +25,8 @@ import (
 	"time"
 )
 
+var defaultTestUsers = make([]TestUser, 0)
+
 // DefaultIMS is the base configuration used for the IMS server.
 // It gets overridden by values in conf/imsd.toml, then the result
 // of that gets overridden by environment variables.
@@ -50,7 +52,7 @@ func DefaultIMS() *IMSConfig {
 		},
 		Directory: Directory{
 			Directory: DirectoryTypeClubhouseDB,
-			TestUsers: testusers(),
+			TestUsers: defaultTestUsers,
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",

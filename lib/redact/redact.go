@@ -53,6 +53,9 @@ func writeSliceFields(w *bytesBuffer, fieldName string, fieldVal reflect.Value, 
 	// If it's a slice of structs, we'll need to descend into each of those structs
 	switch sliceElemType.Kind() {
 	case reflect.Struct:
+		if x1.Len() == 0 {
+			w.fprintf("%v%v[]: [empty]\n", indent, fieldName)
+		}
 		for j := range x1.Len() {
 			w.fprintf("%v%v[%d]\n", indent, fieldName, j)
 			if redact {

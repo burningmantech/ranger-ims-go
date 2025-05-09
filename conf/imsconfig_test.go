@@ -2,7 +2,7 @@ package conf_test
 
 import (
 	"github.com/burningmantech/ranger-ims-go/conf"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -31,12 +31,11 @@ func TestPrintRedacted(t *testing.T) {
 		},
 	}
 
-	s, err := cfg.PrintRedacted()
-	require.NoError(t, err)
-	require.Contains(t, s, "admin user")
-	require.Contains(t, s, "db username")
-	require.NotContains(t, s, "db password")
-	require.NotContains(t, s, "user password")
-	require.Contains(t, s, "clubhouse username")
-	require.NotContains(t, s, "clubhouse password")
+	redacted := cfg.PrintRedacted()
+	assert.Contains(t, redacted, "admin user")
+	assert.Contains(t, redacted, "db username")
+	assert.NotContains(t, redacted, "db password")
+	assert.NotContains(t, redacted, "user password")
+	assert.Contains(t, redacted, "clubhouse username")
+	assert.NotContains(t, redacted, "clubhouse password")
 }

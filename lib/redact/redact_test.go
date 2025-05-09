@@ -2,7 +2,7 @@ package redact_test
 
 import (
 	"github.com/burningmantech/ranger-ims-go/lib/redact"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 )
@@ -45,21 +45,28 @@ Secret
 Secrets[0]
     🤐🤐
 Secrets[1]
-    🤐🤐`
-	b, err := redact.ToBytes(&e)
-	require.NoError(t, err)
-	require.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(string(b)))
+    🤐🤐
+`
+	b := redact.ToBytes(&e)
+	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(string(b)))
 }
 
 type ExampleType2 struct {
+	SSN   string `redact:"true"`
 	MyMap map[string]string
 }
 
 func TestToBytes_noMapSupport(t *testing.T) {
 	t.Parallel()
 	// we haven't bothered adding support for various Kinds yet, but feel free to do so if the need arises!
-	e := ExampleType2{}
-	_, err := redact.ToBytes(&e)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unsupported field kind: map")
+	e := ExampleType2{
+		SSN:   "someKey",
+		MyMap: map[string]string{"dog": "pony"},
+	}
+	expected := `
+SSN = 🤐🤐🤐
+MyMap [Unsupported field kind (map)]
+`
+	b := redact.ToBytes(&e)
+	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(string(b)))
 }

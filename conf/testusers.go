@@ -18,17 +18,11 @@ package conf
 
 import (
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
-	"runtime"
-	"strings"
 )
 
-func init() {
-	_, filename, _, _ := runtime.Caller(0)
-	if strings.Contains(filename, ".example") {
-		return
-	}
-	defaultTestUsers = append(defaultTestUsers,
-		TestUser{
+func testusers() []TestUser {
+	return []TestUser{
+		{
 			Handle:      "Hardware",
 			Email:       "hardware@rangers.brc",
 			Status:      "active",
@@ -38,7 +32,7 @@ func init() {
 			Positions:   []string{"Driver", "Dancer"},
 			Teams:       []string{"Driving Team"},
 		},
-		TestUser{
+		{
 			Handle:      "Parenthetical",
 			Email:       "parenthetical@rangers.brc",
 			Status:      "active",
@@ -48,7 +42,7 @@ func init() {
 			Positions:   nil,
 			Teams:       nil,
 		},
-		TestUser{
+		{
 			Handle:      "Defect",
 			Email:       "defect@rangers.brc",
 			Status:      "active",
@@ -58,7 +52,7 @@ func init() {
 			Positions:   []string{},
 			Teams:       []string{},
 		},
-		TestUser{
+		{
 			Handle:      "Irate",
 			Email:       "irate@rangers.brc",
 			Status:      "active",
@@ -68,7 +62,7 @@ func init() {
 			Positions:   []string{},
 			Teams:       []string{},
 		},
-		TestUser{
+		{
 			Handle:      "Loosy",
 			Email:       "loosy@rangers.brc",
 			Status:      "active",
@@ -78,5 +72,5 @@ func init() {
 			Positions:   []string{},
 			Teams:       []string{},
 		},
-	)
+	}
 }

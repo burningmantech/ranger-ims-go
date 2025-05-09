@@ -20,6 +20,7 @@ linters:
     - tagliatelle  # we use snake-case JSON tags
     - unparam  # annoying
     - wrapcheck  # would have to ignore generated code
+    - testpackage  # annoying
 
     # Uberbonked
     - dogsled  # dumb

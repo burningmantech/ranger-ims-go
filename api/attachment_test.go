@@ -11,5 +11,5 @@ func TestExtensionByType(t *testing.T) {
 	assert.Equal(t, ".png", extensionByType("image/png"))
 	assert.Equal(t, ".txt", extensionByType("text/plain"))
 	assert.Equal(t, ".htm", extensionByType("text/html"))
-	assert.Equal(t, "", extensionByType("notta/mime"))
+	assert.Empty(t, extensionByType("notta/mime"))
 }

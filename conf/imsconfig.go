@@ -25,8 +25,6 @@ import (
 	"time"
 )
 
-var defaultTestUsers []TestUser
-
 // DefaultIMS is the base configuration used for the IMS server.
 // It gets overridden by values in conf/imsd.toml, then the result
 // of that gets overridden by environment variables.
@@ -52,7 +50,7 @@ func DefaultIMS() *IMSConfig {
 		},
 		Directory: Directory{
 			Directory: DirectoryTypeClubhouseDB,
-			TestUsers: defaultTestUsers,
+			TestUsers: testusers(),
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",
@@ -69,6 +67,12 @@ func DefaultIMS() *IMSConfig {
 func (c *IMSConfig) Validate() error {
 	var errs []error
 	errs = append(errs, c.Directory.Directory.Validate())
+	if c.Directory.Directory != DirectoryTypeTestUsers {
+		c.Directory.TestUsers = nil
+	}
+	if c.Directory.Directory != DirectoryTypeClubhouseDB {
+		c.Directory.ClubhouseDB = ClubhouseDB{}
+	}
 	errs = append(errs, c.AttachmentsStore.Type.Validate())
 	if c.AttachmentsStore.Type == AttachmentsStoreLocal {
 		if c.AttachmentsStore.Local.Dir == nil {
@@ -87,17 +91,12 @@ func (c *IMSConfig) Validate() error {
 	return errors.Join(errs...)
 }
 
-func (c *IMSConfig) PrintRedacted() (string, error) {
-	b, err := redact.ToBytes(c)
-	return string(b), err
+func (c *IMSConfig) PrintRedacted() string {
+	return c.String()
 }
 
 func (c *IMSConfig) String() string {
-	b, err := redact.ToBytes(c)
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
+	return string(redact.ToBytes(c))
 }
 
 type IMSConfig struct {

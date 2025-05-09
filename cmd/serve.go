@@ -57,12 +57,12 @@ func runServer(cmd *cobra.Command, args []string) {
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
 	slog.SetLogLoggerLevel(logLevel)
 
-	cfgStr, err := imsCfg.PrintRedacted()
-	must(err)
+	cfgStr := imsCfg.PrintRedacted()
 	log.Printf("Here's the final redacted IMSConfig:\n\n%v\n\n", cfgStr)
 
 	log.Printf("With JWTSecret: %v...%v", imsCfg.Core.JWTSecret[:1], imsCfg.Core.JWTSecret[len(imsCfg.Core.JWTSecret)-1:])
 
+	var err error
 	var userStore *directory.UserStore
 	switch imsCfg.Directory.Directory {
 	case conf.DirectoryTypeClubhouseDB:

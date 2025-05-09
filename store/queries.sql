@@ -194,13 +194,25 @@ set INCIDENT_NUMBER = ?
 where EVENT = ? and NUMBER = ?
 ;
 
--- name: MaxFieldReportNumber :one
-select coalesce(max(NUMBER), 0) from FIELD_REPORT
-where EVENT = ?;
+-- This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+-- name: NextFieldReportNumber :one
+select NUMBER + 1 as NEXT_ID
+from FIELD_REPORT
+where EVENT = ?
+union
+select 1
+order by 1 desc
+limit 1;
 
--- name: MaxIncidentNumber :one
-select coalesce(max(NUMBER), 0) from INCIDENT
-where EVENT = ?;
+-- This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+-- name: NextIncidentNumber :one
+select NUMBER + 1 as NEXT_ID
+from INCIDENT
+where EVENT = ?
+union
+select 1
+order by 1 desc
+limit 1;
 
 -- name: CreateFieldReport :exec
 insert into FIELD_REPORT (
@@ -244,12 +256,12 @@ insert into INCIDENT__REPORT_ENTRY (
     ?, ?, ?
 );
 
-/*
-   The "stricken" queries seem bloated at first blush, because the whole
-   "where ID in (..." could just be "where ID =". What it's doing though is
-   ensuring that the provided eventID and incidentNumber actually align with
-   the reportEntryID in question, and that's important for authorization purposes.
-*/
+--
+-- The "stricken" queries seem bloated at first blush, because the whole
+-- "where ID in (..." could just be "where ID =". What it's doing though is
+-- ensuring that the provided eventID and incidentNumber actually align with
+-- the reportEntryID in question, and that's important for authorization purposes.
+--
 
 -- name: SetIncidentReportEntryStricken :exec
 update REPORT_ENTRY

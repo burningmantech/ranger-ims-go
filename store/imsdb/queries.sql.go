@@ -1004,28 +1004,40 @@ func (q *Queries) Incidents_ReportEntries(ctx context.Context, arg Incidents_Rep
 	return items, nil
 }
 
-const maxFieldReportNumber = `-- name: MaxFieldReportNumber :one
-select coalesce(max(NUMBER), 0) from FIELD_REPORT
+const nextFieldReportNumber = `-- name: NextFieldReportNumber :one
+select NUMBER + 1 as NEXT_ID
+from FIELD_REPORT
 where EVENT = ?
+union
+select 1
+order by 1 desc
+limit 1
 `
 
-func (q *Queries) MaxFieldReportNumber(ctx context.Context, event int32) (interface{}, error) {
-	row := q.db.QueryRowContext(ctx, maxFieldReportNumber, event)
-	var coalesce interface{}
-	err := row.Scan(&coalesce)
-	return coalesce, err
+// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+func (q *Queries) NextFieldReportNumber(ctx context.Context, event int32) (int32, error) {
+	row := q.db.QueryRowContext(ctx, nextFieldReportNumber, event)
+	var next_id int32
+	err := row.Scan(&next_id)
+	return next_id, err
 }
 
-const maxIncidentNumber = `-- name: MaxIncidentNumber :one
-select coalesce(max(NUMBER), 0) from INCIDENT
+const nextIncidentNumber = `-- name: NextIncidentNumber :one
+select NUMBER + 1 as NEXT_ID
+from INCIDENT
 where EVENT = ?
+union
+select 1
+order by 1 desc
+limit 1
 `
 
-func (q *Queries) MaxIncidentNumber(ctx context.Context, event int32) (interface{}, error) {
-	row := q.db.QueryRowContext(ctx, maxIncidentNumber, event)
-	var coalesce interface{}
-	err := row.Scan(&coalesce)
-	return coalesce, err
+// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+func (q *Queries) NextIncidentNumber(ctx context.Context, event int32) (int32, error) {
+	row := q.db.QueryRowContext(ctx, nextIncidentNumber, event)
+	var next_id int32
+	err := row.Scan(&next_id)
+	return next_id, err
 }
 
 const queryEventID = `-- name: QueryEventID :one
@@ -1084,12 +1096,6 @@ func (q *Queries) SetFieldReportReportEntryStricken(ctx context.Context, arg Set
 }
 
 const setIncidentReportEntryStricken = `-- name: SetIncidentReportEntryStricken :exec
-/*
-   The "stricken" queries seem bloated at first blush, because the whole
-   "where ID in (..." could just be "where ID =". What it's doing though is
-   ensuring that the provided eventID and incidentNumber actually align with
-   the reportEntryID in question, and that's important for authorization purposes.
-*/
 
 update REPORT_ENTRY
 set STRICKEN = ?
@@ -1109,6 +1115,10 @@ type SetIncidentReportEntryStrickenParams struct {
 	ReportEntry    int32
 }
 
+// The "stricken" queries seem bloated at first blush, because the whole
+// "where ID in (..." could just be "where ID =". What it's doing though is
+// ensuring that the provided eventID and incidentNumber actually align with
+// the reportEntryID in question, and that's important for authorization purposes.
 func (q *Queries) SetIncidentReportEntryStricken(ctx context.Context, arg SetIncidentReportEntryStrickenParams) error {
 	_, err := q.db.ExecContext(ctx, setIncidentReportEntryStricken,
 		arg.Stricken,

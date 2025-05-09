@@ -109,6 +109,21 @@ func (a ApiHelper) getTypes(ctx context.Context, includeHidden bool) (imsjson.In
 	return *bod.(*imsjson.IncidentTypes), resp
 }
 
+func (a ApiHelper) editStreets(ctx context.Context, req imsjson.EventsStreets) *http.Response {
+	a.t.Helper()
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/streets").String())
+}
+
+func (a ApiHelper) getStreets(ctx context.Context, eventName string) (imsjson.EventsStreets, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/streets").String()
+	if eventName != "" {
+		path += "?event_id=" + eventName
+	}
+	bod, resp := a.imsGet(ctx, path, &imsjson.EventsStreets{})
+	return *bod.(*imsjson.EventsStreets), resp
+}
+
 func (a ApiHelper) newFieldReport(ctx context.Context, req imsjson.FieldReport) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/field_reports").String())

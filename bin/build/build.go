@@ -70,8 +70,8 @@ func mustRun(cmd *exec.Cmd) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("`%v`: failed!", strings.Join(cmd.Args, " "))
-		must(err)
 		log.Printf("failed command output:\n%v", string(output))
+		must(err)
 	}
 	log.Printf("`%v`: succeeded", strings.Join(cmd.Args, " "))
 }

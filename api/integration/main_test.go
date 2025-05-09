@@ -105,7 +105,7 @@ func setup(ctx context.Context, tempDir string) {
 			DirectoryID: 80808,
 			Password:    authn.NewSalted("password"),
 			Onsite:      true,
-			Positions:   nil,
+			Positions:   []string{"Nooperator"},
 			Teams:       nil,
 		},
 		{
@@ -116,7 +116,7 @@ func setup(ctx context.Context, tempDir string) {
 			Password:    authn.NewSalted(")'("),
 			Onsite:      true,
 			Positions:   nil,
-			Teams:       nil,
+			Teams:       []string{"Brown Dot"},
 		},
 	}
 	must(shared.cfg.Validate())

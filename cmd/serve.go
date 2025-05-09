@@ -140,7 +140,7 @@ func lookupEnv(key string) (string, bool) {
 // mustInitConfig reads in the .env file and ENV variables if set.
 func mustInitConfig(envfileFlag *pflag.Flag) *conf.IMSConfig {
 	newCfg := conf.DefaultIMS()
-	err := godotenv.Load(envFilename)
+	err := godotenv.Load(envfileFlag.Value.String())
 
 	if err != nil && !os.IsNotExist(err) {
 		slog.Error("Exiting due to error loading .env file", "err", err)

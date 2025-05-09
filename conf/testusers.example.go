@@ -18,10 +18,16 @@ package conf
 
 import (
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
+	"runtime"
+	"strings"
 )
 
-func testusers() []TestUser {
-	return []TestUser{
+func init() {
+	// Configure TestUsers here. Note that these won't be loaded by the server if
+	// this filename contains ".example", so you'll want to copy this file as
+	// "testusers.go" so that the server knows to load it. That'll also let you make
+	// local customizations more easily, because testusers.go is gitignored.
+	addTestUsers := []TestUser{
 		{
 			Handle:      "Hardware",
 			Email:       "hardware@rangers.brc",
@@ -73,4 +79,9 @@ func testusers() []TestUser {
 			Teams:       []string{},
 		},
 	}
+	_, filename, _, _ := runtime.Caller(0)
+	if strings.Contains(filename, ".example") {
+		return
+	}
+	defaultTestUsers = append(defaultTestUsers, addTestUsers...)
 }

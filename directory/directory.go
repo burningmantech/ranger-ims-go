@@ -130,11 +130,7 @@ func (store *UserStore) GetUserPositionsTeams(ctx context.Context, userID int64)
 
 func (store *UserStore) getRangersByIdRow(ctx context.Context) ([]clubhousequeries.RangersByIdRow, error) {
 	if store.testUsers == nil {
-		results, err := clubhousequeries.New(store.clubhouseDB).RangersById(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("[RangersById] %w", err)
-		}
-		return results, nil
+		return clubhousequeries.New(store.clubhouseDB).RangersById(ctx)
 	}
 
 	var rows []clubhousequeries.RangersByIdRow
@@ -153,11 +149,7 @@ func (store *UserStore) getRangersByIdRow(ctx context.Context) ([]clubhousequeri
 
 func (store *UserStore) getTeamsRows(ctx context.Context) ([]clubhousequeries.TeamsRow, error) {
 	if store.testUsers == nil {
-		teamRows, err := clubhousequeries.New(store.clubhouseDB).Teams(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("[Teams]: %w", err)
-		}
-		return teamRows, nil
+		return clubhousequeries.New(store.clubhouseDB).Teams(ctx)
 	}
 
 	var rows []clubhousequeries.TeamsRow
@@ -177,11 +169,7 @@ func (store *UserStore) getTeamsRows(ctx context.Context) ([]clubhousequeries.Te
 
 func (store *UserStore) getPositionsRows(ctx context.Context) ([]clubhousequeries.PositionsRow, error) {
 	if store.testUsers == nil {
-		posRows, err := clubhousequeries.New(store.clubhouseDB).Positions(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("[Positions]: %w", err)
-		}
-		return posRows, nil
+		return clubhousequeries.New(store.clubhouseDB).Positions(ctx)
 	}
 
 	var rows []clubhousequeries.PositionsRow
@@ -201,11 +189,7 @@ func (store *UserStore) getPositionsRows(ctx context.Context) ([]clubhousequerie
 
 func (store *UserStore) getPersonTeamsRows(ctx context.Context) ([]clubhousequeries.PersonTeamsRow, error) {
 	if store.testUsers == nil {
-		rows, err := clubhousequeries.New(store.clubhouseDB).PersonTeams(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("[PersonTeams]: %w", err)
-		}
-		return rows, nil
+		return clubhousequeries.New(store.clubhouseDB).PersonTeams(ctx)
 	}
 
 	var rows []clubhousequeries.PersonTeamsRow
@@ -223,11 +207,7 @@ func (store *UserStore) getPersonTeamsRows(ctx context.Context) ([]clubhousequer
 
 func (store *UserStore) getPersonPositionsRows(ctx context.Context) ([]clubhousequeries.PersonPosition, error) {
 	if store.testUsers == nil {
-		rows, err := clubhousequeries.New(store.clubhouseDB).PersonPositions(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("[PersonPositions]: %w", err)
-		}
-		return rows, nil
+		return clubhousequeries.New(store.clubhouseDB).PersonPositions(ctx)
 	}
 
 	var rows []clubhousequeries.PersonPosition

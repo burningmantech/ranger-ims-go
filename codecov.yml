@@ -17,7 +17,7 @@ coverage:
 ignore:
   # These are glorified shell scripts in the form of Go programs (for cross-platform use),
   # and they are separate from the server program.
-  - "bin/build"
+  - "bin"
   # This is generated code from templ.
   - "web/template/*.go"
   # These are generated code from sqlc.

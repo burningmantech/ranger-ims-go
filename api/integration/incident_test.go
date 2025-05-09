@@ -204,7 +204,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	// Use normal user to create a new Incident
+	// Use normal user to create a new Incident.
 	incidentReq := sampleIncident1(eventName)
 	num := apisNonAdmin.newIncidentSuccess(ctx, incidentReq)
 	incidentReq.Number = num

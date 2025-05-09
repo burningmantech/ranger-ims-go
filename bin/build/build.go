@@ -32,6 +32,7 @@ func main() {
 	// that's currently the case. `tsc` had a `--listEmittedFiles` flag that would
 	// aid here, but `tsgo` doesn't yet have that feature.
 	jsFiles, err := fs.Glob(repo.FS(), filepath.Join("web", "static", "*.js"))
+	must(err)
 	for _, match := range jsFiles {
 		addTSGeneratedHeader(repo, match)
 	}

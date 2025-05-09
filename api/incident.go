@@ -91,18 +91,16 @@ func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Incident details", err)
 			return
 		}
-		lastModified := time.Unix(int64(r.Incident.Created), 0)
+		lastModified := int64(r.Incident.Created)
 		for _, re := range entriesByIncident[r.Incident.Number] {
-			if re.Created.After(lastModified) {
-				lastModified = re.Created
-			}
+			lastModified = max(lastModified, re.Created.Unix())
 		}
 		resp = append(resp, imsjson.Incident{
 			Event:        event.Name,
 			EventID:      event.ID,
 			Number:       r.Incident.Number,
 			Created:      time.Unix(int64(r.Incident.Created), 0),
-			LastModified: lastModified,
+			LastModified: time.Unix(lastModified, 0),
 			State:        string(r.Incident.State),
 			Priority:     r.Incident.Priority,
 			Summary:      conv.StringOrNil(r.Incident.Summary),
@@ -168,18 +166,16 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	lastModified := time.Unix(int64(storedRow.Incident.Created), 0)
+	lastModified := int64(storedRow.Incident.Created)
 	for _, re := range resultEntries {
-		if re.Created.After(lastModified) {
-			lastModified = re.Created
-		}
+		lastModified = max(lastModified, re.Created.Unix())
 	}
 	result := imsjson.Incident{
 		Event:        event.Name,
 		EventID:      event.ID,
 		Number:       storedRow.Incident.Number,
 		Created:      time.Unix(int64(storedRow.Incident.Created), 0),
-		LastModified: lastModified,
+		LastModified: time.Unix(lastModified, 0),
 		State:        string(storedRow.Incident.State),
 		Priority:     storedRow.Incident.Priority,
 		Summary:      conv.StringOrNil(storedRow.Incident.Summary),

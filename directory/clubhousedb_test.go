@@ -7,7 +7,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/store"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -25,13 +24,16 @@ func TestMariaDB(t *testing.T) {
 	_, sqlDB := newEmptyDB(t, ctx, dbName, username, password)
 	db := directory.DB{DB: sqlDB}
 	_, err := db.ExecContext(ctx, "select 1")
-	assert.NoError(t, err)
-	_, err = db.PrepareContext(ctx, "select 1")
-	assert.NoError(t, err)
-	_, err = db.QueryContext(ctx, "select 1")
-	assert.NoError(t, err)
-	r := db.QueryRowContext(ctx, "select 1")
-	assert.NoError(t, r.Err())
+	require.NoError(t, err)
+	s, err := db.PrepareContext(ctx, "select 1")
+	require.NoError(t, err)
+	require.NoError(t, s.Close())
+	rows, err := db.QueryContext(ctx, "select 1")
+	require.NoError(t, err)
+	require.NoError(t, rows.Err())
+	require.NoError(t, rows.Close())
+	row := db.QueryRowContext(ctx, "select 1")
+	require.NoError(t, row.Err())
 }
 
 func newEmptyDB(t *testing.T, ctx context.Context, database, username, password string) (testcontainers.Container, *sql.DB) {

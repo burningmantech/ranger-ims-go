@@ -171,8 +171,38 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	// confirm it worked
+	// confirm it's detached
 	fieldReportAfterDetach, resp := apisAlice.getFieldReport(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Nil(t, fieldReportAfterDetach.Incident)
+
+	// attach again, this time via the incident API
+	resp = apisAlice.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:        eventName,
+		Number:       incidentNumber,
+		FieldReports: &[]int32{num},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// check it attached
+	fieldReportAfterAttach, resp = apisAlice.getFieldReport(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, incidentNumber, *fieldReportAfterAttach.Incident)
+
+	// detach again, this time via the incident API
+	resp = apisAlice.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:        eventName,
+		Number:       incidentNumber,
+		FieldReports: &[]int32{},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// check it attached
+	fieldReportAfterDetach, resp = apisAlice.getFieldReport(ctx, eventName, num)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Nil(t, fieldReportAfterDetach.Incident)

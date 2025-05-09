@@ -88,12 +88,12 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
 
 	// Use the admin JWT to create a new event,
-	// then give the normal user Reporter role on that event
+	// then give the normal user Writer role on that event
 	eventName := uuid.NewString()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	resp = apisAdmin.addReporter(ctx, eventName, userAliceHandle)
+	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -110,6 +110,14 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 		Event:    fieldReportReq.Event,
 		Number:   num,
 		Incident: ptr(int32(12345)),
+		ReportEntries: []imsjson.ReportEntry{
+			{
+				Text: "new details!",
+			},
+			{
+				Text: "",
+			},
+		},
 	}
 
 	resp = apisAlice.updateFieldReport(ctx, eventName, num, updates)
@@ -143,6 +151,31 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 		Incident: nil,
 	}
 	requireEqualFieldReport(t, expected, retrievedFieldReportAfterUpdate)
+
+	// make an incident, then attach to it
+	incidentNumber := apisAlice.newIncidentSuccess(ctx, imsjson.Incident{
+		Event: eventName,
+	})
+	resp = apisAlice.attachFieldReportToIncident(ctx, eventName, num, incidentNumber)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// confirm it worked
+	fieldReportAfterAttach, resp := apisAlice.getFieldReport(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, incidentNumber, *fieldReportAfterAttach.Incident)
+
+	// detach again
+	resp = apisAlice.detachFieldReportFromIncident(ctx, eventName, num)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// confirm it worked
+	fieldReportAfterDetach, resp := apisAlice.getFieldReport(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Nil(t, fieldReportAfterDetach.Incident)
 }
 
 func TestCreateAndAttachFileToFieldReport(t *testing.T) {

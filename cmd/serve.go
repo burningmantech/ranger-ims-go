@@ -66,9 +66,9 @@ func runServer(cmd *cobra.Command, args []string) {
 	var userStore *directory.UserStore
 	switch imsCfg.Directory.Directory {
 	case conf.DirectoryTypeClubhouseDB:
-		db, err := directory.MariaDB(ctx, imsCfg)
+		db, err := directory.MariaDB(ctx, imsCfg.Directory.ClubhouseDB)
 		must(err)
-		userStore, err = directory.NewUserStore(nil, db, imsCfg.Directory.InMemoryCacheTTL)
+		userStore, err = directory.NewUserStore(nil, &directory.DB{DB: db}, imsCfg.Directory.InMemoryCacheTTL)
 		must(err)
 	case conf.DirectoryTypeTestUsers:
 		userStore, err = directory.NewUserStore(imsCfg.Directory.TestUsers, nil, imsCfg.Directory.InMemoryCacheTTL)

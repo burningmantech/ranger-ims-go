@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"io"
 	"testing"
 )
 
@@ -27,13 +28,19 @@ func TestMariaDB(t *testing.T) {
 	require.NoError(t, err)
 	s, err := db.PrepareContext(ctx, "select 1")
 	require.NoError(t, err)
-	require.NoError(t, s.Close())
+	defer shut(t, s)
+	//nolint:sqlclosecheck
 	rows, err := db.QueryContext(ctx, "select 1")
 	require.NoError(t, err)
+	defer shut(t, rows)
 	require.NoError(t, rows.Err())
-	require.NoError(t, rows.Close())
 	row := db.QueryRowContext(ctx, "select 1")
 	require.NoError(t, row.Err())
+}
+
+func shut(t *testing.T, s io.Closer) {
+	t.Helper()
+	require.NoError(t, s.Close())
 }
 
 func newEmptyDB(t *testing.T, ctx context.Context, database, username, password string) (testcontainers.Container, *sql.DB) {

@@ -290,7 +290,6 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 	}
 
-	const MiB float64 = 1 << 20
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
 	reID, err := addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
@@ -384,7 +383,6 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 	}
 
-	const MiB float64 = 1 << 20
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
 	reID, err := addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber,

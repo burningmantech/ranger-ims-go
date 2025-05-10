@@ -22,12 +22,10 @@ func main() {
 
 	repo, err := os.OpenRoot(repoRoot(ctx))
 	must(err)
-	log.Printf("cd'ing to repo root: %v", repo.Name())
-	must(os.Chdir(repo.Name()))
 
-	mustRun(exec.CommandContext(ctx, "go", "tool", "sqlc", "generate"))
-	mustRun(exec.CommandContext(ctx, "go", "tool", "templ", "generate"))
-	mustRun(exec.CommandContext(ctx, "go", "tool", "tsgo"))
+	mustRunInDir(exec.CommandContext(ctx, "go", "tool", "sqlc", "generate"), repo.Name())
+	mustRunInDir(exec.CommandContext(ctx, "go", "tool", "templ", "generate"), repo.Name())
+	mustRunInDir(exec.CommandContext(ctx, "go", "tool", "tsgo"), repo.Name())
 	// We presume that all of these JS files were generated from TypeScript, as
 	// that's currently the case. `tsc` had a `--listEmittedFiles` flag that would
 	// aid here, but `tsgo` doesn't yet have that feature.
@@ -36,8 +34,11 @@ func main() {
 	for _, match := range jsFiles {
 		addTSGeneratedHeader(repo, match)
 	}
-	mustRun(exec.CommandContext(ctx, "go", "run", filepath.Join("bin", "fetchclientdeps", "fetchclientdeps.go")))
-	mustRun(exec.CommandContext(ctx, "go", "build"))
+	mustRunInDir(
+		exec.CommandContext(ctx, "go", "run", "fetchclientdeps.go"),
+		filepath.Join(repo.Name(), "bin", "fetchclientdeps"),
+	)
+	mustRunInDir(exec.CommandContext(ctx, "go", "build"), repo.Name())
 	log.Println("All done! You can now run ./ranger-ims-go")
 }
 
@@ -66,8 +67,9 @@ func addTSGeneratedHeader(repo *os.Root, filename string) {
 	must(f.Close())
 }
 
-func mustRun(cmd *exec.Cmd) {
-	log.Printf("`%v`: running", strings.Join(cmd.Args, " "))
+func mustRunInDir(cmd *exec.Cmd, dir string) {
+	cmd.Dir = dir
+	log.Printf("`%v`: running in %v", strings.Join(cmd.Args, " "), dir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("`%v`: failed!", strings.Join(cmd.Args, " "))

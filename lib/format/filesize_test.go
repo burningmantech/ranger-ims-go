@@ -10,6 +10,8 @@ import (
 const ki = 1024
 
 func TestHumanByteSize(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "invalid", format.HumanByteSize(-100))
 	assert.Equal(t, "0 B", format.HumanByteSize(0))
 	assert.Equal(t, "2 B", format.HumanByteSize(2))

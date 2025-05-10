@@ -78,14 +78,22 @@ func (c *IMSConfig) Validate() error {
 	errs = append(errs, c.AttachmentsStore.Type.Validate())
 	if c.AttachmentsStore.Type == AttachmentsStoreLocal {
 		if c.AttachmentsStore.Local.Dir == nil {
-			errs = append(errs, errors.New("local attachments store has been requested, "+
-				"so a local directory must be provided"))
+			errs = append(errs, errors.New("local attachments store requires a local directory"))
 		}
+		c.AttachmentsStore.S3 = S3Attachments{}
 	}
-	if c.Core.Deployment != "dev" {
-		if c.Directory.Directory == DirectoryTypeTestUsers {
-			errs = append(errs, errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
+	if c.AttachmentsStore.Type == AttachmentsStoreS3 {
+		s3 := c.AttachmentsStore.S3
+		if s3.AWSAccessKeyID == "" || s3.AWSSecretAccessKey == "" || s3.AWSRegion == "" || s3.Bucket == "" {
+			errs = append(errs, errors.New("s3 attachments store requires Key ID, Secret Key, Default AWSRegion, and Bucket"))
 		}
+		if c.AttachmentsStore.Local.Dir != nil {
+			errs = append(errs, c.AttachmentsStore.Local.Dir.Close())
+		}
+		c.AttachmentsStore.Local = LocalAttachments{}
+	}
+	if c.Core.Deployment != "dev" && c.Directory.Directory == DirectoryTypeTestUsers {
+		errs = append(errs, errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
 	}
 	if c.Core.AccessTokenLifetime > c.Core.RefreshTokenLifetime {
 		errs = append(errs, errors.New("access token lifetime should not be greater than refresh token lifetime"))
@@ -223,9 +231,9 @@ type LocalAttachments struct {
 }
 
 type S3Attachments struct {
-	S3AccessKeyID     string
-	S3SecretAccessKey string `redact:"true"`
-	S3DefaultRegion   string
-	S3Bucket          string
-	S3BucketSubPath   string
+	AWSAccessKeyID     string
+	AWSSecretAccessKey string `redact:"true"`
+	AWSRegion          string
+	Bucket             string
+	CommonKeyPrefix    string
 }

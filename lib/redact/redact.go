@@ -3,6 +3,7 @@ package redact
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -34,7 +35,11 @@ func toBuffer(w *bytesBuffer, v reflect.Value, indent string) {
 			// For simple types, we can just print them on one line
 			printVal := "🤐🤐🤐"
 			if !redact {
-				printVal = fmt.Sprint(f.Interface())
+				if f.Type() == reflect.TypeFor[*os.Root]() && f.Interface().(*os.Root) != nil {
+					printVal = f.Interface().(*os.Root).Name()
+				} else {
+					printVal = fmt.Sprint(f.Interface())
+				}
 			}
 			w.fprintf("%v%v = %v\n", indent, typeOfT.Field(i).Name, printVal)
 		case reflect.Invalid, reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,

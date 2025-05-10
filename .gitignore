@@ -31,3 +31,6 @@ go.work.sum
 ranger-ims-go
 
 node_modules
+
+# the default dir for storing attachments
+ims-attachments

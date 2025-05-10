@@ -246,6 +246,23 @@ func mustInitConfig(envfileFlag *pflag.Flag) *conf.IMSConfig {
 		must(err)
 		newCfg.AttachmentsStore.Local.Dir = root
 	}
+	// These three AWS env vars use the standard names, hence no "IMS_" prefix.
+	if v, ok := lookupEnv("AWS_ACCESS_KEY_ID"); ok {
+		newCfg.AttachmentsStore.S3.AWSAccessKeyID = v
+	}
+	if v, ok := lookupEnv("AWS_SECRET_ACCESS_KEY"); ok {
+		newCfg.AttachmentsStore.S3.AWSSecretAccessKey = v
+	}
+	if v, ok := lookupEnv("AWS_REGION"); ok {
+		newCfg.AttachmentsStore.S3.AWSRegion = v
+	}
+
+	if v, ok := lookupEnv("IMS_ATTACHMENTS_S3_BUCKET"); ok {
+		newCfg.AttachmentsStore.S3.Bucket = v
+	}
+	if v, ok := lookupEnv("IMS_ATTACHMENTS_S3_COMMON_KEY_PREFIX"); ok {
+		newCfg.AttachmentsStore.S3.CommonKeyPrefix = v
+	}
 
 	must(newCfg.Validate())
 	return newCfg

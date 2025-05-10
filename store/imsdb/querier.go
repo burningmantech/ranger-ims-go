@@ -41,9 +41,9 @@ type Querier interface {
 	Incident_ReportEntries(ctx context.Context, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
 	Incidents(ctx context.Context, event int32) ([]IncidentsRow, error)
 	Incidents_ReportEntries(ctx context.Context, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error)
-	// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
 	NextFieldReportNumber(ctx context.Context, event int32) (int32, error)
-	// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
 	NextIncidentNumber(ctx context.Context, event int32) (int32, error)
 	QueryEventID(ctx context.Context, name string) (QueryEventIDRow, error)
 	SchemaVersion(ctx context.Context) (int16, error)

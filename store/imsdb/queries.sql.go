@@ -1014,7 +1014,7 @@ order by 1 desc
 limit 1
 `
 
-// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
 func (q *Queries) NextFieldReportNumber(ctx context.Context, event int32) (int32, error) {
 	row := q.db.QueryRowContext(ctx, nextFieldReportNumber, event)
 	var next_id int32
@@ -1032,7 +1032,7 @@ order by 1 desc
 limit 1
 `
 
-// This doesn't use "MAX" because sqlc doesn't interpret aggregation results correctly.
+// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
 func (q *Queries) NextIncidentNumber(ctx context.Context, event int32) (int32, error) {
 	row := q.db.QueryRowContext(ctx, nextIncidentNumber, event)
 	var next_id int32

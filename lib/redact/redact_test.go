@@ -1,8 +1,11 @@
 package redact_test
 
 import (
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/lib/redact"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"os"
 	"strings"
 	"testing"
 )
@@ -14,6 +17,8 @@ type ExampleType struct {
 	Secret      Secret   `redact:"true"`
 	Secrets     []Secret `redact:"true"`
 	MoreSecrets []Secret `redact:"true"`
+	Dir1        *os.Root
+	Dir2        *os.Root
 }
 
 type Secret struct {
@@ -23,6 +28,8 @@ type Secret struct {
 
 func TestToBytes(t *testing.T) {
 	t.Parallel()
+	root, err := os.OpenRoot(t.TempDir())
+	require.NoError(t, err)
 	e := ExampleType{
 		SomeString: "This is a string",
 		SomeNum:    123456,
@@ -36,8 +43,9 @@ func TestToBytes(t *testing.T) {
 			PIN:    123,
 		},
 		Secrets: []Secret{{}, {}},
+		Dir2:    root,
 	}
-	expected := `
+	expected := fmt.Sprintf(`
 SomeString = This is a string
 SomeNum = 123456
 Passwords = [🤐🤐🤐🤐]
@@ -48,7 +56,9 @@ Secrets[0]
 Secrets[1]
     🤐🤐
 MoreSecrets[]: [empty]
-`
+Dir1 = <nil>
+Dir2 = %v
+`, root.Name())
 	b := redact.ToBytes(&e)
 	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(string(b)))
 }

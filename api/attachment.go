@@ -22,8 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/format"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"io"
@@ -113,10 +115,22 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 		file, err = action.attachmentsStore.Local.Dir.Open(filename)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				handleErr(w, req, http.StatusNotFound, "File doesn't exist", err)
+				handleErr(w, req, http.StatusNotFound, "File does not exist", err)
 				return
 			}
 			handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
+			return
+		}
+	case conf.AttachmentsStoreS3:
+		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + filename
+		var exists bool
+		file, exists, err = attachment.GetObject(ctx, action.attachmentsStore.S3.Bucket, s3Name)
+		if err != nil {
+			handleErr(w, req, http.StatusInternalServerError, "Failed to get attachment", err)
+			return
+		}
+		if !exists {
+			handleErr(w, req, http.StatusNotFound, "File does not exist", err)
 			return
 		}
 	default:
@@ -192,6 +206,18 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 			handleErr(w, req, http.StatusInternalServerError, "Failed to open file", err)
 			return
 		}
+	case conf.AttachmentsStoreS3:
+		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + filename
+		var exists bool
+		file, exists, err = attachment.GetObject(ctx, action.attachmentsStore.S3.Bucket, s3Name)
+		if err != nil {
+			handleErr(w, req, http.StatusInternalServerError, "Failed to get attachment", err)
+			return
+		}
+		if !exists {
+			handleErr(w, req, http.StatusNotFound, "File does not exist", err)
+			return
+		}
 	default:
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 		return
@@ -254,13 +280,19 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 			handleErr(w, req, http.StatusInternalServerError, "Failed to write file", err)
 			return
 		}
+	case conf.AttachmentsStoreS3:
+		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
+		if err = attachment.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); err != nil {
+			handleErr(w, req, http.StatusInternalServerError, "Failed to upload file to S3", err)
+			return
+		}
 	default:
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 	}
 
 	const MiB float64 = 1 << 20
-	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %.3f MiB",
-		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, float64(fiHead.Size)/MiB)
+	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
+		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
 	reID, err := addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if err != nil {
@@ -342,13 +374,19 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 			handleErr(w, req, http.StatusInternalServerError, "Failed to write file", err)
 			return
 		}
+	case conf.AttachmentsStoreS3:
+		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
+		if err = attachment.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); err != nil {
+			handleErr(w, req, http.StatusInternalServerError, "Failed to upload file to S3", err)
+			return
+		}
 	default:
 		handleErr(w, req, http.StatusNotFound, "Attachments are not currently supported", nil)
 	}
 
 	const MiB float64 = 1 << 20
-	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %.3f MiB",
-		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, float64(fiHead.Size)/MiB)
+	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
+		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
 	reID, err := addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if err != nil {
@@ -381,11 +419,8 @@ func sniffFile(fi multipart.File) (contentType string, extension string, err err
 
 	// We'll detect the contentType and file extension, rather than trust any value from the client.
 	sniffedContentType := http.DetectContentType(head)
-	extensions, err := mime.ExtensionsByType(sniffedContentType)
-	if err == nil && len(extensions) > 0 {
-		extension = extensions[0]
-	}
-	return sniffedContentType, extension, nil
+
+	return sniffedContentType, extensionByType(sniffedContentType), nil
 }
 
 func extensionByType(contentType string) string {
@@ -397,7 +432,7 @@ func extensionByType(contentType string) string {
 	switch contentType {
 	case "image/jpeg", "image/jpg":
 		extension = ".jpg"
-	case "text/plain":
+	case "text/plain", "text/plain; charset=utf-8":
 		extension = ".txt"
 	default:
 		extensions, _ := mime.ExtensionsByType(contentType)

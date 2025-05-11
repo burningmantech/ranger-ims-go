@@ -229,6 +229,7 @@ function initDataTables() {
                 "className": "incident_number text-right all",
                 "data": "number",
                 "defaultContent": null,
+                "render": ims.renderIncidentNumber,
                 "cellType": "th",
                 // "all" class --> very high responsivePriority
             },
@@ -295,10 +296,26 @@ function initDataTables() {
             [0, "dsc"],
         ],
         "createdRow": function (row, incident, _index) {
-            row.addEventListener("click", function (_e) {
-                // Open new context with link
-                window.open(`${ims.urlReplace(url_viewIncidents)}/${incident.number}`, "Incident:" + ims.pathIds.eventID + "#" + incident.number);
-            });
+            const openLink = function (e) {
+                // If the user clicked on a link, then let them access that link without the JS below.
+                if (e.target?.constructor?.name === "HTMLAnchorElement") {
+                    return;
+                }
+                const isLeftClick = e.type === "click";
+                const isMiddleClick = e.type === "auxclick" && e.button === 1;
+                const holdingModifier = e.altKey || e.ctrlKey || e.metaKey;
+                // Left click while not holding a modifier key: open in the same tab
+                if (isLeftClick && !holdingModifier) {
+                    window.location.href = `${ims.urlReplace(url_viewIncidents)}/${incident.number}`;
+                }
+                // Left click while holding modifier key or middle click: open in a new tab
+                if (isMiddleClick || (isLeftClick && holdingModifier)) {
+                    window.open(`${ims.urlReplace(url_viewIncidents)}/${incident.number}`, "Incident:" + ims.pathIds.eventID + "#" + incident.number);
+                    return;
+                }
+            };
+            row.addEventListener("click", openLink);
+            row.addEventListener("auxclick", openLink);
             row.getElementsByClassName("incident_created")[0]
                 .setAttribute("title", ims.fullDateTime.format(Date.parse(incident.created)));
             row.getElementsByClassName("incident_last_modified")[0]
@@ -416,9 +433,10 @@ function initSearchField() {
             // This will work regardless of whether that incident is visible with the current filters.
             const val = searchInput.value;
             if (ims.integerRegExp.test(val)) {
-                // Open new context with link
-                window.open(ims.urlReplace(url_viewIncidents) + val, "Incident:" + ims.pathIds.eventID + "#" + val);
+                // Open the Incident
+                window.location.href = `${ims.urlReplace(url_viewIncidents)}/${val}`;
                 searchInput.value = "";
+                return;
             }
             // Otherwise, search immediately on Enter.
             clearTimeout(_searchDelayTimer);

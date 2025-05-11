@@ -22,6 +22,7 @@ import (
 	"embed"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
+	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
 	"strings"
@@ -39,8 +40,15 @@ var CurrentSchema string
 //go:embed schema/*-from-*.sql
 var Migrations embed.FS
 
-func MariaDB(ctx context.Context, mariaCfg conf.StoreMariaDB, migrateDB bool) (*sql.DB, error) {
+func IMSDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.DB, error) {
+	if dbStoreCfg.Type == conf.DBStoreTypeNoOp {
+		// This is a DB that does nothing and returns nothing on querying.
+		// It's really only useful as a stand-in for testing.
+		slog.Info("Using NoOp DB")
+		return sql.Open("noop", "")
+	}
 	slog.Info("Setting up IMS DB connection")
+	mariaCfg := dbStoreCfg.MariaDB
 
 	// Capture connection properties.
 	cfg := mysql.NewConfig()

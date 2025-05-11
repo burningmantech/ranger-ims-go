@@ -1,12 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
 
+// TestMustInitConfig should be the only test in the whole repo that
+// so freely plays around with environment variables, since parallel
+// testing means other tests will notice the result of "Setenvs" that
+// occur at the same time.
+//
+// All other tests should use a conf.IMSConfig struct instead, as that
+// is unaffected by environment variables changing later.
 func TestMustInitConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv("IMS_HOSTNAME", "host")
@@ -33,8 +41,13 @@ func TestMustInitConfig(t *testing.T) {
 	t.Setenv("IMS_DMS_PASSWORD", "woo")
 	t.Setenv("IMS_ATTACHMENTS_STORE", "local")
 	t.Setenv("IMS_ATTACHMENTS_LOCAL_DIR", tempDir)
+	t.Setenv("AWS_ACCESS_KEY_ID", "my name")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "my key")
+	t.Setenv("AWS_REGION", "mars")
+	t.Setenv("IMS_ATTACHMENTS_S3_BUCKET", "big-bucket")
+	t.Setenv("IMS_ATTACHMENTS_S3_COMMON_KEY_PREFIX", "safe/dir")
 
-	cfg := mustInitConfig(serveCmd.Flags().Lookup(envfileFlagName))
+	cfg := mustInitConfig(".env")
 
 	assert.Equal(t, "host", cfg.Core.Host)
 	assert.Equal(t, int32(1234), cfg.Core.Port)
@@ -59,4 +72,25 @@ func TestMustInitConfig(t *testing.T) {
 	assert.Equal(t, "woo", cfg.Directory.ClubhouseDB.Password)
 	assert.Equal(t, conf.AttachmentsStoreLocal, cfg.AttachmentsStore.Type)
 	assert.Equal(t, tempDir, cfg.AttachmentsStore.Local.Dir.Name())
+	assert.Equal(t, "my name", cfg.AttachmentsStore.S3.AWSAccessKeyID)
+	assert.Equal(t, "my key", cfg.AttachmentsStore.S3.AWSSecretAccessKey)
+	assert.Equal(t, "mars", cfg.AttachmentsStore.S3.AWSRegion)
+	assert.Equal(t, "big-bucket", cfg.AttachmentsStore.S3.Bucket)
+	assert.Equal(t, "safe/dir", cfg.AttachmentsStore.S3.CommonKeyPrefix)
+}
+
+func TestRunServer(t *testing.T) {
+	t.Parallel()
+	imsCfg := conf.DefaultIMS()
+
+	// this will have the server pick a random port
+	imsCfg.Core.Port = 0
+	imsCfg.Directory.Directory = conf.DirectoryTypeTestUsers
+	imsCfg.Store.Type = conf.DBStoreTypeNoOp
+
+	// Start the server, then cancel it.
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	exitCode := runServerInternal(ctx, imsCfg)
+	assert.Equal(t, 69, exitCode)
 }

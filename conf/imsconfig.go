@@ -43,8 +43,9 @@ func DefaultIMS() *IMSConfig {
 			CacheControlShort:    20 * time.Minute,
 			CacheControlLong:     2 * time.Hour,
 		},
-		Store: Store{
-			MariaDB: StoreMariaDB{
+		Store: DBStore{
+			Type: DBStoreTypeMaria,
+			MariaDB: DBStoreMaria{
 				HostName: "localhost",
 				HostPort: 3306,
 				Database: "ims",
@@ -68,6 +69,10 @@ func DefaultIMS() *IMSConfig {
 // Validate should be called after an IMSConfig has been fully configured.
 func (c *IMSConfig) Validate() error {
 	var errs []error
+	errs = append(errs, c.Store.Type.Validate())
+	if c.Store.Type == DBStoreTypeNoOp {
+		c.Store.MariaDB = DBStoreMaria{}
+	}
 	errs = append(errs, c.Directory.Directory.Validate())
 	if c.Directory.Directory != DirectoryTypeTestUsers {
 		c.Directory.TestUsers = nil
@@ -112,7 +117,7 @@ func (c *IMSConfig) String() string {
 type IMSConfig struct {
 	Core             ConfigCore
 	AttachmentsStore AttachmentsStore
-	Store            Store
+	Store            DBStore
 	Directory        Directory
 }
 
@@ -121,16 +126,29 @@ type DirectoryType string
 type AttachmentsStoreType string
 type DeploymentType string
 
+type DBStoreType string
+
 const (
 	DirectoryTypeClubhouseDB DirectoryType        = "clubhousedb"
 	DirectoryTypeTestUsers   DirectoryType        = "testusers"
 	AttachmentsStoreLocal    AttachmentsStoreType = "local"
 	AttachmentsStoreS3       AttachmentsStoreType = "s3"
 	AttachmentsStoreNone     AttachmentsStoreType = "none"
-	DeploymentTypeDev                             = "dev"
-	DeploymentTypeStaging                         = "staging"
-	DeploymentTypeProduction                      = "production"
+	DeploymentTypeDev        DeploymentType       = "dev"
+	DeploymentTypeStaging    DeploymentType       = "staging"
+	DeploymentTypeProduction DeploymentType       = "production"
+	DBStoreTypeMaria         DBStoreType          = "mariadb"
+	DBStoreTypeNoOp          DBStoreType          = "noop"
 )
+
+func (d DBStoreType) Validate() error {
+	switch d {
+	case DBStoreTypeMaria, DBStoreTypeNoOp:
+		return nil
+	default:
+		return fmt.Errorf("unknown DB store type %v", d)
+	}
+}
 
 func (d DirectoryType) Validate() error {
 	switch d {
@@ -183,11 +201,12 @@ type ConfigCore struct {
 	LogLevel string
 }
 
-type Store struct {
-	MariaDB StoreMariaDB
+type DBStore struct {
+	Type    DBStoreType
+	MariaDB DBStoreMaria
 }
 
-type StoreMariaDB struct {
+type DBStoreMaria struct {
 	HostName string
 	HostPort int32
 	Database string

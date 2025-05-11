@@ -27,9 +27,9 @@ import (
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,7 +38,10 @@ import (
 	"time"
 )
 
-const envfileFlagName = "envfile"
+const (
+	envfileFlagName    = "envfile"
+	envFileDefaultName = ".env"
+)
 
 // serveCmd represents the serve command.
 var serveCmd = &cobra.Command{
@@ -50,8 +53,13 @@ var serveCmd = &cobra.Command{
 }
 
 func runServer(cmd *cobra.Command, args []string) {
-	ctx := context.Background()
-	imsCfg := mustInitConfig(cmd.Flags().Lookup(envfileFlagName))
+	imsCfg := mustInitConfig(cmd.Flags().Lookup(envfileFlagName).Value.String())
+	os.Exit(runServerInternal(context.Background(), imsCfg))
+}
+
+func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig) (exitCode int) {
+	must(unvalidatedCfg.Validate())
+	imsCfg := unvalidatedCfg
 
 	var logLevel slog.Level
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
@@ -76,19 +84,17 @@ func runServer(cmd *cobra.Command, args []string) {
 		err = fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory)
 	}
 	must(err)
-	imsDB, err := store.MariaDB(ctx, imsCfg.Store.MariaDB, true)
+	imsDB, err := store.IMSDB(ctx, imsCfg.Store, true)
 	must(err)
 
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
 	api.AddToMux(mux, eventSource, imsCfg, &store.DB{DB: imsDB}, userStore)
 	web.AddToMux(mux, imsCfg)
 
-	addr := fmt.Sprintf("%v:%v", imsCfg.Core.Host, imsCfg.Core.Port)
 	s := &http.Server{
-		Addr:        addr,
 		Handler:     mux,
 		ReadTimeout: 30 * time.Second,
 		// This needs to be long to support long-lived EventSource calls.
@@ -100,26 +106,33 @@ func runServer(cmd *cobra.Command, args []string) {
 	s.RegisterOnShutdown(func() {
 		eventSource.Server.Close()
 	})
+
+	addr := fmt.Sprintf("%v:%v", imsCfg.Core.Host, imsCfg.Core.Port)
+	listener, err := net.Listen("tcp", addr)
+	must(err)
+	addr = fmt.Sprintf("%v:%v", imsCfg.Core.Host, listener.Addr().(*net.TCPAddr).Port)
+
 	go func() {
-		err := s.ListenAndServe()
-		slog.Error("ListenAndServe", "err", err)
+		err := s.Serve(listener)
+		slog.Error("Serve", "err", err)
 	}()
 
 	slog.Info("IMS server is ready for connections", "address", addr)
 	slog.Info(fmt.Sprintf("Visit the web frontend at http://%v/ims/app", addr))
 
 	// The goroutine will hang here until the NotifyContext is done
-	<-ctx.Done()
+	<-notifyCtx.Done()
 	stop()
 	slog.Error("Shutting down gracefully, press Ctrl+C again to force")
 
 	// Tell the server to shut down, giving it this much time to do so gracefully.
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Don't parent this ctx on the notifyCtx, because it's already done.
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	err = s.Shutdown(timeoutCtx)
 	slog.Error("Server shut down", "err", err)
 	stop()
 	cancel()
-	os.Exit(1)
+	return 69
 }
 
 func lookupEnv(key string) (string, bool) {
@@ -138,18 +151,17 @@ func lookupEnv(key string) (string, bool) {
 }
 
 // mustInitConfig reads in the .env file and ENV variables if set.
-func mustInitConfig(envfileFlag *pflag.Flag) *conf.IMSConfig {
+func mustInitConfig(envFileName string) *conf.IMSConfig {
 	newCfg := conf.DefaultIMS()
-	err := godotenv.Load(envfileFlag.Value.String())
+	err := godotenv.Load(envFileName)
 
 	if err != nil && !os.IsNotExist(err) {
-		slog.Error("Exiting due to error loading .env file", "err", err)
-		os.Exit(1)
+		must(err)
 	}
 	if os.IsNotExist(err) {
-		if envfileFlag.Changed {
-			slog.Error("envfile was set by the caller, but the file was not found. Exiting...", "envFilename", envFilename)
-			os.Exit(1)
+		// if it's not the default
+		if envFileName != ".env" {
+			must(fmt.Errorf("envfile '%v' was set by the caller, but the file was not found", envFileName))
 		}
 		slog.Info("No .env file found. Carrying on with IMSConfig defaults and environment variable overrides")
 	}
@@ -208,6 +220,9 @@ func mustInitConfig(envfileFlag *pflag.Flag) *conf.IMSConfig {
 	if v, ok := lookupEnv("IMS_JWT_SECRET"); ok {
 		newCfg.Core.JWTSecret = v
 	}
+	if v, ok := lookupEnv("IMS_DB_STORE_TYPE"); ok {
+		newCfg.Store.Type = conf.DBStoreType(v)
+	}
 	if v, ok := lookupEnv("IMS_DB_HOST_NAME"); ok {
 		newCfg.Store.MariaDB.HostName = v
 	}
@@ -264,7 +279,6 @@ func mustInitConfig(envfileFlag *pflag.Flag) *conf.IMSConfig {
 		newCfg.AttachmentsStore.S3.CommonKeyPrefix = v
 	}
 
-	must(newCfg.Validate())
 	return newCfg
 }
 
@@ -272,16 +286,15 @@ var envFilename string
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-	serveCmd.Flags().StringVar(&envFilename, envfileFlagName, ".env",
+	serveCmd.Flags().StringVar(&envFilename, envfileFlagName, envFileDefaultName,
 		"An env file from which to load IMS server configuration. "+
 			"Defaults to '.env' in the current directory")
 }
 
-// must logs an error and kills the program. This should only be done for
+// must logs an error and panics. This should only be done for
 // startup errors, not after the server is up and running.
 func must(err error) {
 	if err != nil {
-		slog.Error("Exiting due to startup error", "err", err)
-		os.Exit(1)
+		panic("got a startup error: " + err.Error())
 	}
 }

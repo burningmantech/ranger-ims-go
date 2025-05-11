@@ -144,7 +144,7 @@ func setup(ctx context.Context, tempDir string) {
 	port, err := mainTestInternal.dbCtr.MappedPort(ctx, "3306/tcp")
 	must(err)
 	shared.cfg.Store.MariaDB.HostPort = int32(port.Int())
-	db, err := store.MariaDB(ctx, shared.cfg.Store.MariaDB, true)
+	db, err := store.IMSDB(ctx, shared.cfg.Store, true)
 	must(err)
 	shared.imsDB = &store.DB{DB: db}
 	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))

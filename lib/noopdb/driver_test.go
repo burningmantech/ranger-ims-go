@@ -23,18 +23,20 @@ func TestNoOpDB(t *testing.T) {
 	require.NoError(t, err)
 	// Stmt
 	require.NoError(t, stmt.Close())
-	stmt.NumInput()
+	require.Equal(t, 0, stmt.NumInput())
 	result, err := stmt.Exec(nil)
 	require.NoError(t, err)
 	rows, err := stmt.Query(nil)
 	require.NoError(t, err)
 	// Result
-	_, err = result.LastInsertId()
+	lastInsert, err := result.LastInsertId()
+	require.Equal(t, int64(0), lastInsert)
 	require.NoError(t, err)
-	_, err = result.RowsAffected()
+	aff, err := result.RowsAffected()
 	require.NoError(t, err)
+	require.Equal(t, int64(0), aff)
 	// Rows
-	rows.Columns()
+	require.Nil(t, rows.Columns())
 	require.NoError(t, rows.Close())
 	require.NoError(t, rows.Next(nil))
 	// Tx

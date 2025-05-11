@@ -692,15 +692,36 @@ export function renderSafeSorted(strings: string[]): string {
     return copy.join(", ");
 }
 
-export function renderIncidentNumber(incidentNumber: number|null, type: string, _incident: any): number|null|undefined {
+export function renderIncidentNumber(incidentNumber: number|null, type: string, _incident: any): number|string|null|undefined {
     switch (type) {
         case "display":
-            return incidentNumber;
+            if (incidentNumber == null) {
+                return null;
+            }
+            const dest = urlReplace(url_viewIncidentNumber).replace("<number>", incidentNumber.toString());
+            return `<a href="${dest}">${incidentNumber}</a>`;
         case "filter":
             return incidentNumber;
         case "type":
         case "sort":
             return incidentNumber;
+    }
+    return undefined;
+}
+
+export function renderFieldReportNumber(fieldReportNumber: number|null, type: string, _fieldReport: any): number|string|null|undefined {
+    switch (type) {
+        case "display":
+            if (fieldReportNumber == null) {
+                return null;
+            }
+            const dest = urlReplace(url_viewFieldReportNumber).replace("<number>", fieldReportNumber.toString());
+            return `<a href="${dest}">${fieldReportNumber}</a>`;
+        case "filter":
+            return fieldReportNumber;
+        case "type":
+        case "sort":
+            return fieldReportNumber;
     }
     return undefined;
 }

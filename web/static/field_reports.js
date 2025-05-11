@@ -155,6 +155,7 @@ function frInitDataTables() {
                 "className": "field_report_number text-right all",
                 "data": "number",
                 "defaultContent": null,
+                "render": ims.renderFieldReportNumber,
                 "cellType": "th",
             },
             {
@@ -186,10 +187,26 @@ function frInitDataTables() {
             [1, "dsc"],
         ],
         "createdRow": function (row, fieldReport, _index) {
-            row.addEventListener("click", function (_e) {
-                // Open new context with link
-                window.open(`${ims.urlReplace(url_viewFieldReports)}/${fieldReport.number}`, "Field_Report:" + fieldReport.number);
-            });
+            const openLink = function (e) {
+                // If the user clicked on a link, then let them access that link without the JS below.
+                if (e.target?.constructor?.name === "HTMLAnchorElement") {
+                    return;
+                }
+                const isLeftClick = e.type === "click";
+                const isMiddleClick = e.type === "auxclick" && e.button === 1;
+                const holdingModifier = e.altKey || e.ctrlKey || e.metaKey;
+                // Left click while not holding a modifier key: open in the same tab
+                if (isLeftClick && !holdingModifier) {
+                    window.location.href = `${ims.urlReplace(url_viewFieldReports)}/${fieldReport.number}`;
+                }
+                // Left click while holding modifier key or middle click: open in a new tab
+                if (isMiddleClick || (isLeftClick && holdingModifier)) {
+                    window.open(`${ims.urlReplace(url_viewFieldReports)}/${fieldReport.number}`, "Field_Report:" + fieldReport.number);
+                    return;
+                }
+            };
+            row.addEventListener("click", openLink);
+            row.addEventListener("auxclick", openLink);
             row.getElementsByClassName("field_report_created")[0]
                 .setAttribute("title", ims.fullDateTime.format(Date.parse(fieldReport.created)));
         },
@@ -263,9 +280,10 @@ function frInitSearchField() {
             // This will work regardless of whether that FR is visible with the current filters.
             const val = searchInput.value;
             if (ims.integerRegExp.test(val)) {
-                // Open new context with link
-                window.open(ims.urlReplace(url_viewFieldReports) + val, "Field_Report:" + val);
+                // Open the Field Report
+                window.location.href = `${ims.urlReplace(url_viewFieldReports)}/${val}`;
                 searchInput.value = "";
+                return;
             }
             // Otherwise, search immediately on Enter.
             clearTimeout(_frSearchDelayTimer);

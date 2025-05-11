@@ -176,9 +176,10 @@ test("incidents", async ({ page, browser }) => {
 
     await page.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
     const incidentsPage = page;
-    const page1Promise = incidentsPage.waitForEvent("popup");
-    await incidentsPage.getByRole("button", {name: "New"}).click();
-    const incidentPage = await page1Promise;
+
+    const incidentPage = await ctx.newPage();
+    await incidentPage.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
+    await incidentPage.getByRole("button", {name: "New"}).click();
 
     await expect(incidentPage.getByLabel("IMS #")).toHaveText("(new)");
     const incidentSummary = randomName("summary");

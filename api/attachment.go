@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"errors"
@@ -122,15 +123,8 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 			return
 		}
 	case conf.AttachmentsStoreS3:
-		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + filename
-		var exists bool
-		file, exists, err = attachment.GetObject(ctx, action.attachmentsStore.S3.Bucket, s3Name)
-		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Failed to get attachment", err)
-			return
-		}
-		if !exists {
-			handleErr(w, req, http.StatusNotFound, "File does not exist", err)
+		file, ok = mustGetS3File(ctx, w, req, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
+		if !ok {
 			return
 		}
 	default:
@@ -139,6 +133,21 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 	}
 
 	http.ServeContent(w, req, "Attached File", time.Now(), file)
+}
+
+func mustGetS3File(ctx context.Context, w http.ResponseWriter, req *http.Request, bucket, prefix, filename string) (io.ReadSeeker, bool) {
+	s3Name := prefix + filename
+	var exists bool
+	file, exists, err := attachment.GetObject(ctx, bucket, s3Name)
+	if err != nil {
+		handleErr(w, req, http.StatusInternalServerError, "Failed to get attachment", err)
+		return nil, false
+	}
+	if !exists {
+		handleErr(w, req, http.StatusNotFound, "File does not exist", err)
+		return nil, false
+	}
+	return file, true
 }
 
 func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -207,15 +216,8 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 			return
 		}
 	case conf.AttachmentsStoreS3:
-		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + filename
-		var exists bool
-		file, exists, err = attachment.GetObject(ctx, action.attachmentsStore.S3.Bucket, s3Name)
-		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Failed to get attachment", err)
-			return
-		}
-		if !exists {
-			handleErr(w, req, http.StatusNotFound, "File does not exist", err)
+		file, ok = mustGetS3File(ctx, w, req, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
+		if !ok {
 			return
 		}
 	default:

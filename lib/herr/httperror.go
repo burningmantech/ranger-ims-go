@@ -95,3 +95,17 @@ func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
 	)
 	http.Error(w, e.ResponseMessage, e.Code)
 }
+
+// AsHTTPError converts an error into an HTTPError. The intended use is for
+// when an error is known to actually be an HTTPError, but when it's declared
+// as a different type. This function then asserts it's actually an HTTPError.
+func AsHTTPError(err error) *HTTPError {
+	errHTTP := &HTTPError{}
+	if errors.As(err, &errHTTP) {
+		return errHTTP
+	}
+	return InternalServerError(
+		"Unknown server error",
+		err,
+	)
+}

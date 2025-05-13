@@ -9,3 +9,10 @@ repos:
     rev: v2.1.6
     hooks:
       - id: golangci-lint-full
+  - repo: local
+    hooks:
+      - id: prepend-license
+        name: Prepend License
+        entry: go run bin/prependlicense/prependlicense.go
+        language: system
+        pass_filenames: false

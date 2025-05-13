@@ -67,36 +67,36 @@ type AttachToFieldReport struct {
 }
 
 func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	file, hErr := action.getIncidentAttachment(req)
-	if hErr != nil {
-		hErr.Src("[getIncidentAttachment]").WriteResponse(w)
+	file, errHTTP := action.getIncidentAttachment(req)
+	if errHTTP != nil {
+		errHTTP.From("[getIncidentAttachment]").WriteResponse(w)
 		return
 	}
 	http.ServeContent(w, req, "Attached File", time.Now(), file)
 }
 
 func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io.ReadSeeker, *herr.HTTPError) {
-	event, _, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return nil, errH.Src("[mustGetEventPermissions]")
+	event, _, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadIncidents == 0 {
-		return nil, herr.S403("The requestor does not have EventReadIncidents permission on this Event", nil)
+		return nil, herr.Forbidden("The requestor does not have EventReadIncidents permission on this Event", nil)
 	}
 	ctx := req.Context()
 
 	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
-		return nil, herr.S400("Failed to parse incident number", err).Src("[ParseInt32]")
+		return nil, herr.BadRequest("Failed to parse incident number", err).From("[ParseInt32]")
 	}
 	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
 	if err != nil {
-		return nil, herr.S400("Failed to parse attachment number", err).Src("[ParseInt32]")
+		return nil, herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
-	_, reportEntries, errH := fetchIncident(ctx, action.imsDB, event.ID, incidentNumber)
-	if errH != nil {
-		return nil, errH.Src("[fetchIncident]")
+	_, reportEntries, errHTTP := fetchIncident(ctx, action.imsDB, event.ID, incidentNumber)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[fetchIncident]")
 	}
 
 	var filename string
@@ -107,7 +107,7 @@ func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io
 		}
 	}
 	if filename == "" {
-		return nil, herr.S404("No attachment for this ID", nil)
+		return nil, herr.NotFound("No attachment for this ID", nil)
 	}
 
 	var file io.ReadSeeker
@@ -116,17 +116,17 @@ func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io
 		file, err = action.attachmentsStore.Local.Dir.Open(filename)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return nil, herr.S404("File does not exist", nil)
+				return nil, herr.NotFound("File does not exist", nil)
 			}
-			return nil, herr.S500("Failed to open file", err)
+			return nil, herr.InternalServerError("Failed to open file", err)
 		}
 	case conf.AttachmentsStoreS3:
-		file, errH = mustGetS3File(ctx, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
-		if errH != nil {
-			return nil, errH.Src("[mustGetS3File]")
+		file, errHTTP = mustGetS3File(ctx, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
+		if errHTTP != nil {
+			return nil, errHTTP.From("[mustGetS3File]")
 		}
 	default:
-		return nil, herr.S404("Attachments are not currently supported", nil)
+		return nil, herr.NotFound("Attachments are not currently supported", nil)
 	}
 
 	return file, nil
@@ -137,30 +137,30 @@ func mustGetS3File(ctx context.Context, bucket, prefix, filename string) (io.Rea
 	var exists bool
 	file, exists, err := attachment.GetObject(ctx, bucket, s3Name)
 	if err != nil {
-		return nil, herr.S500("Failed to get attachment", err).Src("[GetObject]")
+		return nil, herr.InternalServerError("Failed to get attachment", err).From("[GetObject]")
 	}
 	if !exists {
-		return nil, herr.S404("File does not exist", nil)
+		return nil, herr.NotFound("File does not exist", nil)
 	}
 	return file, nil
 }
 
 func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	file, hErr := action.getFieldReportAttachment(req)
-	if hErr != nil {
-		hErr.Src("[getFieldReportAttachment]").WriteResponse(w)
+	file, errHTTP := action.getFieldReportAttachment(req)
+	if errHTTP != nil {
+		errHTTP.From("[getFieldReportAttachment]").WriteResponse(w)
 		return
 	}
 	http.ServeContent(w, req, "Attached File", time.Now(), file)
 }
 
 func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Request) (io.ReadSeeker, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return nil, errH.Src("[mustGetEventPermissions]")
+	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&(authz.EventReadAllFieldReports|authz.EventReadOwnFieldReports) == 0 {
-		return nil, herr.S403("The requestor does not have permission to read Field Reports on this Event", nil)
+		return nil, herr.Forbidden("The requestor does not have permission to read Field Reports on this Event", nil)
 	}
 	// i.e. the user has EventReadOwnFieldReports, but not EventReadAllFieldReports
 	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
@@ -169,21 +169,21 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Reques
 
 	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
 	if err != nil {
-		return nil, herr.S400("Failed to parse Field Report number", err).Src("[ParseInt32]")
+		return nil, herr.BadRequest("Failed to parse Field Report number", err).From("[ParseInt32]")
 	}
 	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
 	if err != nil {
-		return nil, herr.S400("Failed to parse attachment number", err).Src("[ParseInt32]")
+		return nil, herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
-	_, reportEntries, errH := fetchFieldReport(ctx, action.imsDB, event.ID, fieldReportNumber)
-	if errH != nil {
-		return nil, errH.Src("[fetchFieldReport]")
+	_, reportEntries, errHTTP := fetchFieldReport(ctx, action.imsDB, event.ID, fieldReportNumber)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[fetchFieldReport]")
 	}
 
 	if limitedAccess {
 		if !containsAuthor(reportEntries, jwtCtx.Claims.RangerHandle()) {
-			return nil, herr.S403("The requestor does not have permission to read this particular Field Report", nil)
+			return nil, herr.Forbidden("The requestor does not have permission to read this particular Field Report", nil)
 		}
 	}
 
@@ -195,7 +195,7 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Reques
 		}
 	}
 	if filename == "" {
-		return nil, herr.S404("No attachment for this ID", nil)
+		return nil, herr.NotFound("No attachment for this ID", nil)
 	}
 
 	var file io.ReadSeeker
@@ -204,25 +204,25 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Reques
 		file, err = action.attachmentsStore.Local.Dir.Open(filename)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return nil, herr.S404("File does not exist", nil)
+				return nil, herr.NotFound("File does not exist", nil)
 			}
-			return nil, herr.S500("Failed to open file", err)
+			return nil, herr.InternalServerError("Failed to open file", err)
 		}
 	case conf.AttachmentsStoreS3:
-		file, errH = mustGetS3File(ctx, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
-		if errH != nil {
-			return nil, errH.Src("[mustGetS3File]")
+		file, errHTTP = mustGetS3File(ctx, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
+		if errHTTP != nil {
+			return nil, errHTTP.From("[mustGetS3File]")
 		}
 	default:
-		return nil, herr.S404("Attachments are not currently supported", nil)
+		return nil, herr.NotFound("Attachments are not currently supported", nil)
 	}
 	return file, nil
 }
 
 func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	reID, hErr := action.attachToIncident(req)
-	if hErr != nil {
-		hErr.Src("[attachToIncident]").WriteResponse(w)
+	reID, errHTTP := action.attachToIncident(req)
+	if errHTTP != nil {
+		errHTTP.From("[attachToIncident]").WriteResponse(w)
 		return
 	}
 	slog.Info("Saved Incident attachment")
@@ -231,30 +231,30 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return 0, errH.Src("[mustGetEventPermissions]")
+	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
-		return 0, herr.S403("The requestor does not have EventWriteIncidents permission on this Event", nil)
+		return 0, herr.Forbidden("The requestor does not have EventWriteIncidents permission on this Event", nil)
 	}
 	ctx := req.Context()
 
 	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
-		return 0, herr.S400("Failed to parse incident number", err).Src("[ParseInt32]")
+		return 0, herr.BadRequest("Failed to parse incident number", err).From("[ParseInt32]")
 	}
 
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
-		return 0, herr.S400("Failed to parse file", err)
+		return 0, herr.BadRequest("Failed to parse file", err)
 	}
 	defer shut(fi)
 
-	sniffedContentType, extension, errH := sniffFile(fi)
-	if errH != nil {
-		return 0, errH.Src("[sniffFile]")
+	sniffedContentType, extension, errHTTP := sniffFile(fi)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[sniffFile]")
 	}
 
 	newFileName := fmt.Sprintf("event_%05d_incident_%05d_%v%v", event.ID, incidentNumber, rand.Text(), extension)
@@ -273,27 +273,27 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	case conf.AttachmentsStoreLocal:
 		outFi, err := action.attachmentsStore.Local.Dir.Create(newFileName)
 		if err != nil {
-			return 0, herr.S500("Failed to create file", err).Src("[Create]")
+			return 0, herr.InternalServerError("Failed to create file", err).From("[Create]")
 		}
 		defer shut(outFi)
 		if _, err = io.Copy(outFi, fi); err != nil {
-			return 0, herr.S500("Failed to write file", err).Src("[Copy]")
+			return 0, herr.InternalServerError("Failed to write file", err).From("[Copy]")
 		}
 	case conf.AttachmentsStoreS3:
 		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
 		if err = attachment.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); err != nil {
-			return 0, herr.S500("Failed to upload file to S3", err).Src("[UploadToS3]")
+			return 0, herr.InternalServerError("Failed to upload file to S3", err).From("[UploadToS3]")
 		}
 	default:
-		return 0, herr.S404("Attachments are not currently supported", nil)
+		return 0, herr.NotFound("Attachments are not currently supported", nil)
 	}
 
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
-	reID, errH := addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
+	reID, errHTTP := addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
-	if errH != nil {
-		return 0, errH.Src("[addIncidentReportEntry]")
+	if errHTTP != nil {
+		return 0, errHTTP.From("[addIncidentReportEntry]")
 	}
 
 	action.es.notifyIncidentUpdate(event.Name, incidentNumber)
@@ -301,9 +301,9 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 }
 
 func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	reID, hErr := action.attachToFieldReport(req)
-	if hErr != nil {
-		hErr.Src("[attachToFieldReport]").WriteResponse(w)
+	reID, errHTTP := action.attachToFieldReport(req)
+	if errHTTP != nil {
+		errHTTP.From("[attachToFieldReport]").WriteResponse(w)
 		return
 	}
 	slog.Info("Saved Field Report attachment")
@@ -311,12 +311,12 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	http.Error(w, "Saved Field Report attachment", http.StatusNoContent)
 }
 func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return 0, errH.Src("[mustGetEventPermissions]")
+	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
-		return 0, herr.S403("The requestor does not have permission to write Field Reports on this Event", nil)
+		return 0, herr.Forbidden("The requestor does not have permission to write Field Reports on this Event", nil)
 	}
 	// i.e. the user has EventReadOwnFieldReports, but not EventReadAllFieldReports
 	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
@@ -324,29 +324,29 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 
 	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
 	if err != nil {
-		return 0, herr.S400("Failed to parse Field Report number", err).Src("[ParseInt32]")
+		return 0, herr.BadRequest("Failed to parse Field Report number", err).From("[ParseInt32]")
 	}
 
-	fieldReport, entries, errH := fetchFieldReport(ctx, action.imsDB, event.ID, fieldReportNumber)
-	if errH != nil {
-		return 0, errH.Src("[fetchFieldReport]")
+	fieldReport, entries, errHTTP := fetchFieldReport(ctx, action.imsDB, event.ID, fieldReportNumber)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[fetchFieldReport]")
 	}
 	if limitedAccess {
 		if !containsAuthor(entries, jwtCtx.Claims.RangerHandle()) {
-			return 0, herr.S403("The requestor does not have permission to read this particular Field Report", nil)
+			return 0, herr.Forbidden("The requestor does not have permission to read this particular Field Report", nil)
 		}
 	}
 
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
-		return 0, herr.S400("Failed to parse file", err)
+		return 0, herr.BadRequest("Failed to parse file", err)
 	}
 	defer shut(fi)
 
-	sniffedContentType, extension, errH := sniffFile(fi)
-	if errH != nil {
-		return 0, errH.Src("[sniffFile]")
+	sniffedContentType, extension, errHTTP := sniffFile(fi)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[sniffFile]")
 	}
 
 	newFileName := fmt.Sprintf("event_%05d_fieldreport_%05d_%v%v", event.ID, fieldReportNumber, rand.Text(), extension)
@@ -365,27 +365,27 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	case conf.AttachmentsStoreLocal:
 		outFi, err := action.attachmentsStore.Local.Dir.Create(newFileName)
 		if err != nil {
-			return 0, herr.S500("Failed to create file", err)
+			return 0, herr.InternalServerError("Failed to create file", err)
 		}
 		defer shut(outFi)
 		if _, err = io.Copy(outFi, fi); err != nil {
-			return 0, herr.S500("Failed to write file", err)
+			return 0, herr.InternalServerError("Failed to write file", err)
 		}
 	case conf.AttachmentsStoreS3:
 		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
 		if err = attachment.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); err != nil {
-			return 0, herr.S500("Failed to upload file to S3", err)
+			return 0, herr.InternalServerError("Failed to upload file to S3", err)
 		}
 	default:
-		return 0, herr.S404("Attachments are not currently supported", nil)
+		return 0, herr.NotFound("Attachments are not currently supported", nil)
 	}
 
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
-	reID, errH := addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber,
+	reID, errHTTP := addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
-	if errH != nil {
-		return 0, errH.Src("[addFRReportEntry]")
+	if errHTTP != nil {
+		return 0, errHTTP.From("[addFRReportEntry]")
 	}
 
 	action.es.notifyFieldReportUpdate(event.Name, fieldReportNumber)
@@ -395,7 +395,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	return reID, nil
 }
 
-func sniffFile(fi multipart.File) (contentType string, extension string, errH *herr.HTTPError) {
+func sniffFile(fi multipart.File) (contentType string, extension string, errHTTP *herr.HTTPError) {
 	// This must be >= http.sniffLen (it's a private field, so we can't read it directly)
 	const sniffLen = 512
 	head := make([]byte, sniffLen)
@@ -405,7 +405,7 @@ func sniffFile(fi multipart.File) (contentType string, extension string, errH *h
 		if errors.Is(err, io.EOF) {
 			head = head[:n]
 		} else {
-			return "", "", herr.S500("Failed to detect content type", err).Src("[ReadAt]")
+			return "", "", herr.InternalServerError("Failed to detect content type", err).From("[ReadAt]")
 		}
 	}
 

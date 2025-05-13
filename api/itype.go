@@ -35,9 +35,9 @@ type GetIncidentTypes struct {
 }
 
 func (action GetIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errH := action.getIncidentTypes(req)
-	if errH != nil {
-		errH.Src("[getIncidentTypes]").WriteResponse(w)
+	resp, errHTTP := action.getIncidentTypes(req)
+	if errHTTP != nil {
+		errHTTP.From("[getIncidentTypes]").WriteResponse(w)
 		return
 	}
 	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
@@ -45,21 +45,21 @@ func (action GetIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.IncidentTypes, *herr.HTTPError) {
 	response := make(imsjson.IncidentTypes, 0)
-	_, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return response, errH.Src("[mustGetGlobalPermissions]")
+	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return response, errHTTP.From("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalReadIncidentTypes == 0 {
-		return response, herr.S403("The requestor does not have GlobalReadIncidentTypes permission", nil)
+		return response, herr.Forbidden("The requestor does not have GlobalReadIncidentTypes permission", nil)
 	}
 
 	if err := req.ParseForm(); err != nil {
-		return response, herr.S400("Unable to parse HTTP form", err).Src("[ParseForm]")
+		return response, herr.BadRequest("Unable to parse HTTP form", err).From("[ParseForm]")
 	}
 	includeHidden := req.Form.Get("hidden") == "true"
 	typeRows, err := imsdb.New(action.imsDB).IncidentTypes(req.Context())
 	if err != nil {
-		return response, herr.S500("Failed to fetch Incident Types", err).Src("[IncidentTypes]")
+		return response, herr.InternalServerError("Failed to fetch Incident Types", err).From("[IncidentTypes]")
 	}
 
 	for _, typeRow := range typeRows {
@@ -79,24 +79,24 @@ type EditIncidentTypes struct {
 }
 
 func (action EditIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if hErr := action.editIncidentTypes(req); hErr != nil {
-		hErr.Src("[editIncidentTypes]").WriteResponse(w)
+	if errHTTP := action.editIncidentTypes(req); errHTTP != nil {
+		errHTTP.From("[editIncidentTypes]").WriteResponse(w)
 		return
 	}
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPError {
-	_, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return errH.Src("[mustGetGlobalPermissions]")
+	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return errHTTP.From("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateIncidentTypes == 0 {
-		return herr.S403("The requestor does not have GlobalAdministrateIncidentTypes permission", nil)
+		return herr.Forbidden("The requestor does not have GlobalAdministrateIncidentTypes permission", nil)
 	}
 	ctx := req.Context()
-	typesReq, errH := mustReadBodyAs[imsjson.EditIncidentTypesRequest](req)
-	if errH != nil {
-		return errH.Src("[mustReadBodyAs]")
+	typesReq, errHTTP := mustReadBodyAs[imsjson.EditIncidentTypesRequest](req)
+	if errHTTP != nil {
+		return errHTTP.From("[mustReadBodyAs]")
 	}
 	for _, it := range typesReq.Add {
 		err := imsdb.New(action.imsDB).CreateIncidentTypeOrIgnore(ctx, imsdb.CreateIncidentTypeOrIgnoreParams{
@@ -104,7 +104,7 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPE
 			Hidden: false,
 		})
 		if err != nil {
-			return herr.S500("Failed to create Incident Type", err).Src("[CreateIncidentTypeOrIgnore]")
+			return herr.InternalServerError("Failed to create Incident Type", err).From("[CreateIncidentTypeOrIgnore]")
 		}
 	}
 	for _, it := range typesReq.Hide {
@@ -113,7 +113,7 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPE
 			Hidden: true,
 		})
 		if err != nil {
-			return herr.S500("Failed to hide incident type", nil).Src("[HideShowIncidentType]")
+			return herr.InternalServerError("Failed to hide incident type", nil).From("[HideShowIncidentType]")
 		}
 	}
 	for _, it := range typesReq.Show {
@@ -122,7 +122,7 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPE
 			Hidden: false,
 		})
 		if err != nil {
-			return herr.S500("Failed to unhide incident type", err).Src("[HideShowIncidentType]")
+			return herr.InternalServerError("Failed to unhide incident type", err).From("[HideShowIncidentType]")
 		}
 	}
 	return nil

@@ -47,37 +47,37 @@ func New(code int, message string, internalErr error) *HTTPError {
 	}
 }
 
-// S500 returns an HTTP Internal Server Error HTTPError.
-func S500(message string, err error) *HTTPError {
-	return New(http.StatusInternalServerError, message, err)
+// InternalServerError returns an http.StatusInternalServerError HTTPError.
+func InternalServerError(userMessage string, err error) *HTTPError {
+	return New(http.StatusInternalServerError, userMessage, err)
 }
 
-// S400 returns an HTTP Bad Request HTTPError.
-func S400(message string, err error) *HTTPError {
-	return New(http.StatusBadRequest, message, err)
+// BadRequest returns an http.StatusBadRequest HTTPError.
+func BadRequest(userMessage string, err error) *HTTPError {
+	return New(http.StatusBadRequest, userMessage, err)
 }
 
-// S401 returns an HTTP Unauthorized HTTPError.
-func S401(message string, err error) *HTTPError {
-	return New(http.StatusUnauthorized, message, err)
+// Unauthorized returns an http.StatusUnauthorized HTTPError.
+func Unauthorized(userMessage string, err error) *HTTPError {
+	return New(http.StatusUnauthorized, userMessage, err)
 }
 
-// S403 returns an HTTP Forbidden HTTPError.
-func S403(message string, err error) *HTTPError {
-	return New(http.StatusForbidden, message, err)
+// Forbidden returns an http.StatusForbidden HTTPError.
+func Forbidden(userMessage string, err error) *HTTPError {
+	return New(http.StatusForbidden, userMessage, err)
 }
 
-// S404 returns an HTTP Not Found HTTPError.
-func S404(message string, err error) *HTTPError {
-	return New(http.StatusNotFound, message, err)
+// NotFound returns an HTTP Not Found HTTPError.
+func NotFound(userMessage string, err error) *HTTPError {
+	return New(http.StatusNotFound, userMessage, err)
 }
 
-// Src wraps the InternalErr using fmt.Sprintf. This should be used to specify
+// From wraps the InternalErr using fmt.Sprintf. This should be used to specify
 // the name of a function that returned an error. See httperror_test.go for
 // examples of wrapping.
-func (e *HTTPError) Src(fun string) *HTTPError {
+func (e *HTTPError) From(source string) *HTTPError {
 	return &HTTPError{
-		InternalErr:     fmt.Errorf("%v: %w", fun, e.InternalErr),
+		InternalErr:     fmt.Errorf("%v: %w", source, e.InternalErr),
 		Code:            e.Code,
 		ResponseMessage: e.ResponseMessage,
 	}

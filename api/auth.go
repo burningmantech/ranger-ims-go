@@ -49,9 +49,9 @@ type PostAuthResponse struct {
 }
 
 func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, cookie, errH := action.postAuth(req)
-	if errH != nil {
-		errH.Src("[postAuth]").WriteResponse(w)
+	resp, cookie, errHTTP := action.postAuth(req)
+	if errHTTP != nil {
+		errHTTP.From("[postAuth]").WriteResponse(w)
 		return
 	}
 	http.SetCookie(w, cookie)
@@ -62,14 +62,14 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	// as the point of this is to take a username and password to create a new JWT.
 	var empty PostAuthResponse
 
-	vals, errH := mustReadBodyAs[PostAuthRequest](req)
-	if errH != nil {
-		return empty, nil, errH.Src("[mustReadBodyAs]")
+	vals, errHTTP := mustReadBodyAs[PostAuthRequest](req)
+	if errHTTP != nil {
+		return empty, nil, errHTTP.From("[mustReadBodyAs]")
 	}
 
 	rangers, err := action.userStore.GetRangers(req.Context())
 	if err != nil {
-		return empty, nil, herr.S500("Failed to fetch personnel", err).Src("[GetRangers]")
+		return empty, nil, herr.InternalServerError("Failed to fetch personnel", err).From("[GetRangers]")
 	}
 	var matchedPerson *imsjson.Person
 	for _, person := range rangers {
@@ -86,7 +86,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	}
 
 	if matchedPerson == nil {
-		return empty, nil, herr.S401(
+		return empty, nil, herr.Unauthorized(
 			"Failed login attempt (bad credentials)",
 			fmt.Errorf("login attempt for nonexistent user. Identification: %v", vals.Identification),
 		)
@@ -94,10 +94,10 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 	correct, err := authn.Verify(vals.Password, matchedPerson.Password)
 	if err != nil {
-		return empty, nil, herr.S500("Invalid stored password. Get in touch with the tech team.", err).Src("[Verify]")
+		return empty, nil, herr.InternalServerError("Invalid stored password. Get in touch with the tech team.", err).From("[Verify]")
 	}
 	if !correct {
-		return empty, nil, herr.S401(
+		return empty, nil, herr.Unauthorized(
 			"Failed login attempt (bad credentials)",
 			fmt.Errorf("bad password for valid user. Identification: %v", vals.Identification),
 		)
@@ -107,14 +107,14 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 	foundPositionNames, foundTeamNames, err := action.userStore.GetUserPositionsTeams(req.Context(), matchedPerson.DirectoryID)
 	if err != nil {
-		return empty, nil, herr.S500("Failed to fetch Clubhouse positions/teams data", err).Src("[GetUserPositionsTeams]")
+		return empty, nil, herr.InternalServerError("Failed to fetch Clubhouse positions/teams data", err).From("[GetUserPositionsTeams]")
 	}
 
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
-		return empty, nil, herr.S500("Failed to create access token", err).Src("[CreateAccessToken]")
+		return empty, nil, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
 
 	suggestedRefreshTime := accessTokenExpiration.Add(authz.SuggestedEarlyAccessTokenRefresh).UnixMilli()
@@ -125,7 +125,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	refreshToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateRefreshToken(matchedPerson.Handle, matchedPerson.DirectoryID, refreshTokenExpiration)
 	if err != nil {
-		return empty, nil, herr.S500("Failed to create refresh token", err).Src("[CreateRefreshToken]")
+		return empty, nil, herr.InternalServerError("Failed to create refresh token", err).From("[CreateRefreshToken]")
 	}
 
 	refreshCookie := &http.Cookie{
@@ -165,9 +165,9 @@ type AccessForEvent struct {
 }
 
 func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errH := action.getAuth(req)
-	if errH != nil {
-		errH.Src("[getAuth]").WriteResponse(w)
+	resp, errHTTP := action.getAuth(req)
+	if errHTTP != nil {
+		errHTTP.From("[getAuth]").WriteResponse(w)
 		return
 	}
 	mustWriteJSON(w, resp)
@@ -178,7 +178,9 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 	// This endpoint is unauthenticated (doesn't require an Authorization header).
 	jwtCtx, found := req.Context().Value(JWTContextKey).(JWTContext)
 	if !found || jwtCtx.Error != nil || jwtCtx.Claims == nil {
-		resp.Authenticated = false
+		resp = GetAuthResponse{
+			Authenticated: false,
+		}
 		return resp, nil //lint:ignore nilerr since the jwtCtx.Error is irrelevant
 	}
 	claims := jwtCtx.Claims
@@ -187,22 +189,25 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 	if slices.Contains(action.admins, handle) {
 		roles = append(roles, authz.Administrator)
 	}
-	resp.Authenticated = true
-	resp.User = handle
-	resp.Admin = slices.Contains(roles, authz.Administrator)
-	if err := req.ParseForm(); err != nil {
-		return resp, herr.S400("Failed to parse HTTP form", err).Src("[ParseForm]")
+	resp = GetAuthResponse{
+		Authenticated: true,
+		User:          handle,
+		Admin:         slices.Contains(roles, authz.Administrator),
 	}
+	if err := req.ParseForm(); err != nil {
+		return resp, herr.BadRequest("Failed to parse HTTP form", err).From("[ParseForm]")
+	}
+	// event_id is an optional query param for this endpoint
 	eventName := req.Form.Get("event_id")
 	if eventName != "" {
-		event, errH := mustGetEvent(req, eventName, action.imsDB)
-		if errH != nil {
-			return resp, errH.Src("[mustGetEvent]")
+		event, errHTTP := mustGetEvent(req, eventName, action.imsDB)
+		if errHTTP != nil {
+			return resp, errHTTP.From("[mustGetEvent]")
 		}
 
 		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDB, action.admins, *claims)
 		if err != nil {
-			return resp, herr.S500("Failed to fetch event permissions", err).Src("[EventPermissions]")
+			return resp, herr.InternalServerError("Failed to fetch event permissions", err).From("[EventPermissions]")
 		}
 
 		resp.EventAccess = map[string]AccessForEvent{
@@ -230,9 +235,9 @@ type RefreshAccessTokenResponse struct {
 }
 
 func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errH := action.refreshAccessToken(req)
-	if errH != nil {
-		errH.Src("[refreshAccessToken]").WriteResponse(w)
+	resp, errHTTP := action.refreshAccessToken(req)
+	if errHTTP != nil {
+		errHTTP.From("[refreshAccessToken]").WriteResponse(w)
 		return
 	}
 	mustWriteJSON(w, resp)
@@ -241,19 +246,20 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 	var empty RefreshAccessTokenResponse
 	refreshCookie, err := req.Cookie(authz.RefreshTokenCookieName)
 	if err != nil {
-		return empty, herr.S401("Bad or no refresh token cookie found", err).Src("[Cookie]")
+		return empty, herr.Unauthorized("Bad or no refresh token cookie found", err).From("[Cookie]")
 	}
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.AuthenticateRefreshToken(refreshCookie.Value)
 	if err != nil {
-		return empty, herr.S401("Failed to authenticate refresh token", err).Src("[AuthenticateRefreshToken]")
+		return empty, herr.Unauthorized("Failed to authenticate refresh token", err).From("[AuthenticateRefreshToken]")
 	}
 	if jwt.RangerHandle() == "" {
-		return empty, herr.S500("No Ranger handle associated with refresh token", nil)
+		return empty, herr.InternalServerError("No Ranger handle associated with refresh token", nil)
 	}
+
 	slog.Info("Refreshing access token", "ranger", jwt.RangerHandle())
 	rangers, err := action.userStore.GetRangers(req.Context())
 	if err != nil {
-		return empty, herr.S500("Failed to fetch personnel", err).Src("[GetRangers]")
+		return empty, herr.InternalServerError("Failed to fetch personnel", err).From("[GetRangers]")
 	}
 	var matchedPerson imsjson.Person
 	for _, ranger := range rangers {
@@ -262,16 +268,21 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 			break
 		}
 	}
-	foundPositionNames, foundTeamNames, err := action.userStore.GetUserPositionsTeams(req.Context(), matchedPerson.DirectoryID)
+	matchedPositions, matchedTeams, err := action.userStore.GetUserPositionsTeams(req.Context(), matchedPerson.DirectoryID)
 	if err != nil {
-		return empty, herr.S500("Failed to fetch Clubhouse positions/teams data", err).Src("[GetUserPositionsTeams]")
+		return empty, herr.InternalServerError("Failed to fetch Clubhouse positions/teams data", err).From("[GetUserPositionsTeams]")
 	}
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	accessToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateAccessToken(jwt.RangerHandle(), matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
+		CreateAccessToken(
+			jwt.RangerHandle(), matchedPerson.DirectoryID, matchedPositions, matchedTeams, matchedPerson.Onsite, accessTokenExpiration,
+		)
 	if err != nil {
-		return empty, herr.S500("Failed to create access token", err).Src("[CreateAccessToken]")
+		return empty, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
-	resp := RefreshAccessTokenResponse{Token: accessToken, ExpiresUnixMs: accessTokenExpiration.Add(authz.SuggestedEarlyAccessTokenRefresh).UnixMilli()}
+	resp := RefreshAccessTokenResponse{
+		Token:         accessToken,
+		ExpiresUnixMs: accessTokenExpiration.Add(authz.SuggestedEarlyAccessTokenRefresh).UnixMilli(),
+	}
 	return resp, nil
 }

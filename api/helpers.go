@@ -35,23 +35,23 @@ func mustReadBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 	defer shut(req.Body)
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		return empty, herr.S400("Failed to read request body", err).Src("[io.ReadAll]")
+		return empty, herr.BadRequest("Failed to read request body", err).From("[io.ReadAll]")
 	}
 	var t T
 	if err = json.Unmarshal(bodyBytes, &t); err != nil {
-		return empty, herr.S400("Failed to unmarshal request body", err).Src("[Unmarshal]")
+		return empty, herr.BadRequest("Failed to unmarshal request body", err).From("[Unmarshal]")
 	}
 	return t, nil
 }
 
-func mustEventFromFormValue2(req *http.Request, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
+func mustEventFromFormValue(req *http.Request, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
 	empty := imsdb.Event{}
 	if err := req.ParseForm(); err != nil {
-		return empty, herr.S400("Failed to parse form", err).Src("ParseForm")
+		return empty, herr.BadRequest("Failed to parse form", err).From("ParseForm")
 	}
 	eventName := req.FormValue("event_id")
 	if eventName == "" {
-		return empty, herr.S400("No event_id was found in the URL", nil)
+		return empty, herr.BadRequest("No event_id was found in the URL", nil)
 	}
 	eventRow, err := imsdb.New(imsDB).QueryEventID(req.Context(), eventName)
 	if err != nil {
@@ -63,14 +63,14 @@ func mustEventFromFormValue2(req *http.Request, imsDB *store.DB) (imsdb.Event, *
 func mustGetEvent(req *http.Request, eventName string, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
 	var empty imsdb.Event
 	if eventName == "" {
-		return empty, herr.S400("No eventName was provided", nil)
+		return empty, herr.BadRequest("No eventName was provided", nil)
 	}
 	eventRow, err := imsdb.New(imsDB).QueryEventID(req.Context(), eventName)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return empty, herr.S404("Event not found", err)
+			return empty, herr.NotFound("Event not found", err)
 		}
-		return empty, herr.S500("Failed to fetch Event", err).Src("[QueryEventID]")
+		return empty, herr.InternalServerError("Failed to fetch Event", err).From("[QueryEventID]")
 	}
 	return eventRow.Event, nil
 }
@@ -95,7 +95,7 @@ func mustWriteJSON(w http.ResponseWriter, resp any) (success bool) {
 func mustGetJwtCtx(req *http.Request) (JWTContext, *herr.HTTPError) {
 	jwtCtx, found := req.Context().Value(JWTContextKey).(JWTContext)
 	if !found {
-		return JWTContext{}, herr.S500(
+		return JWTContext{}, herr.InternalServerError(
 			"This endpoint has been misconfigured. Please report this to the tech team",
 			errors.New("the OptionalAuthN adapter must be called before RequireAuthN"),
 		)
@@ -106,17 +106,17 @@ func mustGetJwtCtx(req *http.Request) (JWTContext, *herr.HTTPError) {
 func mustGetEventPermissions(req *http.Request, imsDB *store.DB, imsAdmins []string) (
 	imsdb.Event, JWTContext, authz.EventPermissionMask, *herr.HTTPError,
 ) {
-	event, hErr := mustGetEvent(req, req.PathValue("eventName"), imsDB)
-	if hErr != nil {
-		return imsdb.Event{}, JWTContext{}, 0, hErr.Src("[mustGetEvent]")
+	event, errHTTP := mustGetEvent(req, req.PathValue("eventName"), imsDB)
+	if errHTTP != nil {
+		return imsdb.Event{}, JWTContext{}, 0, errHTTP.From("[mustGetEvent]")
 	}
-	jwtCtx, hErr := mustGetJwtCtx(req)
-	if hErr != nil {
-		return imsdb.Event{}, JWTContext{}, 0, hErr.Src("[mustGetJwtCtx]")
+	jwtCtx, errHTTP := mustGetJwtCtx(req)
+	if errHTTP != nil {
+		return imsdb.Event{}, JWTContext{}, 0, errHTTP.From("[mustGetJwtCtx]")
 	}
 	eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
-		return imsdb.Event{}, JWTContext{}, 0, herr.S500("Failed to compute permissions", err).Src("[EventPermissions]")
+		return imsdb.Event{}, JWTContext{}, 0, herr.InternalServerError("Failed to compute permissions", err).From("[EventPermissions]")
 	}
 	return event, jwtCtx, eventPermissions[event.ID], nil
 }
@@ -125,13 +125,13 @@ func mustGetGlobalPermissions(req *http.Request, imsDB *store.DB, imsAdmins []st
 	JWTContext, authz.GlobalPermissionMask, *herr.HTTPError,
 ) {
 	empty := JWTContext{}
-	jwtCtx, hErr := mustGetJwtCtx(req)
-	if hErr != nil {
-		return empty, 0, hErr.Src("[mustGetJwtCtx]")
+	jwtCtx, errHTTP := mustGetJwtCtx(req)
+	if errHTTP != nil {
+		return empty, 0, errHTTP.From("[mustGetJwtCtx]")
 	}
 	_, globalPermissions, err := authz.EventPermissions(req.Context(), nil, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
-		return empty, 0, herr.S500("Failed to compute permissions", err).Src("[EventPermissions]")
+		return empty, 0, herr.InternalServerError("Failed to compute permissions", err).From("[EventPermissions]")
 	}
 	return jwtCtx, globalPermissions, nil
 }

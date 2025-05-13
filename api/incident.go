@@ -46,9 +46,9 @@ type GetIncidents struct {
 }
 
 func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errH := action.getIncidents(req)
-	if errH != nil {
-		errH.Src("[getIncidents]").WriteResponse(w)
+	resp, errHTTP := action.getIncidents(req)
+	if errHTTP != nil {
+		errHTTP.From("[getIncidents]").WriteResponse(w)
 		return
 	}
 	mustWriteJSON(w, resp)
@@ -56,15 +56,15 @@ func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *herr.HTTPError) {
 	resp := make(imsjson.Incidents, 0)
-	event, _, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return resp, errH.Src("[mustGetEventPermissions]")
+	event, _, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadIncidents == 0 {
-		return nil, herr.S403("The requestor does not have EventReadIncidents permission", nil)
+		return nil, herr.Forbidden("The requestor does not have EventReadIncidents permission", nil)
 	}
 	if err := req.ParseForm(); err != nil {
-		return nil, herr.S400("Failed to parse form", err)
+		return nil, herr.BadRequest("Failed to parse form", err)
 	}
 	generatedLTE := req.Form.Get("exclude_system_entries") != "true" // false means to exclude
 
@@ -74,7 +74,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 			Generated: generatedLTE,
 		})
 	if err != nil {
-		return resp, herr.S500("Failed to fetch Incident Report Entries", err)
+		return resp, herr.InternalServerError("Failed to fetch Incident Report Entries", err)
 	}
 
 	entriesByIncident := make(map[int32][]imsjson.ReportEntry)
@@ -85,7 +85,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 
 	incidentsRows, err := imsdb.New(action.imsDB).Incidents(req.Context(), event.ID)
 	if err != nil {
-		return resp, herr.S500("Failed to fetch Incidents", err).Src("[Incidents]")
+		return resp, herr.InternalServerError("Failed to fetch Incidents", err).From("[Incidents]")
 	}
 
 	for _, r := range incidentsRows {
@@ -95,7 +95,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 		// function.
 		incidentTypes, rangerHandles, fieldReportNumbers, err := readExtraIncidentRowFields(imsdb.IncidentRow(r))
 		if err != nil {
-			return resp, herr.S500("Failed to fetch Incident details", err).Src("[readExtraIncidentRowFields]")
+			return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 		}
 		lastModified := int64(r.Incident.Created)
 		for _, re := range entriesByIncident[r.Incident.Number] {
@@ -135,9 +135,9 @@ type GetIncident struct {
 }
 
 func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errH := action.getIncident(req)
-	if errH != nil {
-		errH.Src("[getIncident]").WriteResponse(w)
+	resp, errHTTP := action.getIncident(req)
+	if errHTTP != nil {
+		errHTTP.From("[getIncident]").WriteResponse(w)
 		return
 	}
 	mustWriteJSON(w, resp)
@@ -146,23 +146,23 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *herr.HTTPError) {
 	var resp imsjson.Incident
 
-	event, _, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return resp, errH.Src("[mustGetEventPermissions]")
+	event, _, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadIncidents == 0 {
-		return resp, herr.S403("The requestor does not have EventReadIncidents permission on this Event", nil)
+		return resp, herr.Forbidden("The requestor does not have EventReadIncidents permission on this Event", nil)
 	}
 	ctx := req.Context()
 
 	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
-		return resp, herr.S400("Failed to parse incident number", err)
+		return resp, herr.BadRequest("Failed to parse incident number", err)
 	}
 
-	storedRow, reportEntries, errH := fetchIncident(ctx, action.imsDB, event.ID, incidentNumber)
-	if errH != nil {
-		return resp, errH.Src("[fetchIncident]")
+	storedRow, reportEntries, errHTTP := fetchIncident(ctx, action.imsDB, event.ID, incidentNumber)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[fetchIncident]")
 	}
 
 	resultEntries := make([]imsjson.ReportEntry, 0)
@@ -172,7 +172,7 @@ func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *her
 
 	incidentTypes, rangerHandles, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
 	if err != nil {
-		return resp, herr.S500("Failed to fetch Incident details", err).Src("[readExtraIncidentRowFields]")
+		return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 	}
 
 	lastModified := int64(storedRow.Incident.Created)
@@ -215,9 +215,9 @@ func fetchIncident(ctx context.Context, imsDB *store.DB, eventID, incidentNumber
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return empty, nil, herr.S404("Incident not found", err).Src("[Incident]")
+			return empty, nil, herr.NotFound("Incident not found", err).From("[Incident]")
 		}
-		return empty, nil, herr.S500("Failed to fetch Incident", err).Src("[Incident]")
+		return empty, nil, herr.InternalServerError("Failed to fetch Incident", err).From("[Incident]")
 	}
 	reportEntryRows, err := imsdb.New(imsDB).Incident_ReportEntries(ctx,
 		imsdb.Incident_ReportEntriesParams{
@@ -226,7 +226,7 @@ func fetchIncident(ctx context.Context, imsDB *store.DB, eventID, incidentNumber
 		},
 	)
 	if err != nil {
-		return empty, nil, herr.S500("Failed to fetch report entries", err).Src("[Incident_ReportEntries]")
+		return empty, nil, herr.InternalServerError("Failed to fetch report entries", err).From("[Incident_ReportEntries]")
 	}
 	for _, rer := range reportEntryRows {
 		reportEntries = append(reportEntries, rer.ReportEntry)
@@ -249,7 +249,7 @@ func addIncidentReportEntry(
 	// This column is an int32, so this is safe
 	reID := conv.MustInt32(reID64)
 	if err != nil {
-		return 0, herr.S500("Failed to create report entry", err).Src("[MustInt32]")
+		return 0, herr.InternalServerError("Failed to create report entry", err).From("[MustInt32]")
 	}
 	err = q.AttachReportEntryToIncident(ctx, imsdb.AttachReportEntryToIncidentParams{
 		Event:          eventID,
@@ -257,7 +257,7 @@ func addIncidentReportEntry(
 		ReportEntry:    reID,
 	})
 	if err != nil {
-		return 0, herr.S500("Failed to attach report entry", err).Src("[AttachReportEntryToIncident]")
+		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToIncident]")
 	}
 	return reID, nil
 }
@@ -269,9 +269,9 @@ type NewIncident struct {
 }
 
 func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	number, location, errH := action.newIncident(req)
-	if errH != nil {
-		errH.Src("[newIncident]").WriteResponse(w)
+	number, location, errHTTP := action.newIncident(req)
+	if errHTTP != nil {
+		errHTTP.From("[newIncident]").WriteResponse(w)
 		return
 	}
 
@@ -279,18 +279,18 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Location", location)
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
-func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, location string, errH *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return 0, "", errH.Src("[mustGetEventPermissions]")
+func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
+	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return 0, "", errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
-		return 0, "", herr.S403("The requestor does not have EventWriteIncidents permission on this Event", nil)
+		return 0, "", herr.Forbidden("The requestor does not have EventWriteIncidents permission on this Event", nil)
 	}
 	ctx := req.Context()
-	newIncident, errH := mustReadBodyAs[imsjson.Incident](req)
-	if errH != nil {
-		return 0, "", errH.Src("[mustReadBodyAs]")
+	newIncident, errHTTP := mustReadBodyAs[imsjson.Incident](req)
+	if errHTTP != nil {
+		return 0, "", errHTTP.From("[mustReadBodyAs]")
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
@@ -298,7 +298,7 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 	// First create the incident, to lock in the incident number reservation
 	newIncidentNumber, err := imsdb.New(action.imsDB).NextIncidentNumber(ctx, event.ID)
 	if err != nil {
-		return 0, "", herr.S500("Failed to find next Incident number", err).Src("[NextIncidentNumber]")
+		return 0, "", herr.InternalServerError("Failed to find next Incident number", err).From("[NextIncidentNumber]")
 	}
 	newIncident.EventID = event.ID
 	newIncident.Event = event.Name
@@ -313,11 +313,11 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 	}
 	_, err = imsdb.New(action.imsDB).CreateIncident(ctx, createTheIncident)
 	if err != nil {
-		return 0, "", herr.S500("Failed to create incident", err).Src("[CreateIncident]")
+		return 0, "", herr.InternalServerError("Failed to create incident", err).From("[CreateIncident]")
 	}
 
-	if errH = updateIncident(ctx, action.imsDB, action.es, newIncident, author); errH != nil {
-		return 0, "", errH.Src("[updateIncident]")
+	if errHTTP = updateIncident(ctx, action.imsDB, action.es, newIncident, author); errHTTP != nil {
+		return 0, "", errHTTP.From("[updateIncident]")
 	}
 
 	return newIncident.Number, fmt.Sprintf("/ims/api/events/%v/incidents/%d", event.Name, newIncident.Number), nil
@@ -359,18 +359,18 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 		Number: newIncident.Number,
 	})
 	if err != nil {
-		return herr.S500("Failed to create incident", err).Src("[Incident]")
+		return herr.InternalServerError("Failed to create incident", err).From("[Incident]")
 	}
 	storedIncident := storedIncidentRow.Incident
 
 	incidentTypes, rangerHandles, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	if err != nil {
-		return herr.S500("Failed to read incident details", err).Src("[readExtraIncidentRowFields]")
+		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
 	}
 
 	txn, err := imsDB.Begin()
 	if err != nil {
-		return herr.S500("Failed to start transaction", err).Src("[Begin]")
+		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
@@ -425,7 +425,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 	}
 	err = dbTxn.UpdateIncident(ctx, update)
 	if err != nil {
-		return herr.S500("Failed to update incident", err).Src("[UpdateIncident]")
+		return herr.InternalServerError("Failed to update incident", err).From("[UpdateIncident]")
 	}
 
 	if newIncident.RangerHandles != nil {
@@ -440,7 +440,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 					RangerHandle:   rh,
 				})
 				if err != nil {
-					return herr.S500("Failed to attach Ranger to Incident", err).Src("[AttachRangerHandleToIncident]")
+					return herr.InternalServerError("Failed to attach Ranger to Incident", err).From("[AttachRangerHandleToIncident]")
 				}
 			}
 		}
@@ -453,7 +453,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 					RangerHandle:   rh,
 				})
 				if err != nil {
-					return herr.S500("Failed to detach Ranger from Incident", err).Src("[DetachRangerHandleFromIncident]")
+					return herr.InternalServerError("Failed to detach Ranger from Incident", err).From("[DetachRangerHandleFromIncident]")
 				}
 			}
 		}
@@ -471,7 +471,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 					Name:           itype,
 				})
 				if err != nil {
-					return herr.S500("Failed to add Incident Type", err).Src("[AttachIncidentTypeToIncident]")
+					return herr.InternalServerError("Failed to add Incident Type", err).From("[AttachIncidentTypeToIncident]")
 				}
 			}
 		}
@@ -484,7 +484,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 					Name:           rh,
 				})
 				if err != nil {
-					return herr.S500("Failed to detach Incident Type", err).Src("[AttachIncidentTypeToIncident]")
+					return herr.InternalServerError("Failed to detach Incident Type", err).From("[AttachIncidentTypeToIncident]")
 				}
 			}
 		}
@@ -505,7 +505,7 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 					IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
 				})
 				if err != nil {
-					return herr.S500("Failed to attach Field Report", err).Src("[AttachFieldReportToIncident]")
+					return herr.InternalServerError("Failed to attach Field Report", err).From("[AttachFieldReportToIncident]")
 				}
 			}
 		}
@@ -518,16 +518,16 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 					IncidentNumber: sql.NullInt32{},
 				})
 				if err != nil {
-					return herr.S500("Failed to detach Field Report", err).Src("[AttachFieldReportToIncident]")
+					return herr.InternalServerError("Failed to detach Field Report", err).From("[AttachFieldReportToIncident]")
 				}
 			}
 		}
 	}
 
 	if len(logs) > 0 {
-		_, errH := addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, strings.Join(logs, "\n"), true, "")
-		if errH != nil {
-			return errH.Src("[addIncidentReportEntry]")
+		_, errHTTP := addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, strings.Join(logs, "\n"), true, "")
+		if errHTTP != nil {
+			return errHTTP.From("[addIncidentReportEntry]")
 		}
 	}
 
@@ -535,14 +535,14 @@ func updateIncident(ctx context.Context, imsDB *store.DB, es *EventSourcerer, ne
 		if entry.Text == "" {
 			continue
 		}
-		_, errH := addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, entry.Text, false, "")
-		if errH != nil {
-			return errH.Src("[addIncidentReportEntry]")
+		_, errHTTP := addIncidentReportEntry(ctx, dbTxn, newIncident.EventID, newIncident.Number, author, entry.Text, false, "")
+		if errHTTP != nil {
+			return errHTTP.From("[addIncidentReportEntry]")
 		}
 	}
 
 	if err = txn.Commit(); err != nil {
-		return herr.S500("Failed to commit transaction", err).Src("[Commit]")
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
 	es.notifyIncidentUpdate(newIncident.Event, newIncident.Number)
@@ -570,30 +570,30 @@ type EditIncident struct {
 }
 
 func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if hErr := action.editIncident(req); hErr != nil {
-		hErr.Src("[editIncident]").WriteResponse(w)
+	if errHTTP := action.editIncident(req); errHTTP != nil {
+		errHTTP.From("[editIncident]").WriteResponse(w)
 		return
 	}
 	http.Error(w, "Success", http.StatusNoContent)
 }
 
 func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return errH.Src("[mustGetEventPermissions]")
+	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return errHTTP.From("[mustGetEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
-		return herr.S403("The requestor does not have EventWriteIncidents permission for this Event", nil)
+		return herr.Forbidden("The requestor does not have EventWriteIncidents permission for this Event", nil)
 	}
 	ctx := req.Context()
 
 	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
-		return herr.S400("Invalid Incident Number", err).Src("[ParseInt32]")
+		return herr.BadRequest("Invalid Incident Number", err).From("[ParseInt32]")
 	}
-	newIncident, errH := mustReadBodyAs[imsjson.Incident](req)
-	if errH != nil {
-		return errH.Src("[mustReadBodyAs]")
+	newIncident, errHTTP := mustReadBodyAs[imsjson.Incident](req)
+	if errHTTP != nil {
+		return errHTTP.From("[mustReadBodyAs]")
 	}
 	newIncident.Event = event.Name
 	newIncident.EventID = event.ID
@@ -601,8 +601,8 @@ func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	if errH = updateIncident(ctx, action.imsDB, action.es, newIncident, author); errH != nil {
-		return errH.Src("[updateIncident]")
+	if errHTTP = updateIncident(ctx, action.imsDB, action.es, newIncident, author); errHTTP != nil {
+		return errHTTP.From("[updateIncident]")
 	}
 
 	return nil

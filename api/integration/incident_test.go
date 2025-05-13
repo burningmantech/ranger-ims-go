@@ -43,6 +43,7 @@ func sampleIncident1(eventName string) imsjson.Incident {
 		RangerHandles: &[]string{"SomeOne", "SomeTwo"},
 		ReportEntries: []imsjson.ReportEntry{
 			{Text: "This is some report text lol"},
+			{Text: ""},
 		},
 	}
 }

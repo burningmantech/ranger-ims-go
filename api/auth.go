@@ -62,9 +62,9 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	// as the point of this is to take a username and password to create a new JWT.
 	var empty PostAuthResponse
 
-	vals, errHTTP := mustReadBodyAs[PostAuthRequest](req)
+	vals, errHTTP := readBodyAs[PostAuthRequest](req)
 	if errHTTP != nil {
-		return empty, nil, errHTTP.From("[mustReadBodyAs]")
+		return empty, nil, errHTTP.From("[readBodyAs]")
 	}
 
 	rangers, err := action.userStore.GetRangers(req.Context())
@@ -200,9 +200,9 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 	// event_id is an optional query param for this endpoint
 	eventName := req.Form.Get("event_id")
 	if eventName != "" {
-		event, errHTTP := mustGetEvent(req, eventName, action.imsDB)
+		event, errHTTP := getEvent(req, eventName, action.imsDB)
 		if errHTTP != nil {
-			return resp, errHTTP.From("[mustGetEvent]")
+			return resp, errHTTP.From("[getEvent]")
 		}
 
 		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDB, action.admins, *claims)

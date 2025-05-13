@@ -50,9 +50,9 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 }
 func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldReports, *herr.HTTPError) {
 	resp := make(imsjson.FieldReports, 0)
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return resp, errHTTP.From("[mustGetEventPermissions]")
+		return resp, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventReadAllFieldReports|authz.EventReadOwnFieldReports) == 0 {
 		return resp, herr.Forbidden("The requestor does not have permission to read Field Reports on this Event", nil)
@@ -65,11 +65,13 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 	}
 	generatedLTE := !strings.EqualFold("exclude_system_entries", "true") // false means to exclude
 
-	reportEntries, err := imsdb.New(action.imsDB).FieldReports_ReportEntries(req.Context(),
+	reportEntries, err := imsdb.New(action.imsDB).FieldReports_ReportEntries(
+		req.Context(),
 		imsdb.FieldReports_ReportEntriesParams{
 			Event:     event.ID,
 			Generated: generatedLTE,
-		})
+		},
+	)
 	if err != nil {
 		return resp, herr.InternalServerError("Failed to get FR report entries", err).From("[FieldReports_ReportEntries]")
 	}
@@ -145,9 +147,9 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 func (action GetFieldReport) getFieldReport(req *http.Request) (imsjson.FieldReport, *herr.HTTPError) {
 	var response imsjson.FieldReport
 
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return response, errHTTP.From("[mustGetEventPermissions]")
+		return response, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventReadAllFieldReports|authz.EventReadOwnFieldReports) == 0 {
 		return response, herr.Forbidden("The requestor does not have permission to read Field Reports on this Event", nil)
@@ -233,9 +235,9 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError {
-	event, jwt, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwt, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[mustGetEventPermissions]")
+		return errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		return herr.Forbidden("The requestor does not have permission to edit Field Reports on this Event", nil)
@@ -314,7 +316,7 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		)
 	}
 
-	requestFR, errHTTP := mustReadBodyAs[imsjson.FieldReport](req)
+	requestFR, errHTTP := readBodyAs[imsjson.FieldReport](req)
 	if errHTTP != nil {
 		return errHTTP.From("[readBodyAs2]")
 	}
@@ -409,18 +411,18 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
 func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, "", errHTTP.From("[mustGetEventPermissions]")
+		return 0, "", errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		return 0, "", herr.Forbidden("The requestor does not have permission to write Field Reports on this Event", nil)
 	}
 	ctx := req.Context()
 
-	fr, errHTTP := mustReadBodyAs[imsjson.FieldReport](req)
+	fr, errHTTP := readBodyAs[imsjson.FieldReport](req)
 	if errHTTP != nil {
-		return 0, "", errHTTP.From("[mustReadBodyAs]")
+		return 0, "", errHTTP.From("[readBodyAs]")
 	}
 
 	if fr.Incident != nil {

@@ -47,9 +47,9 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 	ctx := req.Context()
 	// eventName --> street ID --> street name
 	resp := make(imsjson.EventsStreets)
-	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return nil, errHTTP.From("[mustGetGlobalPermissions]")
+		return nil, errHTTP.From("[getGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalReadStreets == 0 {
 		return nil, herr.Forbidden("The requestor does not have GlobalReadStreets permission", nil)
@@ -61,9 +61,9 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 	eventName := req.Form.Get("event_id")
 	var events []imsdb.Event
 	if eventName != "" {
-		event, errHTTP := mustEventFromFormValue(req, action.imsDB)
+		event, errHTTP := eventFromFormValue(req, action.imsDB)
 		if errHTTP != nil {
-			return nil, errHTTP.From("[mustEventFromFormValue]")
+			return nil, errHTTP.From("[eventFromFormValue]")
 		}
 		events = append(events, imsdb.Event{ID: event.ID, Name: event.Name})
 	} else {
@@ -104,21 +104,21 @@ func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 	ctx := req.Context()
-	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[mustGetGlobalPermissions]")
+		return errHTTP.From("[getGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateStreets == 0 {
 		return herr.Forbidden("The requestor does not have GlobalAdministrateStreets permission", nil)
 	}
-	eventsStreets, errHTTP := mustReadBodyAs[imsjson.EventsStreets](req)
+	eventsStreets, errHTTP := readBodyAs[imsjson.EventsStreets](req)
 	if errHTTP != nil {
-		return errHTTP.From("[mustReadBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 	for eventName, newEventStreets := range eventsStreets {
-		event, errHTTP := mustGetEvent(req, eventName, action.imsDB)
+		event, errHTTP := getEvent(req, eventName, action.imsDB)
 		if errHTTP != nil {
-			return errHTTP.From("[mustGetEvent]")
+			return errHTTP.From("[getEvent]")
 		}
 		currentStreets, err := imsdb.New(action.imsDB).ConcentricStreets(req.Context(), event.ID)
 		if err != nil {
@@ -130,11 +130,13 @@ func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 		}
 		for streetID, streetName := range newEventStreets {
 			if !currentStreetIDs[streetID] {
-				err = imsdb.New(action.imsDB).CreateConcentricStreet(ctx, imsdb.CreateConcentricStreetParams{
-					Event: event.ID,
-					ID:    streetID,
-					Name:  streetName,
-				})
+				err = imsdb.New(action.imsDB).CreateConcentricStreet(
+					ctx, imsdb.CreateConcentricStreetParams{
+						Event: event.ID,
+						ID:    streetID,
+						Name:  streetName,
+					},
+				)
 				if err != nil {
 					return herr.InternalServerError("Failed to create Street", err).From("[CreateConcentricStreet]")
 				}

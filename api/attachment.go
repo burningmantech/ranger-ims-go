@@ -76,9 +76,9 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 }
 
 func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io.ReadSeeker, *herr.HTTPError) {
-	event, _, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return nil, errHTTP.From("[mustGetEventPermissions]")
+		return nil, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadIncidents == 0 {
 		return nil, herr.Forbidden("The requestor does not have EventReadIncidents permission on this Event", nil)
@@ -155,9 +155,9 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 }
 
 func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Request) (io.ReadSeeker, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return nil, errHTTP.From("[mustGetEventPermissions]")
+		return nil, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventReadAllFieldReports|authz.EventReadOwnFieldReports) == 0 {
 		return nil, herr.Forbidden("The requestor does not have permission to read Field Reports on this Event", nil)
@@ -231,9 +231,9 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[mustGetEventPermissions]")
+		return 0, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
 		return 0, herr.Forbidden("The requestor does not have EventWriteIncidents permission on this Event", nil)
@@ -311,9 +311,9 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	http.Error(w, "Saved Field Report attachment", http.StatusNoContent)
 }
 func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[mustGetEventPermissions]")
+		return 0, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		return 0, herr.Forbidden("The requestor does not have permission to write Field Reports on this Event", nil)

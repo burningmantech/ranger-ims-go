@@ -56,9 +56,9 @@ func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *herr.HTTPError) {
 	resp := make(imsjson.Incidents, 0)
-	event, _, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return resp, errHTTP.From("[mustGetEventPermissions]")
+		return resp, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadIncidents == 0 {
 		return nil, herr.Forbidden("The requestor does not have EventReadIncidents permission", nil)
@@ -146,9 +146,9 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *herr.HTTPError) {
 	var resp imsjson.Incident
 
-	event, _, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return resp, errHTTP.From("[mustGetEventPermissions]")
+		return resp, errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadIncidents == 0 {
 		return resp, herr.Forbidden("The requestor does not have EventReadIncidents permission on this Event", nil)
@@ -280,17 +280,17 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
 func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, "", errHTTP.From("[mustGetEventPermissions]")
+		return 0, "", errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
 		return 0, "", herr.Forbidden("The requestor does not have EventWriteIncidents permission on this Event", nil)
 	}
 	ctx := req.Context()
-	newIncident, errHTTP := mustReadBodyAs[imsjson.Incident](req)
+	newIncident, errHTTP := readBodyAs[imsjson.Incident](req)
 	if errHTTP != nil {
-		return 0, "", errHTTP.From("[mustReadBodyAs]")
+		return 0, "", errHTTP.From("[readBodyAs]")
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
@@ -578,9 +578,9 @@ func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[mustGetEventPermissions]")
+		return errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
 		return herr.Forbidden("The requestor does not have EventWriteIncidents permission for this Event", nil)
@@ -591,9 +591,9 @@ func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
 	if err != nil {
 		return herr.BadRequest("Invalid Incident Number", err).From("[ParseInt32]")
 	}
-	newIncident, errHTTP := mustReadBodyAs[imsjson.Incident](req)
+	newIncident, errHTTP := readBodyAs[imsjson.Incident](req)
 	if errHTTP != nil {
-		return errHTTP.From("[mustReadBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 	newIncident.Event = event.Name
 	newIncident.EventID = event.ID

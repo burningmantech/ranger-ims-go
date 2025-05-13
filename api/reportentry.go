@@ -43,9 +43,9 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 }
 
 func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[mustGetEventPermissions]")
+		return errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		return herr.Forbidden("The requestor does not have permission to write Field Reports on this Event", nil)
@@ -63,9 +63,9 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return herr.BadRequest("Failed to parse reportEntryId", err).From("[ParseInt32]")
 	}
 
-	re, errHTTP := mustReadBodyAs[imsjson.ReportEntry](req)
+	re, errHTTP := readBodyAs[imsjson.ReportEntry](req)
 	if errHTTP != nil {
-		return errHTTP.From("[mustReadBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 
 	txn, err := action.imsDB.Begin()
@@ -116,9 +116,9 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 }
 
 func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[mustGetEventPermissions]")
+		return errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventWriteIncidents) == 0 {
 		return herr.Forbidden("The requestor does not have permission to write Report Entries on this Event", nil)
@@ -136,9 +136,9 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return herr.BadRequest("Failed to parse reportEntryId", err).From("[ParseInt32]")
 	}
 
-	re, errHTTP := mustReadBodyAs[imsjson.ReportEntry](req)
+	re, errHTTP := readBodyAs[imsjson.ReportEntry](req)
 	if errHTTP != nil {
-		return errHTTP.From("[mustReadBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 
 	txn, err := action.imsDB.Begin()

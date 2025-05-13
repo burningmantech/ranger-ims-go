@@ -50,9 +50,9 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTPError) {
 	var empty imsjson.Events
-	jwt, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	jwt, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return empty, errHTTP.From("[mustGetGlobalPermissions]")
+		return empty, errHTTP.From("[getGlobalPermissions]")
 	}
 	// This is the first level of authorization. Per-event filtering is done farther down.
 	if globalPermissions&authz.GlobalListEvents == 0 {
@@ -129,9 +129,9 @@ func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
-	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[mustGetGlobalPermissions]")
+		return errHTTP.From("[getGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
 		return herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
@@ -139,9 +139,9 @@ func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
 	if err := req.ParseForm(); err != nil {
 		return herr.BadRequest("Failed to parse HTTP form", err)
 	}
-	editRequest, errHTTP := mustReadBodyAs[imsjson.EditEventsRequest](req)
+	editRequest, errHTTP := readBodyAs[imsjson.EditEventsRequest](req)
 	if errHTTP != nil {
-		return errHTTP.From("[mustReadBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 
 	for _, eventName := range editRequest.Add {

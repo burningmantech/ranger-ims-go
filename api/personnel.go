@@ -47,9 +47,9 @@ func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 func (action GetPersonnel) getPersonnel(req *http.Request) (GetPersonnelResponse, *herr.HTTPError) {
 	response := make(GetPersonnelResponse, 0)
-	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
 	if errHTTP != nil {
-		return response, errHTTP.From("[mustGetGlobalPermissions]")
+		return response, errHTTP.From("[getGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalReadPersonnel == 0 {
 		return response, herr.Forbidden("The requestor does not have GlobalReadPersonnel permission", nil)

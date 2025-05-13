@@ -30,7 +30,7 @@ import (
 	"net/http"
 )
 
-func mustReadBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
+func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 	empty := *new(T)
 	defer shut(req.Body)
 	bodyBytes, err := io.ReadAll(req.Body)
@@ -44,7 +44,7 @@ func mustReadBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 	return t, nil
 }
 
-func mustEventFromFormValue(req *http.Request, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
+func eventFromFormValue(req *http.Request, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
 	empty := imsdb.Event{}
 	if err := req.ParseForm(); err != nil {
 		return empty, herr.BadRequest("Failed to parse form", err).From("ParseForm")
@@ -55,12 +55,12 @@ func mustEventFromFormValue(req *http.Request, imsDB *store.DB) (imsdb.Event, *h
 	}
 	eventRow, err := imsdb.New(imsDB).QueryEventID(req.Context(), eventName)
 	if err != nil {
-		return empty, herr.New(http.StatusInternalServerError, "Failed to get empty ID", fmt.Errorf("[QueryEventID]: %w", err))
+		return empty, herr.New(http.StatusInternalServerError, "Failed to get event ID", fmt.Errorf("[QueryEventID]: %w", err))
 	}
 	return eventRow.Event, nil
 }
 
-func mustGetEvent(req *http.Request, eventName string, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
+func getEvent(req *http.Request, eventName string, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
 	var empty imsdb.Event
 	if eventName == "" {
 		return empty, herr.BadRequest("No eventName was provided", nil)
@@ -92,27 +92,24 @@ func mustWriteJSON(w http.ResponseWriter, resp any) (success bool) {
 	return true
 }
 
-func mustGetJwtCtx(req *http.Request) (JWTContext, *herr.HTTPError) {
+func getJwtCtx(req *http.Request) (JWTContext, *herr.HTTPError) {
 	jwtCtx, found := req.Context().Value(JWTContextKey).(JWTContext)
 	if !found {
-		return JWTContext{}, herr.InternalServerError(
-			"This endpoint has been misconfigured. Please report this to the tech team",
-			errors.New("the OptionalAuthN adapter must be called before RequireAuthN"),
-		)
+		return JWTContext{}, herr.InternalServerError("This endpoint has been misconfigured", nil)
 	}
 	return jwtCtx, nil
 }
 
-func mustGetEventPermissions(req *http.Request, imsDB *store.DB, imsAdmins []string) (
+func getEventPermissions(req *http.Request, imsDB *store.DB, imsAdmins []string) (
 	imsdb.Event, JWTContext, authz.EventPermissionMask, *herr.HTTPError,
 ) {
-	event, errHTTP := mustGetEvent(req, req.PathValue("eventName"), imsDB)
+	event, errHTTP := getEvent(req, req.PathValue("eventName"), imsDB)
 	if errHTTP != nil {
-		return imsdb.Event{}, JWTContext{}, 0, errHTTP.From("[mustGetEvent]")
+		return imsdb.Event{}, JWTContext{}, 0, errHTTP.From("[getEvent]")
 	}
-	jwtCtx, errHTTP := mustGetJwtCtx(req)
+	jwtCtx, errHTTP := getJwtCtx(req)
 	if errHTTP != nil {
-		return imsdb.Event{}, JWTContext{}, 0, errHTTP.From("[mustGetJwtCtx]")
+		return imsdb.Event{}, JWTContext{}, 0, errHTTP.From("[getJwtCtx]")
 	}
 	eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
@@ -121,13 +118,13 @@ func mustGetEventPermissions(req *http.Request, imsDB *store.DB, imsAdmins []str
 	return event, jwtCtx, eventPermissions[event.ID], nil
 }
 
-func mustGetGlobalPermissions(req *http.Request, imsDB *store.DB, imsAdmins []string) (
+func getGlobalPermissions(req *http.Request, imsDB *store.DB, imsAdmins []string) (
 	JWTContext, authz.GlobalPermissionMask, *herr.HTTPError,
 ) {
 	empty := JWTContext{}
-	jwtCtx, errHTTP := mustGetJwtCtx(req)
+	jwtCtx, errHTTP := getJwtCtx(req)
 	if errHTTP != nil {
-		return empty, 0, errHTTP.From("[mustGetJwtCtx]")
+		return empty, 0, errHTTP.From("[getJwtCtx]")
 	}
 	_, globalPermissions, err := authz.EventPermissions(req.Context(), nil, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {

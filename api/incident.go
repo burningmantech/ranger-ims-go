@@ -28,6 +28,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"slices"
 	"strconv"
@@ -68,24 +69,43 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 	}
 	generatedLTE := req.Form.Get("exclude_system_entries") != "true" // false means to exclude
 
-	reportEntries, err := imsdb.New(action.imsDB).Incidents_ReportEntries(req.Context(),
-		imsdb.Incidents_ReportEntriesParams{
-			Event:     event.ID,
-			Generated: generatedLTE,
-		})
-	if err != nil {
-		return resp, herr.InternalServerError("Failed to fetch Incident Report Entries", err)
-	}
+	// The Incidents and ReportEntries queries both request a lot of data, so let's query
+	// and process those results concurrently.
+	group, groupCtx := errgroup.WithContext(req.Context())
 
 	entriesByIncident := make(map[int32][]imsjson.ReportEntry)
-	for _, row := range reportEntries {
-		re := row.ReportEntry
-		entriesByIncident[row.IncidentNumber] = append(entriesByIncident[row.IncidentNumber], reportEntryToJSON(re, action.attachmentsEnabled))
-	}
+	group.Go(func() error {
+		reportEntries, err := imsdb.New(action.imsDB).Incidents_ReportEntries(
+			groupCtx,
+			imsdb.Incidents_ReportEntriesParams{
+				Event:     event.ID,
+				Generated: generatedLTE,
+			},
+		)
+		if err != nil {
+			return herr.InternalServerError("Failed to fetch Incident Report Entries", err).From("[Incidents_ReportEntries]")
+		}
+		for _, row := range reportEntries {
+			re := row.ReportEntry
+			entriesByIncident[row.IncidentNumber] = append(
+				entriesByIncident[row.IncidentNumber],
+				reportEntryToJSON(re, action.attachmentsEnabled),
+			)
+		}
+		return nil
+	})
 
-	incidentsRows, err := imsdb.New(action.imsDB).Incidents(req.Context(), event.ID)
-	if err != nil {
-		return resp, herr.InternalServerError("Failed to fetch Incidents", err).From("[Incidents]")
+	var incidentsRows []imsdb.IncidentsRow
+	group.Go(func() error {
+		var err error
+		incidentsRows, err = imsdb.New(action.imsDB).Incidents(groupCtx, event.ID)
+		if err != nil {
+			return herr.InternalServerError("Failed to fetch Incidents", err).From("[Incidents]")
+		}
+		return nil
+	})
+	if err := group.Wait(); err != nil {
+		return resp, herr.AsHTTPError(err)
 	}
 
 	for _, r := range incidentsRows {

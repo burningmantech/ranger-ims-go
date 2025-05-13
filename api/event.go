@@ -22,6 +22,7 @@ import (
 	"fmt"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
@@ -38,26 +39,33 @@ type GetEvents struct {
 }
 
 func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	var resp imsjson.Events
-	jwt, globalPermissions, ok := mustGetGlobalPermissions(w, req, action.imsDB, action.imsAdmins)
-	if !ok {
+	resp, errH := action.getEvents(req)
+	if errH != nil {
+		errH.Src("[getEvents]").WriteResponse(w)
 		return
+	}
+	w.Header().Set("Cache-Control", fmt.Sprintf(
+		"max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
+	mustWriteJSON(w, resp)
+}
+func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTPError) {
+	var empty imsjson.Events
+	jwt, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errH != nil {
+		return empty, errH.Src("[mustGetGlobalPermissions]")
 	}
 	// This is the first level of authorization. Per-event filtering is done farther down.
 	if globalPermissions&authz.GlobalListEvents == 0 {
-		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalListEvents permission", nil)
-		return
+		return empty, herr.S403("The requestor does not have GlobalListEvents permission", nil)
 	}
 
 	allEvents, err := imsdb.New(action.imsDB).Events(req.Context())
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to get events", err)
-		return
+		return nil, herr.S500("Failed to get events", err).Src("[Events]")
 	}
-	permissionsByEvent, err := action.permissionsByEvent(req.Context(), jwt)
-	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to get permissions", err)
-		return
+	permissionsByEvent, errH := action.permissionsByEvent(req.Context(), jwt)
+	if errH != nil {
+		return empty, errH.Src("[permissionsByEvent]")
 	}
 
 	var authorizedEvents []imsdb.EventsRow
@@ -66,7 +74,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			authorizedEvents = append(authorizedEvents, eve)
 		}
 	}
-	resp = make(imsjson.Events, 0, len(authorizedEvents))
+	resp := make(imsjson.Events, 0, len(authorizedEvents))
 	for _, eve := range authorizedEvents {
 		resp = append(resp, imsjson.Event{
 			ID:   eve.Event.ID,
@@ -78,14 +86,15 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return cmp.Compare(a.ID, b.ID)
 	})
 
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
-	mustWriteJSON(w, resp)
+	return resp, nil
 }
 
-func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContext) (map[int32]authz.EventPermissionMask, error) {
+func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContext) (
+	map[int32]authz.EventPermissionMask, *herr.HTTPError,
+) {
 	accessRows, err := imsdb.New(action.imsDB).EventAccessAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("[EventAccessAll]: %w", err)
+		return nil, herr.S500("Failed to fetch event access", err).Src("[EventAccessAll]")
 	}
 	accessRowByEventID := make(map[int32][]imsdb.EventAccess)
 	for _, ar := range accessRows {
@@ -113,32 +122,36 @@ type EditEvents struct {
 var allowedEventNames = regexp.MustCompile(`^[\w-]+$`)
 
 func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	_, globalPermissions, ok := mustGetGlobalPermissions(w, req, action.imsDB, action.imsAdmins)
-	if !ok {
+	if hErr := action.editEvents(req); hErr != nil {
+		hErr.Src("[editEvents]").WriteResponse(w)
 		return
+	}
+	http.Error(w, "Success", http.StatusNoContent)
+}
+func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
+	_, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errH != nil {
+		return errH.Src("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
-		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalAdministrateEvents permission", nil)
-		return
+		return herr.S403("The requestor does not have GlobalAdministrateEvents permission", nil)
 	}
-	if ok = mustParseForm(w, req); !ok {
-		return
+	if err := req.ParseForm(); err != nil {
+		return herr.S400("Failed to parse HTTP form", err)
 	}
-	editRequest, ok := mustReadBodyAs[imsjson.EditEventsRequest](w, req)
-	if !ok {
-		return
+	editRequest, errH := mustReadBodyAs[imsjson.EditEventsRequest](req)
+	if errH != nil {
+		return errH.Src("[mustReadBodyAs]")
 	}
 	for _, eventName := range editRequest.Add {
 		if !allowedEventNames.MatchString(eventName) {
-			handleErr(w, req, http.StatusBadRequest, "Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%s'", eventName))
-			return
+			return herr.S400("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%s'", eventName))
 		}
 		id, err := imsdb.New(action.imsDB).CreateEvent(req.Context(), eventName)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Failed to create event", err)
-			return
+			return herr.S500("Failed to create event", err).Src("[CreateEvent]")
 		}
 		slog.Info("Created event", "eventName", eventName, "id", id)
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	return nil
 }

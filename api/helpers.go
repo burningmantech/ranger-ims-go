@@ -20,7 +20,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"io"
@@ -28,64 +30,49 @@ import (
 	"net/http"
 )
 
-func mustParseForm(w http.ResponseWriter, req *http.Request) (success bool) {
-	if err := req.ParseForm(); err != nil {
-		slog.Error("Failed to parse form", "error", err, "path", req.URL.Path)
-		http.Error(w, "Failed to parse HTTP form", http.StatusBadRequest)
-		return false
-	}
-	return true
-}
-
-func mustReadBodyAs[T any](w http.ResponseWriter, req *http.Request) (t T, success bool) {
+func mustReadBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
+	empty := *new(T)
 	defer shut(req.Body)
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		slog.Error("Failed to read request body", "error", err)
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
-		return t, false
+		return empty, herr.S400("Failed to read request body", err).Src("[io.ReadAll]")
 	}
+	var t T
 	if err = json.Unmarshal(bodyBytes, &t); err != nil {
-		slog.Error("Failed to unmarshal request body", "error", err)
-		http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
-		return t, false
+		return empty, herr.S400("Failed to unmarshal request body", err).Src("[Unmarshal]")
 	}
-	return t, true
+	return t, nil
 }
 
-func mustEventFromFormValue(w http.ResponseWriter, req *http.Request, imsDB *store.DB) (event imsdb.Event, success bool) {
-	if ok := mustParseForm(w, req); !ok {
-		return imsdb.Event{}, false
+func mustEventFromFormValue2(req *http.Request, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
+	empty := imsdb.Event{}
+	if err := req.ParseForm(); err != nil {
+		return empty, herr.S400("Failed to parse form", err).Src("ParseForm")
 	}
 	eventName := req.FormValue("event_id")
 	if eventName == "" {
-		slog.Error("No event_id was found in the URL path", "path", req.URL.Path)
-		http.Error(w, "No event_id was found in the URL", http.StatusBadRequest)
-		return imsdb.Event{}, false
+		return empty, herr.S400("No event_id was found in the URL", nil)
 	}
 	eventRow, err := imsdb.New(imsDB).QueryEventID(req.Context(), eventName)
 	if err != nil {
-		slog.Error("Failed to get event ID", "error", err)
-		http.Error(w, "Failed to get event ID", http.StatusInternalServerError)
-		return imsdb.Event{}, false
+		return empty, herr.New(http.StatusInternalServerError, "Failed to get empty ID", fmt.Errorf("[QueryEventID]: %w", err))
 	}
-	return eventRow.Event, true
+	return eventRow.Event, nil
 }
 
-func mustGetEvent(w http.ResponseWriter, req *http.Request, eventName string, imsDB *store.DB) (event imsdb.Event, success bool) {
+func mustGetEvent(req *http.Request, eventName string, imsDB *store.DB) (imsdb.Event, *herr.HTTPError) {
+	var empty imsdb.Event
 	if eventName == "" {
-		slog.Error("No eventName was provided")
-		http.Error(w, "No eventName was provided", http.StatusInternalServerError)
-		return imsdb.Event{}, false
+		return empty, herr.S400("No eventName was provided", nil)
 	}
-
 	eventRow, err := imsdb.New(imsDB).QueryEventID(req.Context(), eventName)
 	if err != nil {
-		slog.Error("Failed to fetch event", "error", err)
-		http.Error(w, "Event not found", http.StatusNotFound)
-		return imsdb.Event{}, false
+		if errors.Is(err, sql.ErrNoRows) {
+			return empty, herr.S404("Event not found", err)
+		}
+		return empty, herr.S500("Failed to fetch Event", err).Src("[QueryEventID]")
 	}
-	return eventRow.Event, true
+	return eventRow.Event, nil
 }
 
 func mustWriteJSON(w http.ResponseWriter, resp any) (success bool) {
@@ -105,52 +92,48 @@ func mustWriteJSON(w http.ResponseWriter, resp any) (success bool) {
 	return true
 }
 
-func mustGetJwtCtx(w http.ResponseWriter, req *http.Request) (JWTContext, bool) {
+func mustGetJwtCtx(req *http.Request) (JWTContext, *herr.HTTPError) {
 	jwtCtx, found := req.Context().Value(JWTContextKey).(JWTContext)
 	if !found {
-		slog.Error("the OptionalAuthN adapter must be called before RequireAuthN")
-		http.Error(w, "This endpoint has been misconfigured. Please report this to the tech team",
-			http.StatusInternalServerError)
-		return JWTContext{}, false
+		return JWTContext{}, herr.S500(
+			"This endpoint has been misconfigured. Please report this to the tech team",
+			errors.New("the OptionalAuthN adapter must be called before RequireAuthN"),
+		)
 	}
-	return jwtCtx, true
+	return jwtCtx, nil
 }
 
-func mustGetEventPermissions(w http.ResponseWriter, req *http.Request, imsDB *store.DB, imsAdmins []string) (imsdb.Event, JWTContext, authz.EventPermissionMask, bool) {
-	event, ok := mustGetEvent(w, req, req.PathValue("eventName"), imsDB)
-	if !ok {
-		return imsdb.Event{}, JWTContext{}, 0, false
+func mustGetEventPermissions(req *http.Request, imsDB *store.DB, imsAdmins []string) (
+	imsdb.Event, JWTContext, authz.EventPermissionMask, *herr.HTTPError,
+) {
+	event, hErr := mustGetEvent(req, req.PathValue("eventName"), imsDB)
+	if hErr != nil {
+		return imsdb.Event{}, JWTContext{}, 0, hErr.Src("[mustGetEvent]")
 	}
-	jwtCtx, ok := mustGetJwtCtx(w, req)
-	if !ok {
-		return imsdb.Event{}, JWTContext{}, 0, false
+	jwtCtx, hErr := mustGetJwtCtx(req)
+	if hErr != nil {
+		return imsdb.Event{}, JWTContext{}, 0, hErr.Src("[mustGetJwtCtx]")
 	}
 	eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
-		slog.Error("Failed to compute permissions", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return imsdb.Event{}, JWTContext{}, 0, false
+		return imsdb.Event{}, JWTContext{}, 0, herr.S500("Failed to compute permissions", err).Src("[EventPermissions]")
 	}
-	return event, jwtCtx, eventPermissions[event.ID], true
+	return event, jwtCtx, eventPermissions[event.ID], nil
 }
 
-func mustGetGlobalPermissions(w http.ResponseWriter, req *http.Request, imsDB *store.DB, imsAdmins []string) (JWTContext, authz.GlobalPermissionMask, bool) {
-	jwtCtx, ok := mustGetJwtCtx(w, req)
-	if !ok {
-		return JWTContext{}, 0, false
+func mustGetGlobalPermissions(req *http.Request, imsDB *store.DB, imsAdmins []string) (
+	JWTContext, authz.GlobalPermissionMask, *herr.HTTPError,
+) {
+	empty := JWTContext{}
+	jwtCtx, hErr := mustGetJwtCtx(req)
+	if hErr != nil {
+		return empty, 0, hErr.Src("[mustGetJwtCtx]")
 	}
 	_, globalPermissions, err := authz.EventPermissions(req.Context(), nil, imsDB, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
-		slog.Error("Failed to compute permissions", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return JWTContext{}, 0, false
+		return empty, 0, herr.S500("Failed to compute permissions", err).Src("[EventPermissions]")
 	}
-	return jwtCtx, globalPermissions, true
-}
-
-func handleErr(w http.ResponseWriter, req *http.Request, statusCode int, errorForUser string, internalError error) {
-	slog.Error(errorForUser, "error", internalError, "statusCode", statusCode, "path", req.URL.Path)
-	http.Error(w, errorForUser, statusCode)
+	return jwtCtx, globalPermissions, nil
 }
 
 func rollback(txn *sql.Tx) {

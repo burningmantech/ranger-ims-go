@@ -21,6 +21,7 @@ import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
@@ -34,13 +35,20 @@ type EditFieldReportReportEntry struct {
 }
 
 func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	event, jwtCtx, eventPermissions, ok := mustGetEventPermissions(w, req, action.imsDB, action.imsAdmins)
-	if !ok {
+	if errH := action.editFieldReportEntry(req); errH != nil {
+		errH.Src("[editFieldReportEntry]").WriteResponse(w)
 		return
 	}
+	http.Error(w, "Success", http.StatusNoContent)
+}
+
+func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request) *herr.HTTPError {
+	event, jwtCtx, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errH != nil {
+		return errH.Src("[mustGetEventPermissions]")
+	}
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
-		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to write Field Reports on this Event", nil)
-		return
+		return herr.S403("The requestor does not have permission to write Field Reports on this Event", nil)
 	}
 	ctx := req.Context()
 
@@ -48,24 +56,21 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 
 	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
 	if err != nil {
-		handleErr(w, req, http.StatusBadRequest, "Failed to parse fieldReportNumber", err)
-		return
+		return herr.S400("Failed to parse fieldReportNumber", err).Src("[ParseInt32]")
 	}
 	reportEntryId, err := conv.ParseInt32(req.PathValue("reportEntryId"))
 	if err != nil {
-		handleErr(w, req, http.StatusBadRequest, "Failed to parse reportEntryId", err)
-		return
+		return herr.S400("Failed to parse reportEntryId", err).Src("[ParseInt32]")
 	}
 
-	re, ok := mustReadBodyAs[imsjson.ReportEntry](w, req)
-	if !ok {
-		return
+	re, errH := mustReadBodyAs[imsjson.ReportEntry](req)
+	if errH != nil {
+		return errH.Src("[mustReadBodyAs]")
 	}
 
 	txn, err := action.imsDB.Begin()
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error starting transaction", err)
-		return
+		return herr.S500("Error beginning transaction", err).Src("[Begin]")
 	}
 	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
@@ -77,26 +82,23 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 		ReportEntry:       reportEntryId,
 	})
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error setting field report entry", err)
-		return
+		return herr.S500("Error setting field report entry", err).Src("[SetFieldReportReportEntryStricken]")
 	}
 	struckVerb := "Struck"
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, err = addFRReportEntry(ctx, dbTxn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
-	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error adding report entry", err)
-		return
+	_, errH = addFRReportEntry(ctx, dbTxn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	if errH != nil {
+		return errH.Src("[addFRReportEntry]")
 	}
 	if err = txn.Commit(); err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error committing transaction", err)
-		return
+		return herr.S500("Error committing transaction", err).Src("[Commit]")
 	}
 
 	defer action.eventSource.notifyFieldReportUpdate(event.Name, fieldReportNumber)
 
-	http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+	return nil
 }
 
 type EditIncidentReportEntry struct {
@@ -106,13 +108,20 @@ type EditIncidentReportEntry struct {
 }
 
 func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	event, jwtCtx, eventPermissions, ok := mustGetEventPermissions(w, req, action.imsDB, action.imsAdmins)
-	if !ok {
+	if errH := action.editIncidentReportEntry(req); errH != nil {
+		errH.Src("[editIncidentReportEntry]").WriteResponse(w)
 		return
 	}
+	http.Error(w, "Success", http.StatusNoContent)
+}
+
+func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request) *herr.HTTPError {
+	event, jwtCtx, eventPermissions, errH := mustGetEventPermissions(req, action.imsDB, action.imsAdmins)
+	if errH != nil {
+		return errH.Src("[mustGetEventPermissions]")
+	}
 	if eventPermissions&(authz.EventWriteIncidents) == 0 {
-		handleErr(w, req, http.StatusForbidden, "The requestor does not have permission to write Report Entries on this Event", nil)
-		return
+		return herr.S403("The requestor does not have permission to write Report Entries on this Event", nil)
 	}
 	ctx := req.Context()
 
@@ -120,24 +129,21 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 
 	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
-		handleErr(w, req, http.StatusBadRequest, "Failed to parse incidentNumber", err)
-		return
+		return herr.S400("Failed to parse incidentNumber", err).Src("[ParseInt32]")
 	}
 	reportEntryId, err := conv.ParseInt32(req.PathValue("reportEntryId"))
 	if err != nil {
-		handleErr(w, req, http.StatusBadRequest, "Failed to parse reportEntryId", err)
-		return
+		return herr.S400("Failed to parse reportEntryId", err).Src("[ParseInt32]")
 	}
 
-	re, ok := mustReadBodyAs[imsjson.ReportEntry](w, req)
-	if !ok {
-		return
+	re, errH := mustReadBodyAs[imsjson.ReportEntry](req)
+	if errH != nil {
+		return errH.Src("[mustReadBodyAs]")
 	}
 
 	txn, err := action.imsDB.Begin()
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error starting transaction", err)
-		return
+		return herr.S500("Error beginning transaction", err).Src("[Begin]")
 	}
 	defer rollback(txn)
 	dbTxn := imsdb.New(txn)
@@ -149,26 +155,22 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 		ReportEntry:    reportEntryId,
 	})
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error setting incident report entry", err)
-		return
+		return herr.S500("Error setting incident report entry", err).Src("[SetIncidentReportEntryStricken]")
 	}
 	struckVerb := "Struck"
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, err = addIncidentReportEntry(ctx, dbTxn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
-	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error adding report entry", err)
-		return
+	_, errH = addIncidentReportEntry(ctx, dbTxn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	if errH != nil {
+		return errH.Src("[addIncidentReportEntry]")
 	}
 	if err = txn.Commit(); err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Error committing transaction", err)
-		return
+		return herr.S500("Error committing transaction", err).Src("[Commit]")
 	}
 
 	defer action.eventSource.notifyIncidentUpdate(event.Name, incidentNumber)
-
-	http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+	return nil
 }
 
 func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.ReportEntry {

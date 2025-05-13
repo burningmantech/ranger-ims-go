@@ -20,6 +20,7 @@ import (
 	"fmt"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
@@ -33,33 +34,42 @@ type GetStreets struct {
 }
 
 func (action GetStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	resp, hErr := action.getStreets(req)
+	if hErr != nil {
+		hErr.Src("[getStreets]").WriteResponse(w)
+		return
+	}
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
+	mustWriteJSON(w, resp)
+}
+
+func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *herr.HTTPError) {
+	ctx := req.Context()
 	// eventName --> street ID --> street name
 	resp := make(imsjson.EventsStreets)
-	_, globalPermissions, ok := mustGetGlobalPermissions(w, req, action.imsDB, action.imsAdmins)
-	if !ok {
-		return
+	_, globalPermissions, hErr := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if hErr != nil {
+		return nil, hErr.Src("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalReadStreets == 0 {
-		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalReadStreets permission", nil)
-		return
+		return nil, herr.S403("The requestor does not have GlobalReadStreets permission", nil)
 	}
 
-	if ok := mustParseForm(w, req); !ok {
-		return
+	if err := req.ParseForm(); err != nil {
+		return nil, herr.S400("Failed to parse form", err)
 	}
 	eventName := req.Form.Get("event_id")
 	var events []imsdb.Event
 	if eventName != "" {
-		event, ok := mustEventFromFormValue(w, req, action.imsDB)
-		if !ok {
-			return
+		event, hErr := mustEventFromFormValue2(req, action.imsDB)
+		if hErr != nil {
+			return nil, hErr.Src("[mustEventFromFormValue2]")
 		}
 		events = append(events, imsdb.Event{ID: event.ID, Name: event.Name})
 	} else {
-		eventRows, err := imsdb.New(action.imsDB).Events(req.Context())
+		eventRows, err := imsdb.New(action.imsDB).Events(ctx)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Events", err)
-			return
+			return nil, herr.S500("Failed to fetch Events", err).Src("[Events]")
 		}
 		for _, er := range eventRows {
 			events = append(events, er.Event)
@@ -67,18 +77,16 @@ func (action GetStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	for _, event := range events {
-		streets, err := imsdb.New(action.imsDB).ConcentricStreets(req.Context(), event.ID)
+		streets, err := imsdb.New(action.imsDB).ConcentricStreets(ctx, event.ID)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Streets", err)
-			return
+			return nil, herr.S500("Failed to fetch Streets", err).Src("[ConcentricStreets]")
 		}
 		resp[event.Name] = make(imsjson.EventStreets)
 		for _, street := range streets {
 			resp[event.Name][street.ConcentricStreet.ID] = street.ConcentricStreet.Name
 		}
 	}
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
-	mustWriteJSON(w, resp)
+	return resp, nil
 }
 
 type EditStreets struct {
@@ -87,28 +95,34 @@ type EditStreets struct {
 }
 
 func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	_, globalPermissions, ok := mustGetGlobalPermissions(w, req, action.imsDB, action.imsAdmins)
-	if !ok {
+	if hErr := action.editStreets(req); hErr != nil {
+		hErr.Src("[editStreets]").WriteResponse(w)
 		return
+	}
+	http.Error(w, "Success", http.StatusNoContent)
+}
+
+func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
+	ctx := req.Context()
+	_, globalPermissions, hErr := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if hErr != nil {
+		return hErr.Src("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateStreets == 0 {
-		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalAdministrateStreets permission", nil)
-		return
+		return herr.S403("The requestor does not have GlobalAdministrateStreets permission", nil)
 	}
-	eventsStreets, ok := mustReadBodyAs[imsjson.EventsStreets](w, req)
-	if !ok {
-		return
+	eventsStreets, hErr := mustReadBodyAs[imsjson.EventsStreets](req)
+	if hErr != nil {
+		return hErr.Src("[mustReadBodyAs]")
 	}
 	for eventName, newEventStreets := range eventsStreets {
-		event, ok := mustGetEvent(w, req, eventName, action.imsDB)
-		if !ok {
-			return
+		event, hErr := mustGetEvent(req, eventName, action.imsDB)
+		if hErr != nil {
+			return hErr.Src("[mustGetEvent]")
 		}
 		currentStreets, err := imsdb.New(action.imsDB).ConcentricStreets(req.Context(), event.ID)
 		if err != nil {
-			handleErr(w, req, http.StatusInternalServerError, "Failed to fetch Streets", err)
-			return
+			return herr.S500("Failed to fetch Streets", err).Src("[ConcentricStreets]")
 		}
 		currentStreetIDs := make(map[string]bool)
 		for _, street := range currentStreets {
@@ -122,11 +136,10 @@ func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					Name:  streetName,
 				})
 				if err != nil {
-					handleErr(w, req, http.StatusInternalServerError, "Failed to create Street", err)
-					return
+					return herr.S500("Failed to create Street", err).Src("[CreateConcentricStreet]")
 				}
 			}
 		}
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	return nil
 }

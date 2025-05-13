@@ -21,6 +21,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"net/http"
 	"time"
@@ -36,20 +37,27 @@ type GetPersonnel struct {
 type GetPersonnelResponse []imsjson.Person
 
 func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	response := make(GetPersonnelResponse, 0)
-	_, globalPermissions, ok := mustGetGlobalPermissions(w, req, action.imsDB, action.imsAdmins)
-	if !ok {
+	resp, errH := action.getPersonnel(req)
+	if errH != nil {
+		errH.Src("[getPersonnel]").WriteResponse(w)
 		return
 	}
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
+	mustWriteJSON(w, resp)
+}
+func (action GetPersonnel) getPersonnel(req *http.Request) (GetPersonnelResponse, *herr.HTTPError) {
+	response := make(GetPersonnelResponse, 0)
+	_, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errH != nil {
+		return response, errH.Src("[mustGetGlobalPermissions]")
+	}
 	if globalPermissions&authz.GlobalReadPersonnel == 0 {
-		handleErr(w, req, http.StatusForbidden, "The requestor does not have GlobalReadPersonnel permission", nil)
-		return
+		return response, herr.S403("The requestor does not have GlobalReadPersonnel permission", nil)
 	}
 
 	rangers, err := action.userStore.GetRangers(req.Context())
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to get personnel", nil)
-		return
+		return response, herr.S500("Failed to get personnel", err).Src("[GetRangers]")
 	}
 
 	for _, ranger := range rangers {
@@ -67,6 +75,5 @@ func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		})
 	}
 
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
-	mustWriteJSON(w, response)
+	return response, nil
 }

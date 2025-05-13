@@ -179,8 +179,8 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	// now the user can hit some more endpoints
 	for _, api := range allPerms {
 		switch {
-		case api == getFieldReport || api == postFieldReport:
-			// the user won't be able to read/write an FR for which they're not an author,
+		case api == postFieldReport:
+			// the user won't be able to write to an FR for which they're not an author,
 			// e.g. the one in this dummy call, so we should expect a 403, but we
 			// can confirm they got the right error message
 			code := apiCall(t, api, apisAdmin)

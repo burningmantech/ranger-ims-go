@@ -34,26 +34,26 @@ type GetEventAccesses struct {
 }
 
 func (action GetEventAccesses) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errH := action.getEventAccesses(req)
-	if errH != nil {
-		errH.Src("[getEventAccesses]").WriteResponse(w)
+	resp, errHTTP := action.getEventAccesses(req)
+	if errHTTP != nil {
+		errHTTP.From("[getEventAccesses]").WriteResponse(w)
 		return
 	}
 	mustWriteJSON(w, resp)
 }
 func (action GetEventAccesses) getEventAccesses(req *http.Request) (imsjson.EventsAccess, *herr.HTTPError) {
 	var empty imsjson.EventsAccess
-	_, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return empty, errH.Src("[mustGetGlobalPermissions]")
+	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return empty, errHTTP.From("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
-		return empty, herr.S403("The requestor does not have GlobalAdministrateEvents permission", nil)
+		return empty, herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
 	}
 
-	resp, errH := getEventsAccess(req.Context(), action.imsDB)
-	if errH != nil {
-		return empty, errH.Src("[getEventsAccess]")
+	resp, errHTTP := getEventsAccess(req.Context(), action.imsDB)
+	if errHTTP != nil {
+		return empty, errHTTP.From("[getEventsAccess]")
 	}
 	return resp, nil
 }
@@ -61,7 +61,7 @@ func (action GetEventAccesses) getEventAccesses(req *http.Request) (imsjson.Even
 func getEventsAccess(ctx context.Context, imsDB *store.DB) (imsjson.EventsAccess, *herr.HTTPError) {
 	allEventRows, err := imsdb.New(imsDB).Events(ctx)
 	if err != nil {
-		return nil, herr.S500("Failed to fetch Events", err).Src("[Events]")
+		return nil, herr.InternalServerError("Failed to fetch Events", err).From("[Events]")
 	}
 	var storedEvents []imsdb.Event
 	for _, aer := range allEventRows {
@@ -70,7 +70,7 @@ func getEventsAccess(ctx context.Context, imsDB *store.DB) (imsjson.EventsAccess
 
 	accessRows, err := imsdb.New(imsDB).EventAccessAll(ctx)
 	if err != nil {
-		return nil, herr.S500("Failed to fetch EventAccess", err).Src("[EventAccessAll]")
+		return nil, herr.InternalServerError("Failed to fetch EventAccess", err).From("[EventAccessAll]")
 	}
 	accessRowByEventID := make(map[int32][]imsdb.EventAccess)
 	for _, ar := range accessRows {
@@ -109,40 +109,40 @@ type PostEventAccess struct {
 var eventAccessWriteMu sync.Mutex
 
 func (action PostEventAccess) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	errH := action.postEventAccess(req)
-	if errH != nil {
-		errH.Src("[postEventAccess]").WriteResponse(w)
+	errHTTP := action.postEventAccess(req)
+	if errHTTP != nil {
+		errHTTP.From("[postEventAccess]").WriteResponse(w)
 		return
 	}
 	http.Error(w, "Successfully set event access", http.StatusNoContent)
 }
 
 func (action PostEventAccess) postEventAccess(req *http.Request) *herr.HTTPError {
-	_, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return errH.Src("[mustGetGlobalPermissions]")
+	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return errHTTP.From("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
-		return herr.S403("The requestor does not have GlobalAdministrateEvents permission", nil)
+		return herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
 	}
 	ctx := req.Context()
-	eventsAccess, errH := mustReadBodyAs[imsjson.EventsAccess](req)
-	if errH != nil {
-		return errH.Src("[mustReadBodyAs]")
+	eventsAccess, errHTTP := mustReadBodyAs[imsjson.EventsAccess](req)
+	if errHTTP != nil {
+		return errHTTP.From("[mustReadBodyAs]")
 	}
 	for eventName, access := range eventsAccess {
-		event, errH := mustGetEvent(req, eventName, action.imsDB)
-		if errH != nil {
-			return errH.Src("[mustReadBodyAs]")
+		event, errHTTP := mustGetEvent(req, eventName, action.imsDB)
+		if errHTTP != nil {
+			return errHTTP.From("[mustReadBodyAs]")
 		}
-		if errH = action.maybeSetAccess(ctx, event, access.Readers, imsdb.EventAccessModeRead); errH != nil {
-			return errH.Src("[maybeSetAccess] EventAccessModeRead")
+		if errHTTP = action.maybeSetAccess(ctx, event, access.Readers, imsdb.EventAccessModeRead); errHTTP != nil {
+			return errHTTP.From("[maybeSetAccess] EventAccessModeRead")
 		}
-		if errH = action.maybeSetAccess(ctx, event, access.Writers, imsdb.EventAccessModeWrite); errH != nil {
-			return errH.Src("[maybeSetAccess] EventAccessModeWrite")
+		if errHTTP = action.maybeSetAccess(ctx, event, access.Writers, imsdb.EventAccessModeWrite); errHTTP != nil {
+			return errHTTP.From("[maybeSetAccess] EventAccessModeWrite")
 		}
-		if errH = action.maybeSetAccess(ctx, event, access.Reporters, imsdb.EventAccessModeReport); errH != nil {
-			return errH.Src("[maybeSetAccess] EventAccessModeReport")
+		if errHTTP = action.maybeSetAccess(ctx, event, access.Reporters, imsdb.EventAccessModeReport); errHTTP != nil {
+			return errHTTP.From("[maybeSetAccess] EventAccessModeReport")
 		}
 	}
 	return nil
@@ -166,7 +166,7 @@ func (action PostEventAccess) maybeSetAccess(
 
 	txn, err := action.imsDB.BeginTx(ctx, nil)
 	if err != nil {
-		return herr.S500("Failed to begin transaction", err).Src("[BeginTx]")
+		return herr.InternalServerError("Failed to begin transaction", err).From("[BeginTx]")
 	}
 	defer rollback(txn)
 	err = imsdb.New(txn).ClearEventAccessForMode(ctx, imsdb.ClearEventAccessForModeParams{
@@ -174,7 +174,7 @@ func (action PostEventAccess) maybeSetAccess(
 		Mode:  mode,
 	})
 	if err != nil {
-		return herr.S500("Failed to begin transaction", err).Src("[ClearEventAccessForMode]")
+		return herr.InternalServerError("Failed to begin transaction", err).From("[ClearEventAccessForMode]")
 	}
 	for _, rule := range rules {
 		err = imsdb.New(txn).ClearEventAccessForExpression(ctx, imsdb.ClearEventAccessForExpressionParams{
@@ -182,7 +182,7 @@ func (action PostEventAccess) maybeSetAccess(
 			Expression: rule.Expression,
 		})
 		if err != nil {
-			return herr.S500("Failed to clear event access", err).Src("[ClearEventAccessForExpression]")
+			return herr.InternalServerError("Failed to clear event access", err).From("[ClearEventAccessForExpression]")
 		}
 		_, err = imsdb.New(txn).AddEventAccess(ctx, imsdb.AddEventAccessParams{
 			Event:      event.ID,
@@ -191,11 +191,11 @@ func (action PostEventAccess) maybeSetAccess(
 			Validity:   imsdb.EventAccessValidity(rule.Validity),
 		})
 		if err != nil {
-			return herr.S500("Failed to add event access", err).Src("[AddEventAccess]")
+			return herr.InternalServerError("Failed to add event access", err).From("[AddEventAccess]")
 		}
 	}
 	if err = txn.Commit(); err != nil {
-		return herr.S500("Failed to commit transaction", err).Src("[Commit]")
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 	return nil
 }

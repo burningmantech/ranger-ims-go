@@ -37,9 +37,9 @@ type GetPersonnel struct {
 type GetPersonnelResponse []imsjson.Person
 
 func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errH := action.getPersonnel(req)
-	if errH != nil {
-		errH.Src("[getPersonnel]").WriteResponse(w)
+	resp, errHTTP := action.getPersonnel(req)
+	if errHTTP != nil {
+		errHTTP.From("[getPersonnel]").WriteResponse(w)
 		return
 	}
 	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
@@ -47,17 +47,17 @@ func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 func (action GetPersonnel) getPersonnel(req *http.Request) (GetPersonnelResponse, *herr.HTTPError) {
 	response := make(GetPersonnelResponse, 0)
-	_, globalPermissions, errH := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
-	if errH != nil {
-		return response, errH.Src("[mustGetGlobalPermissions]")
+	_, globalPermissions, errHTTP := mustGetGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	if errHTTP != nil {
+		return response, errHTTP.From("[mustGetGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalReadPersonnel == 0 {
-		return response, herr.S403("The requestor does not have GlobalReadPersonnel permission", nil)
+		return response, herr.Forbidden("The requestor does not have GlobalReadPersonnel permission", nil)
 	}
 
 	rangers, err := action.userStore.GetRangers(req.Context())
 	if err != nil {
-		return response, herr.S500("Failed to get personnel", err).Src("[GetRangers]")
+		return response, herr.InternalServerError("Failed to get personnel", err).From("[GetRangers]")
 	}
 
 	for _, ranger := range rangers {

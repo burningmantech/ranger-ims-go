@@ -35,7 +35,7 @@ import (
 )
 
 type GetFieldReports struct {
-	imsDB              *store.DB
+	imsDBQ             *store.DBQ
 	imsAdmins          []string
 	attachmentsEnabled bool
 }
@@ -50,7 +50,7 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 }
 func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldReports, *herr.HTTPError) {
 	resp := make(imsjson.FieldReports, 0)
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getEventPermissions]")
 	}
@@ -67,8 +67,9 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 	// generatedLTE value of "true" means include everything, "false" means exclude system entries
 	generatedLTE := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
 
-	reportEntries, err := imsdb.New(action.imsDB).FieldReports_ReportEntries(
+	reportEntries, err := action.imsDBQ.FieldReports_ReportEntries(
 		req.Context(),
+		action.imsDBQ,
 		imsdb.FieldReports_ReportEntriesParams{
 			Event:     event.ID,
 			Generated: generatedLTE,
@@ -83,7 +84,7 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 		entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], row.ReportEntry)
 	}
 
-	storedFRs, err := imsdb.New(action.imsDB).FieldReports(req.Context(), event.ID)
+	storedFRs, err := action.imsDBQ.FieldReports(req.Context(), action.imsDBQ, event.ID)
 	if err != nil {
 		return resp, herr.InternalServerError("Failed to fetch Field Reports", err).From("[FieldReports]")
 	}
@@ -132,7 +133,7 @@ func containsAuthor(entries []imsdb.ReportEntry, author string) bool {
 }
 
 type GetFieldReport struct {
-	imsDB              *store.DB
+	imsDBQ             *store.DBQ
 	imsAdmins          []string
 	attachmentsEnabled bool
 }
@@ -149,7 +150,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 func (action GetFieldReport) getFieldReport(req *http.Request) (imsjson.FieldReport, *herr.HTTPError) {
 	var response imsjson.FieldReport
 
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return response, errHTTP.From("[getEventPermissions]")
 	}
@@ -166,7 +167,7 @@ func (action GetFieldReport) getFieldReport(req *http.Request) (imsjson.FieldRep
 		return response, herr.BadRequest("Invalid field report number", err).From("[ParseInt32]")
 	}
 
-	fr, reportEntries, errHTTP := fetchFieldReport(ctx, action.imsDB, event.ID, fieldReportNumber)
+	fr, reportEntries, errHTTP := fetchFieldReport(ctx, action.imsDBQ, event.ID, fieldReportNumber)
 	if errHTTP != nil {
 		return response, errHTTP.From("[fetchFieldReport]")
 	}
@@ -194,20 +195,22 @@ func (action GetFieldReport) getFieldReport(req *http.Request) (imsjson.FieldRep
 	return response, nil
 }
 
-func fetchFieldReport(ctx context.Context, imsDB *store.DB, eventID, fieldReportNumber int32) (
+func fetchFieldReport(ctx context.Context, imsDBQ *store.DBQ, eventID, fieldReportNumber int32) (
 	imsdb.FieldReport, []imsdb.ReportEntry, *herr.HTTPError,
 ) {
-	frRow, err := imsdb.New(imsDB).FieldReport(ctx, imsdb.FieldReportParams{
-		Event:  eventID,
-		Number: fieldReportNumber,
-	})
+	frRow, err := imsDBQ.FieldReport(ctx, imsDBQ,
+		imsdb.FieldReportParams{
+			Event:  eventID,
+			Number: fieldReportNumber,
+		},
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return imsdb.FieldReport{}, nil, herr.NotFound("Field Report does not exist", err).From("[FieldReport]")
 		}
 		return imsdb.FieldReport{}, nil, herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReport]")
 	}
-	reportEntryRows, err := imsdb.New(imsDB).FieldReport_ReportEntries(ctx,
+	reportEntryRows, err := imsDBQ.FieldReport_ReportEntries(ctx, imsDBQ,
 		imsdb.FieldReport_ReportEntriesParams{
 			Event:             eventID,
 			FieldReportNumber: fieldReportNumber,
@@ -223,7 +226,7 @@ func fetchFieldReport(ctx context.Context, imsDB *store.DB, eventID, fieldReport
 }
 
 type EditFieldReport struct {
-	imsDB       *store.DB
+	imsDBQ      *store.DBQ
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -237,7 +240,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError {
-	event, jwt, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwt, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}
@@ -266,10 +269,12 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		}
 	}
 
-	frr, err := imsdb.New(action.imsDB).FieldReport(ctx, imsdb.FieldReportParams{
-		Event:  event.ID,
-		Number: fieldReportNumber,
-	})
+	frr, err := action.imsDBQ.FieldReport(ctx, action.imsDBQ,
+		imsdb.FieldReportParams{
+			Event:  event.ID,
+			Number: fieldReportNumber,
+		},
+	)
 	if err != nil {
 		return herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReport]")
 	}
@@ -295,15 +300,17 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		default:
 			return herr.BadRequest("Invalid action", fmt.Errorf("provided bad action was %v", queryAction))
 		}
-		err = imsdb.New(action.imsDB).AttachFieldReportToIncident(ctx, imsdb.AttachFieldReportToIncidentParams{
-			IncidentNumber: newIncident,
-			Event:          event.ID,
-			Number:         fieldReportNumber,
-		})
+		err = action.imsDBQ.AttachFieldReportToIncident(ctx, action.imsDBQ,
+			imsdb.AttachFieldReportToIncidentParams{
+				IncidentNumber: newIncident,
+				Event:          event.ID,
+				Number:         fieldReportNumber,
+			},
+		)
 		if err != nil {
 			return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
 		}
-		_, errHTTP := addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber, author, entryText, true, "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, author, entryText, true, "")
 		if errHTTP != nil {
 			return errHTTP.From("[addFRReportEntry]")
 		}
@@ -328,27 +335,30 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		return nil
 	}
 
-	txn, err := action.imsDB.Begin()
+	txn, err := action.imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
-	dbTxn := imsdb.New(txn)
 
 	if requestFR.Summary != nil {
 		storedFR.Summary = sqlNullString(requestFR.Summary)
 		text := "Changed summary to: " + *requestFR.Summary
-		_, errHTTP := addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, text, true, "")
+		_, errHTTP := addFRReportEntry(
+			ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, text, true, "",
+		)
 		if errHTTP != nil {
 			return errHTTP.From("[addFRReportEntry]")
 		}
 	}
-	err = dbTxn.UpdateFieldReport(ctx, imsdb.UpdateFieldReportParams{
-		Event:          storedFR.Event,
-		Number:         storedFR.Number,
-		Summary:        storedFR.Summary,
-		IncidentNumber: storedFR.IncidentNumber,
-	})
+	err = action.imsDBQ.UpdateFieldReport(ctx, txn,
+		imsdb.UpdateFieldReportParams{
+			Event:          storedFR.Event,
+			Number:         storedFR.Number,
+			Summary:        storedFR.Summary,
+			IncidentNumber: storedFR.IncidentNumber,
+		},
+	)
 	if err != nil {
 		return herr.InternalServerError("Failed to update Field Report", err).From("[UpdateFieldReport]")
 	}
@@ -356,7 +366,9 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addFRReportEntry(ctx, dbTxn, event.ID, storedFR.Number, author, entry.Text, false, "")
+		_, errHTTP := addFRReportEntry(
+			ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, entry.Text, false, "",
+		)
 		if errHTTP != nil {
 			return errHTTP.From("[addFRReportEntry]")
 		}
@@ -376,7 +388,7 @@ func (action EditFieldReport) isPreviousAuthor(
 	fieldReportNumber int32,
 	author string,
 ) (isPreviousAuthor bool, errHTTP *herr.HTTPError) {
-	entries, err := imsdb.New(action.imsDB).FieldReport_ReportEntries(req.Context(),
+	entries, err := action.imsDBQ.FieldReport_ReportEntries(req.Context(), action.imsDBQ,
 		imsdb.FieldReport_ReportEntriesParams{
 			Event:             eventID,
 			FieldReportNumber: fieldReportNumber,
@@ -396,7 +408,7 @@ func (action EditFieldReport) isPreviousAuthor(
 }
 
 type NewFieldReport struct {
-	imsDB       *store.DB
+	imsDBQ      *store.DBQ
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -413,7 +425,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
 func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[getEventPermissions]")
 	}
@@ -432,32 +444,33 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
-	newFrNum, err := imsdb.New(action.imsDB).NextFieldReportNumber(ctx, event.ID)
+	newFrNum, err := action.imsDBQ.NextFieldReportNumber(ctx, action.imsDBQ, event.ID)
 	if err != nil {
 		return 0, "", herr.InternalServerError("Failed to find next Field Report number", err).From("[NextFieldReportNumber]")
 	}
 
-	txn, err := action.imsDB.Begin()
+	txn, err := action.imsDBQ.Begin()
 	if err != nil {
 		return 0, "", herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
-	dbTxn := imsdb.New(txn)
 
-	err = dbTxn.CreateFieldReport(ctx, imsdb.CreateFieldReportParams{
-		Event:          event.ID,
-		Number:         newFrNum,
-		Created:        float64(time.Now().Unix()),
-		Summary:        sqlNullString(fr.Summary),
-		IncidentNumber: sql.NullInt32{},
-	})
+	err = action.imsDBQ.CreateFieldReport(ctx, txn,
+		imsdb.CreateFieldReportParams{
+			Event:          event.ID,
+			Number:         newFrNum,
+			Created:        float64(time.Now().Unix()),
+			Summary:        sqlNullString(fr.Summary),
+			IncidentNumber: sql.NullInt32{},
+		},
+	)
 	if err != nil {
 		return 0, "", herr.InternalServerError("Failed to create Field Report", err).From("[CreateFieldReport]")
 	}
 
 	if fr.Summary != nil {
 		text := "Changed summary to: " + *fr.Summary
-		_, errHTTP := addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, text, true, "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, newFrNum, author, text, true, "")
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -467,7 +480,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addFRReportEntry(ctx, dbTxn, event.ID, newFrNum, author, entry.Text, false, "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, newFrNum, author, entry.Text, false, "")
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -483,26 +496,31 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 }
 
 func addFRReportEntry(
-	ctx context.Context, q *imsdb.Queries, eventID, frNum int32, author, text string, generated bool, attachment string,
+	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX, eventID, frNum int32, author, text string, generated bool, attachment string,
 ) (int32, *herr.HTTPError) {
-	reID64, err := q.CreateReportEntry(ctx, imsdb.CreateReportEntryParams{
-		Author:       author,
-		Text:         text,
-		Created:      float64(time.Now().Unix()),
-		Generated:    generated,
-		Stricken:     false,
-		AttachedFile: sqlNullString(&attachment),
-	})
+	reID64, err := imsDBQ.CreateReportEntry(ctx,
+		dbtx,
+		imsdb.CreateReportEntryParams{
+			Author:       author,
+			Text:         text,
+			Created:      float64(time.Now().Unix()),
+			Generated:    generated,
+			Stricken:     false,
+			AttachedFile: sqlNullString(&attachment),
+		},
+	)
 	// This column is an int32, so this is safe
 	reID := conv.MustInt32(reID64)
 	if err != nil {
 		return 0, herr.InternalServerError("Failed to create report entry", err).From("[CreateReportEntry]")
 	}
-	err = q.AttachReportEntryToFieldReport(ctx, imsdb.AttachReportEntryToFieldReportParams{
-		Event:             eventID,
-		FieldReportNumber: frNum,
-		ReportEntry:       reID,
-	})
+	err = imsDBQ.AttachReportEntryToFieldReport(ctx, dbtx,
+		imsdb.AttachReportEntryToFieldReportParams{
+			Event:             eventID,
+			FieldReportNumber: frNum,
+			ReportEntry:       reID,
+		},
+	)
 	if err != nil {
 		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToFieldReport]")
 	}

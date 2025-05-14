@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *store.DB, userStore *directory.UserStore) *http.ServeMux {
+func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *store.DBQ, userStore *directory.UserStore) *http.ServeMux {
 	if mux == nil {
 		mux = http.NewServeMux()
 	}
@@ -334,10 +334,11 @@ func LogBeforeAfter() Adapter {
 			if jwtCtx.Claims != nil {
 				username = jwtCtx.Claims.RangerHandle()
 			}
+			durationMS := float64(time.Since(start).Microseconds()) / 1000.0
 			// TODO: log to ERROR if it was an error
 			slog.Debug("APILog",
 				"path", r.URL.Path,
-				"duration", fmt.Sprint(time.Since(start).Microseconds(), "µs"),
+				"duration", fmt.Sprintf("%.3fms", durationMS),
 				"method", r.Method,
 				"user", username,
 			)

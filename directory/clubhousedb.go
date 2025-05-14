@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
+	clubhousequeries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
 	"strings"
@@ -56,6 +57,7 @@ func MariaDB(ctx context.Context, imsCfg conf.ClubhouseDB) (*sql.DB, error) {
 
 type DB struct {
 	*sql.DB
+	clubhousequeries.Querier
 }
 
 func (l DB) ExecContext(ctx context.Context, s string, i ...interface{}) (sql.Result, error) {

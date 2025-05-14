@@ -130,7 +130,7 @@ func (store *UserStore) GetUserPositionsTeams(ctx context.Context, userID int64)
 
 func (store *UserStore) getRangersByIdRow(ctx context.Context) ([]clubhousequeries.RangersByIdRow, error) {
 	if store.testUsers == nil {
-		return clubhousequeries.New(store.clubhouseDB).RangersById(ctx)
+		return store.clubhouseDB.RangersById(ctx, store.clubhouseDB)
 	}
 
 	var rows []clubhousequeries.RangersByIdRow
@@ -149,7 +149,7 @@ func (store *UserStore) getRangersByIdRow(ctx context.Context) ([]clubhousequeri
 
 func (store *UserStore) getTeamsRows(ctx context.Context) ([]clubhousequeries.TeamsRow, error) {
 	if store.testUsers == nil {
-		return clubhousequeries.New(store.clubhouseDB).Teams(ctx)
+		return store.clubhouseDB.Teams(ctx, store.clubhouseDB)
 	}
 
 	var rows []clubhousequeries.TeamsRow
@@ -169,7 +169,7 @@ func (store *UserStore) getTeamsRows(ctx context.Context) ([]clubhousequeries.Te
 
 func (store *UserStore) getPositionsRows(ctx context.Context) ([]clubhousequeries.PositionsRow, error) {
 	if store.testUsers == nil {
-		return clubhousequeries.New(store.clubhouseDB).Positions(ctx)
+		return store.clubhouseDB.Positions(ctx, store.clubhouseDB)
 	}
 
 	var rows []clubhousequeries.PositionsRow
@@ -189,7 +189,7 @@ func (store *UserStore) getPositionsRows(ctx context.Context) ([]clubhousequerie
 
 func (store *UserStore) getPersonTeamsRows(ctx context.Context) ([]clubhousequeries.PersonTeamsRow, error) {
 	if store.testUsers == nil {
-		return clubhousequeries.New(store.clubhouseDB).PersonTeams(ctx)
+		return store.clubhouseDB.PersonTeams(ctx, store.clubhouseDB)
 	}
 
 	var rows []clubhousequeries.PersonTeamsRow
@@ -207,7 +207,7 @@ func (store *UserStore) getPersonTeamsRows(ctx context.Context) ([]clubhousequer
 
 func (store *UserStore) getPersonPositionsRows(ctx context.Context) ([]clubhousequeries.PersonPosition, error) {
 	if store.testUsers == nil {
-		return clubhousequeries.New(store.clubhouseDB).PersonPositions(ctx)
+		return store.clubhouseDB.PersonPositions(ctx, store.clubhouseDB)
 	}
 
 	var rows []clubhousequeries.PersonPosition

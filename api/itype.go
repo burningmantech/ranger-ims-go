@@ -29,7 +29,7 @@ import (
 )
 
 type GetIncidentTypes struct {
-	imsDB             *store.DB
+	imsDBQ            *store.DBQ
 	imsAdmins         []string
 	cacheControlShort time.Duration
 }
@@ -45,7 +45,7 @@ func (action GetIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.IncidentTypes, *herr.HTTPError) {
 	response := make(imsjson.IncidentTypes, 0)
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return response, errHTTP.From("[getGlobalPermissions]")
 	}
@@ -57,7 +57,7 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 		return response, herr.BadRequest("Unable to parse HTTP form", err).From("[ParseForm]")
 	}
 	includeHidden := req.Form.Get("hidden") == "true"
-	typeRows, err := imsdb.New(action.imsDB).IncidentTypes(req.Context())
+	typeRows, err := action.imsDBQ.IncidentTypes(req.Context(), action.imsDBQ)
 	if err != nil {
 		return response, herr.InternalServerError("Failed to fetch Incident Types", err).From("[IncidentTypes]")
 	}
@@ -74,7 +74,7 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 }
 
 type EditIncidentTypes struct {
-	imsDB     *store.DB
+	imsDBQ    *store.DBQ
 	imsAdmins []string
 }
 
@@ -86,7 +86,7 @@ func (action EditIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Reque
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPError {
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getGlobalPermissions]")
 	}
@@ -99,8 +99,8 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPE
 		return errHTTP.From("[readBodyAs]")
 	}
 	for _, it := range typesReq.Add {
-		err := imsdb.New(action.imsDB).CreateIncidentTypeOrIgnore(
-			ctx, imsdb.CreateIncidentTypeOrIgnoreParams{
+		err := action.imsDBQ.CreateIncidentTypeOrIgnore(ctx, action.imsDBQ,
+			imsdb.CreateIncidentTypeOrIgnoreParams{
 				Name:   it,
 				Hidden: false,
 			},
@@ -110,8 +110,8 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPE
 		}
 	}
 	for _, it := range typesReq.Hide {
-		err := imsdb.New(action.imsDB).HideShowIncidentType(
-			ctx, imsdb.HideShowIncidentTypeParams{
+		err := action.imsDBQ.HideShowIncidentType(ctx, action.imsDBQ,
+			imsdb.HideShowIncidentTypeParams{
 				Name:   it,
 				Hidden: true,
 			},
@@ -121,8 +121,8 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPE
 		}
 	}
 	for _, it := range typesReq.Show {
-		err := imsdb.New(action.imsDB).HideShowIncidentType(
-			ctx, imsdb.HideShowIncidentTypeParams{
+		err := action.imsDBQ.HideShowIncidentType(ctx, action.imsDBQ,
+			imsdb.HideShowIncidentTypeParams{
 				Name:   it,
 				Hidden: false,
 			},

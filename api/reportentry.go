@@ -29,7 +29,7 @@ import (
 )
 
 type EditFieldReportReportEntry struct {
-	imsDB       *store.DB
+	imsDBQ      *store.DBQ
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -43,7 +43,7 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 }
 
 func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}
@@ -68,19 +68,20 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return errHTTP.From("[readBodyAs]")
 	}
 
-	txn, err := action.imsDB.Begin()
+	txn, err := action.imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
-	dbTxn := imsdb.New(txn)
 
-	err = dbTxn.SetFieldReportReportEntryStricken(ctx, imsdb.SetFieldReportReportEntryStrickenParams{
-		Stricken:          re.Stricken,
-		Event:             event.ID,
-		FieldReportNumber: fieldReportNumber,
-		ReportEntry:       reportEntryId,
-	})
+	err = action.imsDBQ.SetFieldReportReportEntryStricken(ctx, txn,
+		imsdb.SetFieldReportReportEntryStrickenParams{
+			Stricken:          re.Stricken,
+			Event:             event.ID,
+			FieldReportNumber: fieldReportNumber,
+			ReportEntry:       reportEntryId,
+		},
+	)
 	if err != nil {
 		return herr.InternalServerError("Error setting field report entry", err).From("[SetFieldReportReportEntryStricken]")
 	}
@@ -88,7 +89,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addFRReportEntry(ctx, dbTxn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	_, errHTTP = addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
@@ -102,7 +103,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 }
 
 type EditIncidentReportEntry struct {
-	imsDB       *store.DB
+	imsDBQ      *store.DBQ
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -116,7 +117,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 }
 
 func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}
@@ -141,19 +142,20 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return errHTTP.From("[readBodyAs]")
 	}
 
-	txn, err := action.imsDB.Begin()
+	txn, err := action.imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
-	dbTxn := imsdb.New(txn)
 
-	err = dbTxn.SetIncidentReportEntryStricken(ctx, imsdb.SetIncidentReportEntryStrickenParams{
-		Stricken:       re.Stricken,
-		Event:          event.ID,
-		IncidentNumber: incidentNumber,
-		ReportEntry:    reportEntryId,
-	})
+	err = action.imsDBQ.SetIncidentReportEntryStricken(ctx, txn,
+		imsdb.SetIncidentReportEntryStrickenParams{
+			Stricken:       re.Stricken,
+			Event:          event.ID,
+			IncidentNumber: incidentNumber,
+			ReportEntry:    reportEntryId,
+		},
+	)
 	if err != nil {
 		return herr.InternalServerError("Error setting incident report entry", err).From("[SetIncidentReportEntryStricken]")
 	}
@@ -161,7 +163,7 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 	if !re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addIncidentReportEntry(ctx, dbTxn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	_, errHTTP = addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
 	if errHTTP != nil {
 		return errHTTP.From("[addIncidentReportEntry]")
 	}

@@ -17,6 +17,7 @@ package cache_test
 
 import (
 	"context"
+	"errors"
 	"github.com/burningmantech/ranger-ims-go/lib/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -85,4 +86,48 @@ func TestInMemoryCache_WorksWithNoRace(t *testing.T) {
 	numRefreshes = doTest(t, 50*time.Microsecond, 1000)
 	require.GreaterOrEqual(t, int64(1000), numRefreshes)
 	require.LessOrEqual(t, int64(1), numRefreshes)
+}
+
+func TestInMemoryCache_Invalidate(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	ttl := 100 * time.Hour
+	var refreshCount atomic.Int64
+	cacher := cache.New[cacheVal](ttl, func(ctx context.Context) (cacheVal, error) {
+		return cacheVal{
+			threadSafe: refreshCount.Add(1),
+		}, nil
+	})
+	// Call Get twice, and both should still have a cache value of 1
+	get, err := cacher.Get(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), get.threadSafe)
+	get, err = cacher.Get(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), get.threadSafe)
+	// Invalidate
+	cacher.Invalidate()
+	// See that now a refresh was needed
+	get, err = cacher.Get(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), get.threadSafe)
+}
+
+func TestInMemoryCache_Errors(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	ttl := 100 * time.Hour
+
+	cacher := &cache.InMemory[cacheVal]{}
+	assert.Panics(t, func() {
+		_, _ = cacher.Get(ctx)
+	})
+	assert.Panics(t, func() {
+		cacher.Invalidate()
+	})
+	cacher = cache.New[cacheVal](ttl, func(ctx context.Context) (cacheVal, error) {
+		return cacheVal{}, errors.New("some error")
+	})
+	_, err := cacher.Get(ctx)
+	require.Error(t, err)
 }

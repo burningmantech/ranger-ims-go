@@ -14,8 +14,8 @@ const personPositions = `-- name: PersonPositions :many
 select person_id, position_id from person_position
 `
 
-func (q *Queries) PersonPositions(ctx context.Context) ([]PersonPosition, error) {
-	rows, err := q.db.QueryContext(ctx, personPositions)
+func (q *Queries) PersonPositions(ctx context.Context, db DBTX) ([]PersonPosition, error) {
+	rows, err := db.QueryContext(ctx, personPositions)
 	if err != nil {
 		return nil, err
 	}
@@ -46,8 +46,8 @@ type PersonTeamsRow struct {
 	TeamID   int64
 }
 
-func (q *Queries) PersonTeams(ctx context.Context) ([]PersonTeamsRow, error) {
-	rows, err := q.db.QueryContext(ctx, personTeams)
+func (q *Queries) PersonTeams(ctx context.Context, db DBTX) ([]PersonTeamsRow, error) {
+	rows, err := db.QueryContext(ctx, personTeams)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +78,8 @@ type PositionsRow struct {
 	Title string
 }
 
-func (q *Queries) Positions(ctx context.Context) ([]PositionsRow, error) {
-	rows, err := q.db.QueryContext(ctx, positions)
+func (q *Queries) Positions(ctx context.Context, db DBTX) ([]PositionsRow, error) {
+	rows, err := db.QueryContext(ctx, positions)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +122,8 @@ type RangersByIdRow struct {
 	Password sql.NullString
 }
 
-func (q *Queries) RangersById(ctx context.Context) ([]RangersByIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, rangersById)
+func (q *Queries) RangersById(ctx context.Context, db DBTX) ([]RangersByIdRow, error) {
+	rows, err := db.QueryContext(ctx, rangersById)
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +161,8 @@ type TeamsRow struct {
 	Title string
 }
 
-func (q *Queries) Teams(ctx context.Context) ([]TeamsRow, error) {
-	rows, err := q.db.QueryContext(ctx, teams)
+func (q *Queries) Teams(ctx context.Context, db DBTX) ([]TeamsRow, error) {
+	rows, err := db.QueryContext(ctx, teams)
 	if err != nil {
 		return nil, err
 	}

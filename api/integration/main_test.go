@@ -23,6 +23,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -43,7 +44,7 @@ var mainTestInternal struct {
 // These are fields from the common setup performed in main_test.go.
 var shared struct {
 	cfg        *conf.IMSConfig
-	imsDB      *store.DB
+	imsDBQ     *store.DBQ
 	userStore  *directory.UserStore
 	es         *api.EventSourcerer
 	testServer *httptest.Server
@@ -144,10 +145,10 @@ func setup(ctx context.Context, tempDir string) {
 	port, err := mainTestInternal.dbCtr.MappedPort(ctx, "3306/tcp")
 	must(err)
 	shared.cfg.Store.MariaDB.HostPort = int32(port.Int())
-	db, err := store.IMSDB(ctx, shared.cfg.Store, true)
+	db, err := store.SqlDB(ctx, shared.cfg.Store, true)
 	must(err)
-	shared.imsDB = &store.DB{DB: db}
-	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDB, shared.userStore))
+	shared.imsDBQ = store.New(db, imsdb.New())
+	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore))
 	shared.serverURL, err = url.Parse(shared.testServer.URL)
 	must(err)
 }
@@ -163,8 +164,8 @@ func shutdown(ctx context.Context, tempDir string) {
 	if shared.testServer != nil {
 		shared.testServer.Close()
 	}
-	if shared.imsDB != nil {
-		_ = shared.imsDB.Close()
+	if shared.imsDBQ != nil {
+		_ = shared.imsDBQ.Close()
 	}
 	if mainTestInternal.dbCtr != nil {
 		err := mainTestInternal.dbCtr.Terminate(ctx)

@@ -46,7 +46,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Cache-Control", fmt.Sprintf(
 		"max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTPError) {
 	var empty imsjson.Events

@@ -36,14 +36,15 @@ func TestMustWriteJSONErrors(t *testing.T) {
 
 	// error if the response can't be marshalled as JSON
 	rec := httptest.NewRecorder()
+	req := &http.Request{URL: &url.URL{}}
 	cantBeMarshalled := complex64(1 + 1i)
-	ok := mustWriteJSON(rec, cantBeMarshalled)
+	ok := mustWriteJSON(rec, req, cantBeMarshalled)
 	assert.False(t, ok)
 	assert.Equal(t, http.StatusInternalServerError, rec.Result().StatusCode)
 
 	// error if the JSON can't be written to the response writer
 	w := angryResponseWriter{httptest.NewRecorder()}
-	ok = mustWriteJSON(w, "can be marshalled")
+	ok = mustWriteJSON(w, req, "can be marshalled")
 	assert.False(t, ok)
 	assert.Equal(t, http.StatusInternalServerError, rec.Result().StatusCode)
 }

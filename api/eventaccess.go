@@ -39,7 +39,7 @@ func (action GetEventAccesses) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		errHTTP.From("[getEventAccesses]").WriteResponse(w)
 		return
 	}
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 func (action GetEventAccesses) getEventAccesses(req *http.Request) (imsjson.EventsAccess, *herr.HTTPError) {
 	var empty imsjson.EventsAccess

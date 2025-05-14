@@ -40,7 +40,7 @@ func (action GetStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 
 func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *herr.HTTPError) {

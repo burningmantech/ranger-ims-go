@@ -146,7 +146,7 @@ func newUnmigratedDB(t *testing.T, ctx context.Context, database, username, pass
 	port, err := ctr.MappedPort(ctx, "3306/tcp")
 	require.NoError(t, err)
 	dbHostPort := int32(port.Int())
-	db, err := store.IMSDB(ctx, conf.DBStore{
+	db, err := store.SqlDB(ctx, conf.DBStore{
 		Type: conf.DBStoreTypeMaria,
 		MariaDB: conf.DBStoreMaria{
 			HostName: "",
@@ -160,9 +160,9 @@ func newUnmigratedDB(t *testing.T, ctx context.Context, database, username, pass
 	return ctr, db
 }
 
-func runScript(ctx context.Context, imsDB *sql.DB, sql string) error {
+func runScript(ctx context.Context, imsDBQ *sql.DB, sql string) error {
 	script := "BEGIN NOT ATOMIC\n" + sql + "\nEND"
-	_, err := imsDB.ExecContext(ctx, script)
+	_, err := imsDBQ.ExecContext(ctx, script)
 	if err != nil {
 		return fmt.Errorf("[ExecContext]: %w", err)
 	}

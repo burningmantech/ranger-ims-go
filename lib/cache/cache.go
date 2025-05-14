@@ -18,7 +18,6 @@ package cache
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -41,7 +40,7 @@ type dataAndTime[T any] struct {
 	time time.Time
 }
 
-// New creates a new InMemory cache. The ttl indicates how long a cached value is good for, and the refresher
+// New creates a new InMemory cache. The ttl indicates how long a cached value is valid, and the refresher
 // function is what fetches a new value for the cache when a refresh is needed.
 func New[T any](
 	ttl time.Duration,
@@ -53,44 +52,65 @@ func New[T any](
 		refresher:   refresher,
 		initialized: true,
 	}
-	this.dataPtr.Store(&dataAndTime[T]{
-		time: time.UnixMilli(epochMs),
-	})
+	this.dataPtr.Store(emptyVal[T]())
 	return this
 }
 
 func (im *InMemory[T]) Get(ctx context.Context) (*T, error) {
 	if !im.initialized {
-		return nil, errors.New("cache not initialized. Use the `New` function to create a cache")
+		panic("cache not initialized")
 	}
-	if err := im.maybeRefresh(ctx); err != nil {
-		return nil, fmt.Errorf("[maybeRefresh]: %w", err)
+	val, err := im.maybeRefreshAndGet(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[maybeRefreshAndGet]: %w", err)
 	}
-	dataPtr := im.dataPtr.Load()
-	return &dataPtr.data, nil
+	return val, nil
 }
 
-func (im *InMemory[T]) shouldRefresh() bool {
-	expiresAt := im.dataPtr.Load().time.Add(im.ttl)
-	return time.Now().After(expiresAt)
+func emptyVal[T any]() *dataAndTime[T] {
+	return &dataAndTime[T]{
+		time: time.UnixMilli(epochMs),
+	}
 }
 
-func (im *InMemory[T]) maybeRefresh(ctx context.Context) error {
-	if !im.shouldRefresh() {
-		return nil
+func (im *InMemory[T]) Invalidate() {
+	if !im.initialized {
+		panic("cache not initialized")
 	}
 	im.writeMu.Lock()
 	defer im.writeMu.Unlock()
-	if !im.shouldRefresh() {
-		return nil
+	im.dataPtr.Store(emptyVal[T]())
+}
+
+func stillValid(creation time.Time, ttl time.Duration) bool {
+	expiresAt := creation.Add(ttl)
+	return time.Now().Before(expiresAt)
+}
+
+func (im *InMemory[T]) maybeRefreshAndGet(ctx context.Context) (*T, error) {
+	// if it's still valid, return it
+	v := im.dataPtr.Load()
+	if stillValid(v.time, im.ttl) {
+		return &v.data, nil
 	}
+	// otherwise get the write lock
+	im.writeMu.Lock()
+	defer im.writeMu.Unlock()
+	// check again if the value is valid, because another caller might have refreshed it
+	v = im.dataPtr.Load()
+	if stillValid(v.time, im.ttl) {
+		return &v.data, nil
+	}
+	// get a refreshed value and store it
 	newVal, err := im.refresher(ctx)
 	if err != nil {
-		return fmt.Errorf("[refresher]: %w", err)
+		return new(T), fmt.Errorf("[refresher]: %w", err)
 	}
-	im.dataPtr.Store(&dataAndTime[T]{
-		data: newVal,
-		time: time.Now(),
-	})
-	return nil
+	im.dataPtr.Store(
+		&dataAndTime[T]{
+			data: newVal,
+			time: time.Now(),
+		},
+	)
+	return &newVal, nil
 }

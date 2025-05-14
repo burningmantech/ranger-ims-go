@@ -89,13 +89,13 @@ var RolesToEventPerms = map[Role]EventPermissionMask{
 func EventPermissions(
 	ctx context.Context,
 	eventID *int32, // nil for no event
-	imsDB *store.DB,
+	imsDBQ *store.DBQ,
 	imsAdmins []string,
 	claims IMSClaims,
 ) (eventPermissions map[int32]EventPermissionMask, globalPermissions GlobalPermissionMask, err error) {
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
 	if eventID != nil {
-		accessRows, err := imsdb.New(imsDB).EventAccess(ctx, *eventID)
+		accessRows, err := imsDBQ.EventAccess(ctx, imsDBQ, *eventID)
 		if err != nil {
 			return nil, GlobalNoPermissions, fmt.Errorf("EventAccess: %w", err)
 		}

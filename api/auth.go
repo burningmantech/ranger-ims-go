@@ -32,7 +32,7 @@ import (
 )
 
 type PostAuth struct {
-	imsDB                *store.DB
+	imsDBQ               *store.DBQ
 	userStore            *directory.UserStore
 	jwtSecret            string
 	accessTokenDuration  time.Duration
@@ -144,7 +144,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 }
 
 type GetAuth struct {
-	imsDB              *store.DB
+	imsDBQ             *store.DBQ
 	jwtSecret          string
 	admins             []string
 	attachmentsEnabled bool
@@ -200,12 +200,12 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 	// event_id is an optional query param for this endpoint
 	eventName := req.Form.Get("event_id")
 	if eventName != "" {
-		event, errHTTP := getEvent(req, eventName, action.imsDB)
+		event, errHTTP := getEvent(req, eventName, action.imsDBQ)
 		if errHTTP != nil {
 			return resp, errHTTP.From("[getEvent]")
 		}
 
-		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDB, action.admins, *claims)
+		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDBQ, action.admins, *claims)
 		if err != nil {
 			return resp, herr.InternalServerError("Failed to fetch event permissions", err).From("[EventPermissions]")
 		}
@@ -223,7 +223,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 }
 
 type RefreshAccessToken struct {
-	imsDB               *store.DB
+	imsDBQ              *store.DBQ
 	userStore           *directory.UserStore
 	jwtSecret           string
 	accessTokenDuration time.Duration

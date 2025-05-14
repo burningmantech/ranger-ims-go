@@ -28,7 +28,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/format"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
-	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"io"
 	"log/slog"
 	"mime"
@@ -41,26 +40,26 @@ import (
 const IMSAttachmentFormKey = "imsAttachment"
 
 type GetIncidentAttachment struct {
-	imsDB            *store.DB
+	imsDBQ           *store.DBQ
 	attachmentsStore conf.AttachmentsStore
 	imsAdmins        []string
 }
 
 type AttachToIncident struct {
-	imsDB            *store.DB
+	imsDBQ           *store.DBQ
 	es               *EventSourcerer
 	attachmentsStore conf.AttachmentsStore
 	imsAdmins        []string
 }
 
 type GetFieldReportAttachment struct {
-	imsDB            *store.DB
+	imsDBQ           *store.DBQ
 	attachmentsStore conf.AttachmentsStore
 	imsAdmins        []string
 }
 
 type AttachToFieldReport struct {
-	imsDB            *store.DB
+	imsDBQ           *store.DBQ
 	es               *EventSourcerer
 	attachmentsStore conf.AttachmentsStore
 	imsAdmins        []string
@@ -76,7 +75,7 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 }
 
 func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io.ReadSeeker, *herr.HTTPError) {
-	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[getEventPermissions]")
 	}
@@ -94,7 +93,7 @@ func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io
 		return nil, herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
-	_, reportEntries, errHTTP := fetchIncident(ctx, action.imsDB, event.ID, incidentNumber)
+	_, reportEntries, errHTTP := fetchIncident(ctx, action.imsDBQ, event.ID, incidentNumber)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[fetchIncident]")
 	}
@@ -155,7 +154,7 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 }
 
 func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Request) (io.ReadSeeker, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[getEventPermissions]")
 	}
@@ -176,7 +175,7 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Reques
 		return nil, herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
-	_, reportEntries, errHTTP := fetchFieldReport(ctx, action.imsDB, event.ID, fieldReportNumber)
+	_, reportEntries, errHTTP := fetchFieldReport(ctx, action.imsDBQ, event.ID, fieldReportNumber)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[fetchFieldReport]")
 	}
@@ -231,7 +230,7 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[getEventPermissions]")
 	}
@@ -290,7 +289,7 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
-	reID, errHTTP := addIncidentReportEntry(ctx, imsdb.New(action.imsDB), event.ID, incidentNumber,
+	reID, errHTTP := addIncidentReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addIncidentReportEntry]")
@@ -311,7 +310,7 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	http.Error(w, "Saved Field Report attachment", http.StatusNoContent)
 }
 func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDB, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[getEventPermissions]")
 	}
@@ -327,7 +326,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		return 0, herr.BadRequest("Failed to parse Field Report number", err).From("[ParseInt32]")
 	}
 
-	fieldReport, entries, errHTTP := fetchFieldReport(ctx, action.imsDB, event.ID, fieldReportNumber)
+	fieldReport, entries, errHTTP := fetchFieldReport(ctx, action.imsDBQ, event.ID, fieldReportNumber)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[fetchFieldReport]")
 	}
@@ -382,7 +381,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
 		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
-	reID, errHTTP := addFRReportEntry(ctx, imsdb.New(action.imsDB), event.ID, fieldReportNumber,
+	reID, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addFRReportEntry]")

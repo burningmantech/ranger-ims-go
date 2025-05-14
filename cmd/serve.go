@@ -24,6 +24,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -84,14 +85,14 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig) (exi
 		err = fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory)
 	}
 	must(err)
-	imsDB, err := store.IMSDB(ctx, imsCfg.Store, true)
+	imsDBQ, err := store.SqlDB(ctx, imsCfg.Store, true)
 	must(err)
 
 	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(mux, eventSource, imsCfg, &store.DB{DB: imsDB}, userStore)
+	api.AddToMux(mux, eventSource, imsCfg, store.New(imsDBQ, imsdb.New()), userStore)
 	web.AddToMux(mux, imsCfg)
 
 	s := &http.Server{

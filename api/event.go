@@ -33,7 +33,7 @@ import (
 )
 
 type GetEvents struct {
-	imsDB             *store.DB
+	imsDBQ            *store.DBQ
 	imsAdmins         []string
 	cacheControlShort time.Duration
 }
@@ -50,7 +50,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTPError) {
 	var empty imsjson.Events
-	jwt, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	jwt, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return empty, errHTTP.From("[getGlobalPermissions]")
 	}
@@ -59,7 +59,7 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 		return empty, herr.Forbidden("The requestor does not have GlobalListEvents permission", nil)
 	}
 
-	allEvents, err := imsdb.New(action.imsDB).Events(req.Context())
+	allEvents, err := action.imsDBQ.Events(req.Context(), action.imsDBQ)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to get events", err).From("[Events]")
 	}
@@ -92,7 +92,7 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContext) (
 	map[int32]authz.EventPermissionMask, *herr.HTTPError,
 ) {
-	accessRows, err := imsdb.New(action.imsDB).EventAccessAll(ctx)
+	accessRows, err := action.imsDBQ.EventAccessAll(ctx, action.imsDBQ)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch event access", err).From("[EventAccessAll]")
 	}
@@ -113,7 +113,7 @@ func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContex
 }
 
 type EditEvents struct {
-	imsDB     *store.DB
+	imsDBQ    *store.DBQ
 	imsAdmins []string
 }
 
@@ -129,7 +129,7 @@ func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getGlobalPermissions]")
 	}
@@ -148,7 +148,7 @@ func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
 		if !allowedEventNames.MatchString(eventName) {
 			return herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%s'", eventName))
 		}
-		id, err := imsdb.New(action.imsDB).CreateEvent(req.Context(), eventName)
+		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, eventName)
 		if err != nil {
 			return herr.InternalServerError("Failed to create event", err).From("[CreateEvent]")
 		}

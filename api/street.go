@@ -28,7 +28,7 @@ import (
 )
 
 type GetStreets struct {
-	imsDB             *store.DB
+	imsDBQ            *store.DBQ
 	imsAdmins         []string
 	cacheControlShort time.Duration
 }
@@ -47,7 +47,7 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 	ctx := req.Context()
 	// eventName --> street ID --> street name
 	resp := make(imsjson.EventsStreets)
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[getGlobalPermissions]")
 	}
@@ -61,13 +61,13 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 	eventName := req.Form.Get("event_id")
 	var events []imsdb.Event
 	if eventName != "" {
-		event, errHTTP := eventFromFormValue(req, action.imsDB)
+		event, errHTTP := eventFromFormValue(req, action.imsDBQ)
 		if errHTTP != nil {
 			return nil, errHTTP.From("[eventFromFormValue]")
 		}
 		events = append(events, imsdb.Event{ID: event.ID, Name: event.Name})
 	} else {
-		eventRows, err := imsdb.New(action.imsDB).Events(ctx)
+		eventRows, err := action.imsDBQ.Events(ctx, action.imsDBQ)
 		if err != nil {
 			return nil, herr.InternalServerError("Failed to fetch Events", err).From("[Events]")
 		}
@@ -77,7 +77,7 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 	}
 
 	for _, event := range events {
-		streets, err := imsdb.New(action.imsDB).ConcentricStreets(ctx, event.ID)
+		streets, err := action.imsDBQ.ConcentricStreets(ctx, action.imsDBQ, event.ID)
 		if err != nil {
 			return nil, herr.InternalServerError("Failed to fetch Streets", err).From("[ConcentricStreets]")
 		}
@@ -90,7 +90,7 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 }
 
 type EditStreets struct {
-	imsDB     *store.DB
+	imsDBQ    *store.DBQ
 	imsAdmins []string
 }
 
@@ -104,7 +104,7 @@ func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 	ctx := req.Context()
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDB, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getGlobalPermissions]")
 	}
@@ -116,11 +116,11 @@ func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 		return errHTTP.From("[readBodyAs]")
 	}
 	for eventName, newEventStreets := range eventsStreets {
-		event, errHTTP := getEvent(req, eventName, action.imsDB)
+		event, errHTTP := getEvent(req, eventName, action.imsDBQ)
 		if errHTTP != nil {
 			return errHTTP.From("[getEvent]")
 		}
-		currentStreets, err := imsdb.New(action.imsDB).ConcentricStreets(req.Context(), event.ID)
+		currentStreets, err := action.imsDBQ.ConcentricStreets(req.Context(), action.imsDBQ, event.ID)
 		if err != nil {
 			return herr.InternalServerError("Failed to fetch Streets", err).From("[ConcentricStreets]")
 		}
@@ -130,8 +130,8 @@ func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 		}
 		for streetID, streetName := range newEventStreets {
 			if !currentStreetIDs[streetID] {
-				err = imsdb.New(action.imsDB).CreateConcentricStreet(
-					ctx, imsdb.CreateConcentricStreetParams{
+				err = action.imsDBQ.CreateConcentricStreet(ctx, action.imsDBQ,
+					imsdb.CreateConcentricStreetParams{
 						Event: event.ID,
 						ID:    streetID,
 						Name:  streetName,

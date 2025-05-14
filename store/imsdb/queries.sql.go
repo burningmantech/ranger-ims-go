@@ -22,8 +22,8 @@ type AddEventAccessParams struct {
 	Validity   EventAccessValidity
 }
 
-func (q *Queries) AddEventAccess(ctx context.Context, arg AddEventAccessParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, addEventAccess,
+func (q *Queries) AddEventAccess(ctx context.Context, db DBTX, arg AddEventAccessParams) (int64, error) {
+	result, err := db.ExecContext(ctx, addEventAccess,
 		arg.Event,
 		arg.Expression,
 		arg.Mode,
@@ -47,8 +47,8 @@ type AttachFieldReportToIncidentParams struct {
 	Number         int32
 }
 
-func (q *Queries) AttachFieldReportToIncident(ctx context.Context, arg AttachFieldReportToIncidentParams) error {
-	_, err := q.db.ExecContext(ctx, attachFieldReportToIncident, arg.IncidentNumber, arg.Event, arg.Number)
+func (q *Queries) AttachFieldReportToIncident(ctx context.Context, db DBTX, arg AttachFieldReportToIncidentParams) error {
+	_, err := db.ExecContext(ctx, attachFieldReportToIncident, arg.IncidentNumber, arg.Event, arg.Number)
 	return err
 }
 
@@ -66,8 +66,8 @@ type AttachIncidentTypeToIncidentParams struct {
 	Name           string
 }
 
-func (q *Queries) AttachIncidentTypeToIncident(ctx context.Context, arg AttachIncidentTypeToIncidentParams) error {
-	_, err := q.db.ExecContext(ctx, attachIncidentTypeToIncident, arg.Event, arg.IncidentNumber, arg.Name)
+func (q *Queries) AttachIncidentTypeToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeToIncidentParams) error {
+	_, err := db.ExecContext(ctx, attachIncidentTypeToIncident, arg.Event, arg.IncidentNumber, arg.Name)
 	return err
 }
 
@@ -82,8 +82,8 @@ type AttachRangerHandleToIncidentParams struct {
 	RangerHandle   string
 }
 
-func (q *Queries) AttachRangerHandleToIncident(ctx context.Context, arg AttachRangerHandleToIncidentParams) error {
-	_, err := q.db.ExecContext(ctx, attachRangerHandleToIncident, arg.Event, arg.IncidentNumber, arg.RangerHandle)
+func (q *Queries) AttachRangerHandleToIncident(ctx context.Context, db DBTX, arg AttachRangerHandleToIncidentParams) error {
+	_, err := db.ExecContext(ctx, attachRangerHandleToIncident, arg.Event, arg.IncidentNumber, arg.RangerHandle)
 	return err
 }
 
@@ -101,8 +101,8 @@ type AttachReportEntryToFieldReportParams struct {
 	ReportEntry       int32
 }
 
-func (q *Queries) AttachReportEntryToFieldReport(ctx context.Context, arg AttachReportEntryToFieldReportParams) error {
-	_, err := q.db.ExecContext(ctx, attachReportEntryToFieldReport, arg.Event, arg.FieldReportNumber, arg.ReportEntry)
+func (q *Queries) AttachReportEntryToFieldReport(ctx context.Context, db DBTX, arg AttachReportEntryToFieldReportParams) error {
+	_, err := db.ExecContext(ctx, attachReportEntryToFieldReport, arg.Event, arg.FieldReportNumber, arg.ReportEntry)
 	return err
 }
 
@@ -120,8 +120,8 @@ type AttachReportEntryToIncidentParams struct {
 	ReportEntry    int32
 }
 
-func (q *Queries) AttachReportEntryToIncident(ctx context.Context, arg AttachReportEntryToIncidentParams) error {
-	_, err := q.db.ExecContext(ctx, attachReportEntryToIncident, arg.Event, arg.IncidentNumber, arg.ReportEntry)
+func (q *Queries) AttachReportEntryToIncident(ctx context.Context, db DBTX, arg AttachReportEntryToIncidentParams) error {
+	_, err := db.ExecContext(ctx, attachReportEntryToIncident, arg.Event, arg.IncidentNumber, arg.ReportEntry)
 	return err
 }
 
@@ -137,8 +137,8 @@ type AttachedFieldReportNumbersParams struct {
 	IncidentNumber sql.NullInt32
 }
 
-func (q *Queries) AttachedFieldReportNumbers(ctx context.Context, arg AttachedFieldReportNumbersParams) ([]int32, error) {
-	rows, err := q.db.QueryContext(ctx, attachedFieldReportNumbers, arg.Event, arg.IncidentNumber)
+func (q *Queries) AttachedFieldReportNumbers(ctx context.Context, db DBTX, arg AttachedFieldReportNumbersParams) ([]int32, error) {
+	rows, err := db.QueryContext(ctx, attachedFieldReportNumbers, arg.Event, arg.IncidentNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -170,8 +170,8 @@ type ClearEventAccessForExpressionParams struct {
 	Expression string
 }
 
-func (q *Queries) ClearEventAccessForExpression(ctx context.Context, arg ClearEventAccessForExpressionParams) error {
-	_, err := q.db.ExecContext(ctx, clearEventAccessForExpression, arg.Event, arg.Expression)
+func (q *Queries) ClearEventAccessForExpression(ctx context.Context, db DBTX, arg ClearEventAccessForExpressionParams) error {
+	_, err := db.ExecContext(ctx, clearEventAccessForExpression, arg.Event, arg.Expression)
 	return err
 }
 
@@ -185,8 +185,8 @@ type ClearEventAccessForModeParams struct {
 	Mode  EventAccessMode
 }
 
-func (q *Queries) ClearEventAccessForMode(ctx context.Context, arg ClearEventAccessForModeParams) error {
-	_, err := q.db.ExecContext(ctx, clearEventAccessForMode, arg.Event, arg.Mode)
+func (q *Queries) ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error {
+	_, err := db.ExecContext(ctx, clearEventAccessForMode, arg.Event, arg.Mode)
 	return err
 }
 
@@ -200,8 +200,8 @@ type ConcentricStreetsRow struct {
 	ConcentricStreet ConcentricStreet
 }
 
-func (q *Queries) ConcentricStreets(ctx context.Context, event int32) ([]ConcentricStreetsRow, error) {
-	rows, err := q.db.QueryContext(ctx, concentricStreets, event)
+func (q *Queries) ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error) {
+	rows, err := db.QueryContext(ctx, concentricStreets, event)
 	if err != nil {
 		return nil, err
 	}
@@ -234,8 +234,8 @@ type CreateConcentricStreetParams struct {
 	Name  string
 }
 
-func (q *Queries) CreateConcentricStreet(ctx context.Context, arg CreateConcentricStreetParams) error {
-	_, err := q.db.ExecContext(ctx, createConcentricStreet, arg.Event, arg.ID, arg.Name)
+func (q *Queries) CreateConcentricStreet(ctx context.Context, db DBTX, arg CreateConcentricStreetParams) error {
+	_, err := db.ExecContext(ctx, createConcentricStreet, arg.Event, arg.ID, arg.Name)
 	return err
 }
 
@@ -243,8 +243,8 @@ const createEvent = `-- name: CreateEvent :execlastid
 insert into EVENT (NAME) values (?)
 `
 
-func (q *Queries) CreateEvent(ctx context.Context, name string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, createEvent, name)
+func (q *Queries) CreateEvent(ctx context.Context, db DBTX, name string) (int64, error) {
+	result, err := db.ExecContext(ctx, createEvent, name)
 	if err != nil {
 		return 0, err
 	}
@@ -266,8 +266,8 @@ type CreateFieldReportParams struct {
 	IncidentNumber sql.NullInt32
 }
 
-func (q *Queries) CreateFieldReport(ctx context.Context, arg CreateFieldReportParams) error {
-	_, err := q.db.ExecContext(ctx, createFieldReport,
+func (q *Queries) CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error {
+	_, err := db.ExecContext(ctx, createFieldReport,
 		arg.Event,
 		arg.Number,
 		arg.Created,
@@ -298,8 +298,8 @@ type CreateIncidentParams struct {
 	State    IncidentState
 }
 
-func (q *Queries) CreateIncident(ctx context.Context, arg CreateIncidentParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, createIncident,
+func (q *Queries) CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error) {
+	result, err := db.ExecContext(ctx, createIncident,
 		arg.Event,
 		arg.Number,
 		arg.Created,
@@ -323,8 +323,8 @@ type CreateIncidentTypeOrIgnoreParams struct {
 	Hidden bool
 }
 
-func (q *Queries) CreateIncidentTypeOrIgnore(ctx context.Context, arg CreateIncidentTypeOrIgnoreParams) error {
-	_, err := q.db.ExecContext(ctx, createIncidentTypeOrIgnore, arg.Name, arg.Hidden)
+func (q *Queries) CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) error {
+	_, err := db.ExecContext(ctx, createIncidentTypeOrIgnore, arg.Name, arg.Hidden)
 	return err
 }
 
@@ -345,8 +345,8 @@ type CreateReportEntryParams struct {
 	AttachedFile sql.NullString
 }
 
-func (q *Queries) CreateReportEntry(ctx context.Context, arg CreateReportEntryParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, createReportEntry,
+func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error) {
+	result, err := db.ExecContext(ctx, createReportEntry,
 		arg.Author,
 		arg.Text,
 		arg.Created,
@@ -374,8 +374,8 @@ type DetachIncidentTypeFromIncidentParams struct {
 	Name           string
 }
 
-func (q *Queries) DetachIncidentTypeFromIncident(ctx context.Context, arg DetachIncidentTypeFromIncidentParams) error {
-	_, err := q.db.ExecContext(ctx, detachIncidentTypeFromIncident, arg.Event, arg.IncidentNumber, arg.Name)
+func (q *Queries) DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error {
+	_, err := db.ExecContext(ctx, detachIncidentTypeFromIncident, arg.Event, arg.IncidentNumber, arg.Name)
 	return err
 }
 
@@ -393,8 +393,8 @@ type DetachRangerHandleFromIncidentParams struct {
 	RangerHandle   string
 }
 
-func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, arg DetachRangerHandleFromIncidentParams) error {
-	_, err := q.db.ExecContext(ctx, detachRangerHandleFromIncident, arg.Event, arg.IncidentNumber, arg.RangerHandle)
+func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error {
+	_, err := db.ExecContext(ctx, detachRangerHandleFromIncident, arg.Event, arg.IncidentNumber, arg.RangerHandle)
 	return err
 }
 
@@ -403,8 +403,8 @@ select NUMBER from FIELD_REPORT
 where EVENT = ? and INCIDENT_NUMBER is null
 `
 
-func (q *Queries) DetachedFieldReportNumbers(ctx context.Context, event int32) ([]int32, error) {
-	rows, err := q.db.QueryContext(ctx, detachedFieldReportNumbers, event)
+func (q *Queries) DetachedFieldReportNumbers(ctx context.Context, db DBTX, event int32) ([]int32, error) {
+	rows, err := db.QueryContext(ctx, detachedFieldReportNumbers, event)
 	if err != nil {
 		return nil, err
 	}
@@ -436,8 +436,8 @@ type EventAccessRow struct {
 	EventAccess EventAccess
 }
 
-func (q *Queries) EventAccess(ctx context.Context, event int32) ([]EventAccessRow, error) {
-	rows, err := q.db.QueryContext(ctx, eventAccess, event)
+func (q *Queries) EventAccess(ctx context.Context, db DBTX, event int32) ([]EventAccessRow, error) {
+	rows, err := db.QueryContext(ctx, eventAccess, event)
 	if err != nil {
 		return nil, err
 	}
@@ -474,8 +474,8 @@ type EventAccessAllRow struct {
 	EventAccess EventAccess
 }
 
-func (q *Queries) EventAccessAll(ctx context.Context) ([]EventAccessAllRow, error) {
-	rows, err := q.db.QueryContext(ctx, eventAccessAll)
+func (q *Queries) EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAllRow, error) {
+	rows, err := db.QueryContext(ctx, eventAccessAll)
 	if err != nil {
 		return nil, err
 	}
@@ -511,8 +511,8 @@ type EventsRow struct {
 	Event Event
 }
 
-func (q *Queries) Events(ctx context.Context) ([]EventsRow, error) {
-	rows, err := q.db.QueryContext(ctx, events)
+func (q *Queries) Events(ctx context.Context, db DBTX) ([]EventsRow, error) {
+	rows, err := db.QueryContext(ctx, events)
 	if err != nil {
 		return nil, err
 	}
@@ -550,8 +550,8 @@ type FieldReportRow struct {
 	FieldReport FieldReport
 }
 
-func (q *Queries) FieldReport(ctx context.Context, arg FieldReportParams) (FieldReportRow, error) {
-	row := q.db.QueryRowContext(ctx, fieldReport, arg.Event, arg.Number)
+func (q *Queries) FieldReport(ctx context.Context, db DBTX, arg FieldReportParams) (FieldReportRow, error) {
+	row := db.QueryRowContext(ctx, fieldReport, arg.Event, arg.Number)
 	var i FieldReportRow
 	err := row.Scan(
 		&i.FieldReport.Event,
@@ -584,8 +584,8 @@ type FieldReport_ReportEntriesRow struct {
 	ReportEntry ReportEntry
 }
 
-func (q *Queries) FieldReport_ReportEntries(ctx context.Context, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error) {
-	rows, err := q.db.QueryContext(ctx, fieldReport_ReportEntries, arg.Event, arg.FieldReportNumber)
+func (q *Queries) FieldReport_ReportEntries(ctx context.Context, db DBTX, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error) {
+	rows, err := db.QueryContext(ctx, fieldReport_ReportEntries, arg.Event, arg.FieldReportNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -625,8 +625,8 @@ type FieldReportsRow struct {
 	FieldReport FieldReport
 }
 
-func (q *Queries) FieldReports(ctx context.Context, event int32) ([]FieldReportsRow, error) {
-	rows, err := q.db.QueryContext(ctx, fieldReports, event)
+func (q *Queries) FieldReports(ctx context.Context, db DBTX, event int32) ([]FieldReportsRow, error) {
+	rows, err := db.QueryContext(ctx, fieldReports, event)
 	if err != nil {
 		return nil, err
 	}
@@ -677,8 +677,8 @@ type FieldReports_ReportEntriesRow struct {
 	ReportEntry       ReportEntry
 }
 
-func (q *Queries) FieldReports_ReportEntries(ctx context.Context, arg FieldReports_ReportEntriesParams) ([]FieldReports_ReportEntriesRow, error) {
-	rows, err := q.db.QueryContext(ctx, fieldReports_ReportEntries, arg.Event, arg.Generated)
+func (q *Queries) FieldReports_ReportEntries(ctx context.Context, db DBTX, arg FieldReports_ReportEntriesParams) ([]FieldReports_ReportEntriesRow, error) {
+	rows, err := db.QueryContext(ctx, fieldReports_ReportEntries, arg.Event, arg.Generated)
 	if err != nil {
 		return nil, err
 	}
@@ -719,8 +719,8 @@ type HideShowIncidentTypeParams struct {
 	Name   string
 }
 
-func (q *Queries) HideShowIncidentType(ctx context.Context, arg HideShowIncidentTypeParams) error {
-	_, err := q.db.ExecContext(ctx, hideShowIncidentType, arg.Hidden, arg.Name)
+func (q *Queries) HideShowIncidentType(ctx context.Context, db DBTX, arg HideShowIncidentTypeParams) error {
+	_, err := db.ExecContext(ctx, hideShowIncidentType, arg.Hidden, arg.Name)
 	return err
 }
 
@@ -764,8 +764,8 @@ type IncidentRow struct {
 	RangerHandles      interface{}
 }
 
-func (q *Queries) Incident(ctx context.Context, arg IncidentParams) (IncidentRow, error) {
-	row := q.db.QueryRowContext(ctx, incident, arg.Event, arg.Number)
+func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error) {
+	row := db.QueryRowContext(ctx, incident, arg.Event, arg.Number)
 	var i IncidentRow
 	err := row.Scan(
 		&i.Incident.Event,
@@ -795,8 +795,8 @@ type IncidentTypesRow struct {
 	IncidentType IncidentType
 }
 
-func (q *Queries) IncidentTypes(ctx context.Context) ([]IncidentTypesRow, error) {
-	rows, err := q.db.QueryContext(ctx, incidentTypes)
+func (q *Queries) IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRow, error) {
+	rows, err := db.QueryContext(ctx, incidentTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -841,8 +841,8 @@ type Incident_ReportEntriesRow struct {
 	ReportEntry    ReportEntry
 }
 
-func (q *Queries) Incident_ReportEntries(ctx context.Context, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error) {
-	rows, err := q.db.QueryContext(ctx, incident_ReportEntries, arg.Event, arg.IncidentNumber)
+func (q *Queries) Incident_ReportEntries(ctx context.Context, db DBTX, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error) {
+	rows, err := db.QueryContext(ctx, incident_ReportEntries, arg.Event, arg.IncidentNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -911,8 +911,8 @@ type IncidentsRow struct {
 	RangerHandles      interface{}
 }
 
-func (q *Queries) Incidents(ctx context.Context, event int32) ([]IncidentsRow, error) {
-	rows, err := q.db.QueryContext(ctx, incidents, event)
+func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error) {
+	rows, err := db.QueryContext(ctx, incidents, event)
 	if err != nil {
 		return nil, err
 	}
@@ -972,8 +972,8 @@ type Incidents_ReportEntriesRow struct {
 	ReportEntry    ReportEntry
 }
 
-func (q *Queries) Incidents_ReportEntries(ctx context.Context, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error) {
-	rows, err := q.db.QueryContext(ctx, incidents_ReportEntries, arg.Event, arg.Generated)
+func (q *Queries) Incidents_ReportEntries(ctx context.Context, db DBTX, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error) {
+	rows, err := db.QueryContext(ctx, incidents_ReportEntries, arg.Event, arg.Generated)
 	if err != nil {
 		return nil, err
 	}
@@ -1015,8 +1015,8 @@ limit 1
 `
 
 // This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
-func (q *Queries) NextFieldReportNumber(ctx context.Context, event int32) (int32, error) {
-	row := q.db.QueryRowContext(ctx, nextFieldReportNumber, event)
+func (q *Queries) NextFieldReportNumber(ctx context.Context, db DBTX, event int32) (int32, error) {
+	row := db.QueryRowContext(ctx, nextFieldReportNumber, event)
 	var next_id int32
 	err := row.Scan(&next_id)
 	return next_id, err
@@ -1033,8 +1033,8 @@ limit 1
 `
 
 // This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
-func (q *Queries) NextIncidentNumber(ctx context.Context, event int32) (int32, error) {
-	row := q.db.QueryRowContext(ctx, nextIncidentNumber, event)
+func (q *Queries) NextIncidentNumber(ctx context.Context, db DBTX, event int32) (int32, error) {
+	row := db.QueryRowContext(ctx, nextIncidentNumber, event)
 	var next_id int32
 	err := row.Scan(&next_id)
 	return next_id, err
@@ -1048,8 +1048,8 @@ type QueryEventIDRow struct {
 	Event Event
 }
 
-func (q *Queries) QueryEventID(ctx context.Context, name string) (QueryEventIDRow, error) {
-	row := q.db.QueryRowContext(ctx, queryEventID, name)
+func (q *Queries) QueryEventID(ctx context.Context, db DBTX, name string) (QueryEventIDRow, error) {
+	row := db.QueryRowContext(ctx, queryEventID, name)
 	var i QueryEventIDRow
 	err := row.Scan(&i.Event.ID, &i.Event.Name)
 	return i, err
@@ -1059,8 +1059,8 @@ const schemaVersion = `-- name: SchemaVersion :one
 select VERSION from SCHEMA_INFO
 `
 
-func (q *Queries) SchemaVersion(ctx context.Context) (int16, error) {
-	row := q.db.QueryRowContext(ctx, schemaVersion)
+func (q *Queries) SchemaVersion(ctx context.Context, db DBTX) (int16, error) {
+	row := db.QueryRowContext(ctx, schemaVersion)
 	var version int16
 	err := row.Scan(&version)
 	return version, err
@@ -1085,8 +1085,8 @@ type SetFieldReportReportEntryStrickenParams struct {
 	ReportEntry       int32
 }
 
-func (q *Queries) SetFieldReportReportEntryStricken(ctx context.Context, arg SetFieldReportReportEntryStrickenParams) error {
-	_, err := q.db.ExecContext(ctx, setFieldReportReportEntryStricken,
+func (q *Queries) SetFieldReportReportEntryStricken(ctx context.Context, db DBTX, arg SetFieldReportReportEntryStrickenParams) error {
+	_, err := db.ExecContext(ctx, setFieldReportReportEntryStricken,
 		arg.Stricken,
 		arg.Event,
 		arg.FieldReportNumber,
@@ -1119,8 +1119,8 @@ type SetIncidentReportEntryStrickenParams struct {
 // "where ID in (..." could just be "where ID =". What it's doing though is
 // ensuring that the provided eventID and incidentNumber actually align with
 // the reportEntryID in question, and that's important for authorization purposes.
-func (q *Queries) SetIncidentReportEntryStricken(ctx context.Context, arg SetIncidentReportEntryStrickenParams) error {
-	_, err := q.db.ExecContext(ctx, setIncidentReportEntryStricken,
+func (q *Queries) SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error {
+	_, err := db.ExecContext(ctx, setIncidentReportEntryStricken,
 		arg.Stricken,
 		arg.Event,
 		arg.IncidentNumber,
@@ -1142,8 +1142,8 @@ type UpdateFieldReportParams struct {
 	Number         int32
 }
 
-func (q *Queries) UpdateFieldReport(ctx context.Context, arg UpdateFieldReportParams) error {
-	_, err := q.db.ExecContext(ctx, updateFieldReport,
+func (q *Queries) UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error {
+	_, err := db.ExecContext(ctx, updateFieldReport,
 		arg.Summary,
 		arg.IncidentNumber,
 		arg.Event,
@@ -1182,8 +1182,8 @@ type UpdateIncidentParams struct {
 	Number               int32
 }
 
-func (q *Queries) UpdateIncident(ctx context.Context, arg UpdateIncidentParams) error {
-	_, err := q.db.ExecContext(ctx, updateIncident,
+func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error {
+	_, err := db.ExecContext(ctx, updateIncident,
 		arg.Created,
 		arg.Priority,
 		arg.State,

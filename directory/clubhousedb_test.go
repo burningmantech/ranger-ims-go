@@ -83,12 +83,14 @@ func newEmptyDB(t *testing.T, ctx context.Context, database, username, password 
 	port, err := ctr.MappedPort(ctx, "3306/tcp")
 	require.NoError(t, err)
 	dbHostPort := int32(port.Int())
-	db, err := directory.MariaDB(ctx, conf.ClubhouseDB{
-		Hostname: fmt.Sprint(":", dbHostPort),
-		Database: database,
-		Username: username,
-		Password: password,
-	})
+	db, err := directory.MariaDB(ctx,
+		conf.ClubhouseDB{
+			Hostname: fmt.Sprint(":", dbHostPort),
+			Database: database,
+			Username: username,
+			Password: password,
+		},
+	)
 	require.NoError(t, err)
 	return ctr, db
 }

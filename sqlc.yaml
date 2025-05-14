@@ -10,14 +10,14 @@ sql:
       emit_enum_valid_method: true
       emit_all_enum_values: true
       emit_interface: true
-      # TODO: consider switching this on, since it makes a tidier interface, especially
-      #  if we want to have an in-memory replacement for the DB at some point.
-      # emit_methods_with_db_argument: true
+      emit_methods_with_db_argument: true
 - engine: "mysql"
   queries: "directory/queries.sql"
   schema: "directory/schema.sql"
   gen:
     go:
+      emit_interface: true
+      emit_methods_with_db_argument: true
       package: "clubhousedb"
       out: "directory/clubhousedb"
       overrides:

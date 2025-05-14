@@ -21,6 +21,7 @@ import (
 	"errors"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -92,7 +93,7 @@ func TestEventFromFormValue(t *testing.T) {
 	db, err := sql.Open("noop", "")
 	require.NoError(t, err)
 	req = &http.Request{URL: u}
-	_, errHTTP = eventFromFormValue(req, &store.DB{DB: db})
+	_, errHTTP = eventFromFormValue(req, store.New(db, imsdb.New()))
 	require.NotNil(t, errHTTP)
 	require.Equal(t, http.StatusInternalServerError, errHTTP.Code)
 	require.Contains(t, errHTTP.ResponseMessage, "Failed to get event")
@@ -101,7 +102,7 @@ func TestEventFromFormValue(t *testing.T) {
 func TestGetEvent(t *testing.T) {
 	t.Parallel()
 	dbNoop, err := sql.Open("noop", "")
-	db := &store.DB{DB: dbNoop}
+	db := store.New(dbNoop, imsdb.New())
 	require.NoError(t, err)
 
 	// no eventName provided

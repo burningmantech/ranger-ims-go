@@ -9,54 +9,54 @@ import (
 )
 
 type Querier interface {
-	AddEventAccess(ctx context.Context, arg AddEventAccessParams) (int64, error)
-	AttachFieldReportToIncident(ctx context.Context, arg AttachFieldReportToIncidentParams) error
-	AttachIncidentTypeToIncident(ctx context.Context, arg AttachIncidentTypeToIncidentParams) error
-	AttachRangerHandleToIncident(ctx context.Context, arg AttachRangerHandleToIncidentParams) error
-	AttachReportEntryToFieldReport(ctx context.Context, arg AttachReportEntryToFieldReportParams) error
-	AttachReportEntryToIncident(ctx context.Context, arg AttachReportEntryToIncidentParams) error
-	AttachedFieldReportNumbers(ctx context.Context, arg AttachedFieldReportNumbersParams) ([]int32, error)
-	ClearEventAccessForExpression(ctx context.Context, arg ClearEventAccessForExpressionParams) error
-	ClearEventAccessForMode(ctx context.Context, arg ClearEventAccessForModeParams) error
-	ConcentricStreets(ctx context.Context, event int32) ([]ConcentricStreetsRow, error)
-	CreateConcentricStreet(ctx context.Context, arg CreateConcentricStreetParams) error
-	CreateEvent(ctx context.Context, name string) (int64, error)
-	CreateFieldReport(ctx context.Context, arg CreateFieldReportParams) error
-	CreateIncident(ctx context.Context, arg CreateIncidentParams) (int64, error)
-	CreateIncidentTypeOrIgnore(ctx context.Context, arg CreateIncidentTypeOrIgnoreParams) error
-	CreateReportEntry(ctx context.Context, arg CreateReportEntryParams) (int64, error)
-	DetachIncidentTypeFromIncident(ctx context.Context, arg DetachIncidentTypeFromIncidentParams) error
-	DetachRangerHandleFromIncident(ctx context.Context, arg DetachRangerHandleFromIncidentParams) error
-	DetachedFieldReportNumbers(ctx context.Context, event int32) ([]int32, error)
-	EventAccess(ctx context.Context, event int32) ([]EventAccessRow, error)
-	EventAccessAll(ctx context.Context) ([]EventAccessAllRow, error)
-	Events(ctx context.Context) ([]EventsRow, error)
-	FieldReport(ctx context.Context, arg FieldReportParams) (FieldReportRow, error)
-	FieldReport_ReportEntries(ctx context.Context, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error)
-	FieldReports(ctx context.Context, event int32) ([]FieldReportsRow, error)
-	FieldReports_ReportEntries(ctx context.Context, arg FieldReports_ReportEntriesParams) ([]FieldReports_ReportEntriesRow, error)
-	HideShowIncidentType(ctx context.Context, arg HideShowIncidentTypeParams) error
-	Incident(ctx context.Context, arg IncidentParams) (IncidentRow, error)
-	IncidentTypes(ctx context.Context) ([]IncidentTypesRow, error)
-	Incident_ReportEntries(ctx context.Context, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
-	Incidents(ctx context.Context, event int32) ([]IncidentsRow, error)
-	Incidents_ReportEntries(ctx context.Context, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error)
+	AddEventAccess(ctx context.Context, db DBTX, arg AddEventAccessParams) (int64, error)
+	AttachFieldReportToIncident(ctx context.Context, db DBTX, arg AttachFieldReportToIncidentParams) error
+	AttachIncidentTypeToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeToIncidentParams) error
+	AttachRangerHandleToIncident(ctx context.Context, db DBTX, arg AttachRangerHandleToIncidentParams) error
+	AttachReportEntryToFieldReport(ctx context.Context, db DBTX, arg AttachReportEntryToFieldReportParams) error
+	AttachReportEntryToIncident(ctx context.Context, db DBTX, arg AttachReportEntryToIncidentParams) error
+	AttachedFieldReportNumbers(ctx context.Context, db DBTX, arg AttachedFieldReportNumbersParams) ([]int32, error)
+	ClearEventAccessForExpression(ctx context.Context, db DBTX, arg ClearEventAccessForExpressionParams) error
+	ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error
+	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)
+	CreateConcentricStreet(ctx context.Context, db DBTX, arg CreateConcentricStreetParams) error
+	CreateEvent(ctx context.Context, db DBTX, name string) (int64, error)
+	CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error
+	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
+	CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) error
+	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
+	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
+	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
+	DetachedFieldReportNumbers(ctx context.Context, db DBTX, event int32) ([]int32, error)
+	EventAccess(ctx context.Context, db DBTX, event int32) ([]EventAccessRow, error)
+	EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAllRow, error)
+	Events(ctx context.Context, db DBTX) ([]EventsRow, error)
+	FieldReport(ctx context.Context, db DBTX, arg FieldReportParams) (FieldReportRow, error)
+	FieldReport_ReportEntries(ctx context.Context, db DBTX, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error)
+	FieldReports(ctx context.Context, db DBTX, event int32) ([]FieldReportsRow, error)
+	FieldReports_ReportEntries(ctx context.Context, db DBTX, arg FieldReports_ReportEntriesParams) ([]FieldReports_ReportEntriesRow, error)
+	HideShowIncidentType(ctx context.Context, db DBTX, arg HideShowIncidentTypeParams) error
+	Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error)
+	IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRow, error)
+	Incident_ReportEntries(ctx context.Context, db DBTX, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
+	Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error)
+	Incidents_ReportEntries(ctx context.Context, db DBTX, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error)
 	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
-	NextFieldReportNumber(ctx context.Context, event int32) (int32, error)
+	NextFieldReportNumber(ctx context.Context, db DBTX, event int32) (int32, error)
 	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
-	NextIncidentNumber(ctx context.Context, event int32) (int32, error)
-	QueryEventID(ctx context.Context, name string) (QueryEventIDRow, error)
-	SchemaVersion(ctx context.Context) (int16, error)
-	SetFieldReportReportEntryStricken(ctx context.Context, arg SetFieldReportReportEntryStrickenParams) error
+	NextIncidentNumber(ctx context.Context, db DBTX, event int32) (int32, error)
+	QueryEventID(ctx context.Context, db DBTX, name string) (QueryEventIDRow, error)
+	SchemaVersion(ctx context.Context, db DBTX) (int16, error)
+	SetFieldReportReportEntryStricken(ctx context.Context, db DBTX, arg SetFieldReportReportEntryStrickenParams) error
 	//
 	// The "stricken" queries seem bloated at first blush, because the whole
 	// "where ID in (..." could just be "where ID =". What it's doing though is
 	// ensuring that the provided eventID and incidentNumber actually align with
 	// the reportEntryID in question, and that's important for authorization purposes.
 	//
-	SetIncidentReportEntryStricken(ctx context.Context, arg SetIncidentReportEntryStrickenParams) error
-	UpdateFieldReport(ctx context.Context, arg UpdateFieldReportParams) error
-	UpdateIncident(ctx context.Context, arg UpdateIncidentParams) error
+	SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error
+	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error
+	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error
 }
 
 var _ Querier = (*Queries)(nil)

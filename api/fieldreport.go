@@ -444,21 +444,11 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
-	newFrNum, err := action.imsDBQ.NextFieldReportNumber(ctx, action.imsDBQ, event.ID)
-	if err != nil {
-		return 0, "", herr.InternalServerError("Failed to find next Field Report number", err).From("[NextFieldReportNumber]")
-	}
 
-	txn, err := action.imsDBQ.Begin()
-	if err != nil {
-		return 0, "", herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
-
-	err = action.imsDBQ.CreateFieldReport(ctx, txn,
-		imsdb.CreateFieldReportParams{
+	var err error
+	fr.Number, err = action.imsDBQ.CreateFieldReport(ctx, action.imsDBQ,
+		store.CreateFieldReportParams{
 			Event:          event.ID,
-			Number:         newFrNum,
 			Created:        float64(time.Now().Unix()),
 			Summary:        sqlNullString(fr.Summary),
 			IncidentNumber: sql.NullInt32{},
@@ -468,9 +458,15 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		return 0, "", herr.InternalServerError("Failed to create Field Report", err).From("[CreateFieldReport]")
 	}
 
+	txn, err := action.imsDBQ.Begin()
+	if err != nil {
+		return 0, "", herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
+	}
+	defer rollback(txn)
+
 	if fr.Summary != nil {
 		text := "Changed summary to: " + *fr.Summary
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, newFrNum, author, text, true, "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, text, true, "")
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -480,7 +476,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, newFrNum, author, entry.Text, false, "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, entry.Text, false, "")
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -490,9 +486,9 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		return 0, "", herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
-	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, newFrNum)
-	defer action.eventSource.notifyFieldReportUpdate(event.Name, newFrNum)
-	return newFrNum, loc, nil
+	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, fr.Number)
+	defer action.eventSource.notifyFieldReportUpdate(event.Name, fr.Number)
+	return fr.Number, loc, nil
 }
 
 func addFRReportEntry(

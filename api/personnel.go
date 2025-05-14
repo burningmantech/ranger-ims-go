@@ -43,7 +43,7 @@ func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", action.cacheControlShort.Milliseconds()/1000))
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 func (action GetPersonnel) getPersonnel(req *http.Request) (GetPersonnelResponse, *herr.HTTPError) {
 	response := make(GetPersonnelResponse, 0)

@@ -89,9 +89,9 @@ type DB struct {
 
 func (l DB) ExecContext(ctx context.Context, s string, i ...interface{}) (sql.Result, error) {
 	start := time.Now()
-	execContext, err := l.DB.ExecContext(ctx, s, i...)
+	result, err := l.DB.ExecContext(ctx, s, i...)
 	logQuery(s, start, err)
-	return execContext, err
+	return result, err
 }
 
 func (l DB) PrepareContext(ctx context.Context, s string) (*sql.Stmt, error) {
@@ -118,6 +118,17 @@ func (l DB) QueryRowContext(ctx context.Context, s string, i ...interface{}) *sq
 func logQuery(s string, start time.Time, err error) {
 	queryName, _, _ := strings.Cut(s, "\n")
 	queryName = strings.TrimPrefix(queryName, "-- name: ")
-	// TODO: log to ERROR if it was an error
-	slog.Debug("QueryLog", "name", queryName, "duration", fmt.Sprint(time.Since(start).Microseconds(), "µs"), "err", err)
+	queryName = strings.Fields(queryName)[0]
+	timeMS := float64(time.Since(start).Microseconds()) / 1000.0
+
+	// Note that the duration(ish) is very misleading. It'll always be less than
+	// the actual query time, often significantly. That's because most of the IO
+	// takes place after we're able to log in this file, e.g. in the "for rows.Next()"
+	// part of reading the results, and unfortunately that code is in the generated
+	// sqlc package. It's a TODO for later to log actual query times.
+	slog.Debug("QueryLog",
+		"name", queryName,
+		"durationish", fmt.Sprintf("%.3fms", timeMS),
+		"err", err,
+	)
 }

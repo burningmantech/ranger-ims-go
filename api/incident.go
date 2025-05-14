@@ -52,7 +52,7 @@ func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[getIncidents]").WriteResponse(w)
 		return
 	}
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 
 func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *herr.HTTPError) {
@@ -67,7 +67,9 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 	if err := req.ParseForm(); err != nil {
 		return nil, herr.BadRequest("Failed to parse form", err)
 	}
-	generatedLTE := req.Form.Get("exclude_system_entries") != "true" // false means to exclude
+
+	// generatedLTE value of "true" means include everything, "false" means exclude system entries
+	generatedLTE := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
 
 	// The Incidents and ReportEntries queries both request a lot of data, so let's query
 	// and process those results concurrently.
@@ -160,7 +162,7 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[getIncident]").WriteResponse(w)
 		return
 	}
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 
 func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *herr.HTTPError) {
@@ -229,10 +231,12 @@ func fetchIncident(ctx context.Context, imsDB *store.DB, eventID, incidentNumber
 ) {
 	var empty imsdb.IncidentRow
 	var reportEntries []imsdb.ReportEntry
-	incidentRow, err := imsdb.New(imsDB).Incident(ctx, imsdb.IncidentParams{
-		Event:  eventID,
-		Number: incidentNumber,
-	})
+	incidentRow, err := imsdb.New(imsDB).Incident(ctx,
+		imsdb.IncidentParams{
+			Event:  eventID,
+			Number: incidentNumber,
+		},
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return empty, nil, herr.NotFound("Incident not found", err).From("[Incident]")

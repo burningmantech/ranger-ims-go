@@ -46,7 +46,7 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 		errHTTP.From("[getFieldReports]").WriteResponse(w)
 		return
 	}
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldReports, *herr.HTTPError) {
 	resp := make(imsjson.FieldReports, 0)
@@ -63,7 +63,9 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 	if err := req.ParseForm(); err != nil {
 		return resp, herr.BadRequest("Failed to parse form", err).From("[ParseForm]")
 	}
-	generatedLTE := !strings.EqualFold("exclude_system_entries", "true") // false means to exclude
+
+	// generatedLTE value of "true" means include everything, "false" means exclude system entries
+	generatedLTE := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
 
 	reportEntries, err := imsdb.New(action.imsDB).FieldReports_ReportEntries(
 		req.Context(),
@@ -141,7 +143,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		errHTTP.From("[getFieldReport]").WriteResponse(w)
 		return
 	}
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 
 func (action GetFieldReport) getFieldReport(req *http.Request) (imsjson.FieldReport, *herr.HTTPError) {

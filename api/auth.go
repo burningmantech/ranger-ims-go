@@ -55,7 +55,7 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	http.SetCookie(w, cookie)
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cookie, *herr.HTTPError) {
 	// This endpoint is unauthenticated (doesn't require an Authorization header)
@@ -170,7 +170,7 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[getAuth]").WriteResponse(w)
 		return
 	}
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPError) {
 	resp := GetAuthResponse{}
@@ -240,7 +240,7 @@ func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Requ
 		errHTTP.From("[refreshAccessToken]").WriteResponse(w)
 		return
 	}
-	mustWriteJSON(w, resp)
+	mustWriteJSON(w, req, resp)
 }
 func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshAccessTokenResponse, *herr.HTTPError) {
 	var empty RefreshAccessTokenResponse

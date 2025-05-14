@@ -32,18 +32,6 @@ where EVENT = ? and EXPRESSION = ?;
 insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY)
 values (?, ?, ?, ?);
 
--- name: CreateIncident :execlastid
-insert into INCIDENT (
-    EVENT,
-    NUMBER,
-    CREATED,
-    PRIORITY,
-    STATE
-)
-values (
-   ?,?,?,?,?
-);
-
 -- name: UpdateIncident :exec
 update INCIDENT set
     CREATED = ?,
@@ -193,32 +181,6 @@ update FIELD_REPORT
 set INCIDENT_NUMBER = ?
 where EVENT = ? and NUMBER = ?
 ;
-
--- This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
--- name: NextFieldReportNumber :one
-select NUMBER + 1 as NEXT_ID
-from FIELD_REPORT
-where EVENT = ?
-union
-select 1
-order by 1 desc
-limit 1;
-
--- This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
--- name: NextIncidentNumber :one
-select NUMBER + 1 as NEXT_ID
-from INCIDENT
-where EVENT = ?
-union
-select 1
-order by 1 desc
-limit 1;
-
--- name: CreateFieldReport :exec
-insert into FIELD_REPORT (
-    EVENT, NUMBER, CREATED, SUMMARY, INCIDENT_NUMBER
-)
-values (?, ?, ?, ?, ?);
 
 -- name: DetachedFieldReportNumbers :many
 select NUMBER from FIELD_REPORT

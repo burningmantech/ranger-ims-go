@@ -16,3 +16,8 @@ repos:
         entry: go run bin/prependlicense/prependlicense.go
         language: system
         pass_filenames: false
+      - id: govulncheck
+        name: govulncheck
+        entry: go tool govulncheck ./...
+        language: system
+        pass_filenames: false

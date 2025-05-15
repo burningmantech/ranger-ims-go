@@ -48,6 +48,16 @@ func StringOrNil(v sql.NullString) *string {
 	return nil
 }
 
+func SQLNullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{
+		String: s,
+		Valid:  true,
+	}
+}
+
 func Int32OrNil(v sql.NullInt32) *int32 {
 	if v.Valid {
 		return &v.Int32

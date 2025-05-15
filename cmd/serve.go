@@ -23,6 +23,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
@@ -77,19 +78,20 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 	}
 
 	var err error
-	var userStore *directory.UserStore
+	var clubhouseDBQ *directory.DBQ
 	switch imsCfg.Directory.Directory {
 	case conf.DirectoryTypeClubhouseDB:
 		db, err := directory.MariaDB(ctx, imsCfg.Directory.ClubhouseDB)
 		must(err)
-		userStore, err = directory.NewUserStore(nil, &directory.DB{DB: db}, imsCfg.Directory.InMemoryCacheTTL)
-		must(err)
+		clubhouseDBQ = directory.NewRealMariaDBQ(db, imsCfg.Directory.InMemoryCacheTTL)
 	case conf.DirectoryTypeTestUsers:
-		userStore, err = directory.NewUserStore(imsCfg.Directory.TestUsers, nil, imsCfg.Directory.InMemoryCacheTTL)
+		must(err)
+		clubhouseDBQ = directory.NewFakeTestUsersDBQ(imsCfg.Directory.TestUsers, imsCfg.Directory.InMemoryCacheTTL)
 	default:
-		err = fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory)
+		must(fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory))
 	}
-	must(err)
+	userStore := directory.NewUserStore(clubhouseDBQ)
+
 	imsDBQ, err := store.SqlDB(ctx, imsCfg.Store, true)
 	must(err)
 

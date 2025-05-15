@@ -22,6 +22,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
+	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/google/uuid"
@@ -122,9 +123,11 @@ func setup(ctx context.Context, tempDir string) {
 	}
 	must(shared.cfg.Validate())
 	shared.es = api.NewEventSourcerer()
-	userStore, err := directory.NewUserStore(shared.cfg.Directory.TestUsers, nil, shared.cfg.Directory.InMemoryCacheTTL)
-	must(err)
-	shared.userStore = userStore
+	clubhouseDBQ := directory.NewFakeTestUsersDBQ(
+		shared.cfg.Directory.TestUsers,
+		shared.cfg.Directory.InMemoryCacheTTL,
+	)
+	shared.userStore = directory.NewUserStore(clubhouseDBQ)
 	mainTestInternal.dbCtr, err = testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{

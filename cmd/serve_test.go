@@ -107,6 +107,6 @@ func TestRunServer(t *testing.T) {
 	// Start the server, then cancel it.
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	exitCode := runServerInternal(ctx, imsCfg)
+	exitCode := runServerInternal(ctx, imsCfg, true)
 	assert.Equal(t, 69, exitCode)
 }

@@ -302,6 +302,12 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 		),
 	)
 
+	mux.HandleFunc("GET /",
+		func(w http.ResponseWriter, req *http.Request) {
+			http.Error(w, "IMS", http.StatusOK)
+		},
+	)
+
 	mux.HandleFunc("GET /ims/api/ping",
 		func(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "ack", http.StatusOK)

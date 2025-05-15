@@ -39,7 +39,7 @@ func TestMariaDB(t *testing.T) {
 
 	ctx := t.Context()
 	_, sqlDB := newEmptyDB(t, ctx, dbName, username, password)
-	db := directory.DB{DB: sqlDB}
+	db := directory.DBQ{DB: sqlDB}
 	_, err := db.ExecContext(ctx, "select 1")
 	require.NoError(t, err)
 	s, err := db.PrepareContext(ctx, "select 1")

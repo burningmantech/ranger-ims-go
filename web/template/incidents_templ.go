@@ -63,7 +63,7 @@ func Incidents(deployment string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = head("Incidents", "incidents.js", nil).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = head("Incidents", "incidents.js", true).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -9,6 +9,7 @@ repos:
     rev: v2.1.6
     hooks:
       - id: golangci-lint-full
+        args: ["--config=.golangci.yml"]
   - repo: local
     hooks:
       - id: prepend-license

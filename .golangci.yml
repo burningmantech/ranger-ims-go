@@ -22,6 +22,7 @@ linters:
     - wrapcheck  # would have to ignore generated code
     - testpackage  # annoying
     - staticcheck  # annoying and hard to disable: https://github.com/golangci/golangci-lint/issues/741
+    - dupword  # annoying
 
     # Uberbonked
     - dogsled  # dumb

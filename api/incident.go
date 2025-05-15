@@ -67,11 +67,9 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 	if err := req.ParseForm(); err != nil {
 		return nil, herr.BadRequest("Failed to parse form", err)
 	}
+	includeSystemEntries := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
 
-	// generatedLTE value of "true" means include everything, "false" means exclude system entries
-	generatedLTE := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
-
-	// The Incidents and ReportEntries queries both request a lot of data, so let's query
+	// The Incidents and ReportEntries queries both request a lot of data, and we can query
 	// and process those results concurrently.
 	group, groupCtx := errgroup.WithContext(req.Context())
 
@@ -82,7 +80,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 			action.imsDBQ,
 			imsdb.Incidents_ReportEntriesParams{
 				Event:     event.ID,
-				Generated: generatedLTE,
+				Generated: includeSystemEntries,
 			},
 		)
 		if err != nil {

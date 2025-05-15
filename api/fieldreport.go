@@ -64,15 +64,14 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 		return resp, herr.BadRequest("Failed to parse form", err).From("[ParseForm]")
 	}
 
-	// generatedLTE value of "true" means include everything, "false" means exclude system entries
-	generatedLTE := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
+	includeSystemEntries := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
 
 	reportEntries, err := action.imsDBQ.FieldReports_ReportEntries(
 		req.Context(),
 		action.imsDBQ,
 		imsdb.FieldReports_ReportEntriesParams{
 			Event:     event.ID,
-			Generated: generatedLTE,
+			Generated: includeSystemEntries,
 		},
 	)
 	if err != nil {

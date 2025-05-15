@@ -87,37 +87,24 @@ func newDBQ(db *sql.DB, querier clubhousequeries.Querier, cacheTTL time.Duration
 		DB:      db,
 		Querier: querier,
 	}
-	dbq.rangersByIdCache = cache.New[[]clubhousequeries.RangersByIdRow](
-		cacheTTL,
-		func(ctx context.Context) ([]clubhousequeries.RangersByIdRow, error) {
-			return dbq.Querier.RangersById(ctx, dbq)
-		},
-	)
-	dbq.personPositionsCache = cache.New[[]clubhousequeries.PersonPosition](
-		cacheTTL,
-		func(ctx context.Context) ([]clubhousequeries.PersonPosition, error) {
-			return dbq.Querier.PersonPositions(ctx, dbq)
-		},
-	)
-	dbq.personTeamsCache = cache.New[[]clubhousequeries.PersonTeamsRow](
-		cacheTTL,
-		func(ctx context.Context) ([]clubhousequeries.PersonTeamsRow, error) {
-			return dbq.Querier.PersonTeams(ctx, dbq)
-		},
-	)
-	dbq.positionsCache = cache.New[[]clubhousequeries.PositionsRow](
-		cacheTTL,
-		func(ctx context.Context) ([]clubhousequeries.PositionsRow, error) {
-			return dbq.Querier.Positions(ctx, dbq)
-		},
-	)
-	dbq.teamsCache = cache.New[[]clubhousequeries.TeamsRow](
-		cacheTTL,
-		func(ctx context.Context) ([]clubhousequeries.TeamsRow, error) {
-			return dbq.Querier.Teams(ctx, dbq)
-		},
-	)
+	dbq.rangersByIdCache = cachemaker(dbq, cacheTTL, dbq.Querier.RangersById)
+	dbq.personPositionsCache = cachemaker(dbq, cacheTTL, dbq.Querier.PersonPositions)
+	dbq.personTeamsCache = cachemaker(dbq, cacheTTL, dbq.Querier.PersonTeams)
+	dbq.positionsCache = cachemaker(dbq, cacheTTL, dbq.Querier.Positions)
+	dbq.teamsCache = cachemaker(dbq, cacheTTL, dbq.Querier.Teams)
 	return dbq
+}
+
+// cachemaker cachemaker makes me a cache.
+func cachemaker[T any](
+	dbtx clubhousequeries.DBTX, valTTL time.Duration, refresher func(context.Context, clubhousequeries.DBTX) (T, error),
+) *cache.InMemory[T] {
+	return cache.New[T](
+		valTTL,
+		func(ctx context.Context) (T, error) {
+			return refresher(ctx, dbtx)
+		},
+	)
 }
 
 func (l DBQ) ExecContext(ctx context.Context, s string, i ...interface{}) (sql.Result, error) {

@@ -79,19 +79,26 @@ async function initIncidentPage(): Promise<void> {
     window.reportEntryEdited= ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
 
-    await ims.loadStreets(ims.pathIds.eventID);
+    // load everything from the APIs concurrently
+    await Promise.all([
+        await ims.loadStreets(ims.pathIds.eventID),
+        await loadIncident(),
+        await loadPersonnel(),
+        await ims.loadIncidentTypes().then(
+            value=> {incidentTypes = value.types;},
+        ),
+        await loadAllFieldReports(),
+    ]);
+
     addLocationAddressOptions();
     ims.disableEditing();
-    await loadAndDisplayIncident();
+    displayIncident();
     if (incident == null) {
         return;
     }
-    await loadPersonnel();
     drawRangers();
     drawRangersToAdd();
-    ({types: incidentTypes} = await ims.loadIncidentTypes());
     drawIncidentTypesToAdd();
-    await loadAllFieldReports();
     renderFieldReportData();
 
     // for a new incident, jump to summary field
@@ -224,6 +231,10 @@ async function loadIncident(): Promise<{err: string|null}> {
 
 async function loadAndDisplayIncident(): Promise<void> {
     await loadIncident();
+    displayIncident();
+}
+
+function displayIncident(): void {
     if (incident == null) {
         const message = "Incident failed to load";
         console.log(message);

@@ -16,24 +16,29 @@
 
 package template
 
-templ head(title string, module string, imports []string) {
+templ head(title string, module string, usesDataTables bool) {
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="modulepreload" href={"/ims/static/" + module} />
+    <link rel="modulepreload" href="/ims/static/ims.js" />
     <link type="image/png" rel="icon" href="/ims/static/logo.png" />
-    <link rel="stylesheet" href="/ims/static/ext/bootstrap.min.css">
-    <link rel="stylesheet" href="/ims/static/ext/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="/ims/static/ext/bootstrap.min.css" type="text/css">
+    if usesDataTables {
+    <link rel="stylesheet" href="/ims/static/ext/dataTables.bootstrap5.min.css" type="text/css">
+    }
     <link rel="stylesheet" href="/ims/static/style.css" type="text/css">
     <title>{title}</title>
-    <script src="/ims/static/ext/jquery.min.js"></script>
-    <script src="/ims/static/ext/bootstrap.bundle.min.js"></script>
-    <script src="/ims/static/urls.js"></script>
-    <script src="/ims/static/theme.js"></script>
-    <script src="/ims/static/ext/dataTables.min.js"></script>
-    <script src="/ims/static/ext/dataTables.bootstrap5.min.js"></script>
-    for _, imp := range imports {
-        <script src={"/ims/static/" + imp}></script>
+    <script src="/ims/static/ext/jquery.min.js" defer></script>
+    <script src="/ims/static/ext/bootstrap.bundle.min.js" defer></script>
+    <script src="/ims/static/urls.js" defer></script>
+    if usesDataTables {
+    <script src="/ims/static/ext/dataTables.min.js" defer></script>
+    <script src="/ims/static/ext/dataTables.bootstrap5.min.js" defer></script>
     }
     <script src={"/ims/static/" + module} type="module"></script>
+    <!-- theme.js should not be deferred, so add it last. -->
+    <!-- We run it synchronously to avoid a light flicker on page load for dark mode users. -->
+    <script src="/ims/static/theme.js"></script>
 </head>
 }

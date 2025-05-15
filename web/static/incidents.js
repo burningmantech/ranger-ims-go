@@ -68,9 +68,7 @@ async function initIncidentsPage() {
     window.showRows = showRows;
     window.toggleCheckAllTypes = toggleCheckAllTypes;
     ims.disableEditing();
-    await ims.loadStreets(ims.pathIds.eventID);
-    ({ types: allIncidentTypes } = await ims.loadIncidentTypes());
-    initIncidentsTable();
+    await initIncidentsTable();
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
@@ -129,8 +127,14 @@ async function loadEventFieldReports() {
 //
 // Dispatch queue table
 //
-function initIncidentsTable() {
-    initDataTables();
+async function initIncidentsTable() {
+    // Fetch Incident Types and Streets asynchronously, so that the DataTables ajax
+    // handler can start its own API calls before these need to complete.
+    const tablePrereqs = Promise.all([
+        await ims.loadIncidentTypes().then(value => { allIncidentTypes = value.types; }),
+        ims.loadStreets(ims.pathIds.eventID),
+    ]).then(_ => { });
+    initDataTables(tablePrereqs);
     initTableButtons();
     initSearchField();
     initSearch();
@@ -183,7 +187,7 @@ function initIncidentsTable() {
 //
 // Initialize DataTables
 //
-function initDataTables() {
+function initDataTables(tablePrereqs) {
     DataTable.ext.errMode = "none";
     incidentsTable = new DataTable("#queue_table", {
         "deferRender": true,
@@ -211,6 +215,7 @@ function initDataTables() {
                 let json = [];
                 // concurrently fetch the data needed for the table
                 await Promise.all([
+                    tablePrereqs,
                     loadEventFieldReports(),
                     ims.fetchJsonNoThrow(ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null).then(res => {
                         if (res.err != null || res.json == null) {

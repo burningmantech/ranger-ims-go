@@ -415,21 +415,28 @@ func sniffFile(fi multipart.File) (contentType string, extension string, errHTTP
 }
 
 func extensionByType(contentType string) string {
-	var extension string
+	mediaType, _, _ := mime.ParseMediaType(contentType)
+	if mediaType == "" {
+		return ""
+	}
 
 	// We mostly rely on mime.ExtensionsByType, but just picking the first element of that list
 	// often gives a weird extension. e.g. image/jpeg --> ".jpe". Hence, we special-case some
 	// common MIME types below.
-	switch contentType {
-	case "image/jpeg", "image/jpg":
-		extension = ".jpg"
-	case "text/plain", "text/plain; charset=utf-8":
-		extension = ".txt"
+	switch mediaType {
+	case "image/jpeg":
+		return ".jpg"
+	case "text/html":
+		return ".html"
+	case "text/plain":
+		return ".txt"
+	case "video/mp4":
+		return ".mp4"
 	default:
 		extensions, _ := mime.ExtensionsByType(contentType)
 		if len(extensions) > 0 {
-			extension = extensions[0]
+			return extensions[0]
 		}
 	}
-	return extension
+	return ""
 }

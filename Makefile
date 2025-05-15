@@ -28,7 +28,7 @@ run: build
 ## run/live: run the application with reloading on file changes
 .PHONY: run/live
 run/live:
-	go run github.com/air-verse/air@v1.61.7 \
+	go tool air \
 		--build.cmd "make build" --build.bin "./${binary_name} serve --print-config=false" --build.delay "100" \
 		--build.include_ext "go,tpl,tmpl,templ,html,css,scss,js,ts,sql,jpeg,jpg,gif,png,bmp,svg,webp,ico,env" \
 		--build.exclude_file "web/template/*_templ.go,web/static/*.js,store/imsdb/*.go,directory/clubhousedb/*.go" \

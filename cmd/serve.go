@@ -42,6 +42,8 @@ import (
 const (
 	envfileFlagName    = "envfile"
 	envFileDefaultName = ".env"
+
+	printConfigFlagName = "print-config"
 )
 
 // serveCmd represents the serve command.
@@ -54,11 +56,13 @@ var serveCmd = &cobra.Command{
 }
 
 func runServer(cmd *cobra.Command, args []string) {
-	imsCfg := mustInitConfig(cmd.Flags().Lookup(envfileFlagName).Value.String())
-	os.Exit(runServerInternal(context.Background(), imsCfg))
+	imsCfg := mustInitConfig(envFilename)
+	os.Exit(runServerInternal(context.Background(), imsCfg, printConfig))
 }
 
-func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig) (exitCode int) {
+func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printConfig bool) (
+	exitCode int,
+) {
 	must(unvalidatedCfg.Validate())
 	imsCfg := unvalidatedCfg
 
@@ -66,10 +70,11 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig) (exi
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
 	slog.SetLogLoggerLevel(logLevel)
 
-	cfgStr := imsCfg.PrintRedacted()
-	log.Printf("Here's the final redacted IMSConfig:\n\n%v\n\n", cfgStr)
-
-	log.Printf("With JWTSecret: %v...%v", imsCfg.Core.JWTSecret[:1], imsCfg.Core.JWTSecret[len(imsCfg.Core.JWTSecret)-1:])
+	if printConfig {
+		cfgStr := imsCfg.PrintRedacted()
+		log.Printf("Here's the final redacted IMSConfig:\n\n%v\n\n", cfgStr)
+		log.Printf("With JWTSecret: %v...%v", imsCfg.Core.JWTSecret[:1], imsCfg.Core.JWTSecret[len(imsCfg.Core.JWTSecret)-1:])
+	}
 
 	var err error
 	var userStore *directory.UserStore
@@ -118,7 +123,11 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig) (exi
 		slog.Error("Serve", "err", err)
 	}()
 
-	slog.Info("IMS server is ready for connections", "address", addr)
+	log.Printf(`IMS server is ready for connections at %v
+[31m░█▀▀░▀█▀░█▀█░█▀▄░▀█▀░█▀▀░█▀▄░█[0m
+[32m░▀▀█░░█░░█▀█░█▀▄░░█░░█▀▀░█░█░▀[0m
+[34m░▀▀▀░░▀░░▀░▀░▀░▀░░▀░░▀▀▀░▀▀░░▀[0m
+`, addr)
 	slog.Info(fmt.Sprintf("Visit the web frontend at http://%v/ims/app", addr))
 
 	// The goroutine will hang here until the NotifyContext is done
@@ -283,13 +292,18 @@ func mustInitConfig(envFileName string) *conf.IMSConfig {
 	return newCfg
 }
 
-var envFilename string
+var (
+	envFilename string
+	printConfig bool
+)
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
 	serveCmd.Flags().StringVar(&envFilename, envfileFlagName, envFileDefaultName,
 		"An env file from which to load IMS server configuration. "+
 			"Defaults to '.env' in the current directory")
+	serveCmd.Flags().BoolVar(&printConfig, printConfigFlagName, true,
+		"Whether to print the redacted IMSConfig on server startup")
 }
 
 // must logs an error and panics. This should only be done for

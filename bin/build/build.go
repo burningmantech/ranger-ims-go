@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"io"
 	"io/fs"
 	"log"
@@ -32,6 +33,7 @@ import (
 )
 
 func main() {
+	start := time.Now()
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
@@ -39,23 +41,38 @@ func main() {
 	repo, err := os.OpenRoot(repoRoot(ctx))
 	must(err)
 
-	mustRunInDir(exec.CommandContext(ctx, "go", "tool", "sqlc", "generate"), repo.Name())
-	mustRunInDir(exec.CommandContext(ctx, "go", "tool", "templ", "generate"), repo.Name())
-	mustRunInDir(exec.CommandContext(ctx, "go", "tool", "tsgo"), repo.Name())
-	// We presume that all of these JS files were generated from TypeScript, as
-	// that's currently the case. `tsc` had a `--listEmittedFiles` flag that would
-	// aid here, but `tsgo` doesn't yet have that feature.
-	jsFiles, err := fs.Glob(repo.FS(), filepath.Join("web", "static", "*.js"))
-	must(err)
-	for _, match := range jsFiles {
-		addTSGeneratedHeader(repo, match)
-	}
-	mustRunInDir(
-		exec.CommandContext(ctx, "go", "run", "fetchclientdeps.go"),
-		filepath.Join(repo.Name(), "bin", "fetchclientdeps"),
-	)
+	eg, gCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		mustRunInDir(exec.CommandContext(gCtx, "go", "tool", "sqlc", "generate"), repo.Name())
+		return nil
+	})
+	eg.Go(func() error {
+		mustRunInDir(exec.CommandContext(gCtx, "go", "tool", "templ", "generate"), repo.Name())
+		return nil
+	})
+	eg.Go(func() error {
+		mustRunInDir(exec.CommandContext(gCtx, "go", "tool", "tsgo"), repo.Name())
+		// We presume that all of these JS files were generated from TypeScript, as
+		// that's currently the case. `tsc` had a `--listEmittedFiles` flag that would
+		// aid here, but `tsgo` doesn't yet have that feature.
+		jsFiles, err := fs.Glob(repo.FS(), filepath.Join("web", "static", "*.js"))
+		must(err)
+		for _, match := range jsFiles {
+			addTSGeneratedHeader(repo, match)
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		mustRunInDir(
+			exec.CommandContext(gCtx, "go", "run", "fetchclientdeps.go"),
+			filepath.Join(repo.Name(), "bin", "fetchclientdeps"),
+		)
+		return nil
+	})
+	must(eg.Wait())
+
 	mustRunInDir(exec.CommandContext(ctx, "go", "build"), repo.Name())
-	log.Println("All done! You can now run ./ranger-ims-go")
+	log.Printf("All done in %v. You can now run ./ranger-ims-go", time.Since(start))
 }
 
 func addTSGeneratedHeader(repo *os.Root, filename string) {
@@ -84,6 +101,7 @@ func addTSGeneratedHeader(repo *os.Root, filename string) {
 }
 
 func mustRunInDir(cmd *exec.Cmd, dir string) {
+	start := time.Now()
 	cmd.Dir = dir
 	log.Printf("`%v`: running in %v", strings.Join(cmd.Args, " "), dir)
 	output, err := cmd.CombinedOutput()
@@ -92,7 +110,7 @@ func mustRunInDir(cmd *exec.Cmd, dir string) {
 		log.Printf("failed command output:\n%v", string(output))
 		must(err)
 	}
-	log.Printf("`%v`: succeeded", strings.Join(cmd.Args, " "))
+	log.Printf("`%v`: succeeded in %v", strings.Join(cmd.Args, " "), time.Since(start))
 }
 
 func repoRoot(ctx context.Context) string {

@@ -653,31 +653,14 @@ function shortDescribeLocation(location: EventLocation): string {
         locationBits.push(location.name);
     }
 
-    switch (location.type) {
-        case undefined:
-            // Fall through to "text" case
-        case "text":
-            if (location.description != null) {
-                locationBits.push(" ");
-                locationBits.push(location.description);
-            }
-            break;
-        case "garett":
-            if (location.radial_hour || location.radial_minute || location.concentric) {
-                locationBits.push(" (");
-                locationBits.push(padTwo(location.radial_hour!));
-                locationBits.push(":");
-                locationBits.push(padTwo(location.radial_minute!));
-                locationBits.push("@");
-                locationBits.push(concentricStreetFromID(location.concentric!));
-                locationBits.push(")");
-            }
-            break;
-        default:
-            locationBits.push(
-                "Unknown location type:" + location.type
-            );
-            break;
+    if (location.radial_hour || location.radial_minute || location.concentric) {
+        locationBits.push(" (");
+        locationBits.push(padTwo(location.radial_hour!));
+        locationBits.push(":");
+        locationBits.push(padTwo(location.radial_minute!));
+        locationBits.push("@");
+        locationBits.push(concentricStreetFromID(location.concentric!));
+        locationBits.push(")");
     }
 
     return locationBits.join("");
@@ -1349,7 +1332,6 @@ interface EventLocation {
     radial_minute?: number|null;
     concentric?: string|null;
     description?: string|null;
-    type?: string|null;
 }
 
 export type Incident = {

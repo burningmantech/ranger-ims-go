@@ -31,7 +31,6 @@ type Location struct {
 	RadialHour   *string `json:"radial_hour"`
 	RadialMinute *string `json:"radial_minute"`
 	Description  *string `json:"description"`
-	Type         string  `json:"type"`
 }
 
 const (

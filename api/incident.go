@@ -36,10 +36,6 @@ import (
 	"time"
 )
 
-const (
-	garett = "garett"
-)
-
 type GetIncidents struct {
 	imsDBQ             *store.DBQ
 	imsAdmins          []string
@@ -202,7 +198,6 @@ func incidentToJSON(
 			RadialHour:   conv.FormatSqlInt16(storedRow.Incident.LocationRadialHour),
 			RadialMinute: conv.FormatSqlInt16(storedRow.Incident.LocationRadialMinute),
 			Description:  conv.StringOrNil(storedRow.Incident.LocationDescription),
-			Type:         garett,
 		},
 		IncidentTypes: &incidentTypes,
 		FieldReports:  &fieldReportNumbers,

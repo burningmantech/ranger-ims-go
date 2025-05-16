@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"log/slog"
@@ -31,7 +32,14 @@ import (
 	"time"
 )
 
-func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *store.DBQ, userStore *directory.UserStore) *http.ServeMux {
+func AddToMux(
+	mux *http.ServeMux,
+	es *EventSourcerer,
+	cfg *conf.IMSConfig,
+	db *store.DBQ,
+	userStore *directory.UserStore,
+	s3Client *attachment.S3Client,
+) *http.ServeMux {
 	if mux == nil {
 		mux = http.NewServeMux()
 	}
@@ -143,7 +151,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}",
 		Adapt(
-			GetIncidentAttachment{db, cfg.AttachmentsStore, cfg.Core.Admins},
+			GetIncidentAttachment{db, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -152,7 +160,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments",
 		Adapt(
-			AttachToIncident{db, es, cfg.AttachmentsStore, cfg.Core.Admins},
+			AttachToIncident{db, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -206,7 +214,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}",
 		Adapt(
-			GetFieldReportAttachment{db, cfg.AttachmentsStore, cfg.Core.Admins},
+			GetFieldReportAttachment{db, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),
@@ -215,7 +223,7 @@ func AddToMux(mux *http.ServeMux, es *EventSourcerer, cfg *conf.IMSConfig, db *s
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments",
 		Adapt(
-			AttachToFieldReport{db, es, cfg.AttachmentsStore, cfg.Core.Admins},
+			AttachToFieldReport{db, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverOnPanic(),
 			RequireAuthN(jwter),
 			LogBeforeAfter(),

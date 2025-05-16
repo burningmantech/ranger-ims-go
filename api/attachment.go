@@ -42,6 +42,7 @@ const IMSAttachmentFormKey = "imsAttachment"
 type GetIncidentAttachment struct {
 	imsDBQ           *store.DBQ
 	attachmentsStore conf.AttachmentsStore
+	s3Client         *attachment.S3Client
 	imsAdmins        []string
 }
 
@@ -49,12 +50,14 @@ type AttachToIncident struct {
 	imsDBQ           *store.DBQ
 	es               *EventSourcerer
 	attachmentsStore conf.AttachmentsStore
+	s3Client         *attachment.S3Client
 	imsAdmins        []string
 }
 
 type GetFieldReportAttachment struct {
 	imsDBQ           *store.DBQ
 	attachmentsStore conf.AttachmentsStore
+	s3Client         *attachment.S3Client
 	imsAdmins        []string
 }
 
@@ -62,6 +65,7 @@ type AttachToFieldReport struct {
 	imsDBQ           *store.DBQ
 	es               *EventSourcerer
 	attachmentsStore conf.AttachmentsStore
+	s3Client         *attachment.S3Client
 	imsAdmins        []string
 }
 
@@ -120,7 +124,7 @@ func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io
 			return nil, herr.InternalServerError("Failed to open file", err)
 		}
 	case conf.AttachmentsStoreS3:
-		file, errHTTP = mustGetS3File(ctx, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
+		file, errHTTP = mustGetS3File(ctx, action.s3Client, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
 		if errHTTP != nil {
 			return nil, errHTTP.From("[mustGetS3File]")
 		}
@@ -131,15 +135,10 @@ func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io
 	return file, nil
 }
 
-func mustGetS3File(ctx context.Context, bucket, prefix, filename string) (io.ReadSeeker, *herr.HTTPError) {
-	s3Name := prefix + filename
-	var exists bool
-	file, exists, err := attachment.GetObject(ctx, bucket, s3Name)
-	if err != nil {
-		return nil, herr.InternalServerError("Failed to get attachment", err).From("[GetObject]")
-	}
-	if !exists {
-		return nil, herr.NotFound("File does not exist", nil)
+func mustGetS3File(ctx context.Context, s3Client *attachment.S3Client, bucket, prefix, filename string) (io.ReadSeeker, *herr.HTTPError) {
+	file, errHTTP := s3Client.GetObject(ctx, bucket, prefix+filename)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[GetObject]")
 	}
 	return file, nil
 }
@@ -208,7 +207,7 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Reques
 			return nil, herr.InternalServerError("Failed to open file", err)
 		}
 	case conf.AttachmentsStoreS3:
-		file, errHTTP = mustGetS3File(ctx, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
+		file, errHTTP = mustGetS3File(ctx, action.s3Client, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
 		if errHTTP != nil {
 			return nil, errHTTP.From("[mustGetS3File]")
 		}
@@ -280,8 +279,8 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		}
 	case conf.AttachmentsStoreS3:
 		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
-		if err = attachment.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); err != nil {
-			return 0, herr.InternalServerError("Failed to upload file to S3", err).From("[UploadToS3]")
+		if errHTTP = action.s3Client.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); errHTTP != nil {
+			return 0, errHTTP.From("[UploadToS3]")
 		}
 	default:
 		return 0, herr.NotFound("Attachments are not currently supported", nil)
@@ -372,8 +371,8 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		}
 	case conf.AttachmentsStoreS3:
 		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
-		if err = attachment.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); err != nil {
-			return 0, herr.InternalServerError("Failed to upload file to S3", err)
+		if errHTTP = action.s3Client.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); errHTTP != nil {
+			return 0, errHTTP.From("[UploadToS3]")
 		}
 	default:
 		return 0, herr.NotFound("Attachments are not currently supported", nil)

@@ -109,29 +109,42 @@ func (action GetIncidentAttachment) getIncidentAttachment(req *http.Request) (io
 			break
 		}
 	}
+
+	file, errHTTP := retrieveFile(ctx, action.attachmentsStore, action.s3Client, filename)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[retrieveFile]")
+	}
+
+	return file, nil
+}
+
+func retrieveFile(
+	ctx context.Context, attachmentsStore conf.AttachmentsStore,
+	s3Client *attachment.S3Client, filename string,
+) (io.ReadSeeker, *herr.HTTPError) {
 	if filename == "" {
 		return nil, herr.NotFound("No attachment for this ID", nil)
 	}
-
 	var file io.ReadSeeker
-	switch action.attachmentsStore.Type {
+	var err error
+	var errHTTP *herr.HTTPError
+	switch attachmentsStore.Type {
 	case conf.AttachmentsStoreLocal:
-		file, err = action.attachmentsStore.Local.Dir.Open(filename)
+		file, err = attachmentsStore.Local.Dir.Open(filename)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil, herr.NotFound("File does not exist", nil)
 			}
-			return nil, herr.InternalServerError("Failed to open file", err)
+			return nil, herr.InternalServerError("Failed to open file", err).From("[Open]")
 		}
 	case conf.AttachmentsStoreS3:
-		file, errHTTP = mustGetS3File(ctx, action.s3Client, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
+		file, errHTTP = mustGetS3File(ctx, s3Client, attachmentsStore.S3.Bucket, attachmentsStore.S3.CommonKeyPrefix, filename)
 		if errHTTP != nil {
 			return nil, errHTTP.From("[mustGetS3File]")
 		}
 	default:
 		return nil, herr.NotFound("Attachments are not currently supported", nil)
 	}
-
 	return file, nil
 }
 
@@ -192,27 +205,10 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(req *http.Reques
 			break
 		}
 	}
-	if filename == "" {
-		return nil, herr.NotFound("No attachment for this ID", nil)
-	}
 
-	var file io.ReadSeeker
-	switch action.attachmentsStore.Type {
-	case conf.AttachmentsStoreLocal:
-		file, err = action.attachmentsStore.Local.Dir.Open(filename)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return nil, herr.NotFound("File does not exist", nil)
-			}
-			return nil, herr.InternalServerError("Failed to open file", err)
-		}
-	case conf.AttachmentsStoreS3:
-		file, errHTTP = mustGetS3File(ctx, action.s3Client, action.attachmentsStore.S3.Bucket, action.attachmentsStore.S3.CommonKeyPrefix, filename)
-		if errHTTP != nil {
-			return nil, errHTTP.From("[mustGetS3File]")
-		}
-	default:
-		return nil, herr.NotFound("Attachments are not currently supported", nil)
+	file, errHTTP := retrieveFile(ctx, action.attachmentsStore, action.s3Client, filename)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[retrieveFile]")
 	}
 	return file, nil
 }
@@ -267,23 +263,8 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		"extension", extension,
 	)
 
-	switch action.attachmentsStore.Type {
-	case conf.AttachmentsStoreLocal:
-		outFi, err := action.attachmentsStore.Local.Dir.Create(newFileName)
-		if err != nil {
-			return 0, herr.InternalServerError("Failed to create file", err).From("[Create]")
-		}
-		defer shut(outFi)
-		if _, err = io.Copy(outFi, fi); err != nil {
-			return 0, herr.InternalServerError("Failed to write file", err).From("[Copy]")
-		}
-	case conf.AttachmentsStoreS3:
-		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
-		if errHTTP = action.s3Client.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); errHTTP != nil {
-			return 0, errHTTP.From("[UploadToS3]")
-		}
-	default:
-		return 0, herr.NotFound("Attachments are not currently supported", nil)
+	if errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi); errHTTP != nil {
+		return 0, errHTTP.From("[saveFile]")
 	}
 
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
@@ -296,6 +277,31 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 
 	action.es.notifyIncidentUpdate(event.Name, incidentNumber)
 	return reID, nil
+}
+
+func saveFile(
+	ctx context.Context, attachmentsStore conf.AttachmentsStore,
+	s3Client *attachment.S3Client, newFileName string, fi multipart.File,
+) *herr.HTTPError {
+	switch attachmentsStore.Type {
+	case conf.AttachmentsStoreLocal:
+		outFi, err := attachmentsStore.Local.Dir.Create(newFileName)
+		if err != nil {
+			return herr.InternalServerError("Failed to create file", err).From("[Create]")
+		}
+		defer shut(outFi)
+		if _, err = io.Copy(outFi, fi); err != nil {
+			return herr.InternalServerError("Failed to write file", err).From("[Copy]")
+		}
+	case conf.AttachmentsStoreS3:
+		s3Name := attachmentsStore.S3.CommonKeyPrefix + newFileName
+		if errHTTP := s3Client.UploadToS3(ctx, attachmentsStore.S3.Bucket, s3Name, fi); errHTTP != nil {
+			return errHTTP.From("[UploadToS3]")
+		}
+	default:
+		return herr.NotFound("Attachments are not currently supported", nil)
+	}
+	return nil
 }
 
 func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -359,23 +365,8 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		"extension", extension,
 	)
 
-	switch action.attachmentsStore.Type {
-	case conf.AttachmentsStoreLocal:
-		outFi, err := action.attachmentsStore.Local.Dir.Create(newFileName)
-		if err != nil {
-			return 0, herr.InternalServerError("Failed to create file", err)
-		}
-		defer shut(outFi)
-		if _, err = io.Copy(outFi, fi); err != nil {
-			return 0, herr.InternalServerError("Failed to write file", err)
-		}
-	case conf.AttachmentsStoreS3:
-		s3Name := action.attachmentsStore.S3.CommonKeyPrefix + newFileName
-		if errHTTP = action.s3Client.UploadToS3(ctx, action.attachmentsStore.S3.Bucket, s3Name, fi); errHTTP != nil {
-			return 0, errHTTP.From("[UploadToS3]")
-		}
-	default:
-		return 0, herr.NotFound("Attachments are not currently supported", nil)
+	if errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi); errHTTP != nil {
+		return 0, errHTTP.From("[saveFile]")
 	}
 
 	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",

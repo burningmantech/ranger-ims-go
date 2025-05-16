@@ -36,7 +36,6 @@ func sampleIncident1(eventName string) imsjson.Incident {
 			RadialHour:   ptr("10"),
 			RadialMinute: ptr("5"),
 			Description:  ptr("unknown"),
-			Type:         "garett",
 		},
 		IncidentTypes: &[]string{"Admin", "Junk"},
 		FieldReports:  &[]int32{},
@@ -241,7 +240,6 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 			RadialHour:   ptr(""),
 			RadialMinute: ptr(""),
 			Description:  ptr(""),
-			Type:         "garett",
 		},
 		IncidentTypes: &[]string{},
 		FieldReports:  &[]int32{},
@@ -256,13 +254,11 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	expected := imsjson.Incident{
-		Event:    eventName,
-		Number:   num,
-		State:    "closed",
-		Priority: 1,
-		Location: imsjson.Location{
-			Type: "garett",
-		},
+		Event:         eventName,
+		Number:        num,
+		State:         "closed",
+		Priority:      1,
+		Location:      imsjson.Location{},
 		IncidentTypes: &[]string{},
 		FieldReports:  &[]int32{},
 		RangerHandles: &[]string{},

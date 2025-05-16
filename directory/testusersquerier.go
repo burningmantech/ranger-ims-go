@@ -21,7 +21,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	clubhousequeries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	"hash/fnv"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"slices"
 )
 
@@ -37,7 +37,7 @@ func (t TestUsersStore) PersonPositions(ctx context.Context, db clubhousequeries
 		for _, position := range tu.Positions {
 			newRow := clubhousequeries.PersonPosition{
 				PersonID:   tu.DirectoryID,
-				PositionID: nonCryptoHash(position),
+				PositionID: rand.NonCryptoHash64(position),
 			}
 			rows = append(rows, newRow)
 		}
@@ -51,7 +51,7 @@ func (t TestUsersStore) PersonTeams(ctx context.Context, db clubhousequeries.DBT
 		for _, team := range tu.Teams {
 			newRow := clubhousequeries.PersonTeamsRow{
 				PersonID: tu.DirectoryID,
-				TeamID:   nonCryptoHash(team),
+				TeamID:   rand.NonCryptoHash64(team),
 			}
 			rows = append(rows, newRow)
 		}
@@ -64,7 +64,7 @@ func (t TestUsersStore) Positions(ctx context.Context, db clubhousequeries.DBTX)
 	for _, tu := range t.TestUsers {
 		for _, pos := range tu.Positions {
 			newRow := clubhousequeries.PositionsRow{
-				ID:    nonCryptoHash(pos),
+				ID:    rand.NonCryptoHash64(pos),
 				Title: pos,
 			}
 			if !slices.Contains(rows, newRow) {
@@ -95,7 +95,7 @@ func (t TestUsersStore) Teams(ctx context.Context, db clubhousequeries.DBTX) ([]
 	for _, tu := range t.TestUsers {
 		for _, team := range tu.Teams {
 			newRow := clubhousequeries.TeamsRow{
-				ID:    nonCryptoHash(team),
+				ID:    rand.NonCryptoHash64(team),
 				Title: team,
 			}
 			if !slices.Contains(rows, newRow) {
@@ -104,11 +104,4 @@ func (t TestUsersStore) Teams(ctx context.Context, db clubhousequeries.DBTX) ([]
 		}
 	}
 	return rows, nil
-}
-
-func nonCryptoHash(s string) int64 {
-	hasher := fnv.New64()
-	_, _ = hasher.Write([]byte(s))
-	// allow twos-complement wraparound, because we just want any number
-	return int64(hasher.Sum64())
 }

@@ -18,7 +18,7 @@ package integration_test
 
 import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/google/uuid"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -44,7 +44,7 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event
-	eventName := uuid.NewString()
+	eventName := rand.NonCryptoText()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -105,7 +105,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
-	eventName := uuid.NewString()
+	eventName := rand.NonCryptoText()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -233,7 +233,7 @@ func TestCreateAndAttachFileToFieldReport(t *testing.T) {
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event
-	eventName := uuid.NewString()
+	eventName := rand.NonCryptoText()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

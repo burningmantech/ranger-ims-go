@@ -24,7 +24,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	"github.com/google/uuid"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"io"
 	"mime/multipart"
@@ -270,7 +270,7 @@ func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, i
 	// Create a `multipart/form-data`-encoded request, with a single form file inside
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
-	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, "irrelevant-filename-"+uuid.NewString())
+	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, "irrelevant-filename-"+rand.NonCryptoText())
 	require.NoError(a.t, err)
 	_, err = part.Write(fileBytes)
 	require.NoError(a.t, err)
@@ -308,7 +308,7 @@ func (a ApiHelper) attachFileToFieldReport(ctx context.Context, eventName string
 	// Create a `multipart/form-data`-encoded request, with a single form file inside
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
-	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, "irrelevant-filename-"+uuid.NewString())
+	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, "irrelevant-filename-"+rand.NonCryptoText())
 	require.NoError(a.t, err)
 	_, err = part.Write(fileBytes)
 	require.NoError(a.t, err)

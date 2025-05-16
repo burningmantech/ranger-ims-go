@@ -23,9 +23,9 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
@@ -84,20 +84,17 @@ func TestMain(m *testing.M) {
 func setup(ctx context.Context, tempDir string) {
 	tempRoot, err := os.OpenRoot(tempDir)
 	must(err)
-	// Use faster/less-secure UUID generation for tests. This drops UUID generation down from
-	// 180ns to 40ns on an M4 Mac, as compared to 200ns for rand.Text().
-	uuid.EnableRandPool()
 
 	shared.cfg = conf.DefaultIMS()
-	shared.cfg.Core.JWTSecret = "jwtsecret-" + uuid.NewString()
+	shared.cfg.Core.JWTSecret = "jwtsecret-" + rand.NonCryptoText()
 	shared.cfg.Core.Admins = []string{userAdminHandle}
 	shared.cfg.AttachmentsStore.Type = conf.AttachmentsStoreLocal
 	shared.cfg.AttachmentsStore.Local = conf.LocalAttachments{
 		Dir: tempRoot,
 	}
-	shared.cfg.Store.MariaDB.Database = "ims-" + uuid.NewString()
-	shared.cfg.Store.MariaDB.Username = "rangers-" + uuid.NewString()
-	shared.cfg.Store.MariaDB.Password = "password-" + uuid.NewString()
+	shared.cfg.Store.MariaDB.Database = "ims-" + rand.NonCryptoText()
+	shared.cfg.Store.MariaDB.Username = "rangers-" + rand.NonCryptoText()
+	shared.cfg.Store.MariaDB.Password = "password-" + rand.NonCryptoText()
 	shared.cfg.Directory.Directory = conf.DirectoryTypeTestUsers
 	shared.cfg.Directory.TestUsers = []conf.TestUser{
 		{

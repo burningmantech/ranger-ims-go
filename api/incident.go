@@ -73,7 +73,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 	// and process those results concurrently.
 	group, groupCtx := errgroup.WithContext(req.Context())
 
-	entriesByIncident := make(map[int32][]imsjson.ReportEntry)
+	entriesByIncident := make(map[int32][]imsdb.ReportEntry)
 	group.Go(func() error {
 		reportEntries, err := action.imsDBQ.Incidents_ReportEntries(
 			groupCtx,
@@ -87,10 +87,9 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 			return herr.InternalServerError("Failed to fetch Incident Report Entries", err).From("[Incidents_ReportEntries]")
 		}
 		for _, row := range reportEntries {
-			re := row.ReportEntry
 			entriesByIncident[row.IncidentNumber] = append(
 				entriesByIncident[row.IncidentNumber],
-				reportEntryToJSON(re, action.attachmentsEnabled),
+				row.ReportEntry,
 			)
 		}
 		return nil
@@ -114,36 +113,13 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 		// query row structs currently have the same fields in the same order. If that changes in the
 		// future, this won't compile, and we may need to duplicate the readExtraIncidentRowFields
 		// function.
-		incidentTypes, rangerHandles, fieldReportNumbers, err := readExtraIncidentRowFields(imsdb.IncidentRow(r))
-		if err != nil {
-			return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
+		incidentRow := imsdb.IncidentRow(r)
+
+		incJSON, errHTTP := incidentToJSON(incidentRow, entriesByIncident[r.Incident.Number], event, action.attachmentsEnabled)
+		if errHTTP != nil {
+			return resp, errHTTP.From("[incidentToJSON]")
 		}
-		lastModified := int64(r.Incident.Created)
-		for _, re := range entriesByIncident[r.Incident.Number] {
-			lastModified = max(lastModified, re.Created.Unix())
-		}
-		resp = append(resp, imsjson.Incident{
-			Event:        event.Name,
-			EventID:      event.ID,
-			Number:       r.Incident.Number,
-			Created:      time.Unix(int64(r.Incident.Created), 0),
-			LastModified: time.Unix(lastModified, 0),
-			State:        string(r.Incident.State),
-			Priority:     r.Incident.Priority,
-			Summary:      conv.StringOrNil(r.Incident.Summary),
-			Location: imsjson.Location{
-				Name:         conv.StringOrNil(r.Incident.LocationName),
-				Concentric:   conv.StringOrNil(r.Incident.LocationConcentric),
-				RadialHour:   conv.FormatSqlInt16(r.Incident.LocationRadialHour),
-				RadialMinute: conv.FormatSqlInt16(r.Incident.LocationRadialMinute),
-				Description:  conv.StringOrNil(r.Incident.LocationDescription),
-				Type:         garett,
-			},
-			IncidentTypes: &incidentTypes,
-			FieldReports:  &fieldReportNumbers,
-			RangerHandles: &rangerHandles,
-			ReportEntries: entriesByIncident[r.Incident.Number],
-		})
+		resp = append(resp, incJSON)
 	}
 
 	return resp, nil
@@ -186,9 +162,20 @@ func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *her
 		return resp, errHTTP.From("[fetchIncident]")
 	}
 
+	resp, errHTTP = incidentToJSON(storedRow, reportEntries, event, action.attachmentsEnabled)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[incidentToJSON]")
+	}
+	return resp, nil
+}
+
+func incidentToJSON(
+	storedRow imsdb.IncidentRow, reportEntries []imsdb.ReportEntry, event imsdb.Event, attachmentsEnabled bool,
+) (imsjson.Incident, *herr.HTTPError) {
+	var resp imsjson.Incident
 	resultEntries := make([]imsjson.ReportEntry, 0)
 	for _, re := range reportEntries {
-		resultEntries = append(resultEntries, reportEntryToJSON(re, action.attachmentsEnabled))
+		resultEntries = append(resultEntries, reportEntryToJSON(re, attachmentsEnabled))
 	}
 
 	incidentTypes, rangerHandles, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
@@ -267,7 +254,7 @@ func addIncidentReportEntry(
 		Created:      float64(time.Now().Unix()),
 		Generated:    generated,
 		Stricken:     false,
-		AttachedFile: sqlNullString(&attachment),
+		AttachedFile: conv.ParseSqlNullString(&attachment),
 	})
 	// This column is an int32, so this is safe
 	reID := conv.MustInt32(reID64)
@@ -419,15 +406,15 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		logs = append(logs, fmt.Sprintf("Changed state: %v", update.State))
 	}
 	if newIncident.Summary != nil {
-		update.Summary = sqlNullString(newIncident.Summary)
+		update.Summary = conv.ParseSqlNullString(newIncident.Summary)
 		logs = append(logs, fmt.Sprintf("Changed summary: %v", update.Summary.String))
 	}
 	if newIncident.Location.Name != nil {
-		update.LocationName = sqlNullString(newIncident.Location.Name)
+		update.LocationName = conv.ParseSqlNullString(newIncident.Location.Name)
 		logs = append(logs, fmt.Sprintf("Changed location name: %v", update.LocationName.String))
 	}
 	if newIncident.Location.Concentric != nil {
-		update.LocationConcentric = sqlNullString(newIncident.Location.Concentric)
+		update.LocationConcentric = conv.ParseSqlNullString(newIncident.Location.Concentric)
 		logs = append(logs, fmt.Sprintf("Changed location concentric: %v", update.LocationConcentric.String))
 	}
 	if newIncident.Location.RadialHour != nil {
@@ -439,7 +426,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		logs = append(logs, fmt.Sprintf("Changed location radial minute: %v", update.LocationRadialMinute.Int16))
 	}
 	if newIncident.Location.Description != nil {
-		update.LocationDescription = sqlNullString(newIncident.Location.Description)
+		update.LocationDescription = conv.ParseSqlNullString(newIncident.Location.Description)
 		logs = append(logs, fmt.Sprintf("Changed location description: %v", update.LocationDescription.String))
 	}
 	err = imsDBQ.UpdateIncident(ctx, txn, update)

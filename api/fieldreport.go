@@ -100,23 +100,24 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 		authorizedFRs = storedFRs
 	}
 
-	entryJSONsByFR := make(map[int32][]imsjson.ReportEntry)
+	entryJSONsByFR := make(map[int32][]imsdb.ReportEntry)
 	for frNum, entries := range entriesByFR {
 		for _, entry := range entries {
-			entryJSONsByFR[frNum] = append(entryJSONsByFR[frNum], reportEntryToJSON(entry, action.attachmentsEnabled))
+			entryJSONsByFR[frNum] = append(entryJSONsByFR[frNum], entry)
 		}
 	}
 
 	resp = make(imsjson.FieldReports, 0, len(authorizedFRs))
 	for _, fr := range authorizedFRs {
-		resp = append(resp, imsjson.FieldReport{
-			Event:         event.Name,
-			Number:        fr.FieldReport.Number,
-			Created:       time.Unix(int64(fr.FieldReport.Created), 0),
-			Summary:       conv.StringOrNil(fr.FieldReport.Summary),
-			Incident:      conv.Int32OrNil(fr.FieldReport.IncidentNumber),
-			ReportEntries: entryJSONsByFR[fr.FieldReport.Number],
-		})
+		resp = append(
+			resp,
+			fieldReportToJSON(
+				fr.FieldReport,
+				entryJSONsByFR[fr.FieldReport.Number],
+				event,
+				action.attachmentsEnabled,
+			),
+		)
 	}
 
 	return resp, nil
@@ -177,21 +178,24 @@ func (action GetFieldReport) getFieldReport(req *http.Request) (imsjson.FieldRep
 		}
 	}
 
+	return fieldReportToJSON(fr, reportEntries, event, action.attachmentsEnabled), nil
+}
+
+func fieldReportToJSON(
+	fr imsdb.FieldReport, reportEntries []imsdb.ReportEntry, event imsdb.Event, attachmentsEnabled bool,
+) imsjson.FieldReport {
 	entries := make([]imsjson.ReportEntry, 0)
 	for _, re := range reportEntries {
-		entries = append(entries, reportEntryToJSON(re, action.attachmentsEnabled))
+		entries = append(entries, reportEntryToJSON(re, attachmentsEnabled))
 	}
-
-	response = imsjson.FieldReport{
+	return imsjson.FieldReport{
 		Event:         event.Name,
 		Number:        fr.Number,
 		Created:       time.Unix(int64(fr.Created), 0),
 		Summary:       conv.StringOrNil(fr.Summary),
 		Incident:      conv.Int32OrNil(fr.IncidentNumber),
-		ReportEntries: []imsjson.ReportEntry{},
+		ReportEntries: entries,
 	}
-	response.ReportEntries = entries
-	return response, nil
 }
 
 func fetchFieldReport(ctx context.Context, imsDBQ *store.DBQ, eventID, fieldReportNumber int32) (
@@ -279,56 +283,20 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	}
 	storedFR := frr.FieldReport
 
-	queryAction := req.FormValue("action")
-	if queryAction != "" {
-		previousIncident := storedFR.IncidentNumber
-
-		var newIncident sql.NullInt32
-		var entryText string
-		switch queryAction {
-		case "attach":
-			num, err := conv.ParseInt32(req.FormValue("incident"))
-			if err != nil {
-				return herr.BadRequest("Invalid incident number for attachment of FR", err).From("[ParseInt32]")
-			}
-			newIncident = sql.NullInt32{Int32: num, Valid: true}
-			entryText = fmt.Sprintf("Attached to incident: %v", num)
-		case "detach":
-			newIncident = sql.NullInt32{Valid: false}
-			entryText = fmt.Sprintf("Detached from incident: %v", previousIncident.Int32)
-		default:
-			return herr.BadRequest("Invalid action", fmt.Errorf("provided bad action was %v", queryAction))
-		}
-		err = action.imsDBQ.AttachFieldReportToIncident(ctx, action.imsDBQ,
-			imsdb.AttachFieldReportToIncidentParams{
-				IncidentNumber: newIncident,
-				Event:          event.ID,
-				Number:         fieldReportNumber,
-			},
-		)
-		if err != nil {
-			return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
-		}
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, author, entryText, true, "")
+	// If there's an "action" in the form, we're either linking or unlinking this FR from an Incident.
+	if queryAction := req.FormValue("action"); queryAction != "" {
+		targetIncidentVal := req.FormValue("incident")
+		errHTTP = action.handleLinkToIncident(ctx, storedFR, event, queryAction, targetIncidentVal, author)
 		if errHTTP != nil {
-			return errHTTP.From("[addFRReportEntry]")
+			return errHTTP.From("[handleLinkToIncident]")
 		}
-		defer action.eventSource.notifyFieldReportUpdate(event.Name, fieldReportNumber)
-		defer action.eventSource.notifyIncidentUpdate(event.Name, previousIncident.Int32)
-		defer action.eventSource.notifyIncidentUpdate(event.Name, newIncident.Int32)
-		slog.Info("Attached Field Report to newIncident",
-			"event", event.ID,
-			"newIncident", newIncident.Int32,
-			"previousIncident", previousIncident.Int32,
-			"field report", fieldReportNumber,
-		)
 	}
 
 	requestFR, errHTTP := readBodyAs[imsjson.FieldReport](req)
 	if errHTTP != nil {
-		return errHTTP.From("[readBodyAs2]")
+		return errHTTP.From("[readBodyAs]")
 	}
-	// This is fine, as it may be that only an attach/detach was requested
+	// This is fine, as it may be that only a link/unlink was requested
 	if requestFR.Number == 0 {
 		slog.Debug("No field report number provided")
 		return nil
@@ -341,7 +309,7 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	defer rollback(txn)
 
 	if requestFR.Summary != nil {
-		storedFR.Summary = sqlNullString(requestFR.Summary)
+		storedFR.Summary = conv.ParseSqlNullString(requestFR.Summary)
 		text := "Changed summary to: " + *requestFR.Summary
 		_, errHTTP := addFRReportEntry(
 			ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, text, true, "",
@@ -378,6 +346,62 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	}
 
 	defer action.eventSource.notifyFieldReportUpdate(event.Name, storedFR.Number)
+	return nil
+}
+
+func (action EditFieldReport) handleLinkToIncident(
+	ctx context.Context,
+	storedFR imsdb.FieldReport,
+	event imsdb.Event,
+	queryAction string,
+	targetIncidentVal string,
+	actor string,
+) *herr.HTTPError {
+	previousIncident := storedFR.IncidentNumber
+	fieldReportNumber := storedFR.Number
+
+	var newIncident sql.NullInt32
+	var entryText string
+	switch queryAction {
+	case "attach":
+		num, err := conv.ParseInt32(targetIncidentVal)
+		if err != nil {
+			return herr.BadRequest("Invalid incident number for attachment of FR", err).From("[ParseInt32]")
+		}
+		newIncident = sql.NullInt32{Int32: num, Valid: true}
+		entryText = fmt.Sprintf("Attached to incident: %v", num)
+	case "detach":
+		newIncident = sql.NullInt32{Valid: false}
+		entryText = fmt.Sprintf("Detached from incident: %v", previousIncident.Int32)
+	default:
+		return herr.BadRequest("Invalid action", fmt.Errorf("provided bad action was %v", queryAction))
+	}
+	err := action.imsDBQ.AttachFieldReportToIncident(ctx, action.imsDBQ,
+		imsdb.AttachFieldReportToIncidentParams{
+			IncidentNumber: newIncident,
+			Event:          event.ID,
+			Number:         fieldReportNumber,
+		},
+	)
+	if err != nil {
+		return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
+	}
+	_, errHTTP := addFRReportEntry(
+		ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
+		actor, entryText, true, "",
+	)
+	if errHTTP != nil {
+		return errHTTP.From("[addFRReportEntry]")
+	}
+	defer action.eventSource.notifyFieldReportUpdate(event.Name, fieldReportNumber)
+	defer action.eventSource.notifyIncidentUpdate(event.Name, previousIncident.Int32)
+	defer action.eventSource.notifyIncidentUpdate(event.Name, newIncident.Int32)
+	slog.Info("Attached Field Report to newIncident",
+		"event", event.ID,
+		"newIncident", newIncident.Int32,
+		"previousIncident", previousIncident.Int32,
+		"field report", fieldReportNumber,
+	)
 	return nil
 }
 
@@ -449,7 +473,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		store.CreateFieldReportParams{
 			Event:          event.ID,
 			Created:        float64(time.Now().Unix()),
-			Summary:        sqlNullString(fr.Summary),
+			Summary:        conv.ParseSqlNullString(fr.Summary),
 			IncidentNumber: sql.NullInt32{},
 		},
 	)
@@ -501,7 +525,7 @@ func addFRReportEntry(
 			Created:      float64(time.Now().Unix()),
 			Generated:    generated,
 			Stricken:     false,
-			AttachedFile: sqlNullString(&attachment),
+			AttachedFile: conv.ParseSqlNullString(&attachment),
 		},
 	)
 	// This column is an int32, so this is safe
@@ -520,11 +544,4 @@ func addFRReportEntry(
 		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToFieldReport]")
 	}
 	return reID, nil
-}
-
-func sqlNullString(s *string) sql.NullString {
-	if s == nil || *s == "" {
-		return sql.NullString{}
-	}
-	return sql.NullString{String: *s, Valid: true}
 }

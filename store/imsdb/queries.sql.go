@@ -251,6 +251,67 @@ func (q *Queries) CreateEvent(ctx context.Context, db DBTX, name string) (int64,
 	return result.LastInsertId()
 }
 
+const createFieldReport = `-- name: CreateFieldReport :exec
+insert into FIELD_REPORT (
+    EVENT, NUMBER, CREATED, SUMMARY, INCIDENT_NUMBER
+)
+values (?, ?, ?, ?, ?)
+`
+
+type CreateFieldReportParams struct {
+	Event          int32
+	Number         int32
+	Created        float64
+	Summary        sql.NullString
+	IncidentNumber sql.NullInt32
+}
+
+func (q *Queries) CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error {
+	_, err := db.ExecContext(ctx, createFieldReport,
+		arg.Event,
+		arg.Number,
+		arg.Created,
+		arg.Summary,
+		arg.IncidentNumber,
+	)
+	return err
+}
+
+const createIncident = `-- name: CreateIncident :execlastid
+insert into INCIDENT (
+    EVENT,
+    NUMBER,
+    CREATED,
+    PRIORITY,
+    STATE
+)
+values (
+   ?,?,?,?,?
+)
+`
+
+type CreateIncidentParams struct {
+	Event    int32
+	Number   int32
+	Created  float64
+	Priority int8
+	State    IncidentState
+}
+
+func (q *Queries) CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error) {
+	result, err := db.ExecContext(ctx, createIncident,
+		arg.Event,
+		arg.Number,
+		arg.Created,
+		arg.Priority,
+		arg.State,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
 const createIncidentTypeOrIgnore = `-- name: CreateIncidentTypeOrIgnore :exec
 insert into INCIDENT_TYPE (NAME, HIDDEN)
 values (?, ?)
@@ -941,6 +1002,42 @@ func (q *Queries) Incidents_ReportEntries(ctx context.Context, db DBTX, arg Inci
 		return nil, err
 	}
 	return items, nil
+}
+
+const nextFieldReportNumber = `-- name: NextFieldReportNumber :one
+select NUMBER + 1 as NEXT_ID
+from FIELD_REPORT
+where EVENT = ?
+union
+select 1
+order by 1 desc
+limit 1
+`
+
+// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+func (q *Queries) NextFieldReportNumber(ctx context.Context, db DBTX, event int32) (int32, error) {
+	row := db.QueryRowContext(ctx, nextFieldReportNumber, event)
+	var next_id int32
+	err := row.Scan(&next_id)
+	return next_id, err
+}
+
+const nextIncidentNumber = `-- name: NextIncidentNumber :one
+select NUMBER + 1 as NEXT_ID
+from INCIDENT
+where EVENT = ?
+union
+select 1
+order by 1 desc
+limit 1
+`
+
+// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+func (q *Queries) NextIncidentNumber(ctx context.Context, db DBTX, event int32) (int32, error) {
+	row := db.QueryRowContext(ctx, nextIncidentNumber, event)
+	var next_id int32
+	err := row.Scan(&next_id)
+	return next_id, err
 }
 
 const queryEventID = `-- name: QueryEventID :one

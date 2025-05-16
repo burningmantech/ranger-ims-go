@@ -447,6 +447,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	w.Header().Set("Location", location)
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
+
 func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
 	if errHTTP != nil {
@@ -468,10 +469,16 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	var err error
-	fr.Number, err = action.imsDBQ.CreateFieldReport(ctx, action.imsDBQ,
-		store.CreateFieldReportParams{
+	newFrNum, err := action.imsDBQ.NextFieldReportNumber(ctx, action.imsDBQ, event.ID)
+	if err != nil {
+		return 0, "", herr.InternalServerError("Failed to find next Field Report number", err).From("[NextFieldReportNumber]")
+	}
+	fr.Number = newFrNum
+
+	err = action.imsDBQ.CreateFieldReport(ctx, action.imsDBQ,
+		imsdb.CreateFieldReportParams{
 			Event:          event.ID,
+			Number:         newFrNum,
 			Created:        float64(time.Now().Unix()),
 			Summary:        conv.ParseSqlNullString(fr.Summary),
 			IncidentNumber: sql.NullInt32{},

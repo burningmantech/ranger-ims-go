@@ -81,10 +81,10 @@ func (t TestUsersStore) RangersById(ctx context.Context, db clubhousequeries.DBT
 		rows = append(rows, clubhousequeries.RangersByIdRow{
 			ID:       person.DirectoryID,
 			Callsign: person.Handle,
-			Email:    conv.SQLNullString(person.Email),
+			Email:    conv.ParseSqlNullString(&person.Email),
 			Status:   clubhousequeries.PersonStatus(person.Status),
 			OnSite:   person.Onsite,
-			Password: conv.SQLNullString(person.Password),
+			Password: conv.ParseSqlNullString(&person.Password),
 		})
 	}
 	return rows, nil

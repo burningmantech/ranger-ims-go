@@ -18,7 +18,7 @@ package integration_test
 
 import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/google/uuid"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -31,7 +31,7 @@ func TestCreateIncidentTypes(t *testing.T) {
 	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
 	// Make three new incident types
-	typeA, typeB, typeC := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	typeA, typeB, typeC := rand.NonCryptoText(), rand.NonCryptoText(), rand.NonCryptoText()
 	createTypes := imsjson.EditIncidentTypesRequest{
 		Add:  imsjson.IncidentTypes{typeA, typeB, typeC},
 		Hide: nil,

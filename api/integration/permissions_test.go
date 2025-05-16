@@ -18,7 +18,7 @@ package integration_test
 
 import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/google/uuid"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -100,7 +100,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
-	eventName := uuid.NewString()
+	eventName := rand.NonCryptoText()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

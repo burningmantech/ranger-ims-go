@@ -18,7 +18,7 @@ package integration_test
 
 import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/google/uuid"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -31,7 +31,7 @@ func TestCreateStreets(t *testing.T) {
 	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
 	// Make an event
-	eventName := uuid.NewString()
+	eventName := rand.NonCryptoText()
 	resp := apis.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

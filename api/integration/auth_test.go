@@ -21,7 +21,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
-	"github.com/google/uuid"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -117,7 +117,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
 	// create event and give this user permissions on it
-	eventName := uuid.NewString()
+	eventName := rand.NonCryptoText()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{
 		Add: []string{eventName},
 	})

@@ -18,7 +18,7 @@ package integration_test
 
 import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/google/uuid"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -31,7 +31,7 @@ func TestGetAndEditEvent(t *testing.T) {
 
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
 
-	testEventName := uuid.NewString()
+	testEventName := rand.NonCryptoText()
 
 	editEventReq := imsjson.EditEventsRequest{
 		Add: []string{testEventName},

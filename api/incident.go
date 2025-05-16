@@ -300,18 +300,23 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 
 	author := jwtCtx.Claims.RangerHandle()
 
+	// First create the incident, to lock in the incident number reservation
+	newIncidentNumber, err := action.imsDBQ.NextIncidentNumber(ctx, action.imsDBQ, event.ID)
+	if err != nil {
+		return 0, "", herr.InternalServerError("Failed to find next Incident number", err).From("[NextIncidentNumber]")
+	}
 	newIncident.EventID = event.ID
 	newIncident.Event = event.Name
+	newIncident.Number = newIncidentNumber
 
-	// Create the incident to lock in a number for it
-	createTheIncident := store.CreateIncidentParams{
+	createTheIncident := imsdb.CreateIncidentParams{
 		Event:    newIncident.EventID,
+		Number:   newIncidentNumber,
 		Created:  float64(time.Now().Unix()),
 		Priority: imsjson.IncidentPriorityNormal,
 		State:    imsdb.IncidentStateNew,
 	}
-	var err error
-	newIncident.Number, err = action.imsDBQ.CreateIncident(ctx, action.imsDBQ, createTheIncident)
+	_, err = action.imsDBQ.CreateIncident(ctx, action.imsDBQ, createTheIncident)
 	if err != nil {
 		return 0, "", herr.InternalServerError("Failed to create incident", err).From("[CreateIncident]")
 	}

@@ -21,6 +21,8 @@ type Querier interface {
 	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)
 	CreateConcentricStreet(ctx context.Context, db DBTX, arg CreateConcentricStreetParams) error
 	CreateEvent(ctx context.Context, db DBTX, name string) (int64, error)
+	CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error
+	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
 	CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) error
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
@@ -39,6 +41,10 @@ type Querier interface {
 	Incident_ReportEntries(ctx context.Context, db DBTX, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
 	Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error)
 	Incidents_ReportEntries(ctx context.Context, db DBTX, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error)
+	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+	NextFieldReportNumber(ctx context.Context, db DBTX, event int32) (int32, error)
+	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+	NextIncidentNumber(ctx context.Context, db DBTX, event int32) (int32, error)
 	QueryEventID(ctx context.Context, db DBTX, name string) (QueryEventIDRow, error)
 	SchemaVersion(ctx context.Context, db DBTX) (int16, error)
 	SetFieldReportReportEntryStricken(ctx context.Context, db DBTX, arg SetFieldReportReportEntryStrickenParams) error

@@ -148,7 +148,7 @@ func setup(ctx context.Context, tempDir string) {
 	db, err := store.SqlDB(ctx, shared.cfg.Store, true)
 	must(err)
 	shared.imsDBQ = store.New(db, imsdb.New())
-	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore))
+	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil))
 	shared.serverURL, err = url.Parse(shared.testServer.URL)
 	must(err)
 }

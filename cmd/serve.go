@@ -22,6 +22,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/burningmantech/ranger-ims-go/store"
@@ -91,6 +92,11 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 		must(fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory))
 	}
 	userStore := directory.NewUserStore(clubhouseDBQ)
+	var s3Client *attachment.S3Client
+	if imsCfg.AttachmentsStore.Type == conf.AttachmentsStoreS3 {
+		s3Client, err = attachment.NewS3Client(ctx)
+		must(err)
+	}
 
 	imsDBQ, err := store.SqlDB(ctx, imsCfg.Store, true)
 	must(err)
@@ -99,7 +105,7 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(mux, eventSource, imsCfg, store.New(imsDBQ, imsdb.New()), userStore)
+	api.AddToMux(mux, eventSource, imsCfg, store.New(imsDBQ, imsdb.New()), userStore, s3Client)
 	web.AddToMux(mux, imsCfg)
 
 	s := &http.Server{

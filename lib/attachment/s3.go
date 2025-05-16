@@ -25,42 +25,46 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"io"
 	"log/slog"
 	"time"
 )
 
-func UploadToS3(ctx context.Context, bucketName, objectName string, file io.Reader) error {
+type S3Funcs interface {
+	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error)
+}
+
+type S3Client struct {
+	S3Funcs S3Funcs
+}
+
+func NewS3Client(ctx context.Context) (*S3Client, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("[LoadDefaultConfig]: %w", err)
+		return nil, fmt.Errorf("[LoadDefaultConfig]: %w", err)
 	}
+	return &S3Client{S3Funcs: s3.NewFromConfig(cfg)}, nil
+}
+
+func (c *S3Client) UploadToS3(ctx context.Context, bucketName, objectName string, file io.Reader) *herr.HTTPError {
 	start := time.Now()
-
-	client := s3.NewFromConfig(cfg)
-
-	_, err = client.PutObject(ctx, &s3.PutObjectInput{
+	_, err := c.S3Funcs.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectName),
 		Body:   file,
 	})
 	if err != nil {
-		return fmt.Errorf("[PutObject]: %w", err)
+		return herr.InternalServerError("Failed to upload attachment to S3", err).From("[PutObject]")
 	}
 	slog.Debug("Uploaded attachment to S3", "objectName", objectName, "duration", time.Since(start))
 	return nil
 }
 
-func GetObject(ctx context.Context, bucketName, objectName string) (file io.ReadSeeker, exists bool, err error) {
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return nil, false, fmt.Errorf("[LoadDefaultConfig]: %w", err)
-	}
-
-	client := s3.NewFromConfig(cfg)
-
+func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string) (file io.ReadSeeker, httpError *herr.HTTPError) {
 	start := time.Now()
-	output, err := client.GetObject(ctx, &s3.GetObjectInput{
+	output, err := c.S3Funcs.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectName),
 	})
@@ -69,11 +73,9 @@ func GetObject(ctx context.Context, bucketName, objectName string) (file io.Read
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchKey" {
 			slog.Debug("No such key in S3", "bucket", bucketName, "object", objectName)
 
-			// Just tell the caller that the object does not exist, without propagating the error.
-			// This lets them easily decide whether to return a 404 or a 500.
-			return nil, false, nil
+			return nil, herr.NotFound("File does not exist", err).From("[GetObject]")
 		}
-		return nil, false, fmt.Errorf("[GetObject]: %w", err)
+		return nil, herr.InternalServerError("Failed to get attachment", err).From("[GetObject]")
 	}
 
 	// This reads the whole object in memory, which isn't ideal, but it lets us use the
@@ -83,7 +85,7 @@ func GetObject(ctx context.Context, bucketName, objectName string) (file io.Read
 	_, err = io.Copy(&buf, output.Body)
 	slog.Debug("Read attachment from S3", "objectName", objectName, "duration", time.Since(start))
 	if err != nil {
-		return nil, true, fmt.Errorf("[io.Copy]: %w", err)
+		return nil, herr.InternalServerError("Failed to read attachment", err).From("[io.Copy]")
 	}
-	return bytes.NewReader(buf.Bytes()), true, nil
+	return bytes.NewReader(buf.Bytes()), nil
 }

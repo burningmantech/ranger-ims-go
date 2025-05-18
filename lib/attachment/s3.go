@@ -31,6 +31,9 @@ import (
 	"time"
 )
 
+// S3Funcs is an interface for the S3 AWS APIs that IMS actually uses.
+//
+// This is made to be easy to implement with a fake for testing.
 type S3Funcs interface {
 	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
 	GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error)

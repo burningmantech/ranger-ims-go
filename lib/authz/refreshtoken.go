@@ -36,10 +36,10 @@ const RefreshTokenCookieName = "refresh_token"
 // we instead rely on the security of JWT signing.
 func (j JWTer) CreateRefreshToken(rangerName string, clubhouseID int64, expiration time.Time) (string, error) {
 	return j.createJWT(
-		NewIMSClaims().
+		IMSClaims{}.
 			WithIssuedAt(time.Now()).
 			WithExpiration(expiration).
-			WithIssuer("ranger-ims-go").
+			WithIssuer("ims").
 			WithRangerHandle(rangerName).
 			WithSubject(strconv.FormatInt(clubhouseID, 10)),
 	)

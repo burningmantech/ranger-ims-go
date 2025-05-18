@@ -58,7 +58,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		time.Now().Add(-1*time.Hour),
 	)
 	require.NoError(t, err)
-	differentKeyJWT, err := authz.JWTer{"some-other-secret"}.CreateAccessToken(
+	differentKeyJWT, err := authz.JWTer{SecretKey: "some-other-secret"}.CreateAccessToken(
 		"Hardware",
 		1,
 		nil,

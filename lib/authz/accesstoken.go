@@ -36,10 +36,10 @@ func (j JWTer) CreateAccessToken(
 	expiration time.Time,
 ) (string, error) {
 	return j.createJWT(
-		NewIMSClaims().
+		IMSClaims{}.
 			WithIssuedAt(time.Now()).
 			WithExpiration(expiration).
-			WithIssuer("ranger-ims-go").
+			WithIssuer("ims").
 			WithRangerHandle(rangerName).
 			WithRangerOnSite(onsite).
 			WithRangerPositions(positions...).

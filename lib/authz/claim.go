@@ -19,83 +19,71 @@ package authz
 import (
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/golang-jwt/jwt/v5"
-	"strings"
 	"time"
 )
 
-const (
-	handleKey    = "handle"
-	onsiteKey    = "onsite"
-	positionsKey = "positions"
-	teamsKey     = "teams"
-)
-
 type IMSClaims struct {
-	jwt.MapClaims
-}
-
-func NewIMSClaims() IMSClaims {
-	return IMSClaims{MapClaims: make(jwt.MapClaims)}
+	jwt.RegisteredClaims
+	Handle    string   `json:"han"`
+	Onsite    bool     `json:"ons"`
+	Positions []string `json:"pos"`
+	Teams     []string `json:"tea"`
 }
 
 func (c IMSClaims) WithExpiration(t time.Time) IMSClaims {
-	c.MapClaims["exp"] = t.Unix()
+	c.ExpiresAt = jwt.NewNumericDate(t)
 	return c
 }
 
 func (c IMSClaims) WithIssuedAt(t time.Time) IMSClaims {
-	c.MapClaims["iat"] = t.Unix()
+	c.IssuedAt = jwt.NewNumericDate(t)
 	return c
 }
 
 func (c IMSClaims) WithIssuer(s string) IMSClaims {
-	c.MapClaims["iss"] = s
+	c.Issuer = s
 	return c
 }
 
 func (c IMSClaims) WithSubject(s string) IMSClaims {
-	c.MapClaims["sub"] = s
+	c.Subject = s
 	return c
 }
 
 func (c IMSClaims) WithRangerHandle(s string) IMSClaims {
-	c.MapClaims[handleKey] = s
+	c.Handle = s
 	return c
 }
 
 func (c IMSClaims) WithRangerOnSite(onsite bool) IMSClaims {
-	c.MapClaims[onsiteKey] = onsite
+	c.Onsite = onsite
 	return c
 }
 
 func (c IMSClaims) WithRangerPositions(pos ...string) IMSClaims {
-	c.MapClaims[positionsKey] = strings.Join(pos, ",")
+	c.Positions = pos
 	return c
 }
 
 func (c IMSClaims) WithRangerTeams(teams ...string) IMSClaims {
-	c.MapClaims[teamsKey] = strings.Join(teams, ",")
+	c.Teams = teams
 	return c
 }
 
 func (c IMSClaims) RangerHandle() string {
-	rh, _ := c.MapClaims[handleKey].(string)
-	return rh
+	return c.Handle
 }
 
 func (c IMSClaims) RangerOnSite() bool {
-	onsite, _ := c.MapClaims[onsiteKey].(bool)
-	return onsite
+	return c.Onsite
 }
 
 func (c IMSClaims) RangerPositions() []string {
-	positions, _ := c.MapClaims[positionsKey].(string)
-	return strings.Split(positions, ",")
+	return c.Positions
 }
 
 func (c IMSClaims) RangerTeams() []string {
-	teams, _ := c.MapClaims[teamsKey].(string)
-	return strings.Split(teams, ",")
+	return c.Teams
 }
 
 // DirectoryID returns the Clubhouse ID for a Ranger.

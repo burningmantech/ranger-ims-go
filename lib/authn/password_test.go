@@ -20,7 +20,9 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestVerifyPassword_success(t *testing.T) {
@@ -54,4 +56,23 @@ func TestNewSalted(t *testing.T) {
 	isValid, err := authn.Verify(pw, saltedPw)
 	require.NoError(t, err)
 	require.True(t, isValid)
+}
+
+func FuzzNewSaltedVerify(f *testing.F) {
+	f.Add("pass")
+	f.Add("")
+	f.Add("🔥")
+	f.Add(strings.Repeat("some text,", 1000))
+
+	f.Fuzz(func(t *testing.T, pw string) {
+		saltedHashed := authn.NewSalted(pw)
+		assert.True(t, utf8.ValidString(saltedHashed))
+		// the separator
+		assert.Contains(t, saltedHashed, ":")
+		// rand.Text() is 26 chars, ":" is 1, and the hash is 40
+		assert.Len(t, saltedHashed, 67)
+		isValid, err := authn.Verify(pw, saltedHashed)
+		require.NoError(t, err)
+		assert.True(t, isValid)
+	})
 }

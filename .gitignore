@@ -34,3 +34,6 @@ node_modules
 
 # the default dir for storing attachments
 ims-attachments
+
+# the temp dir for `go tool air`
+air_tmp

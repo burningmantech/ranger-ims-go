@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -324,16 +325,25 @@ func AddToMux(
 
 	mux.HandleFunc("GET /ims/api/debug/buildinfo",
 		func(w http.ResponseWriter, req *http.Request) {
-			bi, ok := debug.ReadBuildInfo()
-			if !ok {
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			}
+			bi := buildInfo()
 			http.Error(w, bi.String(), http.StatusOK)
 		},
 	)
 
 	return mux
 }
+
+var buildInfo = sync.OnceValue[debug.BuildInfo](func() debug.BuildInfo {
+	bi, ok := debug.ReadBuildInfo()
+	if ok {
+		return *bi
+	}
+	// The conditions for this to happen aren't really possible, but returning an
+	// empty struct instead is a good alternative. These values are just used for
+	// informational purposes in the server anyway.
+	slog.Info("Build info was unavailable, so an empty placeholder will be used instead")
+	return debug.BuildInfo{}
+})
 
 type Adapter func(http.Handler) http.Handler
 
@@ -363,8 +373,28 @@ func LogBeforeAfter() Adapter {
 			if jwtCtx.Claims != nil {
 				username = jwtCtx.Claims.RangerHandle()
 			}
+
 			durationMS := float64(time.Since(start).Microseconds()) / 1000.0
-			slog.Debug("Responded to API: "+r.URL.Path,
+
+			// TODO(https://github.com/burningmantech/ranger-ims-go/issues/35)
+			// Finalize the set of columns to collect, then make this a DB insert rather than
+			// a logging statement.
+			slog.Debug("Tentative access log table entry",
+				"start-time", start,
+				"method", r.Method,
+				"path", r.URL.Path,
+				"user", username,
+				"http-status", writ.code,
+				"duration-micros", time.Since(start).Microseconds(),
+				// TODO: decide whether to bother including this. Wow is it verbose.
+				// "headers", r.Header.Get("User-Agent"),
+				"remote-addr", r.RemoteAddr,
+				// TODO: maybe include? Maybe not
+				// "x-forwarded-for", r.Header.Get("X-Forwarded-For"),
+				"build", buildInfo().Main.Version,
+			)
+
+			slog.Debug(fmt.Sprintf("Served request for: %v %v ", r.Method, r.URL.Path),
 				"duration", fmt.Sprintf("%.3fms", durationMS),
 				"method", r.Method,
 				"user", username,

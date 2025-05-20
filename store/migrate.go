@@ -105,7 +105,7 @@ func MigrateDB(ctx context.Context, imsDBQ *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("[repoSchemaVersion]: %w", err)
 	}
-	slog.Info("Schema versions are", "repoVersion", repoVersion, "dbVersion", dbVersion)
+	slog.Info("Read schema versions", "repoVersion", repoVersion, "dbVersion", dbVersion)
 	if dbVersion == repoVersion {
 		// DB is up-to-date. Move along.
 		return nil

@@ -337,11 +337,26 @@ func AddToMux(
 
 type Adapter func(http.Handler) http.Handler
 
+// responseWriter is a wrapper around http.ResponseWriter that lets us
+// capture details about the response.
+type responseWriter struct {
+	http.ResponseWriter
+	http.Flusher
+	code int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.code = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
 func LogBeforeAfter() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			next.ServeHTTP(w, r)
+			writ := &responseWriter{w, w.(http.Flusher), http.StatusOK}
+
+			next.ServeHTTP(writ, r)
 
 			username := "(unauthenticated)"
 			jwtCtx, _ := r.Context().Value(JWTContextKey).(JWTContext)
@@ -349,12 +364,11 @@ func LogBeforeAfter() Adapter {
 				username = jwtCtx.Claims.RangerHandle()
 			}
 			durationMS := float64(time.Since(start).Microseconds()) / 1000.0
-			// TODO: log to ERROR if it was an error
-			slog.Debug("APILog",
-				"path", r.URL.Path,
+			slog.Debug("Responded to API: "+r.URL.Path,
 				"duration", fmt.Sprintf("%.3fms", durationMS),
 				"method", r.Method,
 				"user", username,
+				"code", writ.code,
 			)
 		})
 	}

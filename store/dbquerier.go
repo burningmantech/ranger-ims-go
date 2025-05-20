@@ -80,8 +80,7 @@ func logQuery(s string, start time.Time, err error) {
 	// takes place after we're able to log in this file, e.g. in the "for rows.Next()"
 	// part of reading the results, and unfortunately that code is in the generated
 	// sqlc package. It's a TODO for later to log actual query times.
-	slog.Debug("QueryLog",
-		"name", queryName,
+	slog.Debug("Ran IMS SQL: "+queryName,
 		"durationish", fmt.Sprintf("%.3fms", durationMS),
 		"err", err,
 	)

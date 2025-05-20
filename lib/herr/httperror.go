@@ -88,7 +88,7 @@ func (e *HTTPError) Unwrap() error {
 }
 
 func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
-	slog.Info("Sending HTTP response",
+	slog.Error("Writing error HTTP response",
 		"code", e.Code,
 		"message", e.ResponseMessage,
 		"internalError", e.InternalErr,

@@ -24,13 +24,12 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
+	"github.com/burningmantech/ranger-ims-go/lib/log"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -68,14 +67,18 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 	must(unvalidatedCfg.Validate())
 	imsCfg := unvalidatedCfg
 
+	logger := slog.New(
+		log.NewHandler(&slog.HandlerOptions{Level: slog.LevelDebug}),
+	)
+	slog.SetDefault(logger)
 	var logLevel slog.Level
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
 	slog.SetLogLoggerLevel(logLevel)
 
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()
-		log.Printf("Here's the final redacted IMSConfig:\n\n%v\n\n", cfgStr)
-		log.Printf("With JWTSecret: %v...%v", imsCfg.Core.JWTSecret[:1], imsCfg.Core.JWTSecret[len(imsCfg.Core.JWTSecret)-1:])
+		stderrPrintf("Here's the final redacted IMSConfig:\n\n%v\n\n", cfgStr)
+		stderrPrintf("With JWTSecret: %v...%v\n", imsCfg.Core.JWTSecret[:1], imsCfg.Core.JWTSecret[len(imsCfg.Core.JWTSecret)-1:])
 	}
 
 	var err error
@@ -131,14 +134,15 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 		slog.Error("Serve", "err", err)
 	}()
 
-	log.Printf(`IMS server is ready for connections at %v
+	slog.Info("IMS server is ready for connections", "addr", addr)
+	slog.Info(fmt.Sprintf("Visit the web frontend at http://%v/ims/app", addr))
 
+	_, _ = fmt.Fprint(os.Stderr, `
 [31m  ▀█▀ █▄█ █▀▀   █▀▄ █ █ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █  [0m
 [32m   █  █ █ ▀▀█   █▀▄ █ █ █ █ █ █  █  █ █ █ █ ▀  [0m
 [34m  ▀▀▀ ▀ ▀ ▀▀▀   ▀ ▀ ▀▀▀ ▀ ▀ ▀ ▀ ▀▀▀ ▀ ▀ ▀▀▀ ▀  [0m
 
-`, addr)
-	slog.Info(fmt.Sprintf("Visit the web frontend at http://%v/ims/app", addr))
+`)
 
 	// The goroutine will hang here until the NotifyContext is done
 	<-notifyCtx.Done()
@@ -322,4 +326,8 @@ func must(err error) {
 	if err != nil {
 		panic("got a startup error: " + err.Error())
 	}
+}
+
+func stderrPrintf(format string, args ...any) {
+	_, _ = fmt.Fprintf(os.Stderr, format, args...)
 }

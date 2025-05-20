@@ -67,13 +67,14 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 	must(unvalidatedCfg.Validate())
 	imsCfg := unvalidatedCfg
 
-	logger := slog.New(
-		log.NewHandler(&slog.HandlerOptions{Level: slog.LevelDebug}),
-	)
-	slog.SetDefault(logger)
 	var logLevel slog.Level
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
-	slog.SetLogLoggerLevel(logLevel)
+	logger := slog.New(
+		log.NewHandler(
+			&slog.HandlerOptions{Level: logLevel},
+		),
+	)
+	slog.SetDefault(logger)
 
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()

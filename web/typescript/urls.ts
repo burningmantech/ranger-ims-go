@@ -47,7 +47,6 @@ const url_fieldReportAttachmentNumber = "/ims/api/events/<event_id>/field_report
 const url_eventSource = "/ims/api/eventsource";
 const url_static = "/ims/static";
 const url_styleSheet = "/ims/static/style.css";
-const url_logo = "/ims/static/logo.png";
 const url_authApp = "/ims/auth";
 const url_login = "/ims/auth/login";
 const url_loginJS = "/ims/static/login.js";

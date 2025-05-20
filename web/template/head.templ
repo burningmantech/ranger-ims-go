@@ -22,7 +22,10 @@ templ head(title string, module string, usesDataTables bool) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="modulepreload" href={"/ims/static/" + module} />
     <link rel="modulepreload" href="/ims/static/ims.js" />
-    <link type="image/png" rel="icon" href="/ims/static/logo.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/ims/static/logos/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/ims/static/logos/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/ims/static/logos/favicon-16x16.png">
+    <link rel="manifest" href="/ims/static/logos/site.webmanifest">
     <link rel="stylesheet" href="/ims/static/ext/bootstrap.min.css" type="text/css">
     if usesDataTables {
     <link rel="stylesheet" href="/ims/static/ext/dataTables.bootstrap5.min.css" type="text/css">

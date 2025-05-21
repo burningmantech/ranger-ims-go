@@ -47,11 +47,36 @@ templ Incident(deployment string) {
       </div>
     </div>
 
+    <div class="modal no-print" id="startTimeModal" tabindex="-1" aria-labelledby="startTimeModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <p class="modal-title fs-5" id="startTimeModalLabel">Override creation time</p>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+          </div>
+          <div class="modal-body row">
+            <p>
+              Approximately when did the incident start?
+            </p>
+            <p>
+              This is a niche feature, intended for use when the incident is being created
+              hours or days after the incident actually started.
+            </p>
+            <div class="input-group">
+              <label for="override_start_datetime" class="control-label input-group-text">Started</label>
+              <input id="override_start_datetime" type="text" class="form-control form-control-sm"
+                     onchange="overrideStartDateTime();" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Incident number, state, created -->
 
     <div class="row py-1">
-      <div class="col-sm-4 py-1">
-        <div class="input-group">
+      <div class="col-sm-2 py-1">
+        <div class="input-group flex-nowrap">
           <label class="control-label input-group-text">IMS #</label>
           <span id="incident_number" aria-label="IMS #" class="form-control form-control-static"/>
         </div>
@@ -72,10 +97,15 @@ templ Incident(deployment string) {
           </select>
         </div>
       </div>
-      <div class="col-sm-4 py-1">
+      <div class="col-sm-6 py-1">
         <div class="input-group">
-          <label class="control-label input-group-text">Created</label>
-          <span id="created_datetime" class="form-control form-control-static"/>
+          <label class="control-label input-group-text" for="started_datetime">Created</label>
+          <span class="form-control form-control-static align-middle d-flex justify-content-between">
+            <span id="started_datetime"></span>
+            <svg id="override_started_button" fill="currentColor" class="bi align-middle show-pointer">
+              <use href="#pencil-square" />
+            </svg>
+          </span>
         </div>
       </div>
     </div>

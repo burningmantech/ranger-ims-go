@@ -191,7 +191,7 @@ func fieldReportToJSON(
 	return imsjson.FieldReport{
 		Event:         event.Name,
 		Number:        fr.Number,
-		Created:       time.Unix(int64(fr.Created), 0),
+		Created:       conv.Float64UnixSeconds(fr.Created),
 		Summary:       conv.StringOrNil(fr.Summary),
 		Incident:      conv.Int32OrNil(fr.IncidentNumber),
 		ReportEntries: entries,
@@ -479,7 +479,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		imsdb.CreateFieldReportParams{
 			Event:          event.ID,
 			Number:         newFrNum,
-			Created:        float64(time.Now().Unix()),
+			Created:        conv.TimeFloat64(time.Now()),
 			Summary:        conv.ParseSqlNullString(fr.Summary),
 			IncidentNumber: sql.NullInt32{},
 		},
@@ -529,7 +529,7 @@ func addFRReportEntry(
 		imsdb.CreateReportEntryParams{
 			Author:       author,
 			Text:         text,
-			Created:      float64(time.Now().Unix()),
+			Created:      conv.TimeFloat64(time.Now()),
 			Generated:    generated,
 			Stricken:     false,
 			AttachedFile: conv.ParseSqlNullString(&attachment),

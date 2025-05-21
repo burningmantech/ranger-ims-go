@@ -715,20 +715,28 @@ export const shortDate: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined,
     // timeZone not specified; will use user's timezone
 });
 
+export const longDate: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    // timeZone not specified; will use user's timezone
+});
+
 // e.g. "19:21"
-const shortTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
+export const shortTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     hour12: false,
     minute: "numeric",
     // timeZone not specified; will use user's timezone
 });
 
-// e.g. "19:21"
-export const shortTimeSec: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
+// e.g. 13:34 EDT
+export const shortTimeTZ: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     hour12: false,
     minute: "numeric",
-    second: "numeric",
+    timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
 
@@ -1227,7 +1235,15 @@ export function clearErrorMessage(): void {
 }
 
 export function bsModal(el: HTMLElement) {
-    return new bootstrap.Modal(el);
+    const modal = new bootstrap.Modal(el);
+    // This is needed to resolve a Chrome Bootstrap ARIA bug
+    // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+    el.addEventListener("hide.bs.modal", () => {
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+    });
+    return modal;
 }
 
 export function windowFragmentParams() {
@@ -1337,6 +1353,7 @@ export type Incident = {
     priority?: number|null;
     summary?: string|null;
     created?: string|null;
+    started?: string|null;
     last_modified?: string|null;
     ranger_handles?: string[]|null;
     incident_types?: string[]|null;
@@ -1450,5 +1467,7 @@ declare namespace bootstrap {
     class Modal {
         constructor(element: string | Element, options?: any);
         toggle(relatedTarget?: HTMLElement): void;
+        hide(): void;
+        show(): void;
     }
 }

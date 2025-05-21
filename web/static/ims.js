@@ -609,19 +609,26 @@ export const shortDate = new Intl.DateTimeFormat(undefined, {
     day: "2-digit",
     // timeZone not specified; will use user's timezone
 });
+export const longDate = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    // timeZone not specified; will use user's timezone
+});
 // e.g. "19:21"
-const shortTime = new Intl.DateTimeFormat(undefined, {
+export const shortTime = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     hour12: false,
     minute: "numeric",
     // timeZone not specified; will use user's timezone
 });
-// e.g. "19:21"
-export const shortTimeSec = new Intl.DateTimeFormat(undefined, {
+// e.g. 13:34 EDT
+export const shortTimeTZ = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     hour12: false,
     minute: "numeric",
-    second: "numeric",
+    timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
 // e.g. "Thu, Aug 29, 2024, 19:11:04 EDT"
@@ -1053,7 +1060,15 @@ export function clearErrorMessage() {
     }
 }
 export function bsModal(el) {
-    return new bootstrap.Modal(el);
+    const modal = new bootstrap.Modal(el);
+    // This is needed to resolve a Chrome Bootstrap ARIA bug
+    // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+    el.addEventListener("hide.bs.modal", () => {
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+    });
+    return modal;
 }
 export function windowFragmentParams() {
     const fragment = window.location.hash.startsWith("#")

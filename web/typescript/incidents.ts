@@ -125,6 +125,10 @@ async function initIncidentsPage(): Promise<void> {
     document.getElementById("helpModal")!.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
+            // This is needed to prevent the document's listener for "?" to trigger the modal to
+            // toggle back on immediately. This is fallout from the fix for
+            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            e.stopPropagation();
         }
     });
 
@@ -298,9 +302,9 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 // "all" class --> very high responsivePriority
             },
             {   // 1
-                "name": "incident_created",
-                "className": "incident_created text-center",
-                "data": "created",
+                "name": "incident_started",
+                "className": "incident_started text-center",
+                "data": "started",
                 "defaultContent": null,
                 "render": ims.renderDate,
                 "responsivePriority": 7,
@@ -386,10 +390,10 @@ function initDataTables(tablePrereqs: Promise<void>): void {
             row.addEventListener("click", openLink);
             row.addEventListener("auxclick", openLink);
 
-            row.getElementsByClassName("incident_created")[0]!
+            row.getElementsByClassName("incident_started")[0]!
                 .setAttribute(
                     "title",
-                    ims.fullDateTime.format(Date.parse(incident.created!)),
+                    ims.fullDateTime.format(Date.parse(incident.started!)),
                 );
             row.getElementsByClassName("incident_last_modified")[0]!
                 .setAttribute(

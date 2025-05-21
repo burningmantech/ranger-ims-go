@@ -38,6 +38,7 @@ declare global {
         toggleShowHistory: ()=>void;
         reportEntryEdited: ()=>void;
         submitReportEntry: ()=>Promise<void>;
+        overrideStartDateTime: ()=>Promise<void>;
     }
 }
 
@@ -78,6 +79,7 @@ async function initIncidentPage(): Promise<void> {
     window.toggleShowHistory = ims.toggleShowHistory;
     window.reportEntryEdited= ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
+    window.overrideStartDateTime = overrideStartDateTime;
 
     // load everything from the APIs concurrently
     await Promise.all([
@@ -149,6 +151,8 @@ async function initIncidentPage(): Promise<void> {
 
     const helpModal = ims.bsModal(document.getElementById("helpModal")!);
 
+    const startTimeModal = ims.bsModal(document.getElementById("startTimeModal")!);
+
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -182,6 +186,10 @@ async function initIncidentPage(): Promise<void> {
     (document.getElementById("helpModal") as HTMLDivElement).addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
+            // This is needed to prevent the document's listener for "?" to trigger the modal to
+            // toggle back on immediately. This is fallout from the fix for
+            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            e.stopPropagation();
         }
     });
     document.getElementById("report_entry_add")!.addEventListener("keydown", function (e: KeyboardEvent): void {
@@ -190,6 +198,14 @@ async function initIncidentPage(): Promise<void> {
             ims.submitReportEntry();
         }
     });
+    (document.getElementById("override_started_button") as HTMLElement).addEventListener(
+        "click",
+        function (_: MouseEvent): void {
+            startTimeModal.show();
+            const input = document.getElementById("override_start_datetime") as HTMLInputElement;
+            input.value = incident?.started??"";
+        },
+    )
 }
 
 
@@ -402,7 +418,7 @@ function drawIncidentFields() {
     drawIncidentTitle();
     drawIncidentNumber();
     drawState();
-    drawCreated();
+    drawStarted();
     drawPriority();
     drawIncidentSummary();
     drawRangers();
@@ -489,18 +505,18 @@ function drawState(): void {
 
 
 //
-// Populate created datetime
+// Populate started datetime
 //
 
-function drawCreated(): void {
-    const date: string|null = incident!.created??null;
+function drawStarted(): void {
+    const date: string|null = incident!.started??null;
     if (date == null) {
         return;
     }
     const d: number = Date.parse(date);
-    const createdElement: HTMLElement = document.getElementById("created_datetime")!;
-    createdElement.textContent = `${ims.shortDate.format(d)} ${ims.shortTimeSec.format(d)}`;
-    createdElement.setAttribute("title", ims.fullDateTime.format(d));
+    const startedElement: HTMLElement = document.getElementById("started_datetime")!;
+    startedElement.textContent = `${ims.longDate.format(d)}, ${ims.shortTimeTZ.format(d)}`;
+    startedElement.setAttribute("title", ims.fullDateTime.format(d));
 }
 
 //
@@ -899,6 +915,14 @@ async function editState(): Promise<void> {
     }
 
     await ims.editFromElement(state, "state");
+}
+
+
+async function overrideStartDateTime(): Promise<void> {
+    const startInput = document.getElementById("override_start_datetime") as HTMLInputElement;
+    await ims.editFromElement(startInput, "started", (val: string|null):string=> {
+        return (val??"").trim();
+    });
 }
 
 

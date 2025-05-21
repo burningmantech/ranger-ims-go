@@ -283,10 +283,11 @@ insert into INCIDENT (
     NUMBER,
     CREATED,
     PRIORITY,
-    STATE
+    STATE,
+    STARTED
 )
 values (
-   ?,?,?,?,?
+   ?,?,?,?,?,?
 )
 `
 
@@ -296,6 +297,7 @@ type CreateIncidentParams struct {
 	Created  float64
 	Priority int8
 	State    IncidentState
+	Started  float64
 }
 
 func (q *Queries) CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error) {
@@ -305,6 +307,7 @@ func (q *Queries) CreateIncident(ctx context.Context, db DBTX, arg CreateInciden
 		arg.Created,
 		arg.Priority,
 		arg.State,
+		arg.Started,
 	)
 	if err != nil {
 		return 0, err
@@ -726,7 +729,7 @@ func (q *Queries) HideShowIncidentType(ctx context.Context, db DBTX, arg HideSho
 
 const incident = `-- name: Incident :one
 select
-    i.event, i.number, i.created, i.priority, i.state, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
         select coalesce(json_arrayagg(it.NAME), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -773,6 +776,7 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.Created,
 		&i.Incident.Priority,
 		&i.Incident.State,
+		&i.Incident.Started,
 		&i.Incident.Summary,
 		&i.Incident.LocationName,
 		&i.Incident.LocationConcentric,
@@ -875,7 +879,7 @@ func (q *Queries) Incident_ReportEntries(ctx context.Context, db DBTX, arg Incid
 
 const incidents = `-- name: Incidents :many
 select
-    i.event, i.number, i.created, i.priority, i.state, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
         select coalesce(json_arrayagg(it.NAME), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -926,6 +930,7 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.Created,
 			&i.Incident.Priority,
 			&i.Incident.State,
+			&i.Incident.Started,
 			&i.Incident.Summary,
 			&i.Incident.LocationName,
 			&i.Incident.LocationConcentric,
@@ -1154,9 +1159,10 @@ func (q *Queries) UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFiel
 
 const updateIncident = `-- name: UpdateIncident :exec
 update INCIDENT set
-    CREATED = ?,
+    -- CREATED should be immutable, so it's not present in this UPDATE query
     PRIORITY = ?,
     STATE = ?,
+    STARTED = ?,
     SUMMARY = ?,
     LOCATION_NAME = ?,
     LOCATION_CONCENTRIC = ?,
@@ -1169,9 +1175,9 @@ where
 `
 
 type UpdateIncidentParams struct {
-	Created              float64
 	Priority             int8
 	State                IncidentState
+	Started              float64
 	Summary              sql.NullString
 	LocationName         sql.NullString
 	LocationConcentric   sql.NullString
@@ -1184,9 +1190,9 @@ type UpdateIncidentParams struct {
 
 func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error {
 	_, err := db.ExecContext(ctx, updateIncident,
-		arg.Created,
 		arg.Priority,
 		arg.State,
+		arg.Started,
 		arg.Summary,
 		arg.LocationName,
 		arg.LocationConcentric,

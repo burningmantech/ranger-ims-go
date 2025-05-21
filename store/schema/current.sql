@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (14);
+insert into SCHEMA_INFO (VERSION) values (15);
 
 
 create table EVENT (
@@ -60,15 +60,17 @@ create table REPORT_ENTRY (
 create table INCIDENT (
     EVENT    integer  not null,
     NUMBER   integer  not null,
+    -- CREATED is the time the INCIDENT was created, and this should be immutable.
     CREATED  double   not null,
     PRIORITY tinyint  not null,
-
     STATE enum(
         'new', 'on_hold', 'dispatched', 'on_scene', 'closed'
     ) not null,
+    -- STARTED is the time the INCIDENT began. This field is mutable, and its initial
+    -- value will usually be the same as CREATED.
+    STARTED  double not null,
 
     SUMMARY varchar(1024),
-
     LOCATION_NAME          varchar(1024),
     LOCATION_CONCENTRIC    varchar(64),
     LOCATION_RADIAL_HOUR   tinyint,

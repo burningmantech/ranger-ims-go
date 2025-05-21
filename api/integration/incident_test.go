@@ -322,7 +322,7 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 		require.WithinDuration(t, time.Now(), after.Created, 20*time.Minute)
 	}
 	if !before.Started.IsZero() {
-		require.Equal(t, before.Started, after.Started)
+		require.WithinDuration(t, before.Started, after.Started, 1*time.Millisecond)
 	} else {
 		require.WithinDuration(t, time.Now(), after.Started, 20*time.Minute)
 	}

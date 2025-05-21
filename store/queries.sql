@@ -38,17 +38,19 @@ insert into INCIDENT (
     NUMBER,
     CREATED,
     PRIORITY,
-    STATE
+    STATE,
+    STARTED
 )
 values (
-   ?,?,?,?,?
+   ?,?,?,?,?,?
 );
 
 -- name: UpdateIncident :exec
 update INCIDENT set
-    CREATED = ?,
+    -- CREATED should be immutable, so it's not present in this UPDATE query
     PRIORITY = ?,
     STATE = ?,
+    STARTED = ?,
     SUMMARY = ?,
     LOCATION_NAME = ?,
     LOCATION_CONCENTRIC = ?,

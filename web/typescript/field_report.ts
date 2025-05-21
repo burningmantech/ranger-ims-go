@@ -122,6 +122,10 @@ async function initFieldReportPage(): Promise<void> {
     (document.getElementById("helpModal") as HTMLDivElement).addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
+            // This is needed to prevent the document's listener for "?" to trigger the modal to
+            // toggle back on immediately. This is fallout from the fix for
+            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            e.stopPropagation();
         }
     });
     document.getElementById("report_entry_add")!.addEventListener("keydown", function (e: KeyboardEvent): void {

@@ -337,3 +337,7 @@ h1 {
 #field_reports_table>tbody>tr {
   cursor: pointer;
 }
+
+.show-pointer {
+  cursor: pointer;
+}

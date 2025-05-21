@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"math"
 	"strconv"
+	"time"
 )
 
 func FormatSqlInt16(i sql.NullInt16) *string {
@@ -91,4 +92,15 @@ func ParseSqlNullString(s *string) sql.NullString {
 		return sql.NullString{}
 	}
 	return sql.NullString{String: *s, Valid: true}
+}
+
+// Float64UnixSeconds takes a float64 number of seconds since Unix epoch and returns
+// a time.Time.
+func Float64UnixSeconds(f float64) time.Time {
+	return time.Unix(int64(f), int64(f*1e9)%1e9)
+}
+
+func TimeFloat64(t time.Time) float64 {
+	decimalPart := float64(t.Nanosecond()) / 1e9
+	return decimalPart + float64(t.Unix())
 }

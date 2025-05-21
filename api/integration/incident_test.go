@@ -156,6 +156,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 		require.NotNil(t, retrievedIncident)
 		require.WithinDuration(t, time.Now(), retrievedIncident.Created, 5*time.Minute)
+		require.WithinDuration(t, time.Now(), retrievedIncident.Started, 5*time.Minute)
 		require.WithinDuration(t, time.Now(), retrievedIncident.LastModified, 5*time.Minute)
 		require.Len(t, retrievedIncident.ReportEntries, 2)
 
@@ -229,9 +230,11 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 
 	// now let's set all fields to empty
 	updates = imsjson.Incident{
-		Event:    incidentReq.Event,
-		Number:   num,
-		State:    "closed",
+		Event:  incidentReq.Event,
+		Number: num,
+		State:  "closed",
+		// need to send some time for this other than zero for the time to update
+		Started:  time.UnixMilli(1),
 		Priority: 1,
 		Summary:  ptr(""),
 		Location: imsjson.Location{
@@ -258,6 +261,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		Number:        num,
 		State:         "closed",
 		Priority:      1,
+		Started:       time.UnixMilli(1),
 		Location:      imsjson.Location{},
 		IncidentTypes: &[]string{},
 		FieldReports:  &[]int32{},
@@ -316,6 +320,11 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 		require.Equal(t, before.Created, after.Created)
 	} else {
 		require.WithinDuration(t, time.Now(), after.Created, 20*time.Minute)
+	}
+	if !before.Started.IsZero() {
+		require.Equal(t, before.Started, after.Started)
+	} else {
+		require.WithinDuration(t, time.Now(), after.Started, 20*time.Minute)
 	}
 	require.WithinDuration(t, time.Now(), after.LastModified, 20*time.Minute)
 	require.Equal(t, before.State, after.State)

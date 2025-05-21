@@ -179,17 +179,20 @@ func incidentToJSON(
 		return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 	}
 
-	lastModified := int64(storedRow.Incident.Created)
+	lastModified := conv.Float64UnixSeconds(storedRow.Incident.Created)
 	for _, re := range resultEntries {
-		lastModified = max(lastModified, re.Created.Unix())
+		if re.Created.After(lastModified) {
+			lastModified = re.Created
+		}
 	}
 	resp = imsjson.Incident{
 		Event:        event.Name,
 		EventID:      event.ID,
 		Number:       storedRow.Incident.Number,
-		Created:      time.Unix(int64(storedRow.Incident.Created), 0),
-		LastModified: time.Unix(lastModified, 0),
+		Created:      conv.Float64UnixSeconds(storedRow.Incident.Created),
+		LastModified: lastModified,
 		State:        string(storedRow.Incident.State),
+		Started:      conv.Float64UnixSeconds(storedRow.Incident.Started),
 		Priority:     storedRow.Incident.Priority,
 		Summary:      conv.StringOrNil(storedRow.Incident.Summary),
 		Location: imsjson.Location{
@@ -246,7 +249,7 @@ func addIncidentReportEntry(
 	reID64, err := db.CreateReportEntry(ctx, dbtx, imsdb.CreateReportEntryParams{
 		Author:       author,
 		Text:         text,
-		Created:      float64(time.Now().Unix()),
+		Created:      conv.TimeFloat64(time.Now()),
 		Generated:    generated,
 		Stricken:     false,
 		AttachedFile: conv.ParseSqlNullString(&attachment),
@@ -308,11 +311,12 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 	newIncident.EventID = event.ID
 	newIncident.Event = event.Name
 	newIncident.Number = newIncidentNumber
-
+	now := conv.TimeFloat64(time.Now())
 	createTheIncident := imsdb.CreateIncidentParams{
 		Event:    newIncident.EventID,
 		Number:   newIncidentNumber,
-		Created:  float64(time.Now().Unix()),
+		Created:  now,
+		Started:  now,
 		Priority: imsjson.IncidentPriorityNormal,
 		State:    imsdb.IncidentStateNew,
 	}
@@ -384,9 +388,9 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	update := imsdb.UpdateIncidentParams{
 		Event:                storedIncident.Event,
 		Number:               storedIncident.Number,
-		Created:              storedIncident.Created,
 		Priority:             storedIncident.Priority,
 		State:                storedIncident.State,
+		Started:              storedIncident.Started,
 		Summary:              storedIncident.Summary,
 		LocationName:         storedIncident.LocationName,
 		LocationConcentric:   storedIncident.LocationConcentric,
@@ -404,6 +408,10 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	if imsdb.IncidentState(newIncident.State).Valid() {
 		update.State = imsdb.IncidentState(newIncident.State)
 		logs = append(logs, fmt.Sprintf("Changed state: %v", update.State))
+	}
+	if !newIncident.Started.IsZero() {
+		update.Started = conv.TimeFloat64(newIncident.Started)
+		logs = append(logs, fmt.Sprintf("Changed start time: %v", newIncident.Started))
 	}
 	if newIncident.Summary != nil {
 		update.Summary = conv.ParseSqlNullString(newIncident.Summary)

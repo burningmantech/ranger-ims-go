@@ -48,6 +48,7 @@ async function initIncidentPage() {
     window.toggleShowHistory = ims.toggleShowHistory;
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
+    window.overrideStartDateTime = overrideStartDateTime;
     // load everything from the APIs concurrently
     await Promise.all([
         await ims.loadStreets(ims.pathIds.eventID),
@@ -106,6 +107,7 @@ async function initIncidentPage() {
         }
     };
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
+    const startTimeModal = ims.bsModal(document.getElementById("startTimeModal"));
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
@@ -139,6 +141,10 @@ async function initIncidentPage() {
     document.getElementById("helpModal").addEventListener("keydown", function (e) {
         if (e.key === "?") {
             helpModal.toggle();
+            // This is needed to prevent the document's listener for "?" to trigger the modal to
+            // toggle back on immediately. This is fallout from the fix for
+            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            e.stopPropagation();
         }
     });
     document.getElementById("report_entry_add").addEventListener("keydown", function (e) {
@@ -146,6 +152,11 @@ async function initIncidentPage() {
         if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
         }
+    });
+    document.getElementById("override_started_button").addEventListener("click", function (_) {
+        startTimeModal.show();
+        const input = document.getElementById("override_start_datetime");
+        input.value = incident?.started ?? "";
     });
 }
 //
@@ -322,7 +333,7 @@ function drawIncidentFields() {
     drawIncidentTitle();
     drawIncidentNumber();
     drawState();
-    drawCreated();
+    drawStarted();
     drawPriority();
     drawIncidentSummary();
     drawRangers();
@@ -389,17 +400,17 @@ function drawState() {
     ims.selectOptionWithValue(document.getElementById("incident_state"), ims.stateForIncident(incident));
 }
 //
-// Populate created datetime
+// Populate started datetime
 //
-function drawCreated() {
-    const date = incident.created ?? null;
+function drawStarted() {
+    const date = incident.started ?? null;
     if (date == null) {
         return;
     }
     const d = Date.parse(date);
-    const createdElement = document.getElementById("created_datetime");
-    createdElement.textContent = `${ims.shortDate.format(d)} ${ims.shortTimeSec.format(d)}`;
-    createdElement.setAttribute("title", ims.fullDateTime.format(d));
+    const startedElement = document.getElementById("started_datetime");
+    startedElement.textContent = `${ims.longDate.format(d)}, ${ims.shortTimeTZ.format(d)}`;
+    startedElement.setAttribute("title", ims.fullDateTime.format(d));
 }
 //
 // Populate incident priority
@@ -710,6 +721,12 @@ async function editState() {
             "See the Incident Types help link for more details.\n");
     }
     await ims.editFromElement(state, "state");
+}
+async function overrideStartDateTime() {
+    const startInput = document.getElementById("override_start_datetime");
+    await ims.editFromElement(startInput, "started", (val) => {
+        return (val ?? "").trim();
+    });
 }
 async function editIncidentSummary() {
     const summaryInput = document.getElementById("incident_summary");

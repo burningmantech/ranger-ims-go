@@ -220,7 +220,7 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		return
 	}
 	slog.Info("Saved Incident attachment")
-	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt32(reID))
+	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt(reID))
 	http.Error(w, "Saved Incident attachment", http.StatusNoContent)
 }
 
@@ -242,6 +242,10 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			return 0, herr.RequestEntityTooLarge(fmt.Sprintf("The supplied file is above the server limit of %v", format.HumanByteSize(mbe.Limit)), err)
+		}
 		return 0, herr.BadRequest("Failed to parse file", err)
 	}
 	defer shut(fi)
@@ -311,7 +315,7 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 		return
 	}
 	slog.Info("Saved Field Report attachment")
-	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt32(reID))
+	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt(reID))
 	http.Error(w, "Saved Field Report attachment", http.StatusNoContent)
 }
 func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32, *herr.HTTPError) {
@@ -344,6 +348,10 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			return 0, herr.RequestEntityTooLarge(fmt.Sprintf("The supplied file is above the server limit of %v", format.HumanByteSize(mbe.Limit)), err)
+		}
 		return 0, herr.BadRequest("Failed to parse file", err)
 	}
 	defer shut(fi)

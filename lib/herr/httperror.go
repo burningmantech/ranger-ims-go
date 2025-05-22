@@ -57,6 +57,10 @@ func BadRequest(userMessage string, err error) *HTTPError {
 	return New(http.StatusBadRequest, userMessage, err)
 }
 
+func RequestEntityTooLarge(userMessage string, err error) *HTTPError {
+	return New(http.StatusRequestEntityTooLarge, userMessage, err)
+}
+
 // Unauthorized returns an http.StatusUnauthorized HTTPError.
 func Unauthorized(userMessage string, err error) *HTTPError {
 	return New(http.StatusUnauthorized, userMessage, err)

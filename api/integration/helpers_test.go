@@ -158,16 +158,16 @@ func (a ApiHelper) getFieldReports(ctx context.Context, eventName string) (imsjs
 
 func (a ApiHelper) updateFieldReport(ctx context.Context, eventName string, fieldReport int32, req imsjson.FieldReport) *http.Response {
 	a.t.Helper()
-	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/", conv.FormatInt32(fieldReport)).String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/", conv.FormatInt(fieldReport)).String())
 }
 
 func (a ApiHelper) attachFieldReportToIncident(ctx context.Context, eventName string, fieldReport int32, incident int32) *http.Response {
 	a.t.Helper()
 	req := imsjson.FieldReport{}
-	params := "?action=attach&incident=" + conv.FormatInt32(incident)
+	params := "?action=attach&incident=" + conv.FormatInt(incident)
 	return a.imsPost(ctx, req,
 		a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/",
-			conv.FormatInt32(fieldReport)).String()+params)
+			conv.FormatInt(fieldReport)).String()+params)
 }
 
 func (a ApiHelper) detachFieldReportFromIncident(ctx context.Context, eventName string, fieldReport int32) *http.Response {
@@ -176,7 +176,7 @@ func (a ApiHelper) detachFieldReportFromIncident(ctx context.Context, eventName 
 	params := "?action=detach"
 	return a.imsPost(ctx, req,
 		a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/",
-			conv.FormatInt32(fieldReport)).String()+params)
+			conv.FormatInt(fieldReport)).String()+params)
 }
 
 func (a ApiHelper) newIncident(ctx context.Context, req imsjson.Incident) *http.Response {
@@ -265,7 +265,7 @@ func (a ApiHelper) getAccess(ctx context.Context) (imsjson.EventsAccess, *http.R
 func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, incident int32, fileBytes []byte) (int32, *http.Response) {
 	a.t.Helper()
 
-	path := a.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt32(incident), "attachments")
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt(incident), "attachments")
 
 	// Create a `multipart/form-data`-encoded request, with a single form file inside
 	var requestBody bytes.Buffer
@@ -288,22 +288,21 @@ func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, i
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 
-	reID, err := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
-	require.NoError(a.t, err)
+	reID, _ := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
 
 	return reID, resp
 }
 
 func (a ApiHelper) getIncidentAttachment(ctx context.Context, eventName string, incident, reID int32) ([]byte, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt32(incident), "attachments", conv.FormatInt32(reID)).String()
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt(incident), "attachments", conv.FormatInt(reID)).String()
 	return a.imsGetBodyBytes(ctx, path)
 }
 
 func (a ApiHelper) attachFileToFieldReport(ctx context.Context, eventName string, fieldReport int32, fileBytes []byte) (int32, *http.Response) {
 	a.t.Helper()
 
-	path := a.serverURL.JoinPath("/ims/api/events", eventName, "field_reports", conv.FormatInt32(fieldReport), "attachments")
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "field_reports", conv.FormatInt(fieldReport), "attachments")
 
 	// Create a `multipart/form-data`-encoded request, with a single form file inside
 	var requestBody bytes.Buffer
@@ -326,15 +325,14 @@ func (a ApiHelper) attachFileToFieldReport(ctx context.Context, eventName string
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 
-	reID, err := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
-	require.NoError(a.t, err)
+	reID, _ := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
 
 	return reID, resp
 }
 
 func (a ApiHelper) getFieldReportAttachment(ctx context.Context, eventName string, fieldReport, reID int32) ([]byte, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath("/ims/api/events", eventName, "field_reports", conv.FormatInt32(fieldReport), "attachments", conv.FormatInt32(reID)).String()
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "field_reports", conv.FormatInt(fieldReport), "attachments", conv.FormatInt(reID)).String()
 	return a.imsGetBodyBytes(ctx, path)
 }
 

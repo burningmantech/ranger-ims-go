@@ -23,9 +23,17 @@ import (
 	"time"
 )
 
+type IntLike interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}
+
+func FormatInt[T IntLike](i T) string {
+	return strconv.FormatInt(int64(i), 10)
+}
+
 func FormatSqlInt16(i sql.NullInt16) *string {
 	if i.Valid {
-		result := strconv.FormatInt(int64(i.Int16), 10)
+		result := FormatInt(i.Int16)
 		return &result
 	}
 	return nil
@@ -42,26 +50,19 @@ func ParseSqlInt16(s *string) sql.NullInt16 {
 	}
 }
 
-func StringOrNil(v sql.NullString) *string {
-	if v.Valid {
-		return &v.String
-	}
-	return nil
-}
-
-func Int32OrNil(v sql.NullInt32) *int32 {
-	if v.Valid {
-		return &v.Int32
-	}
-	return nil
-}
-
 func ParseInt16(s string) (int16, error) {
 	i, err := strconv.ParseInt(s, 10, 16)
 	if err != nil {
 		return 0, err
 	}
 	return int16(i), nil
+}
+
+func SqlToInt32(v sql.NullInt32) *int32 {
+	if v.Valid {
+		return &v.Int32
+	}
+	return nil
 }
 
 func ParseInt32(s string) (int32, error) {
@@ -72,14 +73,13 @@ func ParseInt32(s string) (int32, error) {
 	return int32(i), nil
 }
 
-func FormatInt32(i int32) string {
-	return strconv.FormatInt(int64(i), 10)
-}
-
 func ParseInt64(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }
 
+// MustInt32 converts an int64 into an int32, and it panics if this would cause
+// an overflow. This is intended for use when the input is known to be within
+// bounds, because panics are bad.
 func MustInt32(i int64) int32 {
 	if i < math.MinInt32 || i > math.MaxInt32 {
 		panic("int32 overflow")
@@ -87,20 +87,27 @@ func MustInt32(i int64) int32 {
 	return int32(i)
 }
 
-func ParseSqlNullString(s *string) sql.NullString {
+func SqlToString(v sql.NullString) *string {
+	if v.Valid {
+		return &v.String
+	}
+	return nil
+}
+
+func StringToSql(s *string) sql.NullString {
 	if s == nil || *s == "" {
 		return sql.NullString{}
 	}
 	return sql.NullString{String: *s, Valid: true}
 }
 
-// Float64UnixSeconds takes a float64 number of seconds since Unix epoch and returns
-// a time.Time.
-func Float64UnixSeconds(f float64) time.Time {
+// FloatToTime converts the float number of seconds since Unix epoch into a time.Time.
+func FloatToTime(f float64) time.Time {
 	return time.Unix(int64(f), int64(f*1e9)%1e9)
 }
 
-func TimeFloat64(t time.Time) float64 {
+// TimeToFloat converts a time.Time into the float number of seconds since Unix epoch.
+func TimeToFloat(t time.Time) float64 {
 	decimalPart := float64(t.Nanosecond()) / 1e9
 	return decimalPart + float64(t.Unix())
 }

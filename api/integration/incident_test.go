@@ -21,6 +21,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -303,6 +304,12 @@ func TestCreateAndAttachFileToIncident(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, fileBytes, returnedAttachment)
+
+	// Try to send something too large
+	fileBytes = []byte(strings.Repeat("a", int(shared.cfg.Core.MaxRequestBytes+1)))
+	_, resp = apisNonAdmin.attachFileToIncident(ctx, eventName, num, fileBytes)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
 }
 
 // requireEqualIncident is a hacky way of checking two incident responses are the same.

@@ -42,6 +42,7 @@ func DefaultIMS() *IMSConfig {
 			RefreshTokenLifetime: 8 * time.Hour,
 			CacheControlShort:    20 * time.Minute,
 			CacheControlLong:     2 * time.Hour,
+			MaxRequestBytes:      100 << 20,
 		},
 		Store: DBStore{
 			Type: DBStoreTypeMaria,
@@ -199,6 +200,10 @@ type ConfigCore struct {
 
 	// LogLevel should be one of DEBUG, INFO, WARN, or ERROR
 	LogLevel string
+
+	// MaxRequestBytes is a hard limit on request sizes that will be permitted by the API server.
+	// This serve as a backstop against accidentally or maliciously large requests.
+	MaxRequestBytes int64
 }
 
 type DBStore struct {

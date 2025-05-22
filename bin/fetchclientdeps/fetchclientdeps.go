@@ -68,14 +68,6 @@ func main() {
 
 	g.Go(func() error {
 		return existOrFetch(groupCtx, root,
-			"bootstrap.min.css",
-			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css",
-			"sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT",
-		)
-	})
-
-	g.Go(func() error {
-		return existOrFetch(groupCtx, root,
 			"bootstrap.bundle.min.js",
 			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js",
 			"sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO",

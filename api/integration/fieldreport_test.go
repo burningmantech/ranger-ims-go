@@ -32,6 +32,7 @@ func sampleFieldReport1(eventName string) imsjson.FieldReport {
 		Summary: ptr("my summary!"),
 		ReportEntries: []imsjson.ReportEntry{
 			{Text: "This is some report text lol"},
+			{Text: ""},
 		},
 	}
 }
@@ -105,12 +106,16 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
 
 	// Use the admin JWT to create a new event,
-	// then give the normal user Writer role on that event
+	// give itself Writer role,
+	// then give the normal user Reporter role on that event
 	eventName := rand.NonCryptoText()
 	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
+	resp = apisAdmin.addWriter(ctx, eventName, userAdminHandle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp = apisAdmin.addReporter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -122,7 +127,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	retrievedNewFieldReport, resp := apisAlice.getFieldReport(ctx, eventName, num)
 	require.NoError(t, resp.Body.Close())
 
-	// Now let's update the incident. First let's try just adding an incident number.
+	// Now let's update the FR. First let's try just adding an incident number.
 	updates := imsjson.FieldReport{
 		Event:    fieldReportReq.Event,
 		Number:   num,
@@ -170,7 +175,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	requireEqualFieldReport(t, expected, retrievedFieldReportAfterUpdate)
 
 	// make an incident, then attach to it
-	incidentNumber := apisAlice.newIncidentSuccess(ctx, imsjson.Incident{
+	incidentNumber := apisAdmin.newIncidentSuccess(ctx, imsjson.Incident{
 		Event: eventName,
 	})
 	resp = apisAlice.attachFieldReportToIncident(ctx, eventName, num, incidentNumber)
@@ -195,7 +200,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	require.Nil(t, fieldReportAfterDetach.Incident)
 
 	// attach again, this time via the incident API
-	resp = apisAlice.updateIncident(ctx, eventName, num, imsjson.Incident{
+	resp = apisAdmin.updateIncident(ctx, eventName, num, imsjson.Incident{
 		Event:        eventName,
 		Number:       incidentNumber,
 		FieldReports: &[]int32{num},
@@ -210,7 +215,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	require.Equal(t, incidentNumber, *fieldReportAfterAttach.Incident)
 
 	// detach again, this time via the incident API
-	resp = apisAlice.updateIncident(ctx, eventName, num, imsjson.Incident{
+	resp = apisAdmin.updateIncident(ctx, eventName, num, imsjson.Incident{
 		Event:        eventName,
 		Number:       incidentNumber,
 		FieldReports: &[]int32{},

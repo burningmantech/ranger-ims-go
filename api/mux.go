@@ -51,18 +51,20 @@ func AddToMux(
 	mux.Handle("GET /ims/api/access",
 		Adapt(
 			GetEventAccesses{db, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/access",
 		Adapt(
 			PostEventAccess{db, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
@@ -75,8 +77,9 @@ func AddToMux(
 				cfg.Core.AccessTokenLifetime,
 				cfg.Core.RefreshTokenLifetime,
 			},
-			RecoverOnPanic(),
-			LogBeforeAfter(),
+			RecoverFromPanic(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 			// This endpoint does not require authentication, nor
 			// does it even consider the request's Authorization header,
 			// because the point of this is to make a new JWT.
@@ -91,10 +94,11 @@ func AddToMux(
 				cfg.Core.Admins,
 				attachmentsEnabled,
 			},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			// This endpoint does not require authentication or authorization, by design
 			OptionalAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
@@ -106,8 +110,9 @@ func AddToMux(
 				cfg.Core.JWTSecret,
 				cfg.Core.AccessTokenLifetime,
 			},
-			RecoverOnPanic(),
-			LogBeforeAfter(),
+			RecoverFromPanic(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 			// This endpoint does not require authentication, nor
 			// does it even consider the request's Authorization header,
 			// because the point of this is to make a new access token.
@@ -117,197 +122,219 @@ func AddToMux(
 	mux.Handle("GET /ims/api/events/{eventName}/incidents",
 		Adapt(
 			GetIncidents{db, cfg.Core.Admins, attachmentsEnabled},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents",
 		Adapt(
 			NewIncident{db, es, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}",
 		Adapt(
 			GetIncident{db, cfg.Core.Admins, attachmentsEnabled},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}",
 		Adapt(
 			EditIncident{db, es, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}",
 		Adapt(
 			GetIncidentAttachment{db, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments",
 		Adapt(
 			AttachToIncident{db, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}",
 		Adapt(
 			EditIncidentReportEntry{db, es, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports",
 		Adapt(
 			GetFieldReports{db, cfg.Core.Admins, attachmentsEnabled},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports",
 		Adapt(
 			NewFieldReport{db, es, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
 		Adapt(
 			GetFieldReport{db, cfg.Core.Admins, attachmentsEnabled},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
 		Adapt(
 			EditFieldReport{db, es, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}",
 		Adapt(
 			GetFieldReportAttachment{db, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments",
 		Adapt(
 			AttachToFieldReport{db, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}",
 		Adapt(
 			EditFieldReportReportEntry{db, es, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/events",
 		Adapt(
 			GetEvents{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/events",
 		Adapt(
 			EditEvents{db, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/streets",
 		Adapt(
 			GetStreets{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/streets",
 		Adapt(
 			EditStreets{db, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/incident_types",
 		Adapt(
 			GetIncidentTypes{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("POST /ims/api/incident_types",
 		Adapt(
 			EditIncidentTypes{db, cfg.Core.Admins},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/personnel",
 		Adapt(
 			GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverOnPanic(),
+			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogBeforeAfter(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
 	mux.Handle("GET /ims/api/eventsource",
 		Adapt(
 			es.Server.Handler(EventSourceChannel),
-			RecoverOnPanic(),
-			LogBeforeAfter(),
+			RecoverFromPanic(),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
 
@@ -360,7 +387,13 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-func LogBeforeAfter() Adapter {
+func LimitRequestBytes(maxRequestBytes int64) Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.MaxBytesHandler(next, maxRequestBytes)
+	}
+}
+
+func LogRequest() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -404,7 +437,7 @@ func LogBeforeAfter() Adapter {
 	}
 }
 
-func RecoverOnPanic() Adapter {
+func RecoverFromPanic() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {

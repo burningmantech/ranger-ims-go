@@ -191,9 +191,9 @@ func fieldReportToJSON(
 	return imsjson.FieldReport{
 		Event:         event.Name,
 		Number:        fr.Number,
-		Created:       conv.Float64UnixSeconds(fr.Created),
-		Summary:       conv.StringOrNil(fr.Summary),
-		Incident:      conv.Int32OrNil(fr.IncidentNumber),
+		Created:       conv.FloatToTime(fr.Created),
+		Summary:       conv.SqlToString(fr.Summary),
+		Incident:      conv.SqlToInt32(fr.IncidentNumber),
 		ReportEntries: entries,
 	}
 }
@@ -309,7 +309,7 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	defer rollback(txn)
 
 	if requestFR.Summary != nil {
-		storedFR.Summary = conv.ParseSqlNullString(requestFR.Summary)
+		storedFR.Summary = conv.StringToSql(requestFR.Summary)
 		text := "Changed summary to: " + *requestFR.Summary
 		_, errHTTP := addFRReportEntry(
 			ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, text, true, "",
@@ -479,8 +479,8 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		imsdb.CreateFieldReportParams{
 			Event:          event.ID,
 			Number:         newFrNum,
-			Created:        conv.TimeFloat64(time.Now()),
-			Summary:        conv.ParseSqlNullString(fr.Summary),
+			Created:        conv.TimeToFloat(time.Now()),
+			Summary:        conv.StringToSql(fr.Summary),
 			IncidentNumber: sql.NullInt32{},
 		},
 	)
@@ -529,17 +529,17 @@ func addFRReportEntry(
 		imsdb.CreateReportEntryParams{
 			Author:       author,
 			Text:         text,
-			Created:      conv.TimeFloat64(time.Now()),
+			Created:      conv.TimeToFloat(time.Now()),
 			Generated:    generated,
 			Stricken:     false,
-			AttachedFile: conv.ParseSqlNullString(&attachment),
+			AttachedFile: conv.StringToSql(&attachment),
 		},
 	)
-	// This column is an int32, so this is safe
-	reID := conv.MustInt32(reID64)
 	if err != nil {
 		return 0, herr.InternalServerError("Failed to create report entry", err).From("[CreateReportEntry]")
 	}
+	// This column is an int32, so this is always safe
+	reID := conv.MustInt32(reID64)
 	err = imsDBQ.AttachReportEntryToFieldReport(ctx, dbtx,
 		imsdb.AttachReportEntryToFieldReportParams{
 			Event:             eventID,

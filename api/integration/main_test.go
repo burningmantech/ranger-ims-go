@@ -88,6 +88,9 @@ func setup(ctx context.Context, tempDir string) {
 	shared.cfg = conf.DefaultIMS()
 	shared.cfg.Core.JWTSecret = "jwtsecret-" + rand.NonCryptoText()
 	shared.cfg.Core.Admins = []string{userAdminHandle}
+	// 100 KiB, much lower than we'd use outside tests, since we want to test error cases
+	// when requests are too large.
+	shared.cfg.Core.MaxRequestBytes = 100 << 10
 	shared.cfg.AttachmentsStore.Type = conf.AttachmentsStoreLocal
 	shared.cfg.AttachmentsStore.Local = conf.LocalAttachments{
 		Dir: tempRoot,

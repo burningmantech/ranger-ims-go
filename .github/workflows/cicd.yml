@@ -32,6 +32,9 @@ jobs:
       with:
         go-version-file: "go.mod"
 
+    - name: Fetch external JS deps
+      run: go run bin/fetchclientdeps/fetchclientdeps.go
+
     - name: Install Python
       uses: actions/setup-python@v5
       with:

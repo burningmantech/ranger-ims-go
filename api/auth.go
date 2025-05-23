@@ -252,9 +252,6 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 	if err != nil {
 		return empty, herr.Unauthorized("Failed to authenticate refresh token", err).From("[AuthenticateRefreshToken]")
 	}
-	if jwt.RangerHandle() == "" {
-		return empty, herr.InternalServerError("No Ranger handle associated with refresh token", nil)
-	}
 
 	slog.Info("Refreshing access token", "ranger", jwt.RangerHandle())
 	rangers, err := action.userStore.GetRangers(req.Context())

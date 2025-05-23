@@ -86,6 +86,9 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	// DB2: migrate straight up to current schema version
 	err = store.MigrateDB(ctx, db2)
 	require.NoError(t, err)
+	// Run MigrateDB again, which is a no-op
+	err = store.MigrateDB(ctx, db2)
+	require.NoError(t, err)
 
 	// The two databases should have the same set of tables
 	var dbTables [2][]string

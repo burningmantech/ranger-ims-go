@@ -125,41 +125,6 @@ func (q *Queries) AttachReportEntryToIncident(ctx context.Context, db DBTX, arg 
 	return err
 }
 
-const attachedFieldReportNumbers = `-- name: AttachedFieldReportNumbers :many
-select NUMBER from FIELD_REPORT
-where
-    EVENT = ? and
-    INCIDENT_NUMBER = ?
-`
-
-type AttachedFieldReportNumbersParams struct {
-	Event          int32
-	IncidentNumber sql.NullInt32
-}
-
-func (q *Queries) AttachedFieldReportNumbers(ctx context.Context, db DBTX, arg AttachedFieldReportNumbersParams) ([]int32, error) {
-	rows, err := db.QueryContext(ctx, attachedFieldReportNumbers, arg.Event, arg.IncidentNumber)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []int32
-	for rows.Next() {
-		var number int32
-		if err := rows.Scan(&number); err != nil {
-			return nil, err
-		}
-		items = append(items, number)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const clearEventAccessForExpression = `-- name: ClearEventAccessForExpression :exec
 delete from EVENT_ACCESS
 where EVENT = ? and EXPRESSION = ?
@@ -399,34 +364,6 @@ type DetachRangerHandleFromIncidentParams struct {
 func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error {
 	_, err := db.ExecContext(ctx, detachRangerHandleFromIncident, arg.Event, arg.IncidentNumber, arg.RangerHandle)
 	return err
-}
-
-const detachedFieldReportNumbers = `-- name: DetachedFieldReportNumbers :many
-select NUMBER from FIELD_REPORT
-where EVENT = ? and INCIDENT_NUMBER is null
-`
-
-func (q *Queries) DetachedFieldReportNumbers(ctx context.Context, db DBTX, event int32) ([]int32, error) {
-	rows, err := db.QueryContext(ctx, detachedFieldReportNumbers, event)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []int32
-	for rows.Next() {
-		var number int32
-		if err := rows.Scan(&number); err != nil {
-			return nil, err
-		}
-		items = append(items, number)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const eventAccess = `-- name: EventAccess :many

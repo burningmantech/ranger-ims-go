@@ -18,6 +18,7 @@ package directory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"slices"
@@ -52,21 +53,19 @@ func (store *UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error
 }
 
 func (store *UserStore) GetUserPositionsTeams(ctx context.Context, userID int64) (positions, teams []string, err error) {
+	var errs []error
+
 	teamRows, err := store.DBQ.Teams(ctx, store.DBQ)
-	if err != nil {
-		return nil, nil, fmt.Errorf("[Teams]: %w", err)
-	}
+	errs = append(errs, err)
 	positionRows, err := store.DBQ.Positions(ctx, store.DBQ)
-	if err != nil {
-		return nil, nil, fmt.Errorf("[Positions]: %w", err)
-	}
+	errs = append(errs, err)
 	personTeams, err := store.DBQ.PersonTeams(ctx, store.DBQ)
-	if err != nil {
-		return nil, nil, fmt.Errorf("[PersonTeams]: %w", err)
-	}
+	errs = append(errs, err)
 	personPositions, err := store.DBQ.PersonPositions(ctx, store.DBQ)
-	if err != nil {
-		return nil, nil, fmt.Errorf("[PersonPositions]: %w", err)
+	errs = append(errs, err)
+
+	if err := errors.Join(errs...); err != nil {
+		return nil, nil, fmt.Errorf("[Teams,Positions,PersonTeams,PersonPositions] %w", err)
 	}
 
 	var foundPositions []int64

@@ -21,11 +21,10 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
-	clubhousequeries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
+	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	"github.com/burningmantech/ranger-ims-go/lib/cache"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
-	"strings"
 	"time"
 )
 
@@ -56,127 +55,98 @@ func MariaDB(ctx context.Context, imsCfg conf.ClubhouseDB) (*sql.DB, error) {
 	return db, nil
 }
 
-// DBQ combines the SQL database and the Querier for the Clubhouse datastore. It's convenient having those
-// two types embedded in one struct, because it allows great flexibility in custom method overrides.
+// DBQ combines the SQL database and the Querier for the Clubhouse datastore.
 type DBQ struct {
 	*sql.DB
-	clubhousequeries.Querier
+	q chqueries.Querier
 
-	rangersByIdCache     *cache.InMemory[[]clubhousequeries.RangersByIdRow]
-	personPositionsCache *cache.InMemory[[]clubhousequeries.PersonPosition]
-	personTeamsCache     *cache.InMemory[[]clubhousequeries.PersonTeamsRow]
-	positionsCache       *cache.InMemory[[]clubhousequeries.PositionsRow]
-	teamsCache           *cache.InMemory[[]clubhousequeries.TeamsRow]
+	rangersByIdCache     *cache.InMemory[[]chqueries.RangersByIdRow]
+	personPositionsCache *cache.InMemory[[]chqueries.PersonPosition]
+	personTeamsCache     *cache.InMemory[[]chqueries.PersonTeamsRow]
+	positionsCache       *cache.InMemory[[]chqueries.PositionsRow]
+	teamsCache           *cache.InMemory[[]chqueries.TeamsRow]
 }
 
-// NewRealMariaDBQ creates a DBQ that uses a standard MariaDB Clubhouse database.
-func NewRealMariaDBQ(db *sql.DB, cacheTTL time.Duration) *DBQ {
-	return newDBQ(db, clubhousequeries.New(), cacheTTL)
+var _ chqueries.Querier = (*DBQ)(nil)
+
+// NewMariaDBQ creates a DBQ that uses a standard MariaDB Clubhouse database.
+func NewMariaDBQ(db *sql.DB, cacheTTL time.Duration) *DBQ {
+	return newDBQ(db, chqueries.New(), cacheTTL)
 }
 
-// NewFakeTestUsersDBQ creates a DBQ that isn't actually connected to any database,
+// NewTestUsersDBQ creates a DBQ that isn't actually connected to any database,
 // but rather just returns values from a TestUsersStore. This actually sets the
 // db to "nil", which is intentional, because it means we'll see a panic if
 // something erroneously tries to talk to a DB rather than the TestUsersStore.
-func NewFakeTestUsersDBQ(testUsers []conf.TestUser, cacheTTL time.Duration) *DBQ {
+func NewTestUsersDBQ(testUsers []conf.TestUser, cacheTTL time.Duration) *DBQ {
 	return newDBQ(nil, TestUsersStore{TestUsers: testUsers}, cacheTTL)
 }
 
-func newDBQ(db *sql.DB, querier clubhousequeries.Querier, cacheTTL time.Duration) *DBQ {
+func newDBQ(db *sql.DB, querier chqueries.Querier, cacheTTL time.Duration) *DBQ {
 	dbq := &DBQ{
-		DB:      db,
-		Querier: querier,
+		DB: db,
+		q:  querier,
 	}
-	dbq.rangersByIdCache = cachemaker(dbq, cacheTTL, dbq.Querier.RangersById)
-	dbq.personPositionsCache = cachemaker(dbq, cacheTTL, dbq.Querier.PersonPositions)
-	dbq.personTeamsCache = cachemaker(dbq, cacheTTL, dbq.Querier.PersonTeams)
-	dbq.positionsCache = cachemaker(dbq, cacheTTL, dbq.Querier.Positions)
-	dbq.teamsCache = cachemaker(dbq, cacheTTL, dbq.Querier.Teams)
+	dbq.rangersByIdCache = cachemaker(dbq, cacheTTL, "RangersById", dbq.q.RangersById)
+	dbq.personPositionsCache = cachemaker(dbq, cacheTTL, "PersonPositions", dbq.q.PersonPositions)
+	dbq.personTeamsCache = cachemaker(dbq, cacheTTL, "PersonTeams", dbq.q.PersonTeams)
+	dbq.positionsCache = cachemaker(dbq, cacheTTL, "Positions", dbq.q.Positions)
+	dbq.teamsCache = cachemaker(dbq, cacheTTL, "Teams", dbq.q.Teams)
 	return dbq
 }
 
 // cachemaker cachemaker makes me a cache.
 func cachemaker[T any](
-	dbtx clubhousequeries.DBTX, valTTL time.Duration, refresher func(context.Context, clubhousequeries.DBTX) (T, error),
+	dbtx chqueries.DBTX,
+	valTTL time.Duration,
+	queryName string,
+	refresher func(context.Context, chqueries.DBTX) (T, error),
 ) *cache.InMemory[T] {
 	return cache.New[T](
 		valTTL,
 		func(ctx context.Context) (T, error) {
-			return refresher(ctx, dbtx)
+			start := time.Now()
+			t, err := refresher(ctx, dbtx)
+			logQuery(queryName, start, err)
+			return t, err
 		},
 	)
 }
 
-func (l DBQ) ExecContext(ctx context.Context, s string, i ...interface{}) (sql.Result, error) {
-	start := time.Now()
-	execContext, err := l.DB.ExecContext(ctx, s, i...)
-	logQuery(s, start, err)
-	return execContext, err
-}
-
-func (l DBQ) PrepareContext(ctx context.Context, s string) (*sql.Stmt, error) {
-	start := time.Now()
-	stmt, err := l.DB.PrepareContext(ctx, s)
-	logQuery(s, start, err)
-	return stmt, err
-}
-
-func (l DBQ) QueryContext(ctx context.Context, s string, i ...interface{}) (*sql.Rows, error) {
-	start := time.Now()
-	rows, err := l.DB.QueryContext(ctx, s, i...)
-	logQuery(s, start, err)
-	return rows, err
-}
-
-func (l DBQ) QueryRowContext(ctx context.Context, s string, i ...interface{}) *sql.Row {
-	start := time.Now()
-	row := l.DB.QueryRowContext(ctx, s, i...)
-	logQuery(s, start, nil)
-	return row
-}
-
-func logQuery(s string, start time.Time, err error) {
-	queryName, _, _ := strings.Cut(s, "\n")
-	queryName = strings.TrimPrefix(queryName, "-- name: ")
-	queryName = strings.Fields(queryName)[0]
+func logQuery(queryName string, start time.Time, err error) {
 	durationMS := float64(time.Since(start).Microseconds()) / 1000.0
-
-	// Note that the duration(ish) is very misleading. It'll always be less than
-	// the actual query time, often significantly. That's because most of the IO
-	// takes place after we're able to log in this file, e.g. in the "for rows.Next()"
-	// part of reading the results, and unfortunately that code is in the generated
-	// sqlc package. It's a TODO for later to log actual query times.
 	slog.Debug("Ran Clubhouse SQL: "+queryName,
 		"durationish", fmt.Sprintf("%.3fms", durationMS),
 		"err", err,
 	)
 }
 
-func (l DBQ) PersonPositions(ctx context.Context, db clubhousequeries.DBTX) ([]clubhousequeries.PersonPosition, error) {
+func (l DBQ) PersonPositions(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonPosition, error) {
 	rows, err := l.personPositionsCache.Get(ctx)
 	return orNil(rows), err
 }
 
-func (l DBQ) PersonTeams(ctx context.Context, db clubhousequeries.DBTX) ([]clubhousequeries.PersonTeamsRow, error) {
+func (l DBQ) PersonTeams(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonTeamsRow, error) {
 	rows, err := l.personTeamsCache.Get(ctx)
 	return orNil(rows), err
 }
 
-func (l DBQ) Positions(ctx context.Context, db clubhousequeries.DBTX) ([]clubhousequeries.PositionsRow, error) {
+func (l DBQ) Positions(ctx context.Context, db chqueries.DBTX) ([]chqueries.PositionsRow, error) {
 	rows, err := l.positionsCache.Get(ctx)
 	return orNil(rows), err
 }
 
-func (l DBQ) RangersById(ctx context.Context, db clubhousequeries.DBTX) ([]clubhousequeries.RangersByIdRow, error) {
+func (l DBQ) RangersById(ctx context.Context, db chqueries.DBTX) ([]chqueries.RangersByIdRow, error) {
 	rows, err := l.rangersByIdCache.Get(ctx)
 	return orNil(rows), err
 }
 
-func (l DBQ) Teams(ctx context.Context, db clubhousequeries.DBTX) ([]clubhousequeries.TeamsRow, error) {
+func (l DBQ) Teams(ctx context.Context, db chqueries.DBTX) ([]chqueries.TeamsRow, error) {
 	rows, err := l.teamsCache.Get(ctx)
 	return orNil(rows), err
 }
 
+// orNil takes something like *[]string and returns it as either []string or nil.
 func orNil[S ~*[]E, E any](sl S) []E {
 	if sl == nil {
 		return nil

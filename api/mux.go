@@ -18,7 +18,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -482,10 +481,6 @@ func RequireAuthN(j authz.JWTer) Adapter {
 			claims, err := j.AuthenticateJWT(strings.TrimPrefix(header, "Bearer "))
 			if err != nil || claims == nil {
 				handleErr(w, r, http.StatusUnauthorized, "Invalid Authorization token", err)
-				return
-			}
-			if claims.RangerHandle() == "" {
-				handleErr(w, r, http.StatusUnauthorized, "Invalid Authorization token", errors.New("no Ranger handle in JWT"))
 				return
 			}
 			jwtCtx := context.WithValue(r.Context(), JWTContextKey, JWTContext{

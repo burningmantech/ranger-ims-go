@@ -1,3 +1,17 @@
+ci:
+  skip:
+    - go-build-mod
+    - go-build-repo-mod
+    - go-mod-tidy
+    - go-mod-tidy-repo
+    - go-test-mod
+    - go-test-repo-mod
+    - go-vet-mod
+    - go-vet-repo-mod
+    - golangci-lint-full
+    - prepend-license
+    - govulncheck
+
 repos:
 
   - repo: https://github.com/pre-commit/pre-commit-hooks

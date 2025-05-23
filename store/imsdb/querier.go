@@ -15,7 +15,6 @@ type Querier interface {
 	AttachRangerHandleToIncident(ctx context.Context, db DBTX, arg AttachRangerHandleToIncidentParams) error
 	AttachReportEntryToFieldReport(ctx context.Context, db DBTX, arg AttachReportEntryToFieldReportParams) error
 	AttachReportEntryToIncident(ctx context.Context, db DBTX, arg AttachReportEntryToIncidentParams) error
-	AttachedFieldReportNumbers(ctx context.Context, db DBTX, arg AttachedFieldReportNumbersParams) ([]int32, error)
 	ClearEventAccessForExpression(ctx context.Context, db DBTX, arg ClearEventAccessForExpressionParams) error
 	ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error
 	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)
@@ -27,7 +26,6 @@ type Querier interface {
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
-	DetachedFieldReportNumbers(ctx context.Context, db DBTX, event int32) ([]int32, error)
 	EventAccess(ctx context.Context, db DBTX, event int32) ([]EventAccessRow, error)
 	EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAllRow, error)
 	Events(ctx context.Context, db DBTX) ([]EventsRow, error)

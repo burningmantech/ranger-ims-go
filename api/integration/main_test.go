@@ -123,7 +123,7 @@ func setup(ctx context.Context, tempDir string) {
 	}
 	must(shared.cfg.Validate())
 	shared.es = api.NewEventSourcerer()
-	clubhouseDBQ := directory.NewFakeTestUsersDBQ(
+	clubhouseDBQ := directory.NewTestUsersDBQ(
 		shared.cfg.Directory.TestUsers,
 		shared.cfg.Directory.InMemoryCacheTTL,
 	)

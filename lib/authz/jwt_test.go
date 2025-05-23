@@ -49,28 +49,47 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 func TestCreateAndGetInvalidJWTs(t *testing.T) {
 	t.Parallel()
 	jwter := authz.JWTer{SecretKey: "some-secret"}
-	expiredJWT, err := jwter.CreateAccessToken(
-		"Hardware",
-		1,
-		nil,
-		nil,
-		true,
-		time.Now().Add(-1*time.Hour),
-	)
-	require.NoError(t, err)
-	differentKeyJWT, err := authz.JWTer{SecretKey: "some-other-secret"}.CreateAccessToken(
-		"Hardware",
-		1,
-		nil,
-		nil,
-		true,
-		time.Now().Add(1*time.Hour),
-	)
-	require.NoError(t, err)
-	_, err = jwter.AuthenticateJWT(expiredJWT)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "expired")
-	_, err = jwter.AuthenticateJWT(differentKeyJWT)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "signature is invalid")
+	{
+		expiredJWT, err := jwter.CreateAccessToken(
+			"Hardware",
+			1,
+			nil,
+			nil,
+			true,
+			time.Now().Add(-1*time.Hour),
+		)
+		require.NoError(t, err)
+		_, err = jwter.AuthenticateJWT(expiredJWT)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "expired")
+	}
+	{
+		signedWithDifferentKeyJWT, err := authz.JWTer{SecretKey: "some-other-secret"}.CreateAccessToken(
+			"Hardware",
+			1,
+			nil,
+			nil,
+			true,
+			time.Now().Add(1*time.Hour),
+		)
+		require.NoError(t, err)
+		_, err = jwter.AuthenticateJWT(signedWithDifferentKeyJWT)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "signature is invalid")
+	}
+	{
+		hasNoRangerHandleJWT, err := jwter.CreateAccessToken(
+			// empty RangerName
+			"",
+			12345,
+			nil,
+			nil,
+			true,
+			time.Now().Add(1*time.Hour),
+		)
+		require.NoError(t, err)
+		_, err = jwter.AuthenticateJWT(hasNoRangerHandleJWT)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ranger handle is required")
+	}
 }

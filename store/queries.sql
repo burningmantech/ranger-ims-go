@@ -222,16 +222,6 @@ insert into FIELD_REPORT (
 )
 values (?, ?, ?, ?, ?);
 
--- name: DetachedFieldReportNumbers :many
-select NUMBER from FIELD_REPORT
-where EVENT = ? and INCIDENT_NUMBER is null;
-
--- name: AttachedFieldReportNumbers :many
-select NUMBER from FIELD_REPORT
-where
-    EVENT = ? and
-    INCIDENT_NUMBER = ?;
-
 -- name: UpdateFieldReport :exec
 update FIELD_REPORT
 set SUMMARY = ?, INCIDENT_NUMBER = ?

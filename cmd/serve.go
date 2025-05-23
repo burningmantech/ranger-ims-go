@@ -88,10 +88,10 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 	case conf.DirectoryTypeClubhouseDB:
 		db, err := directory.MariaDB(ctx, imsCfg.Directory.ClubhouseDB)
 		must(err)
-		clubhouseDBQ = directory.NewRealMariaDBQ(db, imsCfg.Directory.InMemoryCacheTTL)
+		clubhouseDBQ = directory.NewMariaDBQ(db, imsCfg.Directory.InMemoryCacheTTL)
 	case conf.DirectoryTypeTestUsers:
 		must(err)
-		clubhouseDBQ = directory.NewFakeTestUsersDBQ(imsCfg.Directory.TestUsers, imsCfg.Directory.InMemoryCacheTTL)
+		clubhouseDBQ = directory.NewTestUsersDBQ(imsCfg.Directory.TestUsers, imsCfg.Directory.InMemoryCacheTTL)
 	default:
 		must(fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory))
 	}

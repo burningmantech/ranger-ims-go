@@ -1,24 +1,63 @@
 repos:
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      - id: trailing-whitespace
       - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-xml
+      - id: check-yaml
+      - id: destroyed-symlinks
+      - id: detect-aws-credentials
+      - id: detect-private-key
       - id: end-of-file-fixer
+      - id: forbid-submodules
+      - id: mixed-line-ending
+      - id: no-commit-to-branch
+      - id: trailing-whitespace
+
+  - repo: https://github.com/tekwizely/pre-commit-golang
+    rev: v1.0.0-rc.1
+    hooks:
+    -   id: go-build-mod
+    # -   id: go-build-pkg
+    -   id: go-build-repo-mod
+    # -   id: go-build-repo-pkg
+    -   id: go-fmt
+        args: ["-w"]
+    -   id: go-fmt-repo
+        args: ["-w"]
+    -   id: go-mod-tidy
+    -   id: go-mod-tidy-repo
+    -   id: go-test-mod
+    # -   id: go-test-pkg
+    -   id: go-test-repo-mod
+    # -   id: go-test-repo-pkg
+    # -   id: go-vet
+    -   id: go-vet-mod
+    # -   id: go-vet-pkg
+    -   id: go-vet-repo-mod
+    # -   id: go-vet-repo-pkg
+
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.1.6
     hooks:
       - id: golangci-lint-full
         args: ["--config=.golangci.yml"]
+
   - repo: local
     hooks:
       - id: prepend-license
         name: Prepend License
         entry: go run bin/prependlicense/prependlicense.go
-        language: golang
+        language: system
         pass_filenames: false
       - id: govulncheck
         name: govulncheck
         entry: go tool govulncheck ./...
-        language: golang
+        language: system
         pass_filenames: false

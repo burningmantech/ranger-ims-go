@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1.7-labs
 
+# -----------------
+# Build image stage
+# -----------------
 FROM golang:alpine AS build
 
 WORKDIR /app
@@ -20,7 +23,10 @@ RUN go run bin/fetchclientdeps/fetchclientdeps.go
 # Build the server
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
 
-# Start a new stage and only copy over the IMS binary.
+
+# --------------------
+# Deployed image stage
+# --------------------
 FROM alpine:latest
 COPY --from=build /app/ranger-ims-go /
 

@@ -9,10 +9,15 @@ services:
       IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
       IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
     ports:
-      - "${IMS_SERVER_PORT:-8081}:80"
+      - "${IMS_PORT:-8080}:80"
     depends_on:
       database:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:80/ims/api/ping || exit 1" ]
+      interval: 1s
+      timeout: 3s
+      retries: 30
 
   database:
     image: "mariadb:10.5.27"

@@ -22,6 +22,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
 
 # Start a new stage and only copy over the IMS binary.
 FROM alpine:latest
+# Include curl for the health check's sake
+RUN apk add curl
 COPY --from=build /app/ranger-ims-go /
 
 # Use a non-root user to run the server

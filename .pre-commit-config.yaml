@@ -1,16 +1,14 @@
 ci:
   skip:
-    - go-build-mod
-    - go-build-repo-mod
-    - go-mod-tidy
+    - fetch-client-deps
     - go-mod-tidy-repo
-    - go-test-mod
-    - go-test-repo-mod
-    - go-vet-mod
     - go-vet-repo-mod
     - golangci-lint-full
-    - prepend-license
     - govulncheck
+    - prepend-license
+    - simple-go-fmt
+    - simple-go-mod-tidy
+    - simple-go-vet
 
 repos:
 
@@ -36,25 +34,10 @@ repos:
   - repo: https://github.com/tekwizely/pre-commit-golang
     rev: v1.0.0-rc.1
     hooks:
-    -   id: go-build-mod
-    # -   id: go-build-pkg
-    -   id: go-build-repo-mod
-    # -   id: go-build-repo-pkg
-    -   id: go-fmt
-        args: ["-w"]
     -   id: go-fmt-repo
         args: ["-w"]
-    -   id: go-mod-tidy
     -   id: go-mod-tidy-repo
-    -   id: go-test-mod
-    # -   id: go-test-pkg
-    -   id: go-test-repo-mod
-    # -   id: go-test-repo-pkg
-    # -   id: go-vet
-    -   id: go-vet-mod
-    # -   id: go-vet-pkg
     -   id: go-vet-repo-mod
-    # -   id: go-vet-repo-pkg
 
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.1.6
@@ -64,13 +47,44 @@ repos:
 
   - repo: local
     hooks:
+      - id: fetch-client-deps
+        name: Fetch client deps
+        entry: go run bin/fetchclientdeps/fetchclientdeps.go
+        language: system
+        pass_filenames: false
+
       - id: prepend-license
         name: Prepend License
+        # This program implicitly only operates on specific file types, which
+        # are configured within the program itself, hence no "types_or" here.
         entry: go run bin/prependlicense/prependlicense.go
         language: system
         pass_filenames: false
+
       - id: govulncheck
         name: govulncheck
         entry: go tool govulncheck ./...
         language: system
+        types_or: [ go, go-mod, go-sum ]
+        pass_filenames: false
+
+      - id: simple-go-fmt
+        name: simple go fmt
+        entry: go fmt ./...
+        language: system
+        types_or: [ go, go-mod, go-sum ]
+        pass_filenames: false
+
+      - id: simple-go-vet
+        name: simple go vet
+        entry: go vet ./...
+        language: system
+        types_or: [ go, go-mod, go-sum ]
+        pass_filenames: false
+
+      - id: simple-go-mod-tidy
+        name: simple go mod tidy
+        entry: go mod tidy
+        language: system
+        types_or: [ go, go-mod, go-sum ]
         pass_filenames: false

@@ -15,6 +15,7 @@ repos:
       - id: end-of-file-fixer
       - id: forbid-submodules
       - id: mixed-line-ending
+      # TODO: delete this hook fully, if Tool permits
       #  - id: no-commit-to-branch
       - id: trailing-whitespace
 
@@ -28,26 +29,50 @@ repos:
     hooks:
       - id: prepend-license
         name: Prepend License
+        # This program implicitly only operates on specific file types, which
+        # are configured within the program itself, hence no "types_or" here.
         entry: go run bin/prependlicense/prependlicense.go
         language: system
         pass_filenames: false
+
+      # The combination of `types_or: [go]` and `pass_filenames: false` means
+      # that the hook will trigger if any go file is part of the commit, but that the
+      # individual filenames of changed go files won't be passed to the hook. That's
+      # the right behavior for hooks that work on all the go code at once.
+
       - id: govulncheck
         name: govulncheck
         entry: go tool govulncheck ./...
         language: system
+        types_or: [ go ]
         pass_filenames: false
+
       - id: go-fmt
         name: go fmt
         entry: go fmt ./...
         language: system
+        types_or: [ go ]
         pass_filenames: false
+
       - id: go-vet
         name: go vet
         entry: go vet ./...
         language: system
+        types_or: [ go ]
         pass_filenames: false
+
       - id: go-mod-tidy
         name: go mod tidy
         entry: go mod tidy
         language: system
+        types_or: [ go ]
         pass_filenames: false
+
+      # This would compile all the go code and run all the go tests in the repo,
+      # but it's kind of out of the normal scope of pre-commit to do this here.
+      # - id: go-test
+      #   name: go test
+      #   entry: go test ./...
+      #   language: system
+      #   types_or: [go]
+      #   pass_filenames: false

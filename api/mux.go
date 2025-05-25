@@ -337,7 +337,7 @@ func AddToMux(
 		),
 	)
 
-	mux.HandleFunc("GET /",
+	mux.HandleFunc("GET /{$}",
 		func(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "IMS", http.StatusOK)
 		},

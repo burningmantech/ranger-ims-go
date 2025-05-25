@@ -345,7 +345,7 @@ func AddToMux(
 
 	mux.HandleFunc("GET /ims/api/ping",
 		func(w http.ResponseWriter, req *http.Request) {
-			http.Error(w, "ack", http.StatusOK)
+			http.Error(w, "ack", http.StatusInternalServerError)
 		},
 	)
 

@@ -15,7 +15,7 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:80/ims/api/ping || exit 1" ]
+      test: [ "CMD", "curl", "-f", "http://app:80/ims/api/ping" ]
       interval: 1s
       timeout: 3s
       retries: 30

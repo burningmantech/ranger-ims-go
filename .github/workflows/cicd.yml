@@ -217,7 +217,7 @@ jobs:
         run: gzip --uncompress --stdout docker_image.tgz | docker image load
 
       - name: Deploy to staging
-        run: env || false
+        run: env && false
         env:
           # https://github.com/burningmantech/ranger-ims-server/settings/secrets
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

@@ -135,3 +135,39 @@ jobs:
         with:
           name: docker
           path: docker_image.tgz
+
+  docker-test:
+
+    name: Test Docker image
+
+    needs: [docker-build]
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+
+      - name: Harden CI
+        uses: step-security/harden-runner@v2.10.4
+        with:
+          disable-sudo: true
+          egress-policy: block
+          allowed-endpoints: >
+            *.docker.com:443
+            *.docker.io:443
+            *.github.com:443
+            github.com:443
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+
+      - name: Load Docker image
+        run: gzip --uncompress --stdout docker_image.tgz | docker image load
+
+      - name: Test Docker image
+        run: ./bin/test_docker

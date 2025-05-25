@@ -19,7 +19,7 @@ docker-compose rm -fsv
 
 if [ "${exit_code}" -ne "0" ]; then
     echo "App failed health check"
-	exit ${exit_code}
+    exit ${exit_code}
 else
     echo "App started and passed health check"
 fi

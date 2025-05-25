@@ -1,14 +1,12 @@
 ci:
   skip:
     - fetch-client-deps
-    - go-mod-tidy-repo
-    - go-vet-repo-mod
     - golangci-lint-full
     - govulncheck
     - prepend-license
-    - simple-go-fmt
-    - simple-go-mod-tidy
-    - simple-go-vet
+    - go-fmt
+    - go-mod-tidy
+    - go-vet
 
 repos:
 
@@ -31,14 +29,6 @@ repos:
       # - id: no-commit-to-branch
       - id: trailing-whitespace
 
-  - repo: https://github.com/tekwizely/pre-commit-golang
-    rev: v1.0.0-rc.1
-    hooks:
-    -   id: go-fmt-repo
-        args: ["-w"]
-    -   id: go-mod-tidy-repo
-    -   id: go-vet-repo-mod
-
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.1.6
     hooks:
@@ -54,7 +44,7 @@ repos:
         pass_filenames: false
 
       - id: prepend-license
-        name: Prepend License
+        name: prepend license
         # This program implicitly only operates on specific file types, which
         # are configured within the program itself, hence no "types_or" here.
         entry: go run bin/prependlicense/prependlicense.go
@@ -68,22 +58,22 @@ repos:
         types_or: [ go, go-mod, go-sum ]
         pass_filenames: false
 
-      - id: simple-go-fmt
-        name: simple go fmt
+      - id: go-fmt
+        name: go fmt
         entry: go fmt ./...
         language: system
         types_or: [ go, go-mod, go-sum ]
         pass_filenames: false
 
-      - id: simple-go-vet
-        name: simple go vet
+      - id: go-vet
+        name: go vet
         entry: go vet ./...
         language: system
         types_or: [ go, go-mod, go-sum ]
         pass_filenames: false
 
-      - id: simple-go-mod-tidy
-        name: simple go mod tidy
+      - id: go-mod-tidy
+        name: go mod tidy
         entry: go mod tidy
         language: system
         types_or: [ go, go-mod, go-sum ]

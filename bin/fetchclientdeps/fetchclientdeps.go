@@ -21,7 +21,6 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"golang.org/x/sync/errgroup"
 	"io"
@@ -111,30 +110,35 @@ func main() {
 
 func existOrFetch(ctx context.Context, dir *os.Root, basename, url, tegridy string) error {
 	if pathExists(dir.Stat(basename)) {
-		// File already exists. No need to download again.
-		log.Printf("No need to re-fetch: %v", basename)
-	} else {
-		log.Printf("Fetching %v", url)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return fmt.Errorf("[NewRequestWithContext]: %w", err)
+		err := checkIntegrity(dir, basename, tegridy)
+		if err == nil {
+			log.Printf("File already exists with expected hash: %v", basename)
+			return nil
+		} else {
+			log.Printf("Will re-fetch file because it has the wrong hash: %v", basename)
 		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return fmt.Errorf("[Get]: %w", err)
-		}
-		defer logClose(resp.Body)
+	}
 
-		f, err := dir.Create(basename)
-		if err != nil {
-			return fmt.Errorf("[Create]: %w", err)
-		}
-		defer logClose(resp.Body)
+	log.Printf("Fetching: %v", url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("[NewRequestWithContext]: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("[Get]: %w", err)
+	}
+	defer logClose(resp.Body)
 
-		_, err = io.Copy(f, resp.Body)
-		if err != nil {
-			return fmt.Errorf("[Copy]: %w", err)
-		}
+	f, err := dir.Create(basename)
+	if err != nil {
+		return fmt.Errorf("[Create]: %w", err)
+	}
+	defer logClose(resp.Body)
+
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		return fmt.Errorf("[Copy]: %w", err)
 	}
 	return checkIntegrity(dir, basename, tegridy)
 }
@@ -157,15 +161,13 @@ func checkIntegrity(root *os.Root, basename, tegridy string) error {
 		hasher = sha512.New()
 		tegridy = strings.TrimPrefix(tegridy, "sha512-")
 	case tegridy == "":
-		return errors.New("missing tegridy")
+		return fmt.Errorf("missing hash name prefix: %v", tegridy)
 	}
 	_, err = hasher.Write(b)
 	must(err)
 	hashStr := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
 	if tegridy != hashStr {
-		return fmt.Errorf("bad tegridy for %v. Wanted %v, got %v\n"+
-			"If you just upgraded that dep, you'll need to delete the local version now "+
-			"to pick up the new one", basename, tegridy, hashStr)
+		return fmt.Errorf("bad hash for %v\nWanted %v, got %v\n", f.Name(), tegridy, hashStr)
 	}
 	return nil
 }

@@ -11,10 +11,15 @@ on:
   pull_request:
     branches: ["master"]
 
+
 jobs:
 
   lint:
+
+    name: Linters
+
     runs-on: ubuntu-latest
+
     steps:
     - name: Harden CI
       uses: step-security/harden-runner@v2.12.0
@@ -46,8 +51,13 @@ jobs:
     - name: Run pre-commit checks
       run: uvx pre-commit run --all-files
 
+
   build:
+
+    name: Build application
+
     runs-on: ubuntu-latest
+
     steps:
     - name: Harden CI
       uses: step-security/harden-runner@v2.12.0
@@ -105,7 +115,9 @@ jobs:
         GITHUB_USER: ${{ github.actor }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
 
+
   docker-build:
+
     name: Build Docker image
 
     runs-on: ubuntu-latest
@@ -135,6 +147,7 @@ jobs:
         with:
           name: docker
           path: docker_image.tgz
+
 
   docker-test:
 

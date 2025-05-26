@@ -137,7 +137,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build --tag=ranger-ims-go .
+        run: docker buildx bake
 
       - name: Save Docker image
         run: docker image save ranger-ims-go | gzip -9 > docker_image.tgz

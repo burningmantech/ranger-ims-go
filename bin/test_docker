@@ -12,8 +12,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 exit_code=0
 echo "Building and starting Docker containers"
-docker compose build
-docker compose up --wait-timeout 30 --wait || exit_code=$?
+docker compose up --build --wait-timeout 30 --wait || exit_code=$?
 
 echo "Stopping and deleting those Docker containers"
 docker compose rm -fsv

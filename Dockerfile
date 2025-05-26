@@ -9,13 +9,14 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Fetch client deps that we need to embed in the binary
+COPY ./bin/fetchclientdeps/ ./bin/fetchclientdeps/
+RUN go run ./bin/fetchclientdeps/fetchclientdeps.go
+
 # Copy everything in the repo, including the .git directory,
 # because we want Go to bake the repo's state into the build.
 # See https://pkg.go.dev/debug/buildinfo#BuildInfo
 COPY --exclude=playwright ./ ./
-
-# Fetch client deps that we need to embed in the binary
-RUN go run bin/fetchclientdeps/fetchclientdeps.go
 
 # Build the server
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go

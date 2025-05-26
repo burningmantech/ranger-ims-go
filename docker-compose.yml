@@ -2,10 +2,10 @@ services:
 
   app:
     build: .
-    container_name: "rangers-ims-go"
+    container_name: "ranger-ims-go"
     environment:
       IMS_DIRECTORY: "TestUsers"
-      IMS_DB_HOST_NAME: "rangers-ims-database"
+      IMS_DB_HOST_NAME: "ranger-ims-database"
       IMS_DB_PORT: "${IMS_DB_PORT:-3306}"
       IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
       IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
@@ -15,14 +15,14 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://app:80/ims/api/ping" ]
+      test: [ "CMD", "/ranger-ims-go", "healthcheck", "--server_url", "http://app:80" ]
       interval: 1s
       timeout: 3s
       retries: 30
 
   database:
     image: "mariadb:10.5.27"
-    container_name: "rangers-ims-database"
+    container_name: "ranger-ims-database"
     environment:
       MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"
       MARIADB_USER: "${IMS_DB_USER_NAME:-ims}"

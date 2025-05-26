@@ -12,6 +12,7 @@ linters:
     - funlen  # meh
     - gochecknoglobals  # there are a bunch of globals that could be cleaned up
     - gocognit  # many functions are too complex currently
+    - goconst  # not very helpful
     - gocyclo  # many functions are too complex currently
     - maintidx  # many functions are too complex currently
     - mnd  # magic numbers can often be obvious enough. Maybe...

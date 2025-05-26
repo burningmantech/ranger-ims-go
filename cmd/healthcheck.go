@@ -17,6 +17,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"github.com/spf13/cobra"
 	"io"
@@ -36,9 +37,6 @@ var healthCheckCmd = &cobra.Command{
 
 var serverURL string
 
-// exit is overridable for tests.
-var exit = os.Exit
-
 func init() {
 	rootCmd.AddCommand(healthCheckCmd)
 
@@ -47,12 +45,16 @@ func init() {
 }
 
 func runHealthCheck(cmd *cobra.Command, args []string) {
+	os.Exit(runHealthCheckInternal(cmd.Context(), serverURL))
+}
+
+func runHealthCheckInternal(ctx context.Context, serverURL string) int {
 	client := http.Client{Timeout: time.Second * 5}
 
 	pingURL, err := url.JoinPath(serverURL, "ims/api/ping")
 	must(err)
 
-	req, err := http.NewRequestWithContext(cmd.Context(), http.MethodGet, pingURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, nil)
 	must(err)
 
 	resp, err := client.Do(req)
@@ -64,15 +66,12 @@ func runHealthCheck(cmd *cobra.Command, args []string) {
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Println("wanted status code 200, got", resp.StatusCode) //nolint:forbidigo
-		exit(5)
-		return
+		return 5
 	}
 	if strings.TrimSpace(string(body)) != "ack" {
 		fmt.Printf("wanted response of 'ack', got '%v'\n", string(body)) //nolint:forbidigo
-		exit(6)
-		return
+		return 6
 	}
 	fmt.Println("OK") //nolint:forbidigo
-	exit(0)
-	return
+	return 0
 }

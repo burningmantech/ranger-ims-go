@@ -251,7 +251,10 @@ jobs:
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: ranger-gha-deploy-${{ github.repository }}-${{ github.run_id }}
+          role-session-name: ranger-gha-${{ github.run_id }}
+
+      - name: Ask AWS who I am
+        run: aws sts get-caller-identity
 
       - name: Login to AWS ECR
         id: aws-login-ecr

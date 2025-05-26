@@ -137,7 +137,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker buildx bake ranger-ims-go
+        run: docker build --tag "ranger-ims-go:${{ github.sha }}" .
 
       - name: Save Docker image
         run: docker image save ranger-ims-go | gzip -9 > docker_image.tgz
@@ -264,4 +264,4 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker image ls
-          docker push "${REGISTRY}/${REPOSITORY}:${IMAGE_TAG}"
+          docker push "ranger-ims-go:${{ github.sha }}"

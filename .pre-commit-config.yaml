@@ -1,6 +1,6 @@
 ci:
   skip:
-    - fetch-client-deps
+    - fetch-build-deps
     - golangci-lint-full
     - govulncheck
     - prepend-license
@@ -37,9 +37,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: fetch-client-deps
-        name: Fetch client deps
-        entry: go run bin/fetchclientdeps/fetchclientdeps.go
+      - id: fetch-build-deps
+        name: fetch build deps
+        entry: go run bin/fetchbuilddeps/fetchbuilddeps.go
         language: system
         pass_filenames: false
 

@@ -17,6 +17,7 @@
 package cmd
 
 import (
+	"github.com/burningmantech/ranger-ims-go/api"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,12 +26,8 @@ import (
 func TestHealthCheckSuccess(t *testing.T) {
 	t.Parallel()
 
-	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ims/api/ping" {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ack"))
-		}
-	}))
+	// this serves the real endpoint used in the server
+	ser := httptest.NewServer(api.AddBasicHandlers(nil))
 
 	exitCode := runHealthCheckInternal(t.Context(), ser.URL)
 	if exitCode != 0 {
@@ -58,10 +55,8 @@ func TestHealthCheckBadResponse(t *testing.T) {
 	t.Parallel()
 
 	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ims/api/ping" {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("nack"))
-		}
+		// the server returns a 200, but not the expected text ("ack")
+		w.WriteHeader(http.StatusOK)
 	}))
 
 	exitCode := runHealthCheckInternal(t.Context(), ser.URL)

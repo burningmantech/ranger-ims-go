@@ -13,8 +13,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Fetch client deps that we need to embed in the binary
-COPY ./bin/fetchclientdeps/ ./bin/fetchclientdeps/
-RUN go run ./bin/fetchclientdeps/fetchclientdeps.go
+COPY ./bin/fetchbuilddeps/ ./bin/fetchbuilddeps/
+RUN go run ./bin/fetchbuilddeps/fetchbuilddeps.go
 
 # Copy everything in the repo, including the .git directory,
 # because we want Go to bake the repo's state into the build.

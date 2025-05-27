@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
@@ -54,8 +53,8 @@ func NewS3Client(ctx context.Context) (*S3Client, error) {
 func (c *S3Client) UploadToS3(ctx context.Context, bucketName, objectName string, file io.Reader) *herr.HTTPError {
 	start := time.Now()
 	_, err := c.S3Funcs.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectName),
+		Bucket: ptr(bucketName),
+		Key:    ptr(objectName),
 		Body:   file,
 	})
 	if err != nil {
@@ -68,8 +67,8 @@ func (c *S3Client) UploadToS3(ctx context.Context, bucketName, objectName string
 func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string) (file io.ReadSeeker, httpError *herr.HTTPError) {
 	start := time.Now()
 	output, err := c.S3Funcs.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectName),
+		Bucket: ptr(bucketName),
+		Key:    ptr(objectName),
 	})
 	if err != nil {
 		var apiErr smithy.APIError
@@ -91,4 +90,8 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 		return nil, herr.InternalServerError("Failed to read attachment", err).From("[io.Copy]")
 	}
 	return bytes.NewReader(buf.Bytes()), nil
+}
+
+func ptr[T any](s T) *T {
+	return &s
 }

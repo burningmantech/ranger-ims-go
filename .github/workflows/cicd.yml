@@ -11,10 +11,20 @@ on:
   pull_request:
     branches: ["master"]
 
+
+defaults:
+  run:
+    shell: bash
+
+
 jobs:
 
   lint:
+
+    name: Linters
+
     runs-on: ubuntu-latest
+
     steps:
     - name: Harden CI
       uses: step-security/harden-runner@v2.12.0
@@ -46,8 +56,13 @@ jobs:
     - name: Run pre-commit checks
       run: uvx pre-commit run --all-files
 
+
   build:
+
+    name: Build application
+
     runs-on: ubuntu-latest
+
     steps:
     - name: Harden CI
       uses: step-security/harden-runner@v2.12.0
@@ -105,34 +120,122 @@ jobs:
         GITHUB_USER: ${{ github.actor }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
 
-# TODO: get this working next
-#  docker-build:
-#    name: Build Docker image
-#
-#    runs-on: ubuntu-latest
-#    timeout-minutes: 10
-#
-#    steps:
-#
-#      - name: Harden CI
-#        uses: step-security/harden-runner@v2.12.0
-#        with:
-#          disable-sudo: true
-#          egress-policy: audit
-#          allowed-endpoints: >
-#            *.docker.io:443
-#
-#      - name: Checkout source code
-#        uses: actions/checkout@v4
-#
-#      - name: Build Docker image
-#        run: ./bin/build
-#
-#      - name: Save Docker image
-#        run: docker image save ranger-ims-server:dev | gzip -9 > docker_image.tgz
-#
-#      - name: Upload Docker image artifacts
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: docker
-#          path: docker_image.tgz
+
+  docker-build:
+
+    name: Build Docker image
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+
+      - name: Harden CI
+        uses: step-security/harden-runner@v2.12.0
+        with:
+          disable-sudo: true
+          egress-policy: audit
+          allowed-endpoints: >
+            *.docker.io:443
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build --tag "ranger-ims-go:${{ github.sha }}" .
+
+      - name: Save Docker image
+        run: docker image save ranger-ims-go | gzip -9 > docker_image.tgz
+
+      - name: Upload Docker image artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker
+          path: docker_image.tgz
+
+
+  docker-test:
+
+    name: Test Docker image
+
+    needs: [docker-build]
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+
+      - name: Harden CI
+        uses: step-security/harden-runner@v2.10.4
+        with:
+          disable-sudo: true
+          egress-policy: block
+          allowed-endpoints: >
+            *.docker.com:443
+            *.docker.io:443
+            *.github.com:443
+            github.com:443
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+
+      - name: Load Docker image
+        run: gzip --uncompress --stdout docker_image.tgz | docker image load
+
+      - name: Test Docker image
+        run: ./bin/test_docker
+
+
+  deploy-staging:
+    name: Deploy to staging
+
+    needs: [lint, build, docker-test]
+    # if: ${{ github.ref == 'refs/heads/master' }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      id-token: write
+
+    steps:
+
+      - name: Harden CI
+        uses: step-security/harden-runner@v2.10.4
+        with:
+          disable-sudo: true
+          egress-policy: block
+          allowed-endpoints: >
+            *.github.com:443
+            *.githubusercontent.com:443
+            *.amazonaws.com:443
+            github.com:443
+
+      - name: Download Docker image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+
+      - name: Load Docker image
+        run: gzip --uncompress --stdout docker_image.tgz | docker image load
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ranger-gha-${{ github.repository_id }}-${{ github.job }}-${{ github.run_id }}
+
+      - name: Login to AWS ECR
+        id: aws-login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push docker image to Amazon ECR
+        run: |
+          docker tag "ranger-ims-go:${{ github.sha }}" "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+          docker push "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"

@@ -11,8 +11,11 @@ set -o errexit -o nounset -o pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 exit_code=0
-echo "Building and starting Docker containers"
-docker compose up --build --wait-timeout 30 --wait || exit_code=$?
+# `docker compose up` will only rebuild from the local Dockerfile if no image
+# exists for the given name, e.g. ranger-ims-go. To change that behavior, you'd
+# add a --build arg to the `docker compose up`.
+echo "Starting Docker containers. Note this may not pick up any local changes"
+docker compose up --wait-timeout 30 --wait || exit_code=$?
 
 echo "Stopping and deleting those Docker containers"
 docker compose rm -fsv

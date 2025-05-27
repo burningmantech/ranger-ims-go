@@ -24,6 +24,10 @@ COPY --exclude=playwright ./ ./
 # Build the server
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
 
+# Allow IMS to bind to privileged port numbers
+RUN apk add --no-cache libcap
+RUN setcap "cap_net_bind_service=+ep" /app/ranger-ims-go
+
 
 # --------------------
 # Deployed image stage
@@ -35,10 +39,6 @@ COPY --from=build /app/ranger-ims-go /opt/ims/bin/ims
 ENV IMS_HOSTNAME="0.0.0.0"
 ENV IMS_PORT="80"
 ENV IMS_DIRECTORY="ClubhouseDB"
-
-# Allow IMS to bind to privileged port numbers
-RUN apk add --no-cache libcap
-RUN setcap "cap_net_bind_service=+ep" /opt/ims/bin/ims
 
 # Use a non-root user to run the server
 USER daemon:daemon

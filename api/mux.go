@@ -337,6 +337,14 @@ func AddToMux(
 		),
 	)
 
+	return AddBasicHandlers(mux)
+}
+
+func AddBasicHandlers(mux *http.ServeMux) *http.ServeMux {
+	if mux == nil {
+		mux = http.NewServeMux()
+	}
+
 	mux.HandleFunc("GET /{$}",
 		func(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "IMS", http.StatusOK)

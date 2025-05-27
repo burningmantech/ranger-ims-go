@@ -64,8 +64,8 @@ func main() {
 	})
 	eg.Go(func() error {
 		mustRunInDir(
-			exec.CommandContext(gCtx, "go", "run", "fetchclientdeps.go"),
-			filepath.Join(repo.Name(), "bin", "fetchclientdeps"),
+			exec.CommandContext(gCtx, "go", "run", "fetchbuilddeps.go"),
+			filepath.Join(repo.Name(), "bin", "fetchbuilddeps"),
 		)
 		return nil
 	})

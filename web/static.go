@@ -21,7 +21,7 @@ import "embed"
 // Are you hitting a compilation error here, because one of the
 // files below cannot be found?
 //
-// Please run `go run bin/fetchclientdeps/fetchclientdeps.go`,
+// Please run `go run bin/fetchbuilddeps/fetchbuilddeps.go`,
 // as you need to have these files loaded in your filesystem in
 // order to compile.
 

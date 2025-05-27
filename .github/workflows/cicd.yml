@@ -42,8 +42,8 @@ jobs:
       with:
         go-version-file: "go.mod"
 
-    - name: Fetch external JS deps
-      run: go run bin/fetchclientdeps/fetchclientdeps.go
+    - name: Fetch external build dependencies
+      run: go run bin/fetchbuilddeps/fetchbuilddeps.go
 
     - name: Install Python
       uses: actions/setup-python@v5
@@ -94,8 +94,8 @@ jobs:
       with:
         go-version-file: "go.mod"
 
-    - name: Fetch external JS deps
-      run: go run bin/fetchclientdeps/fetchclientdeps.go
+    - name: Fetch external build dependencies
+      run: go run bin/fetchbuilddeps/fetchbuilddeps.go
 
     # TODO: maybe install sqlc, templ, and tsc code generation
     #  here as well. They would add some additional build time

@@ -11,9 +11,9 @@ that occur in Black Rock City.
 2. Install Go and have `go` on your PATH. https://go.dev/dl
 3. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
 4. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
-5. Do a one-time fetch of external client deps into your repo, by running
+5. Do a one-time fetch of external build dependencies into your repo, by running
    ```shell
-    go run bin/fetchclientdeps/fetchclientdeps.go
+    go run bin/fetchbuilddeps/fetchbuilddeps.go
    ```
 
 ## Run tests

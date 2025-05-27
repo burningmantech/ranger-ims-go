@@ -241,3 +241,32 @@ jobs:
         run: |
           docker tag "ranger-ims-go:${{ github.sha }}" "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
           docker push "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+
+      - name: Get and update current task definition
+        id: get-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: new-task-definition.json
+          task-definition-arn:  ${{ secrets.AWS_ECS_TASK_DEFINITION_ARN }}
+          task-definition-family: ranger-ims-go-staging-fg
+          container-name: ranger-ims-go
+          image: "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+          environment-variables: |
+            GHA_ACTOR_ID=${{ github.actor_id }}
+            GHA_ACTOR=${{ github.actor }}
+            GHA_EVENT_NAME=${{ github.event_name }}
+            GHA_JOB=${{ github.job }}
+            GHA_REF=${{ github.ref }}
+            GHA_RUN_ATTEMPT=${{ github.run_attempt }}
+            GHA_RUN_ID=${{ github.run_id }}
+            GHA_RUN_NUMBER=${{ github.run_number }}
+            GHA_TRIGGERING_ACTOR=${{ github.triggering_actor }}
+            GHA_WORKFLOW=${{ github.workflow }}
+            GIT_REPOSITORY=${{ github.github.repositoryUrl }}
+            GIT_SHA=${{ github.sha }}
+
+      - name: Upload Trial log artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-task-definition.json
+          path: new-task-definition.json

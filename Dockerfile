@@ -29,17 +29,21 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
 # Deployed image stage
 # --------------------
 FROM alpine:latest
-COPY --from=build /app/ranger-ims-go /
-
-# Use a non-root user to run the server
-USER daemon:daemon
+COPY --from=build /app/ranger-ims-go /opt/ims/bin/ims
 
 # Docker-specific default configuration
 ENV IMS_HOSTNAME="0.0.0.0"
 ENV IMS_PORT="80"
 ENV IMS_DIRECTORY="ClubhouseDB"
 
+# Allow IMS to bind to privileged port numbers
+RUN apk add --no-cache libcap
+RUN setcap "cap_net_bind_service=+ep" /opt/ims/bin/ims
+
+# Use a non-root user to run the server
+USER daemon:daemon
+
 # This should match the IMS_PORT above
 EXPOSE 80
 
-CMD ["/ranger-ims-go", "serve"]
+CMD [ "/opt/ims/bin/ims", "serve" ]

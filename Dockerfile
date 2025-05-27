@@ -5,6 +5,11 @@
 # -----------------
 FROM golang:alpine AS build
 
+# Used for setcap below
+RUN apk add --no-cache libcap
+# Used by Go when building to inject repo metadata into the program
+RUN apk add --no-cache git
+
 WORKDIR /app
 
 # Install all the module dependencies early, so that this layer
@@ -25,7 +30,6 @@ COPY --exclude=playwright ./ ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
 
 # Allow IMS to bind to privileged port numbers
-RUN apk add --no-cache libcap
 RUN setcap "cap_net_bind_service=+ep" /app/ranger-ims-go
 
 

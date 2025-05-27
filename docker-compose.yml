@@ -1,7 +1,6 @@
 services:
 
   app:
-    build: .
     image: "ranger-ims-go"
     container_name: "ranger-ims-go"
     environment:

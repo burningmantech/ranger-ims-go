@@ -16,7 +16,7 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "/ranger-ims-go", "healthcheck", "--server_url", "http://app:80" ]
+      test: [ "CMD", "/opt/ims/bin/ims", "healthcheck", "--server_url", "http://app:80" ]
       interval: 1s
       timeout: 3s
       retries: 30

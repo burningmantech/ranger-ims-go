@@ -236,9 +236,6 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Push docker image to Amazon ECR
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
         run: |
-          docker image ls
-          docker push "ranger-ims-go:${{ github.sha }}"
+          docker tag "ranger-ims-go:${{ github.sha }}" "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+          docker push "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"

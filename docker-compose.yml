@@ -1,7 +1,7 @@
 services:
 
   app:
-    image: "ranger-ims-go"
+    image: "ranger-ims-go:${TAG}"
     container_name: "ranger-ims-go"
     environment:
       IMS_DIRECTORY: "TestUsers"

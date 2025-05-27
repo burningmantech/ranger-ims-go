@@ -189,6 +189,8 @@ jobs:
 
       - name: Test Docker image
         run: ./bin/test_docker
+        env:
+          TAG: ${{ github.sha }}
 
 
   deploy-staging:

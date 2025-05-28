@@ -47,7 +47,7 @@ func TestMustInitConfig(t *testing.T) {
 	t.Setenv("IMS_ADMINS", "alice,bob")
 	t.Setenv("IMS_JWT_SECRET", "shhh")
 	t.Setenv("IMS_DB_HOST_NAME", "db")
-	t.Setenv("IMS_DB_HOST_POST", "555")
+	t.Setenv("IMS_DB_HOST_PORT", "555")
 	t.Setenv("IMS_DB_DATABASE", "ims")
 	t.Setenv("IMS_DB_USER_NAME", "me")
 	t.Setenv("IMS_DB_PASSWORD", "boo")

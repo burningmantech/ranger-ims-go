@@ -251,7 +251,7 @@ func mustInitConfig(envFileName string) *conf.IMSConfig {
 	if v, ok := lookupEnv("IMS_DB_HOST_NAME"); ok {
 		newCfg.Store.MariaDB.HostName = v
 	}
-	if v, ok := lookupEnv("IMS_DB_HOST_POST"); ok {
+	if v, ok := lookupEnv("IMS_DB_HOST_PORT"); ok {
 		newCfg.Store.MariaDB.HostPort, err = conv.ParseInt32(v)
 		must(err)
 	}

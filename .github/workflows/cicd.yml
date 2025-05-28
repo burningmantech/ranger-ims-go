@@ -273,11 +273,8 @@ jobs:
             GIT_SHA=${{ github.sha }}
             TASK_UPDATED=${{ steps.date.outputs.date }}
 
-      - name: Save task definition
-        run: echo "${{ steps.get-task-definition.outputs.task-definition }}" > new-task-definition.json
-
       - name: Upload task definition
         uses: actions/upload-artifact@v4
         with:
           name: new-task-definition.json
-          path: new-task-definition.json
+          path: "${{ steps.get-task-definition.outputs.task-definition }}"

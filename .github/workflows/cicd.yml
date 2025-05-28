@@ -246,8 +246,8 @@ jobs:
         id: date
         run: echo "date=$(date "+%Y-%m-%dT%H:%M:%S")" >> "${GITHUB_OUTPUT}"
 
-      - name: Get and update current task definition
-        id: get-task-definition
+      - name: Fetch and update current task definition
+        id: new-task-definition
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition-arn:  ${{ secrets.AWS_ECS_TASK_DEFINITION_ARN }}
@@ -276,5 +276,13 @@ jobs:
       - name: Upload task definition
         uses: actions/upload-artifact@v4
         with:
-          name: new-task-definition.json
-          path: "${{ steps.get-task-definition.outputs.task-definition }}"
+          name: new-task-definition
+          path: "${{ steps.new-task-definition.outputs.task-definition }}"
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"
+          service: ranger-ims-go-staging-fg
+          cluster: rangers
+          wait-for-service-stability: true

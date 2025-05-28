@@ -27,7 +27,7 @@ RUN go run ./bin/fetchbuilddeps/fetchbuilddeps.go
 COPY --exclude=playwright ./ ./
 
 # Build the server
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go
+RUN CGO_ENABLED=0 GOOS=linux go build -tags noinprocessdb -o /app/ranger-ims-go
 
 # Allow IMS to bind to privileged port numbers
 RUN setcap "cap_net_bind_service=+ep" /app/ranger-ims-go

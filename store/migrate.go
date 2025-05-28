@@ -67,8 +67,7 @@ func dbSchemaVersion(ctx context.Context, db *sql.DB) (schemaVersion, error) {
 	return 0, fmt.Errorf("[schemaVersion]: %w", err)
 }
 
-func runScript(ctx context.Context, imsDBQ *sql.DB, sql string) error {
-	script := "BEGIN NOT ATOMIC\n" + sql + "\nEND"
+func runScript(ctx context.Context, imsDBQ *sql.DB, script string) error {
 	_, err := imsDBQ.ExecContext(ctx, script)
 	if err != nil {
 		return fmt.Errorf("[ExecContext]: %w", err)

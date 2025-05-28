@@ -163,8 +163,7 @@ func newUnmigratedDB(t *testing.T, ctx context.Context, database, username, pass
 	return ctr, db
 }
 
-func runScript(ctx context.Context, imsDBQ *sql.DB, sql string) error {
-	script := "BEGIN NOT ATOMIC\n" + sql + "\nEND"
+func runScript(ctx context.Context, imsDBQ *sql.DB, script string) error {
 	_, err := imsDBQ.ExecContext(ctx, script)
 	if err != nil {
 		return fmt.Errorf("[ExecContext]: %w", err)

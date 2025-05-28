@@ -51,6 +51,14 @@ func DefaultIMS() *IMSConfig {
 				HostPort: 3306,
 				Database: "ims",
 			},
+			InProcess: DBStoreMaria{
+				HostName: "localhost",
+				// HostPort can be left as 0 for automatic port selection on startup
+				HostPort: 0,
+				Database: "ims-db",
+				Username: "ims-db-user",
+				Password: rand.Text(),
+			},
 		},
 		Directory: Directory{
 			Directory: DirectoryTypeClubhouseDB,
@@ -140,11 +148,12 @@ const (
 	DeploymentTypeProduction DeploymentType       = "production"
 	DBStoreTypeMaria         DBStoreType          = "mariadb"
 	DBStoreTypeNoOp          DBStoreType          = "noop"
+	DBStoreTypeInProcess     DBStoreType          = "inprocess"
 )
 
 func (d DBStoreType) Validate() error {
 	switch d {
-	case DBStoreTypeMaria, DBStoreTypeNoOp:
+	case DBStoreTypeMaria, DBStoreTypeNoOp, DBStoreTypeInProcess:
 		return nil
 	default:
 		return fmt.Errorf("unknown DB store type %v", d)
@@ -207,8 +216,9 @@ type ConfigCore struct {
 }
 
 type DBStore struct {
-	Type    DBStoreType
-	MariaDB DBStoreMaria
+	Type      DBStoreType
+	MariaDB   DBStoreMaria
+	InProcess DBStoreMaria
 }
 
 type DBStoreMaria struct {
@@ -217,6 +227,13 @@ type DBStoreMaria struct {
 	Database string
 	Username string
 	Password string `redact:"true"`
+}
+
+type DBStoreInProcess struct {
+	HostPort int32
+	Database string
+	Username string
+	Password string
 }
 
 type TestUser struct {

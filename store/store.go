@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
+	"github.com/burningmantech/ranger-ims-go/store/inprocessdb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
 )
@@ -45,8 +46,26 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 		slog.Info("Using NoOp DB")
 		return sql.Open("noop", "")
 	}
-	slog.Info("Setting up IMS DB connection")
+
 	mariaCfg := dbStoreCfg.MariaDB
+
+	if dbStoreCfg.Type == conf.DBStoreTypeInProcess {
+		mariaCfg = dbStoreCfg.InProcess
+
+		port, err := inprocessdb.Start(ctx,
+			mariaCfg.Database,
+			mariaCfg.HostName, mariaCfg.HostPort,
+			mariaCfg.Username, mariaCfg.Password,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("[startInProcessDatabase]: %w", err)
+		}
+		mariaCfg.HostPort = int32(port)
+
+		slog.Info("Set up volatile in-process DB", "config", mariaCfg)
+	}
+
+	slog.Info("Setting up IMS DB connection")
 
 	// Capture connection properties.
 	cfg := mysql.NewConfig()
@@ -55,6 +74,7 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 	cfg.Net = "tcp"
 	cfg.Addr = fmt.Sprintf("%v:%v", mariaCfg.HostName, mariaCfg.HostPort)
 	cfg.DBName = mariaCfg.Database
+	cfg.MultiStatements = true
 
 	// Get a database handle.
 	db, err := sql.Open("mysql", cfg.FormatDSN())
@@ -66,7 +86,7 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 	db.SetMaxOpenConns(20)
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
-		return nil, fmt.Errorf("[db.PingContext]: %ws", pingErr)
+		return nil, fmt.Errorf("[db.PingContext]: %w", pingErr)
 	}
 
 	if migrateDB {
@@ -78,5 +98,14 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 	}
 
 	slog.Info("Connected to IMS MariaDB")
+
+	if dbStoreCfg.Type == conf.DBStoreTypeInProcess {
+		_, err = db.ExecContext(ctx, inprocessdb.SeedData())
+		if err != nil {
+			return nil, fmt.Errorf("[db.ExecContext]: %w", err)
+		}
+		slog.Info("Seeded volatile in-process DB")
+	}
+
 	return db, nil
 }

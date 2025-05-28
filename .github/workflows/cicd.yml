@@ -197,7 +197,7 @@ jobs:
     name: Deploy to staging
 
     needs: [lint, build, docker-test]
-    #if: ${{ github.ref == 'refs/heads/master' }}
+    if: ${{ github.ref == 'refs/heads/master' }}
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -273,13 +273,7 @@ jobs:
             GIT_SHA=${{ github.sha }}
             TASK_UPDATED=${{ steps.date.outputs.date }}
 
-      - name: Upload task definition
-        uses: actions/upload-artifact@v4
-        with:
-          name: new-task-definition
-          path: "${{ steps.new-task-definition.outputs.task-definition }}"
-
-      - name: Deploy to Amazon ECS
+      - name: Update task definition and ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"

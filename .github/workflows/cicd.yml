@@ -250,7 +250,6 @@ jobs:
         id: get-task-definition
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: new-task-definition.json
           task-definition-arn:  ${{ secrets.AWS_ECS_TASK_DEFINITION_ARN }}
           task-definition-family: ranger-ims-go-staging-fg
           container-name: ranger-ims-go
@@ -274,7 +273,10 @@ jobs:
             GIT_SHA=${{ github.sha }}
             TASK_UPDATED=${{ steps.date.outputs.date }}
 
-      - name: Upload Trial log artifact
+      - name: Save task definition
+        run: echo "${{ steps.get-task-definition.outputs.task-definition }}" > new-task-definition.json
+
+      - name: Upload task definition
         uses: actions/upload-artifact@v4
         with:
           name: new-task-definition.json

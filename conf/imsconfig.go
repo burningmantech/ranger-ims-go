@@ -229,13 +229,6 @@ type DBStoreMaria struct {
 	Password string `redact:"true"`
 }
 
-type DBStoreInProcess struct {
-	HostPort int32
-	Database string
-	Username string
-	Password string
-}
-
 type TestUser struct {
 	Handle      string
 	Email       string

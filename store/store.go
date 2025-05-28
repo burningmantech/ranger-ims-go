@@ -58,7 +58,7 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 			mariaCfg.Username, mariaCfg.Password,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("[startInProcessDatabase]: %w", err)
+			return nil, fmt.Errorf("[inprocessdb.Start]: %w", err)
 		}
 		mariaCfg.HostPort = int32(port)
 

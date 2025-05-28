@@ -19,7 +19,7 @@ create table `EVENT` (
 
 
 create table CONCENTRIC_STREET (
-    `EVENT` integer      not null,
+    `EVENT` integer    not null,
     ID    varchar(16)  not null,
     NAME  varchar(128) not null,
 
@@ -58,7 +58,7 @@ create table REPORT_ENTRY (
 
 
 create table INCIDENT (
-    `EVENT`    integer  not null,
+    `EVENT`  integer  not null,
     NUMBER   integer  not null,
     -- CREATED is the time the INCIDENT was created, and this should be immutable.
     CREATED  double   not null,
@@ -88,7 +88,7 @@ create table INCIDENT (
 
 create table INCIDENT__RANGER (
     ID              integer     not null auto_increment,
-    `EVENT`           integer     not null,
+    `EVENT`         integer     not null,
     INCIDENT_NUMBER integer     not null,
     RANGER_HANDLE   varchar(64) not null,
 
@@ -106,7 +106,7 @@ create index `INCIDENT__RANGER_EVENT_INCIDENT_NUMBER_index`
 
 
 create table INCIDENT__INCIDENT_TYPE (
-    `EVENT`           integer not null,
+    `EVENT`         integer not null,
     INCIDENT_NUMBER integer not null,
     INCIDENT_TYPE   integer not null,
 
@@ -119,7 +119,7 @@ create table INCIDENT__INCIDENT_TYPE (
 
 
 create table INCIDENT__REPORT_ENTRY (
-    `EVENT`           integer not null,
+    `EVENT`         integer not null,
     INCIDENT_NUMBER integer not null,
     REPORT_ENTRY    integer not null,
 
@@ -133,7 +133,7 @@ create table INCIDENT__REPORT_ENTRY (
 
 create table EVENT_ACCESS (
     ID         integer      not null auto_increment,
-    `EVENT`      integer      not null,
+    `EVENT`    integer      not null,
     EXPRESSION varchar(128) not null,
 
     MODE     enum ('read', 'write', 'report') not null,
@@ -146,7 +146,7 @@ create table EVENT_ACCESS (
 
 
 create table FIELD_REPORT (
-    `EVENT`   integer  not null,
+    `EVENT` integer  not null,
     NUMBER  integer  not null,
     CREATED double   not null,
 
@@ -161,7 +161,7 @@ create table FIELD_REPORT (
 
 
 create table FIELD_REPORT__REPORT_ENTRY (
-    `EVENT`                  integer not null,
+    `EVENT`                integer not null,
     FIELD_REPORT_NUMBER    integer not null,
     REPORT_ENTRY           integer not null,
 

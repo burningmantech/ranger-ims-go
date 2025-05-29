@@ -24,7 +24,7 @@ RUN go run ./bin/fetchbuilddeps/fetchbuilddeps.go
 # Copy everything in the repo, including the .git directory,
 # because we want Go to bake the repo's state into the build.
 # See https://pkg.go.dev/debug/buildinfo#BuildInfo
-COPY --exclude=playwright ./ ./
+COPY ./ ./
 
 # Build the server
 RUN CGO_ENABLED=0 GOOS=linux go build -tags noinprocessdb -o /app/ranger-ims-go

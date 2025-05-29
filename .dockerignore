@@ -1,0 +1,24 @@
+# This file should pretty much include everything .gitignore'd throughout the repo
+
+# Note that the ".git" directory does not appear in this file.
+# We want that included so that Go can generate BuildInfo for the binary.
+
+# local dev configuration
+conf/testusers.go
+.env
+
+# the compiled binary
+ranger-ims-go
+
+# the default dir for storing attachments
+ims-attachments
+
+# the temp dir for `go tool air`
+air_tmp
+
+# playwright generated stuff, including any node_modules anywhere
+**/node_modules
+playwright/test-results
+playwright/playwright-report
+playwright/blob-report
+playwright/playwright/.cache

@@ -95,6 +95,7 @@ func setup(ctx context.Context, tempDir string) {
 	shared.cfg.AttachmentsStore.Local = conf.LocalAttachments{
 		Dir: tempRoot,
 	}
+	shared.cfg.Store.Type = conf.DBStoreTypeMaria
 	shared.cfg.Store.MariaDB.Database = "ims-" + rand.NonCryptoText()
 	shared.cfg.Store.MariaDB.Username = "rangers-" + rand.NonCryptoText()
 	shared.cfg.Store.MariaDB.Password = "password-" + rand.NonCryptoText()

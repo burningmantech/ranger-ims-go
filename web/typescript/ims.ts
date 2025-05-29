@@ -754,6 +754,17 @@ export const fullDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefin
     // timeZone not specified; will use user's timezone
 });
 
+export const editStyleDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    hour12: false,
+    minute: "numeric",
+    timeZoneName: "short",
+    // timeZone not specified; will use user's timezone
+});
+
 export function renderDate(date: string, type: string, _incident: any): string|number|undefined {
     const d = Date.parse(date);
     switch (type) {
@@ -1071,7 +1082,13 @@ export async function editFromElement(element: HTMLInputElement|HTMLSelectElemen
     let value: string|null = element.value;
 
     if (transform != null) {
-        value = transform(value);
+        try {
+            value = transform(value);
+        } catch (e) {
+            controlHasError(element);
+            console.error(e);
+            return;
+        }
     }
 
     // Build a JSON object representing the requested edits

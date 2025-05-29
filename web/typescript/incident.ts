@@ -203,7 +203,10 @@ async function initIncidentPage(): Promise<void> {
         function (_: MouseEvent): void {
             startTimeModal.show();
             const input = document.getElementById("override_start_datetime") as HTMLInputElement;
-            input.value = incident?.started??"";
+            if (incident?.started == null) {
+                return;
+            }
+            input.value = ims.editStyleDateTime.format(new Date(incident.started));
         },
     )
 }
@@ -921,7 +924,7 @@ async function editState(): Promise<void> {
 async function overrideStartDateTime(): Promise<void> {
     const startInput = document.getElementById("override_start_datetime") as HTMLInputElement;
     await ims.editFromElement(startInput, "started", (val: string|null):string=> {
-        return (val??"").trim();
+        return new Date((val??"").trim()).toISOString();
     });
 }
 

@@ -644,6 +644,16 @@ export const fullDateTime = new Intl.DateTimeFormat(undefined, {
     timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
+export const editStyleDateTime = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    hour12: false,
+    minute: "numeric",
+    timeZoneName: "short",
+    // timeZone not specified; will use user's timezone
+});
 export function renderDate(date, type, _incident) {
     const d = Date.parse(date);
     switch (type) {
@@ -921,7 +931,14 @@ export function toggleShowHistory() {
 export async function editFromElement(element, jsonKey, transform) {
     let value = element.value;
     if (transform != null) {
-        value = transform(value);
+        try {
+            value = transform(value);
+        }
+        catch (e) {
+            controlHasError(element);
+            console.error(e);
+            return;
+        }
     }
     // Build a JSON object representing the requested edits
     const edits = {};

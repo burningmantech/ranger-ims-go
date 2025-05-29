@@ -102,9 +102,11 @@ templ Incident(deployment string) {
           <label class="control-label input-group-text" for="started_datetime">Created</label>
           <span class="form-control form-control-static align-middle d-flex justify-content-between">
             <span id="started_datetime"></span>
-            <svg id="override_started_button" fill="currentColor" class="bi align-middle show-pointer">
-              <use href="#pencil-square" />
-            </svg>
+            <span class="show-pointer">
+              <svg id="override_started_button" fill="currentColor" class="bi align-middle">
+                <use href="#pencil-square" />
+              </svg>
+            </span>
           </span>
         </div>
       </div>

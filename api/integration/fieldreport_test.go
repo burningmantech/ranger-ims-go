@@ -75,6 +75,7 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
 		retrievedUserEntry.Created = time.Time{}
 		entryReq.Author = userAliceHandle
+		entryReq.Stricken = ptr(false)
 		require.Equal(t, entryReq, retrievedUserEntry)
 	}
 

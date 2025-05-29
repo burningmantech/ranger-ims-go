@@ -68,6 +68,11 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return errHTTP.From("[readBodyAs]")
 	}
 
+	if re.Stricken == nil {
+		// Nothing to do if no Stricken value is set, since Stricken is the only field this endpoint can modify
+		return nil
+	}
+
 	txn, err := action.imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
@@ -76,7 +81,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 
 	err = action.imsDBQ.SetFieldReportReportEntryStricken(ctx, txn,
 		imsdb.SetFieldReportReportEntryStrickenParams{
-			Stricken:          re.Stricken,
+			Stricken:          *re.Stricken,
 			Event:             event.ID,
 			FieldReportNumber: fieldReportNumber,
 			ReportEntry:       reportEntryId,
@@ -86,7 +91,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return herr.InternalServerError("Error setting field report entry", err).From("[SetFieldReportReportEntryStricken]")
 	}
 	struckVerb := "Struck"
-	if !re.Stricken {
+	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
 	_, errHTTP = addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
@@ -142,6 +147,11 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return errHTTP.From("[readBodyAs]")
 	}
 
+	if re.Stricken == nil {
+		// Nothing to do if no Stricken value is set, since Stricken is the only field this endpoint can modify
+		return nil
+	}
+
 	txn, err := action.imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
@@ -150,7 +160,7 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 
 	err = action.imsDBQ.SetIncidentReportEntryStricken(ctx, txn,
 		imsdb.SetIncidentReportEntryStrickenParams{
-			Stricken:       re.Stricken,
+			Stricken:       *re.Stricken,
 			Event:          event.ID,
 			IncidentNumber: incidentNumber,
 			ReportEntry:    reportEntryId,
@@ -160,7 +170,7 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return herr.InternalServerError("Error setting incident report entry", err).From("[SetIncidentReportEntryStricken]")
 	}
 	struckVerb := "Struck"
-	if !re.Stricken {
+	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
 	_, errHTTP = addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
@@ -182,7 +192,11 @@ func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.Re
 		Author:        re.Author,
 		SystemEntry:   re.Generated,
 		Text:          re.Text,
-		Stricken:      re.Stricken,
+		Stricken:      ptr(re.Stricken),
 		HasAttachment: attachmentsEnabled && re.AttachedFile.String != "",
 	}
+}
+
+func ptr[T any](s T) *T {
+	return &s
 }

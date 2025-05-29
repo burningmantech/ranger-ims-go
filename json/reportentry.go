@@ -24,6 +24,6 @@ type ReportEntry struct {
 	Author        string    `json:"author"`
 	SystemEntry   bool      `json:"system_entry"`
 	Text          string    `json:"text"`
-	Stricken      bool      `json:"stricken"`
+	Stricken      *bool     `json:"stricken"`
 	HasAttachment bool      `json:"has_attachment"`
 }

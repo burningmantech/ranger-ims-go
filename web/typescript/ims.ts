@@ -316,12 +316,14 @@ export function unhide(selector: string): void {
 
 // Add an error indication to a control
 export function controlHasError(element: HTMLElement) {
+    element.classList.remove("is-valid");
     element.classList.add("is-invalid");
 }
 
 
 // Add a success indication to a control
 export function controlHasSuccess(element: HTMLElement, clearTimeout: number) {
+    element.classList.remove("is-invalid");
     element.classList.add("is-valid");
     if (clearTimeout != null) {
         setTimeout(()=>{

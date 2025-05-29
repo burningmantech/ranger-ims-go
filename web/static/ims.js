@@ -278,10 +278,12 @@ export function unhide(selector) {
 }
 // Add an error indication to a control
 export function controlHasError(element) {
+    element.classList.remove("is-valid");
     element.classList.add("is-invalid");
 }
 // Add a success indication to a control
 export function controlHasSuccess(element, clearTimeout) {
+    element.classList.remove("is-invalid");
     element.classList.add("is-valid");
     if (clearTimeout != null) {
         setTimeout(() => {

@@ -156,7 +156,10 @@ async function initIncidentPage() {
     document.getElementById("override_started_button").addEventListener("click", function (_) {
         startTimeModal.show();
         const input = document.getElementById("override_start_datetime");
-        input.value = incident?.started ?? "";
+        if (incident?.started == null) {
+            return;
+        }
+        input.value = ims.editStyleDateTime.format(new Date(incident.started));
     });
 }
 //
@@ -725,7 +728,7 @@ async function editState() {
 async function overrideStartDateTime() {
     const startInput = document.getElementById("override_start_datetime");
     await ims.editFromElement(startInput, "started", (val) => {
-        return (val ?? "").trim();
+        return new Date((val ?? "").trim()).toISOString();
     });
 }
 async function editIncidentSummary() {

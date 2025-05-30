@@ -27,7 +27,7 @@ RUN go run ./bin/fetchbuilddeps/fetchbuilddeps.go
 COPY ./ ./
 
 # Build the server
-RUN CGO_ENABLED=0 GOOS=linux go build -tags noinprocessdb -o /app/ranger-ims-go
+RUN CGO_ENABLED=0 GOOS=linux go build -tags nofakedb -o /app/ranger-ims-go
 
 # Allow IMS to bind to privileged port numbers
 RUN setcap "cap_net_bind_service=+ep" /app/ranger-ims-go
@@ -42,6 +42,7 @@ COPY --from=build /app/ranger-ims-go /opt/ims/bin/ims
 # Docker-specific default configuration
 ENV IMS_HOSTNAME="0.0.0.0"
 ENV IMS_PORT="80"
+ENV IMS_DB_STORE_TYPE="MariaDB"
 ENV IMS_DIRECTORY="ClubhouseDB"
 
 # Use a non-root user to run the server

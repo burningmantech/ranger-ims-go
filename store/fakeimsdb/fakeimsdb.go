@@ -14,9 +14,9 @@
 // limitations under the License.
 //
 
-//go:build !noinprocessdb
+//go:build !nofakedb
 
-package inprocessdb
+package fakeimsdb
 
 import (
 	"context"

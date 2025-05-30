@@ -67,7 +67,7 @@ func TestMustInitConfig(t *testing.T) {
 
 	assert.Equal(t, "host", cfg.Core.Host)
 	assert.Equal(t, int32(1234), cfg.Core.Port)
-	assert.Equal(t, "dev", cfg.Core.Deployment)
+	assert.Equal(t, conf.DeploymentTypeDev, cfg.Core.Deployment)
 	assert.Equal(t, 1000*time.Second, cfg.Core.RefreshTokenLifetime)
 	assert.Equal(t, 100*time.Second, cfg.Core.AccessTokenLifetime)
 	assert.Equal(t, 3*time.Minute, cfg.Core.CacheControlShort)

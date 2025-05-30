@@ -11,17 +11,24 @@ set -o errexit -o nounset -o pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 exit_code=0
-# `docker compose up` will only rebuild from the local Dockerfile if no image
-# exists for the given name, e.g. ranger-ims-go. To change that behavior, you'd
-# add a --build arg to the `docker compose up`.
-echo "Starting Docker containers. Note this may not pick up any local changes"
+image="ranger-ims-go:${IMAGE_TAG:-latest}"
+docker image inspect "${image}" > /dev/null 2>&1 || exit_code=$?
+if [ "${exit_code}" -ne "0" ]; then
+    echo "No local version of ${image} was found, so docker compose will build it"
+else
+    # If you want the image to be rebuilt, then add "--build" to the "docker compose up"
+    # below. That is not desirable behavior for CI though.
+    echo "A local version of ${image} was found, so docker compose will not rebuild it"
+fi
+
+exit_code=0
 docker compose up --wait-timeout 30 --wait || exit_code=$?
 
 echo "Stopping and deleting those Docker containers"
 docker compose rm -fsv
 
 if [ "${exit_code}" -ne "0" ]; then
-    echo "App failed health check"
+    echo '!!! App failed health check !!!'
     exit ${exit_code}
 else
     echo "App started and passed health check"

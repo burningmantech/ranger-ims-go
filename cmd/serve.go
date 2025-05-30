@@ -199,7 +199,7 @@ func mustInitConfig(envFileName string) *conf.IMSConfig {
 		must(err)
 	}
 	if v, ok := lookupEnv("IMS_DEPLOYMENT"); ok {
-		newCfg.Core.Deployment = strings.ToLower(v)
+		newCfg.Core.Deployment = conf.DeploymentType(strings.ToLower(v))
 	}
 	// This should really be called "IMS_REFRESH_TOKEN_LIFETIME". This name of
 	// "IMS_TOKEN_LIFETIME" predates our use of refresh tokens, and what it tried
@@ -246,7 +246,7 @@ func mustInitConfig(envFileName string) *conf.IMSConfig {
 		newCfg.Core.JWTSecret = v
 	}
 	if v, ok := lookupEnv("IMS_DB_STORE_TYPE"); ok {
-		newCfg.Store.Type = conf.DBStoreType(v)
+		newCfg.Store.Type = conf.DBStoreType(strings.ToLower(v))
 	}
 	if v, ok := lookupEnv("IMS_DB_HOST_NAME"); ok {
 		newCfg.Store.MariaDB.HostName = v

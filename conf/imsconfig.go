@@ -50,14 +50,20 @@ func DefaultIMS() *IMSConfig {
 				HostName: "localhost",
 				HostPort: 3306,
 				Database: "ims",
+				// Some arbitrary value. We'll get errors from MariaDB if the server
+				// hits the DB with too many parallel requests.
+				MaxOpenConns: 20,
 			},
-			InProcess: DBStoreMaria{
+			Fake: DBStoreMaria{
 				HostName: "localhost",
 				// HostPort can be left as 0 for automatic port selection on startup
 				HostPort: 0,
 				Database: "ims-db",
 				Username: "ims-db-user",
 				Password: rand.Text(),
+				// This needs to be 1 for the fake DB because of
+				// https://github.com/dolthub/go-mysql-server/issues/1306
+				MaxOpenConns: 1,
 			},
 		},
 		Directory: Directory{
@@ -78,10 +84,17 @@ func DefaultIMS() *IMSConfig {
 // Validate should be called after an IMSConfig has been fully configured.
 func (c *IMSConfig) Validate() error {
 	var errs []error
+
+	// IMS database
 	errs = append(errs, c.Store.Type.Validate())
-	if c.Store.Type == DBStoreTypeNoOp {
+	if c.Store.Type != DBStoreTypeMaria {
 		c.Store.MariaDB = DBStoreMaria{}
 	}
+	if c.Store.Type != DBStoreTypeFake {
+		c.Store.Fake = DBStoreMaria{}
+	}
+
+	// User directory
 	errs = append(errs, c.Directory.Directory.Validate())
 	if c.Directory.Directory != DirectoryTypeTestUsers {
 		c.Directory.TestUsers = nil
@@ -89,6 +102,19 @@ func (c *IMSConfig) Validate() error {
 	if c.Directory.Directory != DirectoryTypeClubhouseDB {
 		c.Directory.ClubhouseDB = ClubhouseDB{}
 	}
+
+	// Deployment
+	errs = append(errs, c.Core.Deployment.Validate())
+	if c.Core.Deployment != DeploymentTypeDev {
+		if c.Directory.Directory != DirectoryTypeClubhouseDB {
+			errs = append(errs, errors.New("non-dev environments must use a ClubhouseDB directory"))
+		}
+		if c.Store.Type != DBStoreTypeMaria {
+			errs = append(errs, errors.New("non-dev environments must use a MariaDB datastore"))
+		}
+	}
+
+	// Attachments store
 	errs = append(errs, c.AttachmentsStore.Type.Validate())
 	if c.AttachmentsStore.Type == AttachmentsStoreLocal {
 		if c.AttachmentsStore.Local.Dir == nil {
@@ -106,9 +132,8 @@ func (c *IMSConfig) Validate() error {
 		}
 		c.AttachmentsStore.Local = LocalAttachments{}
 	}
-	if c.Core.Deployment != "dev" && c.Directory.Directory == DirectoryTypeTestUsers {
-		errs = append(errs, errors.New("do not use TestUsers outside dev! A ClubhouseDB must be provided"))
-	}
+
+	// Assorted other validations
 	if c.Core.AccessTokenLifetime > c.Core.RefreshTokenLifetime {
 		errs = append(errs, errors.New("access token lifetime should not be greater than refresh token lifetime"))
 	}
@@ -137,6 +162,7 @@ type DeploymentType string
 
 type DBStoreType string
 
+// All these consts should have lowercase values to allow case-insensitive matching.
 const (
 	DirectoryTypeClubhouseDB DirectoryType        = "clubhousedb"
 	DirectoryTypeTestUsers   DirectoryType        = "testusers"
@@ -148,12 +174,12 @@ const (
 	DeploymentTypeProduction DeploymentType       = "production"
 	DBStoreTypeMaria         DBStoreType          = "mariadb"
 	DBStoreTypeNoOp          DBStoreType          = "noop"
-	DBStoreTypeInProcess     DBStoreType          = "inprocess"
+	DBStoreTypeFake          DBStoreType          = "fake"
 )
 
 func (d DBStoreType) Validate() error {
 	switch d {
-	case DBStoreTypeMaria, DBStoreTypeNoOp, DBStoreTypeInProcess:
+	case DBStoreTypeMaria, DBStoreTypeNoOp, DBStoreTypeFake:
 		return nil
 	default:
 		return fmt.Errorf("unknown DB store type %v", d)
@@ -195,7 +221,7 @@ type ConfigCore struct {
 	Admins               []string
 	MasterKey            string `redact:"true"`
 	JWTSecret            string `redact:"true"`
-	Deployment           string
+	Deployment           DeploymentType
 
 	// CacheControlShort is the duration we set in various responses' Cache-Control headers
 	// for resources that aren't expected to change often, but still do change (e.g. the list of
@@ -216,17 +242,18 @@ type ConfigCore struct {
 }
 
 type DBStore struct {
-	Type      DBStoreType
-	MariaDB   DBStoreMaria
-	InProcess DBStoreMaria
+	Type    DBStoreType
+	MariaDB DBStoreMaria
+	Fake    DBStoreMaria
 }
 
 type DBStoreMaria struct {
-	HostName string
-	HostPort int32
-	Database string
-	Username string
-	Password string `redact:"true"`
+	HostName     string
+	HostPort     int32
+	Database     string
+	Username     string
+	Password     string `redact:"true"`
+	MaxOpenConns int32
 }
 
 type TestUser struct {

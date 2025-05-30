@@ -149,16 +149,18 @@ func newUnmigratedDB(t *testing.T, ctx context.Context, database, username, pass
 	port, err := ctr.MappedPort(ctx, "3306/tcp")
 	require.NoError(t, err)
 	dbHostPort := int32(port.Int())
-	db, err := store.SqlDB(ctx, conf.DBStore{
-		Type: conf.DBStoreTypeMaria,
-		MariaDB: conf.DBStoreMaria{
-			HostName: "",
-			HostPort: dbHostPort,
-			Database: database,
-			Username: username,
-			Password: password,
+	db, err := store.SqlDB(ctx,
+		conf.DBStore{
+			Type: conf.DBStoreTypeMaria,
+			MariaDB: conf.DBStoreMaria{
+				HostName: "",
+				HostPort: dbHostPort,
+				Database: database,
+				Username: username,
+				Password: password,
+			},
 		},
-	}, false)
+		false)
 	require.NoError(t, err)
 	return ctr, db
 }

@@ -19,16 +19,39 @@ package directory
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
+	"github.com/burningmantech/ranger-ims-go/directory/fakeclubhousedb"
 	"github.com/burningmantech/ranger-ims-go/lib/cache"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
 	"time"
 )
 
-func MariaDB(ctx context.Context, imsCfg conf.ClubhouseDB) (*sql.DB, error) {
+//go:embed schema/current.sql
+var CurrentSchema string
+
+func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) {
+	var imsCfg conf.ClubhouseDB
+	var err error
+	switch directoryCfg.Directory {
+	case conf.DirectoryTypeNoOp:
+		// This is a DB that does nothing and returns nothing on querying.
+		// It's really only useful as a stand-in for testing.
+		slog.Info("Using NoOp DB")
+		return sql.Open("noop", "")
+	case conf.DirectoryTypeFake:
+		imsCfg, err = startFakeDB(ctx, directoryCfg.FakeDB)
+		if err != nil {
+			return nil, fmt.Errorf("[startFakeDB]: %w", err)
+		}
+	case conf.DirectoryTypeClubhouseDB:
+		fallthrough
+	default:
+		imsCfg = directoryCfg.ClubhouseDB
+	}
 	slog.Info("Setting up Clubhouse DB connection")
 
 	// Capture connection properties.
@@ -38,6 +61,7 @@ func MariaDB(ctx context.Context, imsCfg conf.ClubhouseDB) (*sql.DB, error) {
 	cfg.Net = "tcp"
 	cfg.Addr = imsCfg.Hostname
 	cfg.DBName = imsCfg.Database
+	cfg.MultiStatements = true
 
 	// Get a database handle.
 	db, err := sql.Open("mysql", cfg.FormatDSN())
@@ -46,12 +70,25 @@ func MariaDB(ctx context.Context, imsCfg conf.ClubhouseDB) (*sql.DB, error) {
 	}
 	// Some arbitrary value. We'll get errors from MariaDB if the server
 	// hits the DB with too many parallel requests.
-	db.SetMaxOpenConns(20)
+	db.SetMaxOpenConns(int(imsCfg.MaxOpenConns))
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
-		return nil, fmt.Errorf("[PingContext]: %w", pingErr)
+		return nil, fmt.Errorf("[PingContext] dsn=%v: %w", cfg.FormatDSN(), pingErr)
 	}
 	slog.Info("Connected to Clubhouse MariaDB")
+
+	if directoryCfg.Directory == conf.DirectoryTypeFake {
+		_, err = db.ExecContext(ctx, CurrentSchema)
+		if err != nil {
+			return nil, fmt.Errorf("[db.ExecContext]: %w", err)
+		}
+		_, err = db.ExecContext(ctx, fakeclubhousedb.SeedData())
+		if err != nil {
+			return nil, fmt.Errorf("[db.ExecContext]: %w", err)
+		}
+		slog.Info("Seeded volatile fake Clubhouse DB")
+	}
+
 	return db, nil
 }
 
@@ -72,14 +109,6 @@ var _ chqueries.Querier = (*DBQ)(nil)
 // NewMariaDBQ creates a DBQ that uses a standard MariaDB Clubhouse database.
 func NewMariaDBQ(db *sql.DB, cacheTTL time.Duration) *DBQ {
 	return newDBQ(db, chqueries.New(), cacheTTL)
-}
-
-// NewTestUsersDBQ creates a DBQ that isn't actually connected to any database,
-// but rather just returns values from a TestUsersStore. This actually sets the
-// db to "nil", which is intentional, because it means we'll see a panic if
-// something erroneously tries to talk to a DB rather than the TestUsersStore.
-func NewTestUsersDBQ(testUsers []conf.TestUser, cacheTTL time.Duration) *DBQ {
-	return newDBQ(nil, TestUsersStore{TestUsers: testUsers}, cacheTTL)
 }
 
 func newDBQ(db *sql.DB, querier chqueries.Querier, cacheTTL time.Duration) *DBQ {
@@ -152,4 +181,18 @@ func orNil[S ~*[]E, E any](sl S) []E {
 		return nil
 	}
 	return *sl
+}
+
+func startFakeDB(ctx context.Context, mariaCfg conf.ClubhouseDB) (conf.ClubhouseDB, error) {
+	addr, err := fakeclubhousedb.Start(ctx,
+		mariaCfg.Database, mariaCfg.Hostname,
+		mariaCfg.Username, mariaCfg.Password,
+	)
+	if err != nil {
+		return mariaCfg, fmt.Errorf("[fakedb.Start]: %w", err)
+	}
+	mariaCfg.Hostname = addr
+
+	slog.Info("Started volatile fake DB", "config", mariaCfg)
+	return mariaCfg, nil
 }

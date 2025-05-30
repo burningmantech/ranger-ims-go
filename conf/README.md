@@ -17,17 +17,3 @@ file to meet your needs.
 cd "${git rev-parse --show-toplevel}"
 cp .env-example .env
 ```
-
-## TestUsers
-
-When working locally, you might want to configure a simple set of IMS users,
-so you don't need a full Clubhouse DB. To do this, copy `conf/testusers.example.go`
-as `conf/testusers.go` (that'll make the server actually load it as the server starts).
-In that file, you'll configure the dummy users you want for your Directory, and your
-changes will be gitignored.
-
-After that, you just need to toggle on the TestUsers feature in your `.env`:
-
-```shell
-IMS_DIRECTORY="TestUsers"
-```

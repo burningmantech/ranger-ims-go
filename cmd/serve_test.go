@@ -25,9 +25,9 @@ import (
 )
 
 // TestMustInitConfig should be the only test in the whole repo that
-// so freely plays around with environment variables, since parallel
-// testing means other tests will notice the result of "Setenvs" that
-// occur at the same time.
+// freely plays with setting environment variables, since parallel testing
+// means other tests will notice the result of "Setenvs" that occur at the
+// same time.
 //
 // All other tests should use a conf.IMSConfig struct instead, as that
 // is unaffected by environment variables changing later.
@@ -47,6 +47,7 @@ func TestMustInitConfig(t *testing.T) {
 	t.Setenv("IMS_ADMINS", "alice,bob")
 	t.Setenv("IMS_JWT_SECRET", "shhh")
 	t.Setenv("IMS_DB_HOST_NAME", "db")
+	t.Setenv("IMS_DB_STORE_TYPE", "mariadb")
 	t.Setenv("IMS_DB_HOST_PORT", "555")
 	t.Setenv("IMS_DB_DATABASE", "ims")
 	t.Setenv("IMS_DB_USER_NAME", "me")
@@ -77,6 +78,7 @@ func TestMustInitConfig(t *testing.T) {
 	assert.Equal(t, conf.DirectoryTypeClubhouseDB, cfg.Directory.Directory)
 	assert.Equal(t, []string{"alice", "bob"}, cfg.Core.Admins)
 	assert.Equal(t, "shhh", cfg.Core.JWTSecret)
+	assert.Equal(t, conf.DBStoreTypeMaria, cfg.Store.Type)
 	assert.Equal(t, "db", cfg.Store.MariaDB.HostName)
 	assert.Equal(t, int32(555), cfg.Store.MariaDB.HostPort)
 	assert.Equal(t, "ims", cfg.Store.MariaDB.Database)
@@ -101,7 +103,7 @@ func TestRunServer(t *testing.T) {
 
 	// this will have the server pick a random port
 	imsCfg.Core.Port = 0
-	imsCfg.Directory.Directory = conf.DirectoryTypeTestUsers
+	imsCfg.Directory.Directory = conf.DirectoryTypeNoOp
 	imsCfg.Store.Type = conf.DBStoreTypeNoOp
 
 	// Start the server, then cancel it.

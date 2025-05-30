@@ -5,7 +5,10 @@ services:
     image: "ranger-ims-go:${IMAGE_TAG:-latest}"
     container_name: "ranger-ims-go"
     environment:
-      IMS_DIRECTORY: "TestUsers"
+      # This is a totally empty user directory, so no one will be able to log in.
+      # This docker-compose file is currently just used by CI to verify that the
+      # stack looks good before deploying to staging, so that's fine.
+      IMS_DIRECTORY: "NoOp"
       IMS_DB_HOST_NAME: "ranger-ims-database"
       IMS_DB_PORT: "${IMS_DB_PORT:-3306}"
       IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"

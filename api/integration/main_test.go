@@ -18,10 +18,10 @@ package integration_test
 
 import (
 	"context"
+	_ "embed"
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
-	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store"
@@ -35,6 +35,9 @@ import (
 	"os"
 	"testing"
 )
+
+//go:embed clubhousedb_test_seed.sql
+var clubhouseDBTestSeed string
 
 // mainTestInternal contains fields to be used only within main_test.go.
 var mainTestInternal struct {
@@ -52,13 +55,14 @@ var shared struct {
 	serverURL  *url.URL
 }
 
+// These values must align with those in clubhousedb_test_seed.sql.
 const (
 	userAdminHandle   = "AdminTestRanger"
-	userAdminEmail    = "admintestranger@rangers.brc"
+	userAdminEmail    = "admintestranger@example.com"
 	userAdminPassword = ")'("
 
 	userAliceHandle   = "AliceTestRanger"
-	userAliceEmail    = "alicetestranger@rangers.brc"
+	userAliceEmail    = "alicetestranger@example.com"
 	userAlicePassword = "password"
 )
 
@@ -99,33 +103,15 @@ func setup(ctx context.Context, tempDir string) {
 	shared.cfg.Store.MariaDB.Database = "ims-" + rand.NonCryptoText()
 	shared.cfg.Store.MariaDB.Username = "rangers-" + rand.NonCryptoText()
 	shared.cfg.Store.MariaDB.Password = "password-" + rand.NonCryptoText()
-	shared.cfg.Directory.Directory = conf.DirectoryTypeTestUsers
-	shared.cfg.Directory.TestUsers = []conf.TestUser{
-		{
-			Handle:      userAliceHandle,
-			Email:       userAliceEmail,
-			Status:      "active",
-			DirectoryID: 80808,
-			Password:    authn.NewSalted("password"),
-			Onsite:      true,
-			Positions:   []string{"Nooperator"},
-			Teams:       nil,
-		},
-		{
-			Handle:      userAdminHandle,
-			Email:       userAdminEmail,
-			Status:      "active",
-			DirectoryID: 70707,
-			Password:    authn.NewSalted(")'("),
-			Onsite:      true,
-			Positions:   nil,
-			Teams:       []string{"Brown Dot"},
-		},
-	}
+	shared.cfg.Directory.Directory = conf.DirectoryTypeFake
 	must(shared.cfg.Validate())
 	shared.es = api.NewEventSourcerer()
-	clubhouseDBQ := directory.NewTestUsersDBQ(
-		shared.cfg.Directory.TestUsers,
+	clubhouseDB, err := directory.MariaDB(ctx, shared.cfg.Directory)
+	must(err)
+	_, err = clubhouseDB.ExecContext(ctx, clubhouseDBTestSeed)
+	must(err)
+	clubhouseDBQ := directory.NewMariaDBQ(
+		clubhouseDB,
 		shared.cfg.Directory.InMemoryCacheTTL,
 	)
 	shared.userStore = directory.NewUserStore(clubhouseDBQ)

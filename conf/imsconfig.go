@@ -25,8 +25,6 @@ import (
 	"time"
 )
 
-var defaultTestUsers = make([]TestUser, 0)
-
 // DefaultIMS is the base configuration used for the IMS server.
 // It gets overridden by values in conf/imsd.toml, then the result
 // of that gets overridden by environment variables.
@@ -34,7 +32,7 @@ func DefaultIMS() *IMSConfig {
 	return &IMSConfig{
 		Core: ConfigCore{
 			Host:                 "localhost",
-			Port:                 80,
+			Port:                 8080,
 			JWTSecret:            rand.Text(),
 			Deployment:           "dev",
 			LogLevel:             "INFO",
@@ -45,7 +43,7 @@ func DefaultIMS() *IMSConfig {
 			MaxRequestBytes:      100 << 20,
 		},
 		Store: DBStore{
-			Type: DBStoreTypeMaria,
+			Type: DBStoreTypeFake,
 			MariaDB: DBStoreMaria{
 				HostName: "localhost",
 				HostPort: 3306,
@@ -67,11 +65,20 @@ func DefaultIMS() *IMSConfig {
 			},
 		},
 		Directory: Directory{
-			Directory: DirectoryTypeClubhouseDB,
-			TestUsers: defaultTestUsers,
+			Directory: DirectoryTypeFake,
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",
+			},
+			FakeDB: ClubhouseDB{
+				// port can be left as 0 for automatic port selection on startup
+				Hostname: "localhost:0",
+				Database: "clubhouse-db",
+				Username: "clubhouse-db-user",
+				Password: rand.Text(),
+				// This needs to be 1 for the fake DB because of
+				// https://github.com/dolthub/go-mysql-server/issues/1306
+				MaxOpenConns: 1,
 			},
 			InMemoryCacheTTL: 10 * time.Minute,
 		},
@@ -96,9 +103,6 @@ func (c *IMSConfig) Validate() error {
 
 	// User directory
 	errs = append(errs, c.Directory.Directory.Validate())
-	if c.Directory.Directory != DirectoryTypeTestUsers {
-		c.Directory.TestUsers = nil
-	}
 	if c.Directory.Directory != DirectoryTypeClubhouseDB {
 		c.Directory.ClubhouseDB = ClubhouseDB{}
 	}
@@ -165,7 +169,8 @@ type DBStoreType string
 // All these consts should have lowercase values to allow case-insensitive matching.
 const (
 	DirectoryTypeClubhouseDB DirectoryType        = "clubhousedb"
-	DirectoryTypeTestUsers   DirectoryType        = "testusers"
+	DirectoryTypeNoOp        DirectoryType        = "noop"
+	DirectoryTypeFake        DirectoryType        = "fake"
 	AttachmentsStoreLocal    AttachmentsStoreType = "local"
 	AttachmentsStoreS3       AttachmentsStoreType = "s3"
 	AttachmentsStoreNone     AttachmentsStoreType = "none"
@@ -188,7 +193,7 @@ func (d DBStoreType) Validate() error {
 
 func (d DirectoryType) Validate() error {
 	switch d {
-	case DirectoryTypeClubhouseDB, DirectoryTypeTestUsers:
+	case DirectoryTypeClubhouseDB, DirectoryTypeNoOp, DirectoryTypeFake:
 		return nil
 	default:
 		return fmt.Errorf("unknown directory type %v", d)
@@ -256,21 +261,10 @@ type DBStoreMaria struct {
 	MaxOpenConns int32
 }
 
-type TestUser struct {
-	Handle      string
-	Email       string
-	Status      string
-	DirectoryID int64
-	Password    string `redact:"true"`
-	Onsite      bool
-	Positions   []string
-	Teams       []string
-}
-
 type Directory struct {
 	Directory        DirectoryType
-	TestUsers        []TestUser
 	ClubhouseDB      ClubhouseDB
+	FakeDB           ClubhouseDB
 	InMemoryCacheTTL time.Duration
 }
 
@@ -281,10 +275,11 @@ type AttachmentsStore struct {
 }
 
 type ClubhouseDB struct {
-	Hostname string
-	Database string
-	Username string
-	Password string `redact:"true"`
+	Hostname     string
+	Database     string
+	Username     string
+	Password     string `redact:"true"`
+	MaxOpenConns int32
 }
 
 type LocalAttachments struct {

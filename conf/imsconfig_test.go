@@ -20,6 +20,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 )
 
@@ -37,11 +38,6 @@ func TestPrintRedacted(t *testing.T) {
 			},
 		},
 		Directory: conf.Directory{
-			TestUsers: []conf.TestUser{
-				{
-					Password: "user password",
-				},
-			},
 			ClubhouseDB: conf.ClubhouseDB{
 				Username: "clubhouse username",
 				Password: "clubhouse password",
@@ -58,13 +54,61 @@ func TestPrintRedacted(t *testing.T) {
 	assert.NotContains(t, redacted, "clubhouse password")
 }
 
-func TestValidate(t *testing.T) {
+func TestValidateBase(t *testing.T) {
 	t.Parallel()
+
 	cfg := conf.DefaultIMS()
 	require.NoError(t, cfg.Validate())
 
-	cfg.Directory.TestUsers = []conf.TestUser{{}}
+	// must have AccessTokenLifetime <= RefreshTokenLifetime
+	cfg.Core.AccessTokenLifetime = cfg.Core.RefreshTokenLifetime + 1
+	require.Error(t, cfg.Validate())
+}
+
+func TestValidateDBStore(t *testing.T) {
+	t.Parallel()
+
+	cfg := conf.DefaultIMS()
+	cfg.Store.Type = "invalid type"
+	require.Error(t, cfg.Validate())
+}
+
+func TestValidateDirectory(t *testing.T) {
+	t.Parallel()
+
+	cfg := conf.DefaultIMS()
+	cfg.Directory.Directory = "invalid type"
+	require.Error(t, cfg.Validate())
+}
+
+func TestValidateNonDevDeployment(t *testing.T) {
+	t.Parallel()
+
+	cfg := conf.DefaultIMS()
+	cfg.Core.Deployment = "not a valid deployment"
+	require.Error(t, cfg.Validate())
+
+	// non-dev deployment requires ClubhouseDB
+	cfg = conf.DefaultIMS()
+	cfg.Core.Deployment = conf.DeploymentTypeProduction
+	cfg.Directory.Directory = conf.DirectoryTypeFake
+	require.Error(t, cfg.Validate())
+
+	// non-dev deployment requires MariaDB store
+	cfg = conf.DefaultIMS()
+	cfg.Core.Deployment = conf.DeploymentTypeProduction
+	cfg.Store.Type = conf.DBStoreTypeNoOp
+	require.Error(t, cfg.Validate())
+}
+func TestValidateAttachmentsStore(t *testing.T) {
+	t.Parallel()
+	temp, err := os.OpenRoot(t.TempDir())
+	require.NoError(t, err)
+
+	cfg := conf.DefaultIMS()
 	cfg.AttachmentsStore.Type = conf.AttachmentsStoreS3
+	// this will ultimately be ignored
+	cfg.AttachmentsStore.Local.Dir = temp
 	cfg.AttachmentsStore.S3 = conf.S3Attachments{
 		AWSAccessKeyID:     "abc",
 		AWSSecretAccessKey: "def",
@@ -73,4 +117,17 @@ func TestValidate(t *testing.T) {
 		CommonKeyPrefix:    "a/b",
 	}
 	require.NoError(t, cfg.Validate())
+
+	// This field is required for an S3 attachments store
+	cfg.AttachmentsStore.S3.AWSSecretAccessKey = ""
+	require.Error(t, cfg.Validate())
+
+	// local attachments store requires a local dir to be set
+	cfg = conf.DefaultIMS()
+	cfg.AttachmentsStore.Type = conf.AttachmentsStoreLocal
+	require.Error(t, cfg.Validate())
+
+	cfg = conf.DefaultIMS()
+	cfg.AttachmentsStore.Type = "invalid type"
+	require.Error(t, cfg.Validate())
 }

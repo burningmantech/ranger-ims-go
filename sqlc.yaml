@@ -13,7 +13,7 @@ sql:
       emit_methods_with_db_argument: true
 - engine: "mysql"
   queries: "directory/queries.sql"
-  schema: "directory/schema.sql"
+  schema: "directory/schema/current.sql"
   gen:
     go:
       emit_interface: true

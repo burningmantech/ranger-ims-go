@@ -82,19 +82,9 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 		stderrPrintf("With JWTSecret: %v...%v\n", imsCfg.Core.JWTSecret[:1], imsCfg.Core.JWTSecret[len(imsCfg.Core.JWTSecret)-1:])
 	}
 
-	var err error
-	var clubhouseDBQ *directory.DBQ
-	switch imsCfg.Directory.Directory {
-	case conf.DirectoryTypeClubhouseDB:
-		db, err := directory.MariaDB(ctx, imsCfg.Directory.ClubhouseDB)
-		must(err)
-		clubhouseDBQ = directory.NewMariaDBQ(db, imsCfg.Directory.InMemoryCacheTTL)
-	case conf.DirectoryTypeTestUsers:
-		must(err)
-		clubhouseDBQ = directory.NewTestUsersDBQ(imsCfg.Directory.TestUsers, imsCfg.Directory.InMemoryCacheTTL)
-	default:
-		must(fmt.Errorf("unknown directory %v", imsCfg.Directory.Directory))
-	}
+	clubhouseDB, err := directory.MariaDB(ctx, imsCfg.Directory)
+	must(err)
+	clubhouseDBQ := directory.NewMariaDBQ(clubhouseDB, imsCfg.Directory.InMemoryCacheTTL)
 	userStore := directory.NewUserStore(clubhouseDBQ)
 	var s3Client *attachment.S3Client
 	if imsCfg.AttachmentsStore.Type == conf.AttachmentsStoreS3 {
@@ -102,14 +92,14 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 		must(err)
 	}
 
-	imsDBQ, err := store.SqlDB(ctx, imsCfg.Store, true)
+	imsDB, err := store.SqlDB(ctx, imsCfg.Store, true)
 	must(err)
 
 	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(mux, eventSource, imsCfg, store.New(imsDBQ, imsdb.New()), userStore, s3Client)
+	api.AddToMux(mux, eventSource, imsCfg, store.New(imsDB, imsdb.New()), userStore, s3Client)
 	web.AddToMux(mux, imsCfg)
 
 	s := &http.Server{

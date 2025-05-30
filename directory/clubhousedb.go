@@ -73,7 +73,7 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	db.SetMaxOpenConns(int(chDBCfg.MaxOpenConns))
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
-		return nil, fmt.Errorf("[PingContext] dsn=%v: %w", cfg.FormatDSN(), pingErr)
+		return nil, fmt.Errorf("[PingContext]: %w", pingErr)
 	}
 	slog.Info("Connected to Clubhouse MariaDB")
 

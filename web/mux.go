@@ -33,6 +33,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		mux = http.NewServeMux()
 	}
 
+	deployment := string(cfg.Core.Deployment)
 	mux.Handle("GET /ims/static/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
@@ -40,34 +41,34 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		),
 	)
 	mux.Handle("GET /ims/app",
-		AdaptTempl(template.Root(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Root(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin",
-		AdaptTempl(template.AdminRoot(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminRoot(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/events",
-		AdaptTempl(template.AdminEvents(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminEvents(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/streets",
-		AdaptTempl(template.AdminStreets(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminStreets(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/types",
-		AdaptTempl(template.AdminTypes(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminTypes(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/field_reports",
-		AdaptTempl(template.FieldReports(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.FieldReports(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/field_reports/{fieldReportNumber}",
-		AdaptTempl(template.FieldReport(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.FieldReport(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/incidents",
-		AdaptTempl(template.Incidents(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Incidents(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/events/{eventName}/incidents/{incidentNumber}",
-		AdaptTempl(template.Incident(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Incident(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/auth/login",
-		AdaptTempl(template.Login(cfg.Core.Deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Login(deployment), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/auth/logout",
 		Adapt(

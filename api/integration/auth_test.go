@@ -125,7 +125,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
-			Readers: []imsjson.AccessRule{imsjson.AccessRule{
+			Readers: []imsjson.AccessRule{{
 				Expression: "person:" + userAdminHandle,
 				Validity:   "always",
 			}},

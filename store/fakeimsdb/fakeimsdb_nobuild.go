@@ -14,18 +14,18 @@
 // limitations under the License.
 //
 
-//go:build noinprocessdb
+//go:build nofakedb
 
-package inprocessdb
+package fakeimsdb
 
 import "context"
 
 func Start(
 	ctx context.Context, dbName, hostname string, port int32, username, password string,
 ) (actualPort int, err error) {
-	panic("the in-memory DB was not compiled into the program")
+	panic("the in-process fake DB was not compiled into the program")
 }
 
 func SeedData() string {
-	panic("the in-memory DB was not compiled into the program")
+	panic("the in-process fake DB was not compiled into the program")
 }

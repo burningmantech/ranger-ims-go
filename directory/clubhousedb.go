@@ -34,7 +34,7 @@ import (
 var CurrentSchema string
 
 func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) {
-	var imsCfg conf.ClubhouseDB
+	var chDBCfg conf.ClubhouseDB
 	var err error
 	switch directoryCfg.Directory {
 	case conf.DirectoryTypeNoOp:
@@ -43,24 +43,24 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 		slog.Info("Using NoOp DB")
 		return sql.Open("noop", "")
 	case conf.DirectoryTypeFake:
-		imsCfg, err = startFakeDB(ctx, directoryCfg.FakeDB)
+		chDBCfg, err = startFakeDB(ctx, directoryCfg.FakeDB)
 		if err != nil {
 			return nil, fmt.Errorf("[startFakeDB]: %w", err)
 		}
 	case conf.DirectoryTypeClubhouseDB:
 		fallthrough
 	default:
-		imsCfg = directoryCfg.ClubhouseDB
+		chDBCfg = directoryCfg.ClubhouseDB
 	}
 	slog.Info("Setting up Clubhouse DB connection")
 
 	// Capture connection properties.
 	cfg := mysql.NewConfig()
-	cfg.User = imsCfg.Username
-	cfg.Passwd = imsCfg.Password
+	cfg.User = chDBCfg.Username
+	cfg.Passwd = chDBCfg.Password
 	cfg.Net = "tcp"
-	cfg.Addr = imsCfg.Hostname
-	cfg.DBName = imsCfg.Database
+	cfg.Addr = chDBCfg.Hostname
+	cfg.DBName = chDBCfg.Database
 	cfg.MultiStatements = true
 
 	// Get a database handle.
@@ -70,7 +70,7 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	}
 	// Some arbitrary value. We'll get errors from MariaDB if the server
 	// hits the DB with too many parallel requests.
-	db.SetMaxOpenConns(int(imsCfg.MaxOpenConns))
+	db.SetMaxOpenConns(int(chDBCfg.MaxOpenConns))
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
 		return nil, fmt.Errorf("[PingContext] dsn=%v: %w", cfg.FormatDSN(), pingErr)

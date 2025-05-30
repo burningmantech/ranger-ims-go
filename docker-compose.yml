@@ -6,8 +6,11 @@ services:
     container_name: "ranger-ims-go"
     environment:
       # This is a totally empty user directory, so no one will be able to log in.
-      # This docker-compose file is currently just used by CI to verify that the
-      # stack looks good before deploying to staging, so that's fine.
+      # We can't use a ClubhouseDB directory here because CI doesn't have one to
+      # access, and we can't use a Fake directory, because CI builds of IMS don't
+      # compile the fake MySQL server into the program. If people want to use
+      # docker compose for local dev, we should make a separate Dockerfile and
+      # docker-compose.yml for that.
       IMS_DIRECTORY: "NoOp"
       IMS_DB_HOST_NAME: "ranger-ims-database"
       IMS_DB_PORT: "${IMS_DB_PORT:-3306}"

@@ -106,12 +106,7 @@ type DBQ struct {
 
 var _ chqueries.Querier = (*DBQ)(nil)
 
-// NewMariaDBQ creates a DBQ that uses a standard MariaDB Clubhouse database.
-func NewMariaDBQ(db *sql.DB, cacheTTL time.Duration) *DBQ {
-	return newDBQ(db, chqueries.New(), cacheTTL)
-}
-
-func newDBQ(db *sql.DB, querier chqueries.Querier, cacheTTL time.Duration) *DBQ {
+func NewDBQ(db *sql.DB, querier chqueries.Querier, cacheTTL time.Duration) *DBQ {
 	dbq := &DBQ{
 		DB: db,
 		q:  querier,

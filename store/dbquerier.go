@@ -31,7 +31,7 @@ type DBQ struct {
 	q imsdb.Querier
 }
 
-func New(sqlDB *sql.DB, querier imsdb.Querier) *DBQ {
+func NewDBQ(sqlDB *sql.DB, querier imsdb.Querier) *DBQ {
 	return &DBQ{
 		DB: sqlDB,
 		q:  querier,

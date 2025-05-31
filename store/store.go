@@ -28,11 +28,6 @@ import (
 	"log/slog"
 )
 
-const (
-	MariaDBVersion     = "10.5.27"
-	MariaDBDockerImage = "mariadb:" + MariaDBVersion
-)
-
 //go:embed schema/current.sql
 var CurrentSchema string
 
@@ -43,11 +38,6 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 	var mariaCfg conf.DBStoreMaria
 	var err error
 	switch dbStoreCfg.Type {
-	case conf.DBStoreTypeNoOp:
-		// This is a DB that does nothing and returns nothing on querying.
-		// It's really only useful as a stand-in for testing.
-		slog.Info("Using NoOp DB")
-		return sql.Open("noop", "")
 	case conf.DBStoreTypeFake:
 		mariaCfg, err = startFakeDB(ctx, dbStoreCfg.Fake)
 		if err != nil {

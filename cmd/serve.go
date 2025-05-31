@@ -137,6 +137,7 @@ func runServerInternal(
 `)
 
 	listeningAddr <- addr
+	close(listeningAddr)
 	// The goroutine will hang here until the NotifyContext is done
 	<-notifyCtx.Done()
 	stop()

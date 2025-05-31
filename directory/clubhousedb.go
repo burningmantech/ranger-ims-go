@@ -37,6 +37,11 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	var chDBCfg conf.ClubhouseDB
 	var err error
 	switch directoryCfg.Directory {
+	case conf.DirectoryTypeNoOp:
+		// This is a DB that does nothing and returns nothing on querying.
+		// It's really only useful as a stand-in for testing.
+		slog.Info("Using NoOp DB")
+		return sql.Open("noop", "")
 	case conf.DirectoryTypeFake:
 		chDBCfg, err = startFakeDB(ctx, directoryCfg.FakeDB)
 		if err != nil {

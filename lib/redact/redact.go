@@ -95,15 +95,21 @@ func writeSliceFields(w *bytesBuffer, fieldName string, fieldVal reflect.Value, 
 }
 
 func writeStructField(w *bytesBuffer, fieldName string, fieldVal reflect.Value, redact bool, indent string) {
-	w.fprintf("%v%v\n", indent, fieldName)
 	// If this field is redacted, we just print that out.
-	// If it's not redacted, we do a recursive call to print the field's own fields.
+	// If it's a nonredacted zero-valued struct, we print out that fact.
+	// Otherwise, we do a recursive call to print the field's own fields.
 	if redact {
+		w.fprintf("%v%v\n", indent, fieldName)
 		w.fprintf("%v🤐🤐🤐🤐🤐\n", indent+nestIndent)
-	} else {
-		x1 := reflect.ValueOf(fieldVal.Interface())
-		toBuffer(w, x1, indent+nestIndent)
+		return
 	}
+	if fieldVal.IsZero() {
+		w.fprintf("%v%v is zero value\n", indent, fieldName)
+		return
+	}
+	w.fprintf("%v%v\n", indent, fieldName)
+	x1 := reflect.ValueOf(fieldVal.Interface())
+	toBuffer(w, x1, indent+nestIndent)
 }
 
 type bytesBuffer struct {

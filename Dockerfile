@@ -42,8 +42,8 @@ COPY --from=build /app/ranger-ims-go /opt/ims/bin/ims
 # Docker-specific default configuration
 ENV IMS_HOSTNAME="0.0.0.0"
 ENV IMS_PORT="80"
-ENV IMS_DB_STORE_TYPE="MariaDB"
-ENV IMS_DIRECTORY="ClubhouseDB"
+ENV IMS_DB_STORE_TYPE="mariadb"
+ENV IMS_DIRECTORY="clubhousedb"
 
 # Use a non-root user to run the server
 USER daemon:daemon

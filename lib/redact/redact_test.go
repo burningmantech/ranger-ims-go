@@ -35,6 +35,7 @@ type ExampleType struct {
 	MoreSecrets []Secret `redact:"true"`
 	Dir1        *os.Root
 	Dir2        *os.Root
+	SomeStruct  struct{}
 }
 
 type Secret struct {
@@ -74,6 +75,7 @@ Secrets[1]
 MoreSecrets[]: [empty]
 Dir1 = <nil>
 Dir2 = %v
+SomeStruct is zero value
 `, root.Name())
 	b := redact.ToBytes(&e)
 	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(string(b)))

@@ -5,21 +5,20 @@ services:
     image: "ranger-ims-go:${IMAGE_TAG:-latest}"
     container_name: "ranger-ims-go"
     environment:
-      # This is a totally empty user directory, so no one will be able to log in.
-      # We can't use a ClubhouseDB directory here because CI doesn't have one to
-      # access, and we can't use a Fake directory, because CI builds of IMS don't
-      # compile the fake MySQL server into the program. If people want to use
-      # docker compose for local dev, we should make a separate Dockerfile and
-      # docker-compose.yml for that.
-      IMS_DIRECTORY: "NoOp"
       IMS_DB_HOST_NAME: "ranger-ims-database"
       IMS_DB_PORT: "${IMS_DB_PORT:-3306}"
       IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
       IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
+      IMS_DMS_HOSTNAME: "ranger-clubhouse-database:3306"
+      IMS_DMS_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
+      IMS_DMS_USERNAME: "${IMS_DMS_USERNAME:-clubhouseuser}"
+      IMS_DMS_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
     ports:
       - "${IMS_PORT:-8080}:80"
     depends_on:
       database:
+        condition: service_healthy
+      clubhouse-database:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "/opt/ims/bin/ims", "healthcheck", "--server_url", "http://app:80" ]
@@ -39,6 +38,26 @@ services:
       - "${IMS_DB_PORT:-3306}"
     volumes:
       - ./.docker/mysql/data/:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  # Be aware that this database isn't seeded with any data, so while the IMS server
+  # will successfully start up, there won't be any users with whom to log in.
+  clubhouse-database:
+    image: "mariadb:10.5.27"
+    container_name: "ranger-clubhouse-database"
+    environment:
+      MARIADB_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
+      MARIADB_USER: "${IMS_DMS_USERNAME:-clubhouseuser}"
+      MARIADB_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    ports:
+      - "3306"
+    volumes:
+      - ./.docker/mysql/data-ch/:/var/lib/mysql
     healthcheck:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 1s

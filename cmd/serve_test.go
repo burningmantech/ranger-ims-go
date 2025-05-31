@@ -101,14 +101,20 @@ func TestRunServer(t *testing.T) {
 	t.Parallel()
 	imsCfg := conf.DefaultIMS()
 
-	// this will have the server pick a random port
+	// This will have the server pick a random port
 	imsCfg.Core.Port = 0
-	imsCfg.Directory.Directory = conf.DirectoryTypeNoOp
-	imsCfg.Store.Type = conf.DBStoreTypeNoOp
+	imsCfg.Directory.Directory = conf.DirectoryTypeFake
+	imsCfg.Store.Type = conf.DBStoreTypeFake
 
-	// Start the server, then cancel it.
+	// * Start the server with a cancellable Context
+	// * Wait for the server to start listening (when addrChan responds)
+	// * Cancel the context, thus starting server shutdown
 	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	exitCode := runServerInternal(ctx, imsCfg, true)
+	addrChan := make(chan string, 1)
+	go func() {
+		<-addrChan
+		cancel()
+	}()
+	exitCode := runServerInternal(ctx, imsCfg, true, addrChan)
 	assert.Equal(t, 69, exitCode)
 }

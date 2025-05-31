@@ -22,14 +22,14 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/burningmantech/ranger-ims-go/lib/testctr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
-	"log/slog"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -41,7 +41,8 @@ var clubhouseDBTestSeed string
 
 // mainTestInternal contains fields to be used only within main_test.go.
 var mainTestInternal struct {
-	dbCtr testcontainers.Container
+	dbCtr        testcontainers.Container
+	dbCtrCleanup func()
 }
 
 // shared contains fields that may be used by any test in the integration package.
@@ -110,35 +111,30 @@ func setup(ctx context.Context, tempDir string) {
 	must(err)
 	_, err = clubhouseDB.ExecContext(ctx, clubhouseDBTestSeed)
 	must(err)
-	clubhouseDBQ := directory.NewMariaDBQ(
+	clubhouseDBQ := directory.NewDBQ(
 		clubhouseDB,
+		chqueries.New(),
 		shared.cfg.Directory.InMemoryCacheTTL,
 	)
 	shared.userStore = directory.NewUserStore(clubhouseDBQ)
-	mainTestInternal.dbCtr, err = testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        store.MariaDBDockerImage,
-				ExposedPorts: []string{"3306/tcp"},
-				WaitingFor:   wait.ForLog("port: 3306  mariadb.org binary distribution"),
-				Env: map[string]string{
-					"MARIADB_RANDOM_ROOT_PASSWORD": "true",
-					"MARIADB_DATABASE":             shared.cfg.Store.MariaDB.Database,
-					"MARIADB_USER":                 shared.cfg.Store.MariaDB.Username,
-					"MARIADB_PASSWORD":             shared.cfg.Store.MariaDB.Password,
-				},
-			},
-			Started: true,
-		},
+
+	ctr, cleanup, dbHostPort, err := testctr.MariaDBContainer(
+		ctx,
+		shared.cfg.Store.MariaDB.Database,
+		shared.cfg.Store.MariaDB.Username,
+		shared.cfg.Store.MariaDB.Password,
 	)
 	must(err)
-	port, err := mainTestInternal.dbCtr.MappedPort(ctx, "3306/tcp")
-	must(err)
-	shared.cfg.Store.MariaDB.HostPort = int32(port.Int())
+	mainTestInternal.dbCtr = ctr
+	mainTestInternal.dbCtrCleanup = cleanup
+	shared.cfg.Store.MariaDB.HostPort = dbHostPort
+
 	db, err := store.SqlDB(ctx, shared.cfg.Store, true)
 	must(err)
-	shared.imsDBQ = store.New(db, imsdb.New())
-	shared.testServer = httptest.NewServer(api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil))
+	shared.imsDBQ = store.NewDBQ(db, imsdb.New())
+	shared.testServer = httptest.NewServer(
+		api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil),
+	)
 	shared.serverURL, err = url.Parse(shared.testServer.URL)
 	must(err)
 }
@@ -157,11 +153,7 @@ func shutdown(ctx context.Context, tempDir string) {
 	if shared.imsDBQ != nil {
 		_ = shared.imsDBQ.Close()
 	}
-	if mainTestInternal.dbCtr != nil {
-		err := mainTestInternal.dbCtr.Terminate(ctx)
-		if err != nil {
-			// log and continue
-			slog.Error("Failed to terminate container", "error", err)
-		}
+	if mainTestInternal.dbCtrCleanup != nil {
+		mainTestInternal.dbCtrCleanup()
 	}
 }

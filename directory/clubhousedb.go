@@ -37,11 +37,6 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	var chDBCfg conf.ClubhouseDB
 	var err error
 	switch directoryCfg.Directory {
-	case conf.DirectoryTypeNoOp:
-		// This is a DB that does nothing and returns nothing on querying.
-		// It's really only useful as a stand-in for testing.
-		slog.Info("Using NoOp DB")
-		return sql.Open("noop", "")
 	case conf.DirectoryTypeFake:
 		chDBCfg, err = startFakeDB(ctx, directoryCfg.FakeDB)
 		if err != nil {
@@ -106,12 +101,7 @@ type DBQ struct {
 
 var _ chqueries.Querier = (*DBQ)(nil)
 
-// NewMariaDBQ creates a DBQ that uses a standard MariaDB Clubhouse database.
-func NewMariaDBQ(db *sql.DB, cacheTTL time.Duration) *DBQ {
-	return newDBQ(db, chqueries.New(), cacheTTL)
-}
-
-func newDBQ(db *sql.DB, querier chqueries.Querier, cacheTTL time.Duration) *DBQ {
+func NewDBQ(db *sql.DB, querier chqueries.Querier, cacheTTL time.Duration) *DBQ {
 	dbq := &DBQ{
 		DB: db,
 		q:  querier,

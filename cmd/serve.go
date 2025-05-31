@@ -22,6 +22,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/log"
@@ -58,23 +59,21 @@ var serveCmd = &cobra.Command{
 
 func runServer(cmd *cobra.Command, args []string) {
 	imsCfg := mustInitConfig(envFilename)
-	os.Exit(runServerInternal(context.Background(), imsCfg, printConfig))
+	os.Exit(runServerInternal(context.Background(), imsCfg, printConfig, make(chan string, 1)))
 }
 
-func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printConfig bool) (
-	exitCode int,
-) {
+// runServerInternal starts the IMS server and blocks until it is terminated.
+//
+// The supplied channel will be provided with the address of the server at the time when
+// the server is started and ready to accept connections.
+func runServerInternal(
+	ctx context.Context, unvalidatedCfg *conf.IMSConfig,
+	printConfig bool, listeningAddr chan<- string,
+) (exitCode int) {
 	must(unvalidatedCfg.Validate())
 	imsCfg := unvalidatedCfg
 
-	var logLevel slog.Level
-	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
-	logger := slog.New(
-		log.NewHandler(
-			&slog.HandlerOptions{Level: logLevel},
-		),
-	)
-	slog.SetDefault(logger)
+	configureLogger(imsCfg)
 
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()
@@ -84,8 +83,9 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 
 	clubhouseDB, err := directory.MariaDB(ctx, imsCfg.Directory)
 	must(err)
-	clubhouseDBQ := directory.NewMariaDBQ(clubhouseDB, imsCfg.Directory.InMemoryCacheTTL)
+	clubhouseDBQ := directory.NewDBQ(clubhouseDB, chqueries.New(), imsCfg.Directory.InMemoryCacheTTL)
 	userStore := directory.NewUserStore(clubhouseDBQ)
+
 	var s3Client *attachment.S3Client
 	if imsCfg.AttachmentsStore.Type == conf.AttachmentsStoreS3 {
 		s3Client, err = attachment.NewS3Client(ctx)
@@ -94,12 +94,13 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 
 	imsDB, err := store.SqlDB(ctx, imsCfg.Store, true)
 	must(err)
+	imsDBQ := store.NewDBQ(imsDB, imsdb.New())
 
 	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(mux, eventSource, imsCfg, store.New(imsDB, imsdb.New()), userStore, s3Client)
+	api.AddToMux(mux, eventSource, imsCfg, imsDBQ, userStore, s3Client)
 	web.AddToMux(mux, imsCfg)
 
 	s := &http.Server{
@@ -135,6 +136,7 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 
 `)
 
+	listeningAddr <- addr
 	// The goroutine will hang here until the NotifyContext is done
 	<-notifyCtx.Done()
 	stop()
@@ -148,6 +150,17 @@ func runServerInternal(ctx context.Context, unvalidatedCfg *conf.IMSConfig, prin
 	stop()
 	cancel()
 	return 69
+}
+
+func configureLogger(imsCfg *conf.IMSConfig) {
+	var logLevel slog.Level
+	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
+	logger := slog.New(
+		log.NewHandler(
+			&slog.HandlerOptions{Level: logLevel},
+		),
+	)
+	slog.SetDefault(logger)
 }
 
 func lookupEnv(key string) (string, bool) {

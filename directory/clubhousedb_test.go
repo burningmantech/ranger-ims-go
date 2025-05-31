@@ -22,10 +22,9 @@ import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
-	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/lib/testctr"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"testing"
 )
@@ -62,27 +61,10 @@ func shut(t *testing.T, s io.Closer) {
 func newEmptyDB(t *testing.T, ctx context.Context, database, username, password string) (testcontainers.Container, *sql.DB) {
 	t.Helper()
 
-	ctr, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        store.MariaDBDockerImage,
-				ExposedPorts: []string{"3306/tcp"},
-				WaitingFor:   wait.ForLog("port: 3306  mariadb.org binary distribution"),
-				Env: map[string]string{
-					"MARIADB_RANDOM_ROOT_PASSWORD": "true",
-					"MARIADB_DATABASE":             database,
-					"MARIADB_USER":                 username,
-					"MARIADB_PASSWORD":             password,
-				},
-			},
-			Started: true,
-		},
-	)
-	testcontainers.CleanupContainer(t, ctr)
+	ctr, cleanup, dbHostPort, err := testctr.MariaDBContainer(ctx, database, username, password)
+	t.Cleanup(cleanup)
 	require.NoError(t, err)
-	port, err := ctr.MappedPort(ctx, "3306/tcp")
-	require.NoError(t, err)
-	dbHostPort := int32(port.Int())
+
 	db, err := directory.MariaDB(ctx,
 		conf.Directory{
 			ClubhouseDB: conf.ClubhouseDB{

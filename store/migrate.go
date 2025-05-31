@@ -52,7 +52,7 @@ func repoSchemaVersion() (schemaVersion, error) {
 }
 
 func dbSchemaVersion(ctx context.Context, db *sql.DB) (schemaVersion, error) {
-	dbq := New(db, imsdb.New())
+	dbq := NewDBQ(db, imsdb.New())
 	result, err := dbq.SchemaVersion(ctx, db)
 	if err == nil {
 		return schemaVersion(result), nil

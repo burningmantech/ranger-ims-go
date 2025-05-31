@@ -93,7 +93,7 @@ func TestEventFromFormValue(t *testing.T) {
 	db, err := sql.Open("noop", "")
 	require.NoError(t, err)
 	req = &http.Request{URL: u}
-	_, errHTTP = eventFromFormValue(req, store.New(db, imsdb.New()))
+	_, errHTTP = eventFromFormValue(req, store.NewDBQ(db, imsdb.New()))
 	require.NotNil(t, errHTTP)
 	require.Equal(t, http.StatusInternalServerError, errHTTP.Code)
 	require.Contains(t, errHTTP.ResponseMessage, "Failed to get event")
@@ -102,7 +102,7 @@ func TestEventFromFormValue(t *testing.T) {
 func TestGetEvent(t *testing.T) {
 	t.Parallel()
 	dbNoop, err := sql.Open("noop", "")
-	db := store.New(dbNoop, imsdb.New())
+	db := store.NewDBQ(dbNoop, imsdb.New())
 	require.NoError(t, err)
 
 	// no eventName provided

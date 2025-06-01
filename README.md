@@ -1,6 +1,6 @@
 # Ranger IMS Server - now in Go
 
-![](/gopher.jpeg)
+![](/gopher.png)
 
 The Ranger Incident Management System is used by the Black Rock Rangers to track incidents
 that occur in Black Rock City.

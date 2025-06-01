@@ -1041,6 +1041,7 @@ async function addRanger(): Promise<void> {
     addRanger.value = "";
     addRanger.disabled = false;
     ims.controlHasSuccess(addRanger, 1000);
+    addRanger.focus();
 }
 
 
@@ -1087,6 +1088,7 @@ async function addIncidentType(): Promise<void> {
     addType.value = "";
     addType.disabled = false;
     ims.controlHasSuccess(addType, 1000);
+    addType.focus();
 }
 
 

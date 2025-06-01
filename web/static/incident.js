@@ -813,6 +813,7 @@ async function addRanger() {
     addRanger.value = "";
     addRanger.disabled = false;
     ims.controlHasSuccess(addRanger, 1000);
+    addRanger.focus();
 }
 async function addIncidentType() {
     const addType = document.getElementById("incident_type_add");
@@ -852,6 +853,7 @@ async function addIncidentType() {
     addType.value = "";
     addType.disabled = false;
     ims.controlHasSuccess(addType, 1000);
+    addType.focus();
 }
 async function detachFieldReport(sender) {
     const parent = sender.parentElement;

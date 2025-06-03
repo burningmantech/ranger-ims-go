@@ -545,6 +545,7 @@ function drawPriority(): void {
 
 function drawIncidentSummary(): void {
     const summaryElement = document.getElementById("incident_summary") as HTMLInputElement;
+    summaryElement.placeholder = "One-line summary of incident";
     if (incident!.summary) {
         summaryElement.value = incident!.summary;
         summaryElement.placeholder = "";

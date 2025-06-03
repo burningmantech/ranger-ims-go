@@ -62,7 +62,8 @@ func TestTemplEndpoints(t *testing.T) {
 		resp, err := client.Do(httpReq)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
-		require.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+		require.Equalf(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"),
+			"Wrong content type for templ endpoint %v", endpoint)
 		bod, err := io.ReadAll(resp.Body)
 		require.NoError(t, resp.Body.Close())
 		require.NoError(t, err)

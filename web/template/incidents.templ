@@ -16,7 +16,7 @@
 
 package template
 
-templ Incidents(deployment string) {
+templ Incidents(deployment, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
 @head("Incidents", "incidents.js", true)
@@ -24,7 +24,7 @@ templ Incidents(deployment string) {
 <body>
 <div class="container-fluid">
 @header(deployment)
-@nav()
+@nav(eventName)
 <h1 id="doc-title">Incidents</h1>
 
 

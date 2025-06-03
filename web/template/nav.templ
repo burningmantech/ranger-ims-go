@@ -16,7 +16,13 @@
 
 package template
 
-templ nav() {
+templ nav(eventName string) {
+{{
+  eventSet := eventName != ""
+  if !eventSet {
+    eventName = "Event"
+  }
+}}
 <nav class="navbar border rounded navbar-expand-sm bg-body-tertiary">
 
   <!-- These svgs are courtesy of https://icons.getbootstrap.com/icons/ -->
@@ -63,11 +69,17 @@ templ nav() {
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <!-- Event menu -->
-      <ul class="navbar-nav if-logged-in hidden">
+      <ul
+        if eventSet {
+          class="navbar-nav if-logged-in"
+        } else {
+          class="navbar-nav if-logged-in hidden"
+        }
+      >
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
              aria-expanded="false">
-            <span id="nav-event-id" class="event-id">Event</span>
+            <span id="nav-event-id" class="event-id">{ eventName }</span>
           </a>
           <ul id="nav-events" class="dropdown-menu">
             <li />
@@ -78,10 +90,22 @@ templ nav() {
       <!-- Links to Incidents and Field Reports for current event -->
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a id="active-event-incidents" class="nav-link hidden" href="">Incidents</a>
+          <a id="active-event-incidents"
+             if eventSet {
+                class="nav-link"
+             } else {
+                class="nav-link hidden"
+             }
+             href="">Incidents</a>
         </li>
         <li class="nav-item">
-          <a id="active-event-field-reports" class="nav-link hidden" href="">Field Reports</a>
+          <a id="active-event-field-reports"
+             if eventSet {
+               class="nav-link"
+             } else {
+               class="nav-link hidden"
+             }
+             href="">Field Reports</a>
         </li>
       </ul>
 

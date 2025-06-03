@@ -16,7 +16,7 @@
 
 package template
 
-templ FieldReports(deployment string) {
+templ FieldReports(deployment, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
 @head("Field Reports", "field_reports.js", true)
@@ -24,7 +24,7 @@ templ FieldReports(deployment string) {
 <body>
 <div class="container-fluid">
 @header(deployment)
-@nav()
+@nav(eventName)
 <h1 id="doc-title">Field Reports</h1>
 
     <div id="error_info" class="hidden text-danger">

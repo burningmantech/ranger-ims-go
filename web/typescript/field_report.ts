@@ -51,7 +51,6 @@ async function initFieldReportPage(): Promise<void> {
     window.submitReportEntry = ims.submitReportEntry;
     window.attachFile = attachFile;
 
-    ims.disableEditing();
     await loadAndDisplayFieldReport();
 
     if (fieldReport == null) {
@@ -191,6 +190,8 @@ async function loadAndDisplayFieldReport(): Promise<void> {
 
     if (ims.eventAccess?.writeFieldReports) {
         ims.enableEditing();
+    } else {
+        ims.disableEditing();
     }
 
     if (ims.eventAccess?.attachFiles) {
@@ -258,9 +259,10 @@ function drawIncident(): void {
 
 function drawSummary(): void {
     const summaryInput = document.getElementById("field_report_summary") as HTMLInputElement;
+    summaryInput.placeholder = "One-line summary. **Pretty-please include an IMS# here**";
     if (fieldReport!.summary) {
         summaryInput.value = fieldReport!.summary;
-        summaryInput.removeAttribute("placeholder");
+        summaryInput.placeholder = "";
         return;
     }
 
@@ -268,7 +270,7 @@ function drawSummary(): void {
     const summarized = ims.summarizeIncidentOrFR(fieldReport!);
     if (summarized) {
         // only replace the placeholder if it would be nonempty
-        summaryInput.setAttribute("placeholder", summarized);
+        summaryInput.placeholder = summarized;
     }
 }
 

@@ -55,17 +55,37 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/app/admin/types",
 		AdaptTempl(template.AdminTypes(deployment), cfg.Core.CacheControlLong),
 	)
-	mux.Handle("GET /ims/app/events/{eventName}/field_reports",
-		AdaptTempl(template.FieldReports(deployment), cfg.Core.CacheControlLong),
+	mux.HandleFunc("GET /ims/app/events/{eventName}/field_reports",
+		func(w http.ResponseWriter, r *http.Request) {
+			AdaptTempl(
+				template.FieldReports(deployment, r.PathValue("eventName")),
+				cfg.Core.CacheControlLong,
+			).ServeHTTP(w, r)
+		},
 	)
-	mux.Handle("GET /ims/app/events/{eventName}/field_reports/{fieldReportNumber}",
-		AdaptTempl(template.FieldReport(deployment), cfg.Core.CacheControlLong),
+	mux.HandleFunc("GET /ims/app/events/{eventName}/field_reports/{fieldReportNumber}",
+		func(w http.ResponseWriter, r *http.Request) {
+			AdaptTempl(
+				template.FieldReport(deployment, r.PathValue("eventName")),
+				cfg.Core.CacheControlLong,
+			).ServeHTTP(w, r)
+		},
 	)
-	mux.Handle("GET /ims/app/events/{eventName}/incidents",
-		AdaptTempl(template.Incidents(deployment), cfg.Core.CacheControlLong),
+	mux.HandleFunc("GET /ims/app/events/{eventName}/incidents",
+		func(w http.ResponseWriter, r *http.Request) {
+			AdaptTempl(
+				template.Incidents(deployment, r.PathValue("eventName")),
+				cfg.Core.CacheControlLong,
+			).ServeHTTP(w, r)
+		},
 	)
-	mux.Handle("GET /ims/app/events/{eventName}/incidents/{incidentNumber}",
-		AdaptTempl(template.Incident(deployment), cfg.Core.CacheControlLong),
+	mux.HandleFunc("GET /ims/app/events/{eventName}/incidents/{incidentNumber}",
+		func(w http.ResponseWriter, r *http.Request) {
+			AdaptTempl(
+				template.Incident(deployment, r.PathValue("eventName")),
+				cfg.Core.CacheControlLong,
+			).ServeHTTP(w, r)
+		},
 	)
 	mux.Handle("GET /ims/auth/login",
 		AdaptTempl(template.Login(deployment), cfg.Core.CacheControlLong),

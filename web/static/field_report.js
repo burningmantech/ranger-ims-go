@@ -34,7 +34,6 @@ async function initFieldReportPage() {
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
     window.attachFile = attachFile;
-    ims.disableEditing();
     await loadAndDisplayFieldReport();
     if (fieldReport == null) {
         return;
@@ -160,6 +159,9 @@ async function loadAndDisplayFieldReport() {
     if (ims.eventAccess?.writeFieldReports) {
         ims.enableEditing();
     }
+    else {
+        ims.disableEditing();
+    }
     if (ims.eventAccess?.attachFiles) {
         document.getElementById("attach_file").classList.remove("hidden");
     }
@@ -214,16 +216,17 @@ function drawIncident() {
 //
 function drawSummary() {
     const summaryInput = document.getElementById("field_report_summary");
+    summaryInput.placeholder = "One-line summary. **Pretty-please include an IMS# here**";
     if (fieldReport.summary) {
         summaryInput.value = fieldReport.summary;
-        summaryInput.removeAttribute("placeholder");
+        summaryInput.placeholder = "";
         return;
     }
     summaryInput.value = "";
     const summarized = ims.summarizeIncidentOrFR(fieldReport);
     if (summarized) {
         // only replace the placeholder if it would be nonempty
-        summaryInput.setAttribute("placeholder", summarized);
+        summaryInput.placeholder = summarized;
     }
 }
 //

@@ -11,7 +11,7 @@ require (
 	github.com/go-sql-driver/mysql v1.9.2
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/joho/godotenv v1.5.1
-	github.com/launchdarkly/eventsource v1.9.0
+	github.com/launchdarkly/eventsource v1.9.1
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0

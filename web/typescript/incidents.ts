@@ -90,8 +90,6 @@ async function initIncidentsPage(): Promise<void> {
     window.showRows = showRows;
     window.toggleCheckAllTypes = toggleCheckAllTypes;
 
-    ims.disableEditing();
-
     await initIncidentsTable();
 
     const helpModal = ims.bsModal(document.getElementById("helpModal")!);
@@ -188,6 +186,8 @@ async function initIncidentsTable(): Promise<void> {
 
     if (ims.eventAccess?.writeIncidents) {
         ims.enableEditing();
+    } else {
+        ims.disableEditing();
     }
 
     ims.requestEventSourceLock();

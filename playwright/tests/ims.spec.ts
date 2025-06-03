@@ -229,10 +229,10 @@ test("incidents", async ({ page, browser }) => {
         await expect(page.getByLabel("Add Ranger Handle")).toHaveValue("");
       }
 
-      await addRanger(incidentPage, "Defect");
-      await addRanger(incidentPage, "Irate");
+      await addRanger(incidentPage, "Doggy");
+      await addRanger(incidentPage, "Runner");
       await addRanger(incidentPage, "Loosy");
-      await addRanger(incidentPage, "Parenthetical");
+      await addRanger(incidentPage, "TheMan");
     }
 
     // add location details

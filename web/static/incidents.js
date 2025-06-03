@@ -67,7 +67,6 @@ async function initIncidentsPage() {
     window.showDays = showDays;
     window.showRows = showRows;
     window.toggleCheckAllTypes = toggleCheckAllTypes;
-    ims.disableEditing();
     await initIncidentsTable();
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
     // Keyboard shortcuts
@@ -145,6 +144,9 @@ async function initIncidentsTable() {
     ims.clearErrorMessage();
     if (ims.eventAccess?.writeIncidents) {
         ims.enableEditing();
+    }
+    else {
+        ims.disableEditing();
     }
     ims.requestEventSourceLock();
     ims.newIncidentChannel().onmessage = async function (e) {

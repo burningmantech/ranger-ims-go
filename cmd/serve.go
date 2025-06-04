@@ -25,7 +25,6 @@ import (
 	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	"github.com/burningmantech/ranger-ims-go/lib/log"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
@@ -156,12 +155,14 @@ func runServerInternal(
 func configureLogger(imsCfg *conf.IMSConfig) {
 	var logLevel slog.Level
 	must(logLevel.UnmarshalText([]byte(imsCfg.Core.LogLevel)))
-	logger := slog.New(
-		log.NewHandler(
-			&slog.HandlerOptions{Level: logLevel},
-		),
-	)
-	slog.SetDefault(logger)
+	// TODO: maybe bring back pretty logging for local use only
+	// logger := slog.New(
+	//	log.NewHandler(
+	//		&slog.HandlerOptions{Level: logLevel},
+	//	),
+	//)
+	// slog.SetDefault(logger)
+	slog.SetLogLoggerLevel(logLevel)
 }
 
 func lookupEnv(key string) (string, bool) {

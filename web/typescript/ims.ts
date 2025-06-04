@@ -892,7 +892,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 
         const link: HTMLAnchorElement = document.createElement("a");
         link.textContent = "field report #" + entry.merged;
-        link.href = urlReplace(url_viewFieldReports) + entry.merged;
+        link.href = `${urlReplace(url_viewFieldReports)}/${entry.merged}`;
 
         metaDataContainer.append("(via ", link, ")");
         metaDataContainer.classList.add("report_entry_source");
@@ -913,20 +913,30 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         entryContainer.append(textContainer);
     }
     if (entry.has_attachment && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
+
         let url = "";
-        if (pathIds.incidentNumber != null) {
+        if (pathIds.incidentNumber != null && entry.merged == null) {
+            // incident attachment on incident page
             url = urlReplace(url_incidentAttachmentNumber)
                 .replace("<incident_number>", pathIds.incidentNumber.toString())
                 .replace("<attachment_number>", entry.id!.toString());
+        } else if (pathIds.incidentNumber != null && entry.merged != null) {
+            // FR attachment on incident page
+            url = urlReplace(url_fieldReportAttachmentNumber)
+                .replace("<field_report_number>", entry.merged.toString())
+                .replace("<attachment_number>", entry.id!.toString());
         } else {
+            // FR attachment on FR page
             url = urlReplace(url_fieldReportAttachmentNumber)
                 .replace("<field_report_number>", (pathIds.fieldReportNumber??"wontHappen").toString())
                 .replace("<attachment_number>", entry.id!.toString());
         }
 
-        const attachmentLink: HTMLAnchorElement = document.createElement("a");
-        attachmentLink.href = "#";
-        attachmentLink.textContent = "Attached file";
+        const attachmentLink: HTMLButtonElement = document.createElement("button");
+        attachmentLink.textContent = "View file";
+        attachmentLink.classList.add(
+            "btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "form-control-lite", "no-print",
+        );
 
         // We need to do a JavaScript fetch of the file, rather than simply
         // opening a new browser tab that GETs it, because we have to send

@@ -32,7 +32,7 @@ run/live:
 		--build.cmd "make build" --build.bin "./${binary_name} serve --print-config=false" --build.delay "100" \
 		--build.include_ext "go,tpl,tmpl,templ,html,css,scss,js,ts,sql,jpeg,jpg,gif,png,bmp,svg,webp,ico,env" \
 		--build.exclude_file "web/template/*_templ.go,web/static/*.js,store/imsdb/*.go,directory/clubhousedb/*.go" \
-		--build.exclude_dir "playwright" \
+		--build.exclude_dir "playwright,ims-attachments" \
 		--misc.clean_on_exit "true" --tmp_dir=air_tmp
 
 ## update: update all deps

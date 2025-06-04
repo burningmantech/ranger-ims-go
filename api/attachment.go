@@ -271,8 +271,8 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		return 0, errHTTP.From("[saveFile]")
 	}
 
-	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
-		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
+	reText := fmt.Sprintf("File Type: %v, Size: %v, Name:%v",
+		sniffedContentType, format.HumanByteSize(fiHead.Size), fiHead.Filename)
 	reID, errHTTP := addIncidentReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if errHTTP != nil {
@@ -377,8 +377,8 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		return 0, errHTTP.From("[saveFile]")
 	}
 
-	reText := fmt.Sprintf("%v uploaded a file\nOriginal name:%v\nType: %v\nSize: %v",
-		jwtCtx.Claims.RangerHandle(), fiHead.Filename, sniffedContentType, format.HumanByteSize(fiHead.Size))
+	reText := fmt.Sprintf("File Type: %v, Size: %v, Name:%v",
+		sniffedContentType, format.HumanByteSize(fiHead.Size), fiHead.Filename)
 	reID, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
 	if errHTTP != nil {

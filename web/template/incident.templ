@@ -51,7 +51,7 @@ templ Incident(deployment, eventName string) {
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <p class="modal-title fs-5" id="startTimeModalLabel">Override creation time</p>
+            <p class="modal-title fs-5" id="startTimeModalLabel">Override start time</p>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body row">
@@ -59,8 +59,10 @@ templ Incident(deployment, eventName string) {
               Approximately when did the incident start?
             </p>
             <p>
-              This is a niche feature, intended for use when the incident is being created
-              hours or days after the incident actually started.
+              It's normally fine to leave this value as the default, which is the
+              time that the IMS incident was created. It's a good idea to override
+              that time here when the incident started hours or days before the IMS
+              incident was created.
             </p>
             <div class="input-group">
               <label for="override_start_datetime" class="control-label input-group-text">Started</label>
@@ -72,7 +74,7 @@ templ Incident(deployment, eventName string) {
       </div>
     </div>
 
-    <!-- Incident number, state, created -->
+    <!-- Incident number, state, started -->
 
     <div class="row py-1">
       <div class="col-sm-2 py-1">
@@ -99,7 +101,7 @@ templ Incident(deployment, eventName string) {
       </div>
       <div class="col-sm-6 py-1">
         <div class="input-group">
-          <label class="control-label input-group-text" for="started_datetime">Created</label>
+          <label class="control-label input-group-text" for="started_datetime">Started</label>
           <span class="form-control form-control-static align-middle d-flex justify-content-between">
             <span id="started_datetime"></span>
             <span class="show-pointer">

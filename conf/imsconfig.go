@@ -128,9 +128,12 @@ func (c *IMSConfig) Validate() error {
 	}
 	if c.AttachmentsStore.Type == AttachmentsStoreS3 {
 		s3 := c.AttachmentsStore.S3
-		if s3.AWSAccessKeyID == "" || s3.AWSSecretAccessKey == "" || s3.AWSRegion == "" || s3.Bucket == "" {
-			errs = append(errs, errors.New("s3 attachments store requires Key ID, Secret Key, Default AWSRegion, and Bucket"))
+		if s3.AWSRegion == "" || s3.Bucket == "" {
+			errs = append(errs, errors.New("s3 attachments store requires Default AWSRegion and Bucket"))
 		}
+		// if s3.AWSAccessKeyID == "" || s3.AWSSecretAccessKey == "" || s3.AWSRegion == "" || s3.Bucket == "" {
+		//	errs = append(errs, errors.New("s3 attachments store requires Key ID, Secret Key, Default AWSRegion, and Bucket"))
+		//}
 		if c.AttachmentsStore.Local.Dir != nil {
 			errs = append(errs, c.AttachmentsStore.Local.Dir.Close())
 		}

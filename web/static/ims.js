@@ -801,7 +801,7 @@ function reportEntryElement(entry) {
                 .replace("<attachment_number>", entry.id.toString());
         }
         const attachmentLink = document.createElement("button");
-        attachmentLink.textContent = "View file";
+        attachmentLink.textContent = "Download file";
         attachmentLink.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "form-control-lite", "no-print");
         // We need to do a JavaScript fetch of the file, rather than simply
         // opening a new browser tab that GETs it, because we have to send
@@ -813,8 +813,18 @@ function reportEntryElement(entry) {
                 setErrorMessage(`Failed to fetch attachment: ${err}`);
                 return;
             }
-            const blobUrl = window.URL.createObjectURL(await resp.blob());
-            window.open(blobUrl, '_blank');
+            const blob = await resp.blob();
+            // Make an ephemeral URL for that blob, then ask the browser to download
+            // the file. It'd be nice to allow previewing the file in the browser, but
+            // there are XSS risks we'd need to mitigate, since the object URL is on
+            // the same origin as IMS.
+            const blobUrl = window.URL.createObjectURL(blob);
+            const tmpLink = document.createElement("a");
+            tmpLink.href = blobUrl;
+            tmpLink.download = "";
+            document.body.appendChild(tmpLink);
+            tmpLink.click();
+            document.body.removeChild(tmpLink);
             URL.revokeObjectURL(blobUrl);
         };
         entryContainer.append(attachmentLink);

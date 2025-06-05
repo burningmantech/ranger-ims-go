@@ -114,14 +114,12 @@ export function compareReportEntries(a, b) {
 //
 // Request making
 //
-export async function fetchJsonNoThrow(url, init) {
-    if (url !== url_authRefresh && getAccessToken()) {
+async function maybeRefreshAuth() {
+    if (getAccessToken()) {
         if ((refreshTokenAfter() ?? 0) < new Date().getTime()) {
             const { json, err } = await fetchJsonNoThrow(url_authRefresh, { body: JSON.stringify({}) });
             if (err != null || json == null) {
                 clearAccessToken();
-                // TODO: I think this is right to leave out. We want the original call to proceed.
-                // return {resp: null, json: null, err: "Access token couldn't be refreshed"};
             }
             else {
                 setAccessToken(json.token);
@@ -129,6 +127,12 @@ export async function fetchJsonNoThrow(url, init) {
                 console.log("Refreshed access token");
             }
         }
+    }
+    return;
+}
+export async function fetchJsonNoThrow(url, init) {
+    if (url !== url_authRefresh) {
+        await maybeRefreshAuth();
     }
     if (init == null) {
         init = {};
@@ -782,31 +786,33 @@ function reportEntryElement(entry) {
     }
     if (entry.has_attachment && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
         let url = "";
+        let filename = "";
         if (pathIds.incidentNumber != null && entry.merged == null) {
             // incident attachment on incident page
             url = urlReplace(url_incidentAttachmentNumber)
                 .replace("<incident_number>", pathIds.incidentNumber.toString())
                 .replace("<attachment_number>", entry.id.toString());
+            filename = `ims_${pathIds.incidentNumber.toString()}_${entry.id.toString()}`;
         }
         else if (pathIds.incidentNumber != null && entry.merged != null) {
             // FR attachment on incident page
             url = urlReplace(url_fieldReportAttachmentNumber)
                 .replace("<field_report_number>", entry.merged.toString())
                 .replace("<attachment_number>", entry.id.toString());
+            filename = `fr_${entry.merged.toString()}_${entry.id.toString()}`;
         }
         else {
             // FR attachment on FR page
+            const frNum = (pathIds.fieldReportNumber ?? "wontHappen").toString();
             url = urlReplace(url_fieldReportAttachmentNumber)
-                .replace("<field_report_number>", (pathIds.fieldReportNumber ?? "wontHappen").toString())
+                .replace("<field_report_number>", frNum)
                 .replace("<attachment_number>", entry.id.toString());
+            filename = `fr_${frNum}_${entry.id.toString()}`;
         }
-        const attachmentLink = document.createElement("button");
-        attachmentLink.textContent = "Download file";
-        attachmentLink.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "form-control-lite", "no-print");
-        // We need to do a JavaScript fetch of the file, rather than simply
-        // opening a new browser tab that GETs it, because we have to send
-        // the Authorization header.
-        attachmentLink.onclick = async (e) => {
+        const previewButt = document.createElement("button");
+        previewButt.textContent = "Preview file";
+        previewButt.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
+        previewButt.onclick = async (e) => {
             e.preventDefault();
             const { resp, err } = await fetchJsonNoThrow(url, {});
             if (err != null || resp == null) {
@@ -820,14 +826,45 @@ function reportEntryElement(entry) {
             // the same origin as IMS.
             const blobUrl = window.URL.createObjectURL(blob);
             const tmpLink = document.createElement("a");
+            // Preview mode: open a preview in a new window.
+            // We'd use window.open with target _blank, but Safari iOS doesn't support that,
+            // and a lot of Rangers use iPhones.
+            tmpLink.target = "_blank";
             tmpLink.href = blobUrl;
-            tmpLink.download = "";
             document.body.appendChild(tmpLink);
             tmpLink.click();
             document.body.removeChild(tmpLink);
             URL.revokeObjectURL(blobUrl);
         };
-        entryContainer.append(attachmentLink);
+        const downloadButt = document.createElement("button");
+        downloadButt.textContent = "Download file";
+        downloadButt.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
+        // We need to do a JavaScript fetch of the file, rather than simply
+        // opening a new browser tab that GETs it, because we have to send
+        // the Authorization header.
+        downloadButt.onclick = async (e) => {
+            e.preventDefault();
+            const { resp, err } = await fetchJsonNoThrow(url, {});
+            if (err != null || resp == null) {
+                setErrorMessage(`Failed to fetch attachment: ${err}`);
+                return;
+            }
+            const blob = await resp.blob();
+            // Make an ephemeral URL for that blob, then ask the browser to download
+            // the file. It'd be nice to allow previewing the file in the browser, but
+            // there are XSS risks we'd need to mitigate, since the object URL is on
+            // the same origin as IMS.
+            const blobUrl = window.URL.createObjectURL(blob);
+            const tmpLink = document.createElement("a");
+            // Download mode: set a suggested filename.
+            tmpLink.download = filename;
+            tmpLink.href = blobUrl;
+            document.body.appendChild(tmpLink);
+            tmpLink.click();
+            document.body.removeChild(tmpLink);
+            URL.revokeObjectURL(blobUrl);
+        };
+        entryContainer.append(previewButt, downloadButt);
     }
     // Add a horizontal line after each entry
     const hr = document.createElement("hr");

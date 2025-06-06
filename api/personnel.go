@@ -47,7 +47,7 @@ func (action GetPersonnel) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 func (action GetPersonnel) getPersonnel(req *http.Request) (GetPersonnelResponse, *herr.HTTPError) {
 	response := make(GetPersonnelResponse, 0)
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return response, errHTTP.From("[getGlobalPermissions]")
 	}

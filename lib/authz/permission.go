@@ -19,6 +19,7 @@ package authz
 import (
 	"context"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"slices"
@@ -90,6 +91,7 @@ func EventPermissions(
 	ctx context.Context,
 	eventID *int32, // nil for no event
 	imsDBQ *store.DBQ,
+	userStore *directory.UserStore,
 	imsAdmins []string,
 	claims IMSClaims,
 ) (eventPermissions map[int32]EventPermissionMask, globalPermissions GlobalPermissionMask, err error) {
@@ -97,13 +99,36 @@ func EventPermissions(
 	if eventID != nil {
 		accessRows, err := imsDBQ.EventAccess(ctx, imsDBQ, *eventID)
 		if err != nil {
-			return nil, GlobalNoPermissions, fmt.Errorf("EventAccess: %w", err)
+			return nil, GlobalNoPermissions, fmt.Errorf("[EventAccess]: %w", err)
 		}
 		for _, ea := range accessRows {
 			accessByEvent[*eventID] = append(accessByEvent[*eventID], ea.EventAccess)
 		}
 	}
-	eventPermissions, globalPermissions = ManyEventPermissions(accessByEvent, imsAdmins, claims.RangerHandle(), claims.RangerOnSite(), claims.RangerPositions(), claims.RangerTeams())
+	allPositions, allTeams, err := userStore.GetPositionsAndTeams(ctx)
+	if err != nil {
+		return nil, GlobalNoPermissions, fmt.Errorf("[GetPositionsAndTeams]: %w", err)
+	}
+
+	userPosIDs := claims.RangerPositions()
+	userPosNames := make([]string, 0, len(userPosIDs))
+	for _, userPosID := range userPosIDs {
+		userPosNames = append(userPosNames, allPositions[userPosID])
+	}
+	userTeamIDs := claims.RangerTeams()
+	userTeamNames := make([]string, 0, len(userTeamIDs))
+	for _, userTeamID := range userTeamIDs {
+		userTeamNames = append(userTeamNames, allTeams[userTeamID])
+	}
+
+	eventPermissions, globalPermissions = ManyEventPermissions(
+		accessByEvent,
+		imsAdmins,
+		claims.RangerHandle(),
+		claims.RangerOnSite(),
+		userPosNames,
+		userTeamNames,
+	)
 	return eventPermissions, globalPermissions, nil
 }
 

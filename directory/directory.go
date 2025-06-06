@@ -95,3 +95,51 @@ func (store *UserStore) GetUserPositionsTeams(ctx context.Context, userID int64)
 	}
 	return foundPositionNames, foundTeamNames, nil
 }
+
+func (store *UserStore) GetUserPositionsTeamsIDs(ctx context.Context, userID int64) (positions, teams []int64, err error) {
+	var errs []error
+
+	personTeams, err := store.DBQ.PersonTeams(ctx, store.DBQ)
+	errs = append(errs, err)
+	personPositions, err := store.DBQ.PersonPositions(ctx, store.DBQ)
+	errs = append(errs, err)
+
+	if err := errors.Join(errs...); err != nil {
+		return nil, nil, fmt.Errorf("[PersonTeams,PersonPositions] %w", err)
+	}
+
+	var foundPositions []int64
+	for _, pp := range personPositions {
+		if pp.PersonID == userID {
+			foundPositions = append(foundPositions, pp.PositionID)
+		}
+	}
+
+	var foundTeams []int64
+	for _, pt := range personTeams {
+		if pt.PersonID == userID {
+			foundTeams = append(foundTeams, pt.TeamID)
+		}
+	}
+	return foundPositions, foundTeams, nil
+}
+
+func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions, teams map[int64]string, err error) {
+	positionRows, err := store.DBQ.Positions(ctx, store.DBQ)
+	if err != nil {
+		return nil, nil, fmt.Errorf("[Positions]: %w", err)
+	}
+	teamRows, err := store.DBQ.Teams(ctx, store.DBQ)
+	if err != nil {
+		return nil, nil, fmt.Errorf("[Teams]: %w", err)
+	}
+	positions = make(map[int64]string, len(positionRows))
+	teams = make(map[int64]string, len(teamRows))
+	for _, row := range teamRows {
+		teams[row.ID] = row.Title
+	}
+	for _, row := range positionRows {
+		positions[row.ID] = row.Title
+	}
+	return positions, teams, nil
+}

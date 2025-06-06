@@ -105,14 +105,14 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 	slog.Info("Successful login for Ranger", "identification", matchedPerson.Handle)
 
-	foundPositionNames, foundTeamNames, err := action.userStore.GetUserPositionsTeams(req.Context(), matchedPerson.DirectoryID)
+	foundPositionIDs, foundTeamIDs, err := action.userStore.GetUserPositionsTeamsIDs(req.Context(), matchedPerson.DirectoryID)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to fetch Clubhouse positions/teams data", err).From("[GetUserPositionsTeams]")
 	}
 
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateAccessToken(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionNames, foundTeamNames, matchedPerson.Onsite, accessTokenExpiration)
+		CreateAccessToken(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionIDs, foundTeamIDs, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
@@ -145,6 +145,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 type GetAuth struct {
 	imsDBQ             *store.DBQ
+	userStore          *directory.UserStore
 	jwtSecret          string
 	admins             []string
 	attachmentsEnabled bool
@@ -205,7 +206,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 			return resp, errHTTP.From("[getEvent]")
 		}
 
-		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDBQ, action.admins, *claims)
+		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDBQ, action.userStore, action.admins, *claims)
 		if err != nil {
 			return resp, herr.InternalServerError("Failed to fetch event permissions", err).From("[EventPermissions]")
 		}
@@ -265,14 +266,14 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 			break
 		}
 	}
-	matchedPositions, matchedTeams, err := action.userStore.GetUserPositionsTeams(req.Context(), matchedPerson.DirectoryID)
+	matchedPositionIDs, matchedTeamIDs, err := action.userStore.GetUserPositionsTeamsIDs(req.Context(), matchedPerson.DirectoryID)
 	if err != nil {
 		return empty, herr.InternalServerError("Failed to fetch Clubhouse positions/teams data", err).From("[GetUserPositionsTeams]")
 	}
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	accessToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(
-			jwt.RangerHandle(), matchedPerson.DirectoryID, matchedPositions, matchedTeams, matchedPerson.Onsite, accessTokenExpiration,
+			jwt.RangerHandle(), matchedPerson.DirectoryID, matchedPositionIDs, matchedTeamIDs, matchedPerson.Onsite, accessTokenExpiration,
 		)
 	if err != nil {
 		return empty, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")

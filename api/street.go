@@ -18,6 +18,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
@@ -29,6 +30,7 @@ import (
 
 type GetStreets struct {
 	imsDBQ            *store.DBQ
+	userStore         *directory.UserStore
 	imsAdmins         []string
 	cacheControlShort time.Duration
 }
@@ -47,7 +49,7 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 	ctx := req.Context()
 	// eventName --> street ID --> street name
 	resp := make(imsjson.EventsStreets)
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[getGlobalPermissions]")
 	}
@@ -91,6 +93,7 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 
 type EditStreets struct {
 	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
 	imsAdmins []string
 }
 
@@ -104,7 +107,7 @@ func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 	ctx := req.Context()
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getGlobalPermissions]")
 	}

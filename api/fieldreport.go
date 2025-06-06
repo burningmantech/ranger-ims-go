@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
@@ -36,6 +37,7 @@ import (
 
 type GetFieldReports struct {
 	imsDBQ             *store.DBQ
+	userStore          *directory.UserStore
 	imsAdmins          []string
 	attachmentsEnabled bool
 }
@@ -50,7 +52,7 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 }
 func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldReports, *herr.HTTPError) {
 	resp := make(imsjson.FieldReports, 0)
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getEventPermissions]")
 	}
@@ -134,6 +136,7 @@ func containsAuthor(entries []imsdb.ReportEntry, author string) bool {
 
 type GetFieldReport struct {
 	imsDBQ             *store.DBQ
+	userStore          *directory.UserStore
 	imsAdmins          []string
 	attachmentsEnabled bool
 }
@@ -150,7 +153,7 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 func (action GetFieldReport) getFieldReport(req *http.Request) (imsjson.FieldReport, *herr.HTTPError) {
 	var response imsjson.FieldReport
 
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return response, errHTTP.From("[getEventPermissions]")
 	}
@@ -230,6 +233,7 @@ func fetchFieldReport(ctx context.Context, imsDBQ *store.DBQ, eventID, fieldRepo
 
 type EditFieldReport struct {
 	imsDBQ      *store.DBQ
+	userStore   *directory.UserStore
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -243,7 +247,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError {
-	event, jwt, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwt, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}
@@ -432,6 +436,7 @@ func (action EditFieldReport) isPreviousAuthor(
 
 type NewFieldReport struct {
 	imsDBQ      *store.DBQ
+	userStore   *directory.UserStore
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -449,7 +454,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 }
 
 func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[getEventPermissions]")
 	}

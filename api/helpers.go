@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
@@ -98,7 +99,7 @@ func getJwtCtx(req *http.Request) (JWTContext, *herr.HTTPError) {
 	return jwtCtx, nil
 }
 
-func getEventPermissions(req *http.Request, imsDBQ *store.DBQ, imsAdmins []string) (
+func getEventPermissions(req *http.Request, imsDBQ *store.DBQ, userStore *directory.UserStore, imsAdmins []string) (
 	imsdb.Event, JWTContext, authz.EventPermissionMask, *herr.HTTPError,
 ) {
 	event, errHTTP := getEvent(req, req.PathValue("eventName"), imsDBQ)
@@ -109,14 +110,14 @@ func getEventPermissions(req *http.Request, imsDBQ *store.DBQ, imsAdmins []strin
 	if errHTTP != nil {
 		return imsdb.Event{}, JWTContext{}, 0, errHTTP.From("[getJwtCtx]")
 	}
-	eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, imsDBQ, imsAdmins, *jwtCtx.Claims)
+	eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, imsDBQ, userStore, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
 		return imsdb.Event{}, JWTContext{}, 0, herr.InternalServerError("Failed to compute permissions", err).From("[EventPermissions]")
 	}
 	return event, jwtCtx, eventPermissions[event.ID], nil
 }
 
-func getGlobalPermissions(req *http.Request, imsDBQ *store.DBQ, imsAdmins []string) (
+func getGlobalPermissions(req *http.Request, imsDBQ *store.DBQ, userStore *directory.UserStore, imsAdmins []string) (
 	JWTContext, authz.GlobalPermissionMask, *herr.HTTPError,
 ) {
 	empty := JWTContext{}
@@ -124,7 +125,7 @@ func getGlobalPermissions(req *http.Request, imsDBQ *store.DBQ, imsAdmins []stri
 	if errHTTP != nil {
 		return empty, 0, errHTTP.From("[getJwtCtx]")
 	}
-	_, globalPermissions, err := authz.EventPermissions(req.Context(), nil, imsDBQ, imsAdmins, *jwtCtx.Claims)
+	_, globalPermissions, err := authz.EventPermissions(req.Context(), nil, imsDBQ, userStore, imsAdmins, *jwtCtx.Claims)
 	if err != nil {
 		return empty, 0, herr.InternalServerError("Failed to compute permissions", err).From("[EventPermissions]")
 	}

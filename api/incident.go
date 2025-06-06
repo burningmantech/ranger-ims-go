@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
@@ -38,6 +39,7 @@ import (
 
 type GetIncidents struct {
 	imsDBQ             *store.DBQ
+	userStore          *directory.UserStore
 	imsAdmins          []string
 	attachmentsEnabled bool
 }
@@ -53,7 +55,7 @@ func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *herr.HTTPError) {
 	resp := make(imsjson.Incidents, 0)
-	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getEventPermissions]")
 	}
@@ -123,6 +125,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 
 type GetIncident struct {
 	imsDBQ             *store.DBQ
+	userStore          *directory.UserStore
 	imsAdmins          []string
 	attachmentsEnabled bool
 }
@@ -139,7 +142,7 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *herr.HTTPError) {
 	var resp imsjson.Incident
 
-	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getEventPermissions]")
 	}
@@ -272,6 +275,7 @@ func addIncidentReportEntry(
 
 type NewIncident struct {
 	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
 	es        *EventSourcerer
 	imsAdmins []string
 }
@@ -288,7 +292,7 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
 }
 func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[getEventPermissions]")
 	}
@@ -589,6 +593,7 @@ func sliceSubtract[T comparable](a, b []T) []T {
 
 type EditIncident struct {
 	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
 	es        *EventSourcerer
 	imsAdmins []string
 }
@@ -602,7 +607,7 @@ func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}

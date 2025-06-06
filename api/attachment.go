@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
@@ -43,6 +44,7 @@ const IMSAttachmentFormKey = "imsAttachment"
 
 type GetIncidentAttachment struct {
 	imsDBQ           *store.DBQ
+	userStore        *directory.UserStore
 	attachmentsStore conf.AttachmentsStore
 	s3Client         *attachment.S3Client
 	imsAdmins        []string
@@ -50,6 +52,7 @@ type GetIncidentAttachment struct {
 
 type AttachToIncident struct {
 	imsDBQ           *store.DBQ
+	userStore        *directory.UserStore
 	es               *EventSourcerer
 	attachmentsStore conf.AttachmentsStore
 	s3Client         *attachment.S3Client
@@ -58,6 +61,7 @@ type AttachToIncident struct {
 
 type GetFieldReportAttachment struct {
 	imsDBQ           *store.DBQ
+	userStore        *directory.UserStore
 	attachmentsStore conf.AttachmentsStore
 	s3Client         *attachment.S3Client
 	imsAdmins        []string
@@ -65,6 +69,7 @@ type GetFieldReportAttachment struct {
 
 type AttachToFieldReport struct {
 	imsDBQ           *store.DBQ
+	userStore        *directory.UserStore
 	es               *EventSourcerer
 	attachmentsStore conf.AttachmentsStore
 	s3Client         *attachment.S3Client
@@ -84,7 +89,7 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 func (action GetIncidentAttachment) getIncidentAttachment(
 	req *http.Request,
 ) (fi io.ReadSeeker, contentType string, errHTTP *herr.HTTPError) {
-	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, "", errHTTP.From("[getEventPermissions]")
 	}
@@ -213,7 +218,7 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 func (action GetFieldReportAttachment) getFieldReportAttachment(
 	req *http.Request,
 ) (fi io.ReadSeeker, contentType string, errHTTP *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, "", errHTTP.From("[getEventPermissions]")
 	}
@@ -279,7 +284,7 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[getEventPermissions]")
 	}
@@ -374,7 +379,7 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	http.Error(w, "Saved Field Report attachment", http.StatusNoContent)
 }
 func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32, *herr.HTTPError) {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[getEventPermissions]")
 	}

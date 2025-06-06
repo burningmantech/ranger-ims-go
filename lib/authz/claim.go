@@ -36,6 +36,8 @@ func unmarshalBigInt(s string) *big.Int {
 		return big.NewInt(0)
 	}
 	var z big.Int
+	// NOTE that base "0" has special meaning. Read the docs before
+	// changing anything in the marshal/unmarshal code in this file.
 	_, ok := z.SetString(s, 0)
 	if !ok {
 		return big.NewInt(0)

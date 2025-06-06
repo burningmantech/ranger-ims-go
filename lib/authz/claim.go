@@ -19,15 +19,52 @@ package authz
 import (
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/golang-jwt/jwt/v5"
+	"math/big"
 	"time"
 )
 
 type IMSClaims struct {
 	jwt.RegisteredClaims
-	Handle    string   `json:"han"`
-	Onsite    bool     `json:"ons"`
-	Positions []string `json:"pos"`
-	Teams     []string `json:"tea"`
+	Handle    string `json:"han"`
+	Onsite    bool   `json:"ons"`
+	Positions string `json:"pos"`
+	Teams     string `json:"tea"`
+}
+
+func unmarshalBigInt(s string) *big.Int {
+	if s == "" {
+		return big.NewInt(0)
+	}
+	var z big.Int
+	// NOTE that base "0" has special meaning. Read the docs before
+	// changing anything in the marshal/unmarshal code in this file.
+	_, ok := z.SetString(s, 0)
+	if !ok {
+		return big.NewInt(0)
+	}
+	return &z
+}
+
+func bitSetToInts(bigint *big.Int) []int64 {
+	var ints []int64
+	for i := range bigint.BitLen() {
+		if bigint.Bit(i) != 0 {
+			ints = append(ints, int64(i))
+		}
+	}
+	return ints
+}
+
+func intsToBitSet(ints []int64) *big.Int {
+	bitset := big.NewInt(0)
+	for _, t := range ints {
+		bitset.SetBit(bitset, int(t), 1)
+	}
+	return bitset
+}
+
+func marshalBigInt(b *big.Int) string {
+	return "0x" + b.Text(16)
 }
 
 func (c IMSClaims) WithExpiration(t time.Time) IMSClaims {
@@ -60,13 +97,13 @@ func (c IMSClaims) WithRangerOnSite(onsite bool) IMSClaims {
 	return c
 }
 
-func (c IMSClaims) WithRangerPositions(pos ...string) IMSClaims {
-	c.Positions = pos
+func (c IMSClaims) WithRangerPositions(pos ...int64) IMSClaims {
+	c.Positions = marshalBigInt(intsToBitSet(pos))
 	return c
 }
 
-func (c IMSClaims) WithRangerTeams(teams ...string) IMSClaims {
-	c.Teams = teams
+func (c IMSClaims) WithRangerTeams(teams ...int64) IMSClaims {
+	c.Teams = marshalBigInt(intsToBitSet(teams))
 	return c
 }
 
@@ -78,12 +115,12 @@ func (c IMSClaims) RangerOnSite() bool {
 	return c.Onsite
 }
 
-func (c IMSClaims) RangerPositions() []string {
-	return c.Positions
+func (c IMSClaims) RangerPositions() []int64 {
+	return bitSetToInts(unmarshalBigInt(c.Positions))
 }
 
-func (c IMSClaims) RangerTeams() []string {
-	return c.Teams
+func (c IMSClaims) RangerTeams() []int64 {
+	return bitSetToInts(unmarshalBigInt(c.Teams))
 }
 
 // DirectoryID returns the Clubhouse ID for a Ranger.

@@ -18,6 +18,7 @@ package api
 
 import (
 	"context"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
@@ -30,6 +31,7 @@ import (
 
 type GetEventAccesses struct {
 	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
 	imsAdmins []string
 }
 
@@ -43,7 +45,7 @@ func (action GetEventAccesses) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 func (action GetEventAccesses) getEventAccesses(req *http.Request) (imsjson.EventsAccess, *herr.HTTPError) {
 	var empty imsjson.EventsAccess
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return empty, errHTTP.From("[getGlobalPermissions]")
 	}
@@ -103,6 +105,7 @@ func getEventsAccess(ctx context.Context, imsDBQ *store.DBQ) (imsjson.EventsAcce
 
 type PostEventAccess struct {
 	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
 	imsAdmins []string
 }
 
@@ -118,7 +121,7 @@ func (action PostEventAccess) ServeHTTP(w http.ResponseWriter, req *http.Request
 }
 
 func (action PostEventAccess) postEventAccess(req *http.Request) *herr.HTTPError {
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getGlobalPermissions]")
 	}

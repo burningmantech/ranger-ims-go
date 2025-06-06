@@ -20,6 +20,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
@@ -34,6 +35,7 @@ import (
 
 type GetEvents struct {
 	imsDBQ            *store.DBQ
+	userStore         *directory.UserStore
 	imsAdmins         []string
 	cacheControlShort time.Duration
 }
@@ -50,7 +52,7 @@ func (action GetEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTPError) {
 	var empty imsjson.Events
-	jwt, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
+	jwt, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return empty, errHTTP.From("[getGlobalPermissions]")
 	}
@@ -101,19 +103,35 @@ func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContex
 		accessRowByEventID[ar.EventAccess.Event] = append(accessRowByEventID[ar.EventAccess.Event], ar.EventAccess)
 	}
 
+	allPositions, allTeams, err := action.userStore.GetPositionsAndTeams(ctx)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[GetPositionsAndTeams]")
+	}
+	userPosIDs := jwtCtx.Claims.RangerPositions()
+	userPosNames := make([]string, 0, len(userPosIDs))
+	for _, userPosID := range userPosIDs {
+		userPosNames = append(userPosNames, allPositions[userPosID])
+	}
+	userTeamIDs := jwtCtx.Claims.RangerTeams()
+	userTeamNames := make([]string, 0, len(userTeamIDs))
+	for _, userTeamID := range userTeamIDs {
+		userTeamNames = append(userTeamNames, allTeams[userTeamID])
+	}
+
 	permissionsByEvent, _ := authz.ManyEventPermissions(
 		accessRowByEventID,
 		action.imsAdmins,
 		jwtCtx.Claims.RangerHandle(),
 		jwtCtx.Claims.RangerOnSite(),
-		jwtCtx.Claims.RangerPositions(),
-		jwtCtx.Claims.RangerTeams(),
+		userPosNames,
+		userTeamNames,
 	)
 	return permissionsByEvent, nil
 }
 
 type EditEvents struct {
 	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
 	imsAdmins []string
 }
 
@@ -129,7 +147,7 @@ func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, "Success", http.StatusNoContent)
 }
 func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
-	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.imsAdmins)
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getGlobalPermissions]")
 	}

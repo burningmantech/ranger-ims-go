@@ -49,7 +49,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/access",
 		Adapt(
-			GetEventAccesses{db, cfg.Core.Admins},
+			GetEventAccesses{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -59,7 +59,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/access",
 		Adapt(
-			PostEventAccess{db, cfg.Core.Admins},
+			PostEventAccess{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -89,6 +89,7 @@ func AddToMux(
 		Adapt(
 			GetAuth{
 				db,
+				userStore,
 				cfg.Core.JWTSecret,
 				cfg.Core.Admins,
 				attachmentsEnabled,
@@ -120,7 +121,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents",
 		Adapt(
-			GetIncidents{db, cfg.Core.Admins, attachmentsEnabled},
+			GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -130,7 +131,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents",
 		Adapt(
-			NewIncident{db, es, cfg.Core.Admins},
+			NewIncident{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -140,7 +141,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}",
 		Adapt(
-			GetIncident{db, cfg.Core.Admins, attachmentsEnabled},
+			GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -150,7 +151,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}",
 		Adapt(
-			EditIncident{db, es, cfg.Core.Admins},
+			EditIncident{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -160,7 +161,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}",
 		Adapt(
-			GetIncidentAttachment{db, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -170,7 +171,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments",
 		Adapt(
-			AttachToIncident{db, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -180,7 +181,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}",
 		Adapt(
-			EditIncidentReportEntry{db, es, cfg.Core.Admins},
+			EditIncidentReportEntry{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -190,7 +191,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports",
 		Adapt(
-			GetFieldReports{db, cfg.Core.Admins, attachmentsEnabled},
+			GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -200,7 +201,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports",
 		Adapt(
-			NewFieldReport{db, es, cfg.Core.Admins},
+			NewFieldReport{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -210,7 +211,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
 		Adapt(
-			GetFieldReport{db, cfg.Core.Admins, attachmentsEnabled},
+			GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -220,7 +221,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
 		Adapt(
-			EditFieldReport{db, es, cfg.Core.Admins},
+			EditFieldReport{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -230,7 +231,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}",
 		Adapt(
-			GetFieldReportAttachment{db, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			GetFieldReportAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -240,7 +241,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments",
 		Adapt(
-			AttachToFieldReport{db, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			AttachToFieldReport{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -250,7 +251,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}",
 		Adapt(
-			EditFieldReportReportEntry{db, es, cfg.Core.Admins},
+			EditFieldReportReportEntry{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -260,7 +261,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/events",
 		Adapt(
-			GetEvents{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
+			GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -270,7 +271,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events",
 		Adapt(
-			EditEvents{db, cfg.Core.Admins},
+			EditEvents{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -280,7 +281,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/streets",
 		Adapt(
-			GetStreets{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
+			GetStreets{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -290,7 +291,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/streets",
 		Adapt(
-			EditStreets{db, cfg.Core.Admins},
+			EditStreets{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -300,7 +301,7 @@ func AddToMux(
 
 	mux.Handle("GET /ims/api/incident_types",
 		Adapt(
-			GetIncidentTypes{db, cfg.Core.Admins, cfg.Core.CacheControlShort},
+			GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),
@@ -310,7 +311,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/incident_types",
 		Adapt(
-			EditIncidentTypes{db, cfg.Core.Admins},
+			EditIncidentTypes{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(),

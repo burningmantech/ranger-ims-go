@@ -30,8 +30,8 @@ const SuggestedEarlyAccessTokenRefresh time.Duration = -10 * time.Second
 func (j JWTer) CreateAccessToken(
 	rangerName string,
 	clubhouseID int64,
-	positions []string,
-	teams []string,
+	positionIDs []int64,
+	teamIDs []int64,
 	onsite bool,
 	expiration time.Time,
 ) (string, error) {
@@ -42,8 +42,8 @@ func (j JWTer) CreateAccessToken(
 			WithIssuer("ims").
 			WithRangerHandle(rangerName).
 			WithRangerOnSite(onsite).
-			WithRangerPositions(positions...).
-			WithRangerTeams(teams...).
+			WithRangerPositions(positionIDs...).
+			WithRangerTeams(teamIDs...).
 			WithSubject(strconv.FormatInt(clubhouseID, 10)),
 	)
 }

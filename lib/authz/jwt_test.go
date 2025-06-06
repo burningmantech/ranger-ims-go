@@ -19,18 +19,20 @@ package authz_test
 import (
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/stretchr/testify/require"
+	"math/big"
 	"testing"
 	"time"
 )
 
 func TestCreateAndGetValidJWT(t *testing.T) {
 	t.Parallel()
+
 	jwter := authz.JWTer{SecretKey: "some-secret"}
 	j, err := jwter.CreateAccessToken(
 		"Hardware",
 		12345,
-		[]string{"Fluffer", "Operator"},
-		[]string{"Fluff Squad"},
+		[]int64{10, 20, 40, 150},
+		[]int64{15, 25, 45, 155},
 		true,
 		time.Now().Add(1*time.Hour),
 	)
@@ -41,8 +43,8 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Hardware", claims.RangerHandle())
 	require.Equal(t, "12345", sub)
-	require.Equal(t, []string{"Fluffer", "Operator"}, claims.RangerPositions())
-	require.Equal(t, []string{"Fluff Squad"}, claims.RangerTeams())
+	require.Equal(t, []int64{10, 20, 40, 150}, claims.RangerPositions())
+	require.Equal(t, []int64{15, 25, 45, 155}, claims.RangerTeams())
 	require.True(t, claims.RangerOnSite())
 }
 
@@ -91,5 +93,19 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		_, err = jwter.AuthenticateJWT(hasNoRangerHandleJWT)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ranger handle is required")
+	}
+}
+
+func BenchmarkBitSet(b *testing.B) {
+	var ints []int64
+	// there are about 170 positions in Clubhouse prod, so 200 is a useful benchmark number
+	for i := range 200 {
+		ints = append(ints, int64(i))
+	}
+	for b.Loop() {
+		tally := big.NewInt(0)
+		for _, p := range ints {
+			tally.SetBit(tally, int(p), 1)
+		}
 	}
 }

@@ -18,6 +18,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
@@ -30,6 +31,7 @@ import (
 
 type EditFieldReportReportEntry struct {
 	imsDBQ      *store.DBQ
+	userStore   *directory.UserStore
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -43,7 +45,7 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 }
 
 func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}
@@ -109,6 +111,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 
 type EditIncidentReportEntry struct {
 	imsDBQ      *store.DBQ
+	userStore   *directory.UserStore
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
@@ -122,7 +125,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 }
 
 func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.imsAdmins)
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}

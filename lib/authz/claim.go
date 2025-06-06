@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+const compactIntBase = 62
+
 type IMSClaims struct {
 	jwt.RegisteredClaims
 	Handle    string `json:"han"`
@@ -36,9 +38,7 @@ func unmarshalBigInt(s string) *big.Int {
 		return big.NewInt(0)
 	}
 	var z big.Int
-	// NOTE that base "0" has special meaning. Read the docs before
-	// changing anything in the marshal/unmarshal code in this file.
-	_, ok := z.SetString(s, 0)
+	_, ok := z.SetString(s, compactIntBase)
 	if !ok {
 		return big.NewInt(0)
 	}
@@ -46,6 +46,9 @@ func unmarshalBigInt(s string) *big.Int {
 }
 
 func bitSetToInts(bigint *big.Int) []int64 {
+	if bigint.Cmp(big.NewInt(0)) == -1 {
+		panic("got bigint less than zero")
+	}
 	var ints []int64
 	for i := range bigint.BitLen() {
 		if bigint.Bit(i) != 0 {
@@ -64,7 +67,7 @@ func intsToBitSet(ints []int64) *big.Int {
 }
 
 func marshalBigInt(b *big.Int) string {
-	return "0x" + b.Text(16)
+	return b.Text(compactIntBase)
 }
 
 func (c IMSClaims) WithExpiration(t time.Time) IMSClaims {

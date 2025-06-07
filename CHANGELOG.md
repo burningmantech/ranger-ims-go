@@ -17,6 +17,20 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 -->
 
+## 2025-06
+
+### Changed
+
+- Made the access token JWT much shorter, by switching from position/team names to IDs, and then representing those IDs as bitsets. https://github.com/burningmantech/ranger-ims-go/pull/187 https://github.com/burningmantech/ranger-ims-go/pull/189
+
+### Added
+
+- Implemented "preview" and "download" functionality for file attachments. https://github.com/burningmantech/ranger-ims-go/pull/185 https://github.com/burningmantech/ranger-ims-go/pull/184
+
+### Fixed
+
+- Resolved a bunch of page load flickering problems. https://github.com/burningmantech/ranger-ims-go/pull/175 https://github.com/burningmantech/ranger-ims-go/pull/176 https://github.com/burningmantech/ranger-ims-go/pull/177
+
 ## 2025-05
 
 Abraham rewrote the IMS server in Go, with that new server living in https://github.com/burningmantech/ranger-ims-go.
@@ -40,6 +54,7 @@ This CHANGELOG now talks mainly about that replacement server.
 - Added authorization testing for all current API endpoints. https://github.com/burningmantech/ranger-ims-go/pull/63
 - Built incident/field report attachments functionality in the new server, which allows either local or S3 storage. It's fast and it works well! https://github.com/burningmantech/ranger-ims-go/issues/68
 - Added a Makefile with some neat targets, like one to hot-reload a local IMS server on any code changes. https://github.com/burningmantech/ranger-ims-go/pull/102
+- Added an in-process MySQL implementation, so that developers can run IMS locally without needing to run MariaDB. https://github.com/burningmantech/ranger-ims-go/pull/159 https://github.com/burningmantech/ranger-ims-go/pull/168
 
 ### Fixed
 

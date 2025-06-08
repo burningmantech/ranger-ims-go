@@ -199,11 +199,7 @@ export function padTwo(value) {
     if (value == null) {
         return "?";
     }
-    const val = value.toString();
-    if (val.length === 1) {
-        return "0" + val;
-    }
-    return val;
+    return value.toString().padStart(2, "0");
 }
 // Convert a minute (0-60) into a value used by IMS form inputs.
 // That is: round to the nearest multiple of 5 and pad to two digits.
@@ -650,16 +646,24 @@ export const fullDateTime = new Intl.DateTimeFormat(undefined, {
     timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
-export const editStyleDateTime = new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+export const editStyleTime = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     hour12: false,
     minute: "numeric",
     timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
+export function localTzShortName() {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(new Date());
+    return (parts.find(p => p.type === 'timeZoneName')?.value) ?? null;
+}
+// localDateISO gives the YYYY-MM-DD format of the provided date in the user's timezone.
+export function localDateISO(d) {
+    const year = d.getFullYear().toString().padStart(4, "0");
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
+    const date = d.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${date}`;
+}
 export function renderDate(date, type, _incident) {
     const d = Date.parse(date);
     switch (type) {

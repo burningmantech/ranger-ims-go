@@ -207,6 +207,8 @@ async function initIncidentPage(): Promise<void> {
         },
     );
 
+    // See this PR for more details on this weirdness: https://github.com/burningmantech/ranger-ims-go/pull/192
+    // TODO(srabraham): clean this up
     {
         const startDateInput = document.getElementById("override_start_date")!;
         let startDateKeydown = false;

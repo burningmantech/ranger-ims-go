@@ -157,6 +157,8 @@ async function initIncidentPage() {
     document.getElementById("override_started_button").addEventListener("click", function (_) {
         startTimeModal.show();
     });
+    // See this PR for more details on this weirdness: https://github.com/burningmantech/ranger-ims-go/pull/192
+    // TODO(srabraham): clean this up
     {
         const startDateInput = document.getElementById("override_start_date");
         let startDateKeydown = false;

@@ -69,10 +69,23 @@ func FuzzNewSaltedVerify(f *testing.F) {
 		assert.True(t, utf8.ValidString(saltedHashed))
 		// the separator
 		assert.Contains(t, saltedHashed, ":")
-		// rand.Text() is 26 chars, ":" is 1, and the hash is 40
-		assert.Len(t, saltedHashed, 67)
+		// we use a base64-encoded salt that takes 22 bytes, then ":" is 1, and the hash is 40
+		assert.Len(t, saltedHashed, 63)
 		isValid, err := authn.Verify(pw, saltedHashed)
 		require.NoError(t, err)
 		assert.True(t, isValid)
 	})
+}
+
+func TestHashArgon2id(t *testing.T) {
+	t.Parallel()
+	hash := authn.NewSaltedArgon2idDevOnly("my password 123")
+
+	isValid, err := authn.Verify("my password wrong", hash)
+	require.NoError(t, err)
+	assert.False(t, isValid)
+
+	isValid, err = authn.Verify("my password 123", hash)
+	require.NoError(t, err)
+	assert.True(t, isValid)
 }

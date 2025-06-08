@@ -15,7 +15,8 @@ values
 (601,   "Loosy",    "loosy@example.com",    concat(":", sha1("Loosy")),     "active",   true),
 (602,   "Doggy",    "doggy@example.com",    concat(":", sha1("Doggy")),     "active",   true),
 (603,   "Runner",   "runner@example.com",   concat(":", sha1("Runner")),    "active",   true),
-(604,   "TheMan",   "theman@example.com",   concat(":", sha1("TheMan")),    "active",   true)
+-- The below password is "TheMan"
+(604,   "TheMan",   "theman@example.com",   "$argon2id$v=19$m=65536,t=1,p=12$YqQK04inaw4iIkQf5k0hyg$O1/TG6705h9w6R0C96qodP26JkN1pwM1vTod07yz3BM",    "active",   true)
 ;
 
 insert into `position`

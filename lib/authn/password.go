@@ -19,8 +19,11 @@ package authn
 import (
 	"crypto/rand"
 	"crypto/sha1" //nolint: gosec // this is the algorithm Clubhouse uses
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"github.com/burningmantech/ranger-ims-go/lib/argon2id"
 	"strings"
 )
 
@@ -29,11 +32,16 @@ const (
 )
 
 func Verify(password, storedValue string) (isValid bool, err error) {
+	if strings.HasPrefix(storedValue, "$argon2id") {
+		return argon2id.ComparePasswordAndHash(password, storedValue)
+	}
+
 	salt, storedHash, found := strings.Cut(storedValue, saltPasswordSep)
 	if !found {
 		return false, errors.New("invalid hashed password")
 	}
-	return Hash(password, salt) == storedHash, nil
+	correct := subtle.ConstantTimeCompare([]byte(Hash(password, salt)), []byte(storedHash)) == 1
+	return correct, nil
 }
 
 func Hash(password, salt string) string {
@@ -43,6 +51,18 @@ func Hash(password, salt string) string {
 }
 
 func NewSalted(password string) string {
-	salt := rand.Text()
+	salt := newSalt()
 	return salt + ":" + Hash(password, salt)
+}
+
+func NewSaltedArgon2idDevOnly(password string) string {
+	// do not use DevelopmentParams for production use!
+	return argon2id.CreateHash(password, argon2id.DevelopmentParams)
+}
+
+// newSalt returns a base64-encoding string with 128 bits of randomness.
+func newSalt() string {
+	var s [16]byte
+	_, _ = rand.Read(s[:])
+	return base64.RawStdEncoding.EncodeToString(s[:])
 }

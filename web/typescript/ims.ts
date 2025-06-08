@@ -947,6 +947,9 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         previewButt.classList.add(
             "btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print",
         );
+        // We need to do a JavaScript fetch of the file, rather than simply
+        // opening a new browser tab that GETs it, because we have to send
+        // the Authorization header.
         previewButt.onclick = async (e: MouseEvent): Promise<void> => {
             e.preventDefault();
             const {resp, err} = await fetchJsonNoThrow(url, {});
@@ -954,13 +957,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
                 setErrorMessage(`Failed to fetch attachment: ${err}`);
                 return;
             }
-            const blob = await resp.blob();
-
-            // Make an ephemeral URL for that blob, then ask the browser to download
-            // the file. It'd be nice to allow previewing the file in the browser, but
-            // there are XSS risks we'd need to mitigate, since the object URL is on
-            // the same origin as IMS.
-            const blobUrl: string = window.URL.createObjectURL(blob);
+            const blobUrl: string = window.URL.createObjectURL(await resp.blob());
             const tmpLink: HTMLAnchorElement = document.createElement("a");
 
             // Preview mode: open a preview in a new window.
@@ -971,7 +968,13 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             document.body.appendChild(tmpLink);
             tmpLink.click();
             document.body.removeChild(tmpLink);
-            URL.revokeObjectURL(blobUrl);
+
+            // Wait a little while before cleaning up the blob, in case the user opts
+            // to download the file from the preview (that will fail once the object URL
+            // has been revoked).
+            setTimeout(function (): void {
+                URL.revokeObjectURL(blobUrl);
+            }, 60_000 /* milliseconds */);
         };
 
         const downloadButt: HTMLButtonElement = document.createElement("button");
@@ -979,9 +982,6 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         downloadButt.classList.add(
             "btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print",
         );
-        // We need to do a JavaScript fetch of the file, rather than simply
-        // opening a new browser tab that GETs it, because we have to send
-        // the Authorization header.
         downloadButt.onclick = async (e: MouseEvent): Promise<void> => {
             e.preventDefault();
             const {resp, err} = await fetchJsonNoThrow(url, {});
@@ -989,13 +989,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
                 setErrorMessage(`Failed to fetch attachment: ${err}`);
                 return;
             }
-            const blob = await resp.blob();
-
-            // Make an ephemeral URL for that blob, then ask the browser to download
-            // the file. It'd be nice to allow previewing the file in the browser, but
-            // there are XSS risks we'd need to mitigate, since the object URL is on
-            // the same origin as IMS.
-            const blobUrl: string = window.URL.createObjectURL(blob);
+            const blobUrl: string = window.URL.createObjectURL(await resp.blob());
             const tmpLink: HTMLAnchorElement = document.createElement("a");
 
             // Download mode: set a suggested filename.

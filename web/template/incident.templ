@@ -58,17 +58,19 @@ templ Incident(deployment, eventName string) {
             <p>
               Approximately when did the incident start?
             </p>
+            <div class="input-group mb-3">
+              <label for="override_start_date" class="control-label input-group-text">Started</label>
+              <input id="override_start_date" type="date" class="form-control form-control-sm" />
+              <input id="override_start_time" type="time" class="form-control form-control-sm" />
+              <span id="override_start_tz" class="input-group-text control-label"
+                    title="This datetime is provided/edited in your time zone, which may not be the same as BRC's time zone."
+              ></span>
+            </div>
             <p>
               It's normally fine to leave this value as the default, which is the
-              time that the IMS incident was created. It's a good idea to override
-              that time here when the incident started hours or days before the IMS
-              incident was created.
+              time that the incident was created in IMS. This override is intended for
+              cases in which the incident began hours or days before it was logged in IMS.
             </p>
-            <div class="input-group">
-              <label for="override_start_datetime" class="control-label input-group-text">Started</label>
-              <input id="override_start_datetime" type="text" class="form-control form-control-sm"
-                     onchange="overrideStartDateTime();" />
-            </div>
           </div>
         </div>
       </div>

@@ -48,7 +48,8 @@ async function initIncidentPage() {
     window.toggleShowHistory = ims.toggleShowHistory;
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
-    window.overrideStartDateTime = overrideStartDateTime;
+    window.overrideStartDate = overrideStartDate;
+    window.overrideStartTime = overrideStartTime;
     // load everything from the APIs concurrently
     await Promise.all([
         await ims.loadStreets(ims.pathIds.eventID),
@@ -155,12 +156,43 @@ async function initIncidentPage() {
     });
     document.getElementById("override_started_button").addEventListener("click", function (_) {
         startTimeModal.show();
-        const input = document.getElementById("override_start_datetime");
-        if (incident?.started == null) {
-            return;
-        }
-        input.value = ims.editStyleDateTime.format(new Date(incident.started));
     });
+    {
+        const startDateInput = document.getElementById("override_start_date");
+        let startDateKeydown = false;
+        startDateInput.addEventListener("keydown", (_) => {
+            startDateKeydown = true;
+            setTimeout(() => {
+                startDateKeydown = false;
+            }, 10);
+        });
+        startDateInput.addEventListener("input", (_) => {
+            if (!startDateKeydown) {
+                overrideStartDate();
+            }
+        });
+        startDateInput.addEventListener("blur", (_) => {
+            overrideStartDate();
+        });
+    }
+    {
+        const startTimeInput = document.getElementById("override_start_time");
+        let startTimeKeydown = false;
+        startTimeInput.addEventListener("keydown", (_) => {
+            startTimeKeydown = true;
+            setTimeout(() => {
+                startTimeKeydown = false;
+            }, 10);
+        });
+        startTimeInput.addEventListener("input", (_) => {
+            if (!startTimeKeydown) {
+                overrideStartTime();
+            }
+        });
+        startTimeInput.addEventListener("blur", (_) => {
+            overrideStartTime();
+        });
+    }
 }
 //
 // Load incident
@@ -410,10 +442,28 @@ function drawStarted() {
     if (date == null) {
         return;
     }
-    const d = Date.parse(date);
+    const dateNum = Date.parse(date);
+    const dateDate = new Date(dateNum);
     const startedElement = document.getElementById("started_datetime");
-    startedElement.textContent = `${ims.longDate.format(d)}, ${ims.shortTimeTZ.format(d)}`;
-    startedElement.setAttribute("title", ims.fullDateTime.format(d));
+    startedElement.textContent = `${ims.longDate.format(dateNum)}, ${ims.shortTimeTZ.format(dateNum)}`;
+    startedElement.setAttribute("title", ims.fullDateTime.format(dateNum));
+    const dateInput = document.getElementById("override_start_date");
+    const newDateISO = ims.localDateISO(dateDate);
+    if (dateInput.value !== newDateISO) {
+        dateInput.value = newDateISO;
+    }
+    const timeInput = document.getElementById("override_start_time");
+    const localTime = localTimeHHMM(dateDate);
+    if (timeInput.value !== localTime) {
+        timeInput.value = localTime;
+    }
+    const tzInput = document.getElementById("override_start_tz");
+    tzInput.textContent = ims.localTzShortName();
+}
+function localTimeHHMM(date) {
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
 }
 //
 // Populate incident priority
@@ -726,10 +776,35 @@ async function editState() {
     }
     await ims.editFromElement(state, "state");
 }
-async function overrideStartDateTime() {
-    const startInput = document.getElementById("override_start_datetime");
-    await ims.editFromElement(startInput, "started", (val) => {
-        return new Date((val ?? "").trim()).toISOString();
+async function overrideStartDate() {
+    const dateInput = document.getElementById("override_start_date");
+    const prevDateISO = ims.localDateISO(new Date(incident?.started ?? 0));
+    if (dateInput.value === prevDateISO) {
+        // nothing to do
+        return;
+    }
+    const timeInput = document.getElementById("override_start_time");
+    await ims.editFromElement(dateInput, "started", (_) => {
+        return newDateTimeVal(dateInput.value, timeInput.value);
+    });
+}
+function newDateTimeVal(dateInput, timeInput) {
+    const val = `${dateInput.trim()} ${timeInput.trim()} ${ims.localTzShortName()}`;
+    const date = new Date(val);
+    if (date.getFullYear() < 1980 || date.getFullYear() > 2100) {
+        throw new Error(`year seems incorrect: ${date.getFullYear()}`);
+    }
+    return date.toISOString();
+}
+async function overrideStartTime() {
+    const dateInput = document.getElementById("override_start_date");
+    const timeInput = document.getElementById("override_start_time");
+    if (timeInput.value === localTimeHHMM(new Date(Date.parse(incident?.started ?? "")))) {
+        // nothing to do
+        return;
+    }
+    await ims.editFromElement(timeInput, "started", (_) => {
+        return newDateTimeVal(dateInput.value, timeInput.value);
     });
 }
 async function editIncidentSummary() {

@@ -41,5 +41,5 @@ func init() {
 }
 
 func runHashPassword(cmd *cobra.Command, args []string) {
-	fmt.Println(imspassword.NewSalted(password)) //nolint:forbidigo
+	fmt.Println(imspassword.NewSaltedSha1(password)) //nolint:forbidigo
 }

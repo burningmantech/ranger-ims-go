@@ -17,7 +17,7 @@
 package argon2id
 
 import (
-	"errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"strings"
@@ -30,15 +30,10 @@ func TestCreateHash(t *testing.T) {
 	hashRX := regexp.MustCompile(`^\$argon2id\$v=19\$m=65536,t=1,p=[0-9]{1,4}\$[A-Za-z0-9+/]{22}\$[A-Za-z0-9+/]{43}$`)
 
 	hash1 := CreateHash("pa$$word", DevelopmentParams)
-	if !hashRX.MatchString(hash1) {
-		t.Errorf("hash %q not in correct format", hash1)
-	}
+	assert.Truef(t, hashRX.MatchString(hash1), "hash %q not in correct format", hash1)
 
 	hash2 := CreateHash("pa$$word", DevelopmentParams)
-
-	if strings.Compare(hash1, hash2) == 0 {
-		t.Error("hashes must be unique")
-	}
+	assert.NotEqualf(t, hash1, hash2, "hashes must be unique")
 }
 
 func TestComparePasswordAndHash(t *testing.T) {
@@ -47,23 +42,15 @@ func TestComparePasswordAndHash(t *testing.T) {
 	hash := CreateHash("pa$$word", DevelopmentParams)
 
 	match, err := ComparePasswordAndHash("pa$$word", hash)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !match {
-		t.Error("expected password and hash to match")
-	}
+	require.NoError(t, err)
+	assert.Truef(t, match, "expected password and hash to match")
 
 	match, err = ComparePasswordAndHash("otherPa$$word", hash)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if match {
-		t.Error("expected password and hash to not match")
-	}
+	require.NoError(t, err)
+	assert.Falsef(t, match, "expected password and hash to not match")
 }
+
+const bugHash = "$argon2id$v=19$m=65536,t=1,p=2$UDk0zEuIzbt0x3bwkf8Bgw$ihSfHWUJpTgDvNWiojrgcN4E0pJdUVmqCEdRZesx9tE"
 
 func TestDecodeHash(t *testing.T) {
 	t.Parallel()
@@ -71,11 +58,25 @@ func TestDecodeHash(t *testing.T) {
 	hash := CreateHash("pa$$word", DevelopmentParams)
 
 	params, _, _, err := DecodeHash(hash)
-	if err != nil {
-		t.Fatal(err)
+	require.NoError(t, err)
+	assert.Equalf(t, *params, *DevelopmentParams, "expected %#v got %#v", *DevelopmentParams, *params)
+
+	for _, c := range []string{"v", "m", "t", "p"} {
+		re := regexp.MustCompile("([$,])(" + c + "=[^$,]+)")
+		_, _, _, err = DecodeHash(re.ReplaceAllString(bugHash, "$1JUNK+$2"))
+		if err == nil {
+			t.Fatalf("leading %s key junk should fail decode", c)
+		}
+		_, _, _, err = DecodeHash(re.ReplaceAllString(bugHash, "$1$2+JUNK"))
+		if err == nil {
+			t.Fatalf("trailing %s value junk should fail decode", c)
+		}
 	}
-	if *params != *DevelopmentParams {
-		t.Fatalf("expected %#v got %#v", *DevelopmentParams, *params)
+
+	i := strings.LastIndex(bugHash, "$")
+	_, _, _, err = DecodeHash(bugHash[:i] + "\r$\n" + bugHash[i+1:])
+	if err == nil {
+		t.Fatalf(`\r and \n in base64 data should fail decode`)
 	}
 }
 
@@ -85,38 +86,22 @@ func TestCheckHash(t *testing.T) {
 	hash := CreateHash("pa$$word", DevelopmentParams)
 
 	ok, params, err := CheckHash("pa$$word", hash)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok {
-		t.Fatal("expected password to match")
-	}
-	if *params != *DevelopmentParams {
-		t.Fatalf("expected %#v got %#v", *DevelopmentParams, *params)
-	}
+	require.NoError(t, err)
+	assert.Truef(t, ok, "expected password to match")
+	assert.Equalf(t, *params, *DevelopmentParams, "expected %#v got %#v", *DevelopmentParams, *params)
 }
 
 func TestStrictDecoding(t *testing.T) {
 	t.Parallel()
 
-	// "bug" valid hash: $argon2id$v=19$m=65536,t=1,p=2$UDk0zEuIzbt0x3bwkf8Bgw$ihSfHWUJpTgDvNWiojrgcN4E0pJdUVmqCEdRZesx9tE
-	ok, _, err := CheckHash("bug", "$argon2id$v=19$m=65536,t=1,p=2$UDk0zEuIzbt0x3bwkf8Bgw$ihSfHWUJpTgDvNWiojrgcN4E0pJdUVmqCEdRZesx9tE")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok {
-		t.Fatal("expected password to match")
-	}
+	ok, _, err := CheckHash("bug", bugHash)
+	require.NoError(t, err)
+	assert.Truef(t, ok, "expected password to match")
 
 	// changed one last character of the hash
-	ok, _, err = CheckHash("bug", "$argon2id$v=19$m=65536,t=1,p=2$UDk0zEuIzbt0x3bwkf8Bgw$ihSfHWUJpTgDvNWiojrgcN4E0pJdUVmqCEdRZesx9tF")
-	if err == nil {
-		t.Fatal("Hash validation should fail")
-	}
-
-	if ok {
-		t.Fatal("Hash validation should fail")
-	}
+	ok, _, err = CheckHash("bug", bugHash[:len(bugHash)-1]+"F")
+	require.Errorf(t, err, "Hash validation should fail")
+	assert.Falsef(t, ok, "Hash validation should fail")
 }
 
 func TestVariant(t *testing.T) {
@@ -124,9 +109,8 @@ func TestVariant(t *testing.T) {
 
 	// Hash contains wrong variant
 	_, _, err := CheckHash("pa$$word", "$argon2i$v=19$m=65536,t=1,p=2$mFe3kxhovyEByvwnUtr0ow$nU9AqnoPfzMOQhCHa9BDrQ+4bSfj69jgtvGu/2McCxU")
-	if !errors.Is(err, ErrIncompatibleVariant) {
-		t.Fatalf("expected error %s", ErrIncompatibleVariant)
-	}
+	require.Error(t, err)
+	require.ErrorIsf(t, err, ErrIncompatibleVariant, "expected error %s", ErrIncompatibleVariant)
 }
 
 func TestPHPExample(t *testing.T) {

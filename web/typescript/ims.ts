@@ -762,10 +762,9 @@ export const editStyleTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefi
     // timeZone not specified; will use user's timezone
 });
 
-export function localTzShortName(): string|null {
+export function localTzShortName(d: Date): string|null {
     const parts = new Intl.DateTimeFormat(
-        undefined, { timeZoneName: 'short' }).formatToParts(new Date(),
-    );
+        undefined, { timeZoneName: 'short' }).formatToParts(d);
     return (parts.find(p => p.type === 'timeZoneName')?.value)??null;
 }
 

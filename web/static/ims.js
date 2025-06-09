@@ -653,8 +653,8 @@ export const editStyleTime = new Intl.DateTimeFormat(undefined, {
     timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
-export function localTzShortName() {
-    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(new Date());
+export function localTzShortName(d) {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d);
     return (parts.find(p => p.type === 'timeZoneName')?.value) ?? null;
 }
 // localDateISO gives the YYYY-MM-DD format of the provided date in the user's timezone.

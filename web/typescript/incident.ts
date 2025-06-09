@@ -207,44 +207,41 @@ async function initIncidentPage(): Promise<void> {
         },
     );
 
-    // See this PR for more details on this weirdness: https://github.com/burningmantech/ranger-ims-go/pull/192
-    // TODO(srabraham): clean this up
-    {
-        const startDateInput = document.getElementById("override_start_date")!;
-        let startDateKeydown = false;
-        startDateInput.addEventListener("keydown", (_: KeyboardEvent): void => {
-            startDateKeydown = true;
-            setTimeout(() => {
-                startDateKeydown = false;
-            }, 10);
+    // Incident fields generally trigger an update call automatically when the user
+    // sets a new value in the field. This behavior is tricky to get right for date
+    // and time inputs. Users might type directly into the date/time input, or they
+    // might use a browser-supplied date/time picker. With typing, we only want the
+    // update sent to the server when focus is lost from the input field (i.e. on blur).
+    // With a picker, we want the update sent when the user has finished picking a
+    // date or time (i.e. on input). In order to make both of those things work, while
+    // not updating on every keypress if the user is typing, we do the below, which
+    // avoids input updates for typing.
+    //
+    // The weird thing for date/time inputs is that an input and change event get fired
+    // after every basically keypress if the user is typing. A normal text input field
+    // only sees input and change events when the user blurs or hits enter/tab on the field.
+    function addDateTimeInputListeners(dti: HTMLElement, update: ()=>void): void {
+        let keydown = false;
+        dti.addEventListener("keydown", (_: KeyboardEvent): void => {
+            keydown = true;
+            setTimeout(() => { keydown = false; }, 10);
         });
-        startDateInput.addEventListener("input", (_: Event): void => {
-            if (!startDateKeydown) {
-                overrideStartDate();
-            }
+        dti.addEventListener("input", (_: Event): void => {
+            if (!keydown) update();
         });
-        startDateInput.addEventListener("blur", (_: FocusEvent): void => {
-            overrideStartDate();
-        });
-    }
-    {
-        const startTimeInput = document.getElementById("override_start_time")!;
-        let startTimeKeydown = false;
-        startTimeInput.addEventListener("keydown", (_: KeyboardEvent): void => {
-            startTimeKeydown = true;
-            setTimeout(() => {
-                startTimeKeydown = false;
-            }, 10);
-        });
-        startTimeInput.addEventListener("input", (_: Event): void => {
-            if (!startTimeKeydown) {
-                overrideStartTime();
-            }
-        });
-        startTimeInput.addEventListener("blur", (_: FocusEvent): void => {
-            overrideStartTime();
+        dti.addEventListener("blur", (_: FocusEvent): void => {
+            update();
         });
     }
+
+    addDateTimeInputListeners(
+        document.getElementById("override_start_date")!,
+        overrideStartDate,
+    )
+    addDateTimeInputListeners(
+        document.getElementById("override_start_time")!,
+        overrideStartTime,
+    )
 }
 
 
@@ -571,7 +568,7 @@ function drawStarted(): void {
     }
 
     const tzInput = document.getElementById("override_start_tz") as HTMLSpanElement;
-    tzInput.textContent = ims.localTzShortName();
+    tzInput.textContent = ims.localTzShortName(dateDate);
 }
 
 function localTimeHHMM(date: Date): string {
@@ -991,13 +988,15 @@ async function overrideStartDate(): Promise<void> {
 
     const timeInput = document.getElementById("override_start_time") as HTMLInputElement;
 
+    const tzValue = document.getElementById("override_start_tz")!.textContent??"";
+
     await ims.editFromElement(dateInput, "started", (_: string|null):string=> {
-        return newDateTimeVal(dateInput.value, timeInput.value);
+        return newDateTimeVal(dateInput.value, timeInput.value, tzValue);
     });
 }
 
-function newDateTimeVal(dateInput: string, timeInput: string): string {
-    const val = `${dateInput.trim()} ${timeInput.trim()} ${ims.localTzShortName()}`;
+function newDateTimeVal(dateInput: string, timeInput: string, localTz: string): string {
+    const val = `${dateInput.trim()} ${timeInput.trim()} ${localTz}`;
     const date = new Date(val);
     if (date.getFullYear() < 1980 || date.getFullYear() > 2100) {
         throw new Error(`year seems incorrect: ${date.getFullYear()}`);
@@ -1014,8 +1013,10 @@ async function overrideStartTime(): Promise<void> {
         return;
     }
 
+    const tzValue = document.getElementById("override_start_tz")!.textContent??"";
+
     await ims.editFromElement(timeInput, "started", (_: string|null):string=> {
-        return newDateTimeVal(dateInput.value, timeInput.value);
+        return newDateTimeVal(dateInput.value, timeInput.value, tzValue);
     });
 }
 

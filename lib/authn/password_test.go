@@ -52,7 +52,7 @@ func TestVerifyPassword_badStoredValue(t *testing.T) {
 func TestNewSalted(t *testing.T) {
 	t.Parallel()
 	pw := "this is my password"
-	saltedPw := authn.NewSalted(pw)
+	saltedPw := authn.NewSaltedSha1(pw)
 	isValid, err := authn.Verify(pw, saltedPw)
 	require.NoError(t, err)
 	require.True(t, isValid)
@@ -65,7 +65,7 @@ func FuzzNewSaltedVerify(f *testing.F) {
 	f.Add(strings.Repeat("some text,", 1000))
 
 	f.Fuzz(func(t *testing.T, pw string) {
-		saltedHashed := authn.NewSalted(pw)
+		saltedHashed := authn.NewSaltedSha1(pw)
 		assert.True(t, utf8.ValidString(saltedHashed))
 		// the separator
 		assert.Contains(t, saltedHashed, ":")
@@ -88,4 +88,10 @@ func TestHashArgon2id(t *testing.T) {
 	isValid, err = authn.Verify("my password 123", hash)
 	require.NoError(t, err)
 	assert.True(t, isValid)
+}
+
+func BenchmarkHashArgon2id(b *testing.B) {
+	for b.Loop() {
+		authn.NewSaltedArgon2idDevOnly("my password 123")
+	}
 }

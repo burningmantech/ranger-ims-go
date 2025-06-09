@@ -25,11 +25,14 @@
 package argon2id
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"runtime"
 	"strings"
 
@@ -65,15 +68,38 @@ var (
 // See RFC 9106 for recommended parameter choices:
 // https://www.rfc-editor.org/rfc/rfc9106.html#name-parameter-choice
 var DevelopmentParams = &Params{
-	Memory:      64 * 1024,
+	MemoryKiB:   1 << 16, // 64 MiB
 	Iterations:  1,
 	Parallelism: uint8(runtime.NumCPU()),
 	SaltLength:  16,
 	KeyLength:   32,
 }
 
+// FirstRecommendedParams should be used if an "option that is not tailored to your application
+// or hardware is acceptable".
+// This is RFC 9106's first recommended option.
+// See https://www.rfc-editor.org/rfc/rfc9106.html#name-parameter-choice
+var FirstRecommendedParams = &Params{
+	MemoryKiB:   1 << 21, // 2 GiB
+	Iterations:  1,
+	Parallelism: 4,
+	SaltLength:  16,
+	KeyLength:   32,
+}
+
+// SecondRecommendedParams should be used if "much less memory is available".
+// This is RFC 9106's second recommended option.
+// See https://www.rfc-editor.org/rfc/rfc9106.html#name-parameter-choice
+var SecondRecommendedParams = &Params{
+	MemoryKiB:   1 << 16, // 64 MiB
+	Iterations:  3,
+	Parallelism: 4,
+	SaltLength:  16,
+	KeyLength:   32,
+}
+
 // Params describes the input parameters used by the Argon2id algorithm. The
-// Memory and Iterations parameters control the computational cost of hashing
+// MemoryKiB and Iterations parameters control the computational cost of hashing
 // the password. The higher these figures are, the greater the cost of generating
 // the hash and the longer the runtime. It also follows that the greater the cost
 // will be for any attacker trying to guess the password. If the code is running
@@ -86,7 +112,7 @@ var DevelopmentParams = &Params{
 // https://tools.ietf.org/html/draft-irtf-cfrg-argon2-04#section-4
 type Params struct {
 	// The amount of memory used by the algorithm (in kibibytes).
-	Memory uint32
+	MemoryKiB uint32
 
 	// The number of iterations over the memory.
 	Iterations uint32
@@ -104,19 +130,23 @@ type Params struct {
 
 // CreateHash returns an Argon2id hash of a plain-text password using the
 // provided algorithm parameters. The returned hash follows the format used by
-// the Argon2 reference C implementation and contains the base64-encoded Argon2id d
+// the Argon2 reference C implementation and contains the base64-encoded Argon2id
 // derived key prefixed by the salt and parameters. It looks like this:
 //
 //	$argon2id$v=19$m=65536,t=3,p=2$c29tZXNhbHQ$RdescudvJCsgt3ub+b+dWRWJTmaaJObG
 func CreateHash(password string, params *Params) (hash string) {
 	salt := generateRandomBytes(params.SaltLength)
 
-	key := argon2.IDKey([]byte(password), salt, params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
+	key := argon2.IDKey([]byte(password), salt, params.Iterations, params.MemoryKiB, params.Parallelism, params.KeyLength)
 
 	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
 	b64Key := base64.RawStdEncoding.EncodeToString(key)
 
-	hash = fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, params.Memory, params.Iterations, params.Parallelism, b64Salt, b64Key)
+	hash = fmt.Sprintf(
+		"$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
+		argon2.Version, params.MemoryKiB, params.Iterations,
+		params.Parallelism, b64Salt, b64Key,
+	)
 	return hash
 }
 
@@ -138,7 +168,10 @@ func CheckHash(password, hash string) (match bool, params *Params, err error) {
 		return false, nil, err
 	}
 
-	otherKey := argon2.IDKey([]byte(password), salt, params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
+	otherKey := argon2.IDKey(
+		[]byte(password), salt, params.Iterations,
+		params.MemoryKiB, params.Parallelism, params.KeyLength,
+	)
 
 	keyLen := int32(len(key))
 	otherKeyLen := int32(len(otherKey))
@@ -162,17 +195,17 @@ func generateRandomBytes(n uint32) []byte {
 // DecodeHash expects a hash created from this package, and parses it to return the params used to
 // create it, as well as the salt and key (password hash).
 func DecodeHash(hash string) (params *Params, salt, key []byte, err error) {
-	vals := strings.Split(hash, "$")
-	if len(vals) != 6 {
-		return nil, nil, nil, ErrInvalidHash
-	}
+	log.Printf("decoding hash %v", hash)
 
-	if vals[1] != "argon2id" {
+	r := strings.NewReader(hash)
+
+	_, err = fmt.Fscanf(r, "$argon2id$")
+	if err != nil {
 		return nil, nil, nil, ErrIncompatibleVariant
 	}
 
 	var version int
-	_, err = fmt.Sscanf(vals[2], "v=%d", &version)
+	_, err = fmt.Fscanf(r, "v=%d$", &version)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -181,18 +214,34 @@ func DecodeHash(hash string) (params *Params, salt, key []byte, err error) {
 	}
 
 	params = &Params{}
-	_, err = fmt.Sscanf(vals[3], "m=%d,t=%d,p=%d", &params.Memory, &params.Iterations, &params.Parallelism)
+	_, err = fmt.Fscanf(r, "m=%d,t=%d,p=%d$", &params.MemoryKiB, &params.Iterations, &params.Parallelism)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("[fmt.Fscanf] params: %w", err)
 	}
 
-	salt, err = base64.RawStdEncoding.Strict().DecodeString(vals[4])
+	rest, err := io.ReadAll(r)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("[io.ReadAll] rest: %w", err)
+	}
+	if bytes.ContainsAny(rest, "\r\n") { // base64 decoder ignores these
+		return nil, nil, nil, ErrInvalidHash
+	}
+
+	var i int
+	if i = bytes.IndexByte(rest, '$'); i == -1 {
+		return nil, nil, nil, ErrInvalidHash
+	}
+	b64Enc := base64.RawStdEncoding.Strict()
+
+	salt = make([]byte, b64Enc.DecodedLen(i))
+	_, err = b64Enc.Decode(salt, rest[:i])
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("[Decode] salt: %w", err)
 	}
 	params.SaltLength = uint32(len(salt))
 
-	key, err = base64.RawStdEncoding.Strict().DecodeString(vals[5])
+	key = make([]byte, b64Enc.DecodedLen(len(rest)-i-1))
+	_, err = b64Enc.Decode(key, rest[i+1:])
 	if err != nil {
 		return nil, nil, nil, err
 	}

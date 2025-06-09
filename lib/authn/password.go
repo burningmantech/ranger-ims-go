@@ -50,7 +50,7 @@ func Hash(password, salt string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func NewSalted(password string) string {
+func NewSaltedSha1(password string) string {
 	salt := newSalt()
 	return salt + ":" + Hash(password, salt)
 }
@@ -60,7 +60,7 @@ func NewSaltedArgon2idDevOnly(password string) string {
 	return argon2id.CreateHash(password, argon2id.DevelopmentParams)
 }
 
-// newSalt returns a base64-encoding string with 128 bits of randomness.
+// newSalt returns a 22-byte-long base64-encoded string with 128 bits of randomness.
 func newSalt() string {
 	var s [16]byte
 	_, _ = rand.Read(s[:])

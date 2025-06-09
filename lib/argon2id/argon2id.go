@@ -32,7 +32,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"runtime"
 	"strings"
 
@@ -195,8 +194,6 @@ func generateRandomBytes(n uint32) []byte {
 // DecodeHash expects a hash created from this package, and parses it to return the params used to
 // create it, as well as the salt and key (password hash).
 func DecodeHash(hash string) (params *Params, salt, key []byte, err error) {
-	log.Printf("decoding hash %v", hash)
-
 	r := strings.NewReader(hash)
 
 	_, err = fmt.Fscanf(r, "$argon2id$")

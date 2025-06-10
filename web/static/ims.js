@@ -332,7 +332,9 @@ export async function commonPageInit() {
     return { authInfo: authInfo, eventDatas: eds };
 }
 export async function redirectToLogin() {
+    // This clears the refresh cookie
     await fetch(url_logout);
+    clearAccessToken();
     console.log("Logged out. Redirecting to login page");
     window.location.replace(`${url_login}?o=${encodeURIComponent(window.location.pathname)}`);
 }

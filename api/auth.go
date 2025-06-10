@@ -72,12 +72,12 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	}
 	var matchedPerson *directory.User
 	for _, person := range rangers {
-		callsignMatch := person.Person.Callsign != "" && strings.EqualFold(person.Person.Callsign, vals.Identification)
+		callsignMatch := person.Handle != "" && strings.EqualFold(person.Handle, vals.Identification)
 		if callsignMatch {
 			matchedPerson = person
 			break
 		}
-		emailMatch := person.Person.Email.String != "" && strings.EqualFold(person.Person.Email.String, vals.Identification)
+		emailMatch := person.Email != "" && strings.EqualFold(person.Email, vals.Identification)
 		if emailMatch {
 			matchedPerson = person
 			break
@@ -91,7 +91,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		)
 	}
 
-	correct, err := authn.Verify(vals.Password, matchedPerson.Person.Password.String)
+	correct, err := authn.Verify(vals.Password, matchedPerson.Password)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Invalid stored password. Get in touch with the tech team.", err).From("[Verify]")
 	}
@@ -102,11 +102,11 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		)
 	}
 
-	slog.Info("Successful login for Ranger", "identification", matchedPerson.Person.Callsign)
+	slog.Info("Successful login for Ranger", "identification", matchedPerson.Handle)
 
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateAccessToken(matchedPerson.Person.Callsign, matchedPerson.Person.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Person.OnSite, accessTokenExpiration)
+		CreateAccessToken(matchedPerson.Handle, matchedPerson.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Onsite, accessTokenExpiration)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
@@ -117,7 +117,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	// The refresh token should be valid much longer than the access token.
 	refreshTokenExpiration := time.Now().Add(action.refreshTokenDuration)
 	refreshToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateRefreshToken(matchedPerson.Person.Callsign, matchedPerson.Person.ID, refreshTokenExpiration)
+		CreateRefreshToken(matchedPerson.Handle, matchedPerson.ID, refreshTokenExpiration)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to create refresh token", err).From("[CreateRefreshToken]")
 	}
@@ -255,7 +255,7 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 	}
 	var matchedPerson *directory.User
 	for _, ranger := range rangers {
-		if ranger.Person.Callsign == jwt.RangerHandle() && ranger.Person.ID == jwt.DirectoryID() {
+		if ranger.Handle == jwt.RangerHandle() && ranger.ID == jwt.DirectoryID() {
 			matchedPerson = ranger
 			break
 		}
@@ -266,7 +266,7 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	accessToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(
-			jwt.RangerHandle(), matchedPerson.Person.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Person.OnSite, accessTokenExpiration,
+			jwt.RangerHandle(), matchedPerson.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Onsite, accessTokenExpiration,
 		)
 	if err != nil {
 		return empty, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")

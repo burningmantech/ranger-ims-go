@@ -101,8 +101,8 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 				rule.DebugInfo.MatchesAllUsers = true
 			} else {
 				for _, person := range users {
-					if authz.PersonMatches(access, person.Person.Callsign, person.PositionNames, person.TeamNames, person.Person.OnSite) {
-						rule.DebugInfo.MatchesUsers = append(rule.DebugInfo.MatchesUsers, person.Person.Callsign)
+					if authz.PersonMatches(access, person.Handle, person.PositionNames, person.TeamNames, person.Onsite) {
+						rule.DebugInfo.MatchesUsers = append(rule.DebugInfo.MatchesUsers, person.Handle)
 					}
 				}
 				if len(rule.DebugInfo.MatchesUsers) == 0 {

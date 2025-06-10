@@ -30,6 +30,10 @@ async function initRootPage(): Promise<void> {
         ims.clearAccessToken();
         window.history.replaceState(null, "", url_app);
     }
-    await ims.commonPageInit();
-    document.getElementById("login-button")?.focus();
+    const result = await ims.commonPageInit();
+    if (result.authInfo.authenticated) {
+        document.getElementById("current-year-link")?.focus();
+    } else {
+        document.getElementById("login-button")?.focus();
+    }
 }

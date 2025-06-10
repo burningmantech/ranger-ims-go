@@ -59,6 +59,13 @@ enum Validity {
 interface Access {
     expression: string;
     validity: Validity;
+    debug_info?: DebugInfo|null;
+}
+
+interface DebugInfo {
+    matches_users?: string[]|null
+    matches_all_users?: boolean|null
+    matches_no_one?: boolean|null
 }
 
 const allAccessModes = ["readers", "writers", "reporters"] as const;
@@ -145,6 +152,20 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
         entryItem.append(accessEntry.expression);
         entryItem.setAttribute("value", accessEntry.expression);
+
+        if (accessEntry.debug_info) {
+            let msg: string = `Rule "${accessEntry.validity}, ${accessEntry.expression}" currently matches`;
+            if (accessEntry.debug_info.matches_no_one) {
+                msg += " NO users";
+            } else if (accessEntry.debug_info.matches_all_users) {
+                msg += " ALL authenticated users";
+            } else {
+                msg += ":\n  ";
+                msg += accessEntry.debug_info.matches_users?.join("\n  ");
+            }
+            entryItem.setAttribute("title", msg);
+        }
+
         const validityField = entryItem.getElementsByClassName("access_validity")[0] as HTMLSelectElement;
         validityField.value = accessEntry.validity;
 

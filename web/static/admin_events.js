@@ -102,6 +102,20 @@ function updateEventAccess(event, mode) {
         const entryItem = _eventsEntryTemplate.cloneNode(true);
         entryItem.append(accessEntry.expression);
         entryItem.setAttribute("value", accessEntry.expression);
+        if (accessEntry.debug_info) {
+            let msg = `Rule "${accessEntry.validity}, ${accessEntry.expression}" currently matches`;
+            if (accessEntry.debug_info.matches_no_one) {
+                msg += " NO users";
+            }
+            else if (accessEntry.debug_info.matches_all_users) {
+                msg += " ALL authenticated users";
+            }
+            else {
+                msg += ":\n  ";
+                msg += accessEntry.debug_info.matches_users?.join("\n  ");
+            }
+            entryItem.setAttribute("title", msg);
+        }
         const validityField = entryItem.getElementsByClassName("access_validity")[0];
         validityField.value = accessEntry.validity;
         entryContainer.append(entryItem);

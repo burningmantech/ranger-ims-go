@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/cache"
 	"time"
@@ -34,7 +33,12 @@ type UserStore struct {
 }
 
 type User struct {
-	Person        clubhousedb.RangersByIdRow
+	ID            int64
+	Handle        string
+	Email         string
+	Status        string
+	Onsite        bool
+	Password      string
 	PositionIDs   []int64
 	PositionNames []string
 	TeamIDs       []int64
@@ -79,12 +83,12 @@ func (store *UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error
 	response := make([]imsjson.Person, 0, len(users))
 	for _, r := range users {
 		response = append(response, imsjson.Person{
-			Handle:      r.Person.Callsign,
-			Email:       r.Person.Email.String,
-			Password:    r.Person.Password.String,
-			Status:      string(r.Person.Status),
-			Onsite:      r.Person.OnSite,
-			DirectoryID: r.Person.ID,
+			Handle:      r.Handle,
+			Email:       r.Email,
+			Password:    r.Password,
+			Status:      r.Status,
+			Onsite:      r.Onsite,
+			DirectoryID: r.ID,
 		})
 	}
 
@@ -121,7 +125,14 @@ func (store *UserStore) refreshUserCache(ctx context.Context) (map[int64]*User, 
 
 	m := make(map[int64]*User, len(rangers))
 	for _, ranger := range rangers {
-		m[ranger.ID] = &User{Person: ranger}
+		m[ranger.ID] = &User{
+			ID:       ranger.ID,
+			Handle:   ranger.Callsign,
+			Email:    ranger.Email.String,
+			Status:   string(ranger.Status),
+			Onsite:   ranger.OnSite,
+			Password: ranger.Password.String,
+		}
 	}
 	positions := make(map[int64]string, len(positionRows))
 	for _, positionRow := range positionRows {

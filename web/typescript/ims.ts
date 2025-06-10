@@ -377,7 +377,9 @@ export async function commonPageInit(): Promise<PageInitResult> {
 }
 
 export async function redirectToLogin(): Promise<void> {
+    // This clears the refresh cookie
     await fetch(url_logout);
+    clearAccessToken();
     console.log("Logged out. Redirecting to login page")
     window.location.replace(`${url_login}?o=${encodeURIComponent(window.location.pathname)}`);
 }

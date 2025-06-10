@@ -197,7 +197,22 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 	if eventName != "" {
 		event, errHTTP := getEvent(req, eventName, action.imsDBQ)
 		if errHTTP != nil {
-			return resp, errHTTP.From("[getEvent]")
+			if errHTTP.Code != http.StatusNotFound {
+				return resp, errHTTP.From("[getEvent]")
+			} else {
+				// We don't want to return a 404 if the event doesn't exist.
+				// Just make it look like the event might exist, but that the
+				// user has no access.
+				resp.EventAccess = map[string]AccessForEvent{
+					eventName: {
+						ReadIncidents:     false,
+						WriteIncidents:    false,
+						WriteFieldReports: false,
+						AttachFiles:       false,
+					},
+				}
+				return resp, nil
+			}
 		}
 
 		eventPermissions, _, err := authz.EventPermissions(req.Context(), &event.ID, action.imsDBQ, action.userStore, action.admins, *claims)

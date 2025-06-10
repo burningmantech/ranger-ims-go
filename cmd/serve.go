@@ -83,7 +83,7 @@ func runServerInternal(
 	clubhouseDB, err := directory.MariaDB(ctx, imsCfg.Directory)
 	must(err)
 	clubhouseDBQ := directory.NewDBQ(clubhouseDB, chqueries.New(), imsCfg.Directory.InMemoryCacheTTL)
-	userStore := directory.NewUserStore(clubhouseDBQ)
+	userStore := directory.NewUserStore(clubhouseDBQ, imsCfg.Directory.InMemoryCacheTTL)
 
 	var s3Client *attachment.S3Client
 	if imsCfg.AttachmentsStore.Type == conf.AttachmentsStoreS3 {

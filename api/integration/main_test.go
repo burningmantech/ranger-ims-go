@@ -116,7 +116,7 @@ func setup(ctx context.Context, tempDir string) {
 		chqueries.New(),
 		shared.cfg.Directory.InMemoryCacheTTL,
 	)
-	shared.userStore = directory.NewUserStore(clubhouseDBQ)
+	shared.userStore = directory.NewUserStore(clubhouseDBQ, shared.cfg.Directory.InMemoryCacheTTL)
 
 	ctr, cleanup, dbHostPort, err := testctr.MariaDBContainer(
 		ctx,

@@ -24,7 +24,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	"github.com/burningmantech/ranger-ims-go/directory/fakeclubhousedb"
-	"github.com/burningmantech/ranger-ims-go/lib/cache"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
 	"time"
@@ -91,12 +90,6 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 type DBQ struct {
 	*sql.DB
 	q chqueries.Querier
-
-	rangersByIdCache     *cache.InMemory[[]chqueries.RangersByIdRow]
-	personPositionsCache *cache.InMemory[[]chqueries.PersonPosition]
-	personTeamsCache     *cache.InMemory[[]chqueries.PersonTeamsRow]
-	positionsCache       *cache.InMemory[[]chqueries.PositionsRow]
-	teamsCache           *cache.InMemory[[]chqueries.TeamsRow]
 }
 
 var _ chqueries.Querier = (*DBQ)(nil)
@@ -106,71 +99,27 @@ func NewDBQ(db *sql.DB, querier chqueries.Querier, cacheTTL time.Duration) *DBQ 
 		DB: db,
 		q:  querier,
 	}
-	dbq.rangersByIdCache = cachemaker(dbq, cacheTTL, "RangersById", dbq.q.RangersById)
-	dbq.personPositionsCache = cachemaker(dbq, cacheTTL, "PersonPositions", dbq.q.PersonPositions)
-	dbq.personTeamsCache = cachemaker(dbq, cacheTTL, "PersonTeams", dbq.q.PersonTeams)
-	dbq.positionsCache = cachemaker(dbq, cacheTTL, "Positions", dbq.q.Positions)
-	dbq.teamsCache = cachemaker(dbq, cacheTTL, "Teams", dbq.q.Teams)
 	return dbq
 }
 
-// cachemaker cachemaker makes me a cache.
-func cachemaker[T any](
-	dbtx chqueries.DBTX,
-	valTTL time.Duration,
-	queryName string,
-	refresher func(context.Context, chqueries.DBTX) (T, error),
-) *cache.InMemory[T] {
-	return cache.New[T](
-		valTTL,
-		func(ctx context.Context) (T, error) {
-			start := time.Now()
-			t, err := refresher(ctx, dbtx)
-			logQuery(queryName, start, err)
-			return t, err
-		},
-	)
-}
-
-func logQuery(queryName string, start time.Time, err error) {
-	durationMS := float64(time.Since(start).Microseconds()) / 1000.0
-	slog.Debug("Ran Clubhouse SQL: "+queryName,
-		"durationish", fmt.Sprintf("%.3fms", durationMS),
-		"err", err,
-	)
-}
-
 func (l DBQ) PersonPositions(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonPosition, error) {
-	rows, err := l.personPositionsCache.Get(ctx)
-	return orNil(rows), err
+	return l.q.PersonPositions(ctx, db)
 }
 
 func (l DBQ) PersonTeams(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonTeamsRow, error) {
-	rows, err := l.personTeamsCache.Get(ctx)
-	return orNil(rows), err
+	return l.q.PersonTeams(ctx, db)
 }
 
 func (l DBQ) Positions(ctx context.Context, db chqueries.DBTX) ([]chqueries.PositionsRow, error) {
-	rows, err := l.positionsCache.Get(ctx)
-	return orNil(rows), err
+	return l.q.Positions(ctx, db)
 }
 
 func (l DBQ) RangersById(ctx context.Context, db chqueries.DBTX) ([]chqueries.RangersByIdRow, error) {
-	rows, err := l.rangersByIdCache.Get(ctx)
-	return orNil(rows), err
+	return l.q.RangersById(ctx, db)
 }
 
 func (l DBQ) Teams(ctx context.Context, db chqueries.DBTX) ([]chqueries.TeamsRow, error) {
-	rows, err := l.teamsCache.Get(ctx)
-	return orNil(rows), err
-}
-
-// orNil takes something like *[]string and returns it as either []string or nil.
-func orNil[S ~*[]E, E any](sl S) []E {
-	if sl == nil {
-		return nil
-	}
-	return *sl
+	return l.q.Teams(ctx, db)
 }
 
 func startFakeDB(ctx context.Context, mariaCfg conf.ClubhouseDB) (conf.ClubhouseDB, error) {

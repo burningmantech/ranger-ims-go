@@ -21,6 +21,12 @@ type EventsAccess map[string]EventAccess
 type AccessRule struct {
 	Expression string `json:"expression"`
 	Validity   string `json:"validity"`
+
+	DebugInfo struct {
+		MatchesUsers    []string `json:"matches_users,omitempty"`
+		MatchesAllUsers bool     `json:"matches_all_users,omitempty"`
+		MatchesNoOne    bool     `json:"matches_no_one,omitempty"`
+	} `json:"debug_info"`
 }
 
 type EventAccess struct {

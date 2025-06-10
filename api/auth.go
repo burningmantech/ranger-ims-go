@@ -19,7 +19,6 @@ package api
 import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/directory"
-	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
@@ -67,20 +66,20 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		return empty, nil, errHTTP.From("[readBodyAs]")
 	}
 
-	rangers, err := action.userStore.GetRangers(req.Context())
+	rangers, err := action.userStore.GetAllUsers(req.Context())
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to fetch personnel", err).From("[GetRangers]")
 	}
-	var matchedPerson *imsjson.Person
+	var matchedPerson *directory.User
 	for _, person := range rangers {
-		callsignMatch := person.Handle != "" && strings.EqualFold(person.Handle, vals.Identification)
+		callsignMatch := person.Person.Callsign != "" && strings.EqualFold(person.Person.Callsign, vals.Identification)
 		if callsignMatch {
-			matchedPerson = &person
+			matchedPerson = person
 			break
 		}
-		emailMatch := person.Email != "" && strings.EqualFold(person.Email, vals.Identification)
+		emailMatch := person.Person.Email.String != "" && strings.EqualFold(person.Person.Email.String, vals.Identification)
 		if emailMatch {
-			matchedPerson = &person
+			matchedPerson = person
 			break
 		}
 	}
@@ -92,7 +91,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		)
 	}
 
-	correct, err := authn.Verify(vals.Password, matchedPerson.Password)
+	correct, err := authn.Verify(vals.Password, matchedPerson.Person.Password.String)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Invalid stored password. Get in touch with the tech team.", err).From("[Verify]")
 	}
@@ -103,16 +102,11 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		)
 	}
 
-	slog.Info("Successful login for Ranger", "identification", matchedPerson.Handle)
-
-	foundPositionIDs, foundTeamIDs, err := action.userStore.GetUserPositionsTeamsIDs(req.Context(), matchedPerson.DirectoryID)
-	if err != nil {
-		return empty, nil, herr.InternalServerError("Failed to fetch Clubhouse positions/teams data", err).From("[GetUserPositionsTeams]")
-	}
+	slog.Info("Successful login for Ranger", "identification", matchedPerson.Person.Callsign)
 
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateAccessToken(matchedPerson.Handle, matchedPerson.DirectoryID, foundPositionIDs, foundTeamIDs, matchedPerson.Onsite, accessTokenExpiration)
+		CreateAccessToken(matchedPerson.Person.Callsign, matchedPerson.Person.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Person.OnSite, accessTokenExpiration)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
@@ -123,7 +117,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	// The refresh token should be valid much longer than the access token.
 	refreshTokenExpiration := time.Now().Add(action.refreshTokenDuration)
 	refreshToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateRefreshToken(matchedPerson.Handle, matchedPerson.DirectoryID, refreshTokenExpiration)
+		CreateRefreshToken(matchedPerson.Person.Callsign, matchedPerson.Person.ID, refreshTokenExpiration)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to create refresh token", err).From("[CreateRefreshToken]")
 	}
@@ -255,25 +249,24 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 	}
 
 	slog.Info("Refreshing access token", "ranger", jwt.RangerHandle())
-	rangers, err := action.userStore.GetRangers(req.Context())
+	rangers, err := action.userStore.GetAllUsers(req.Context())
 	if err != nil {
 		return empty, herr.InternalServerError("Failed to fetch personnel", err).From("[GetRangers]")
 	}
-	var matchedPerson imsjson.Person
+	var matchedPerson *directory.User
 	for _, ranger := range rangers {
-		if ranger.Handle == jwt.RangerHandle() && ranger.DirectoryID == jwt.DirectoryID() {
+		if ranger.Person.Callsign == jwt.RangerHandle() && ranger.Person.ID == jwt.DirectoryID() {
 			matchedPerson = ranger
 			break
 		}
 	}
-	matchedPositionIDs, matchedTeamIDs, err := action.userStore.GetUserPositionsTeamsIDs(req.Context(), matchedPerson.DirectoryID)
-	if err != nil {
-		return empty, herr.InternalServerError("Failed to fetch Clubhouse positions/teams data", err).From("[GetUserPositionsTeams]")
+	if matchedPerson == nil {
+		return empty, herr.Unauthorized("User not found", nil)
 	}
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	accessToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(
-			jwt.RangerHandle(), matchedPerson.DirectoryID, matchedPositionIDs, matchedTeamIDs, matchedPerson.Onsite, accessTokenExpiration,
+			jwt.RangerHandle(), matchedPerson.Person.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Person.OnSite, accessTokenExpiration,
 		)
 	if err != nil {
 		return empty, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")

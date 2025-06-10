@@ -785,7 +785,9 @@ async function overrideStartDate() {
 function newDateTimeVal(dateInput, timeInput, localTz) {
     const val = `${dateInput.trim()} ${timeInput.trim()} ${localTz}`;
     const date = new Date(val);
-    if (date.getFullYear() < 1980 || date.getFullYear() > 2100) {
+    // Just do a check on the year to prevent obvious mistakes.
+    // This will break in year 2099. Feel free to update maximum year.
+    if (date.getFullYear() < 2000 || date.getFullYear() > 2099) {
         throw new Error(`year seems incorrect: ${date.getFullYear()}`);
     }
     return date.toISOString();

@@ -25,6 +25,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 )
@@ -53,15 +54,15 @@ func (action GetEventAccesses) getEventAccesses(req *http.Request) (imsjson.Even
 		return empty, herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
 	}
 
-	resp, errHTTP := getEventsAccess(req.Context(), action.imsDBQ)
+	resp, errHTTP := action.getEventsAccess(req.Context())
 	if errHTTP != nil {
 		return empty, errHTTP.From("[getEventsAccess]")
 	}
 	return resp, nil
 }
 
-func getEventsAccess(ctx context.Context, imsDBQ *store.DBQ) (imsjson.EventsAccess, *herr.HTTPError) {
-	allEventRows, err := imsDBQ.Events(ctx, imsDBQ)
+func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.EventsAccess, *herr.HTTPError) {
+	allEventRows, err := action.imsDBQ.Events(ctx, action.imsDBQ)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch Events", err).From("[Events]")
 	}
@@ -70,7 +71,7 @@ func getEventsAccess(ctx context.Context, imsDBQ *store.DBQ) (imsjson.EventsAcce
 		storedEvents = append(storedEvents, aer.Event)
 	}
 
-	accessRows, err := imsDBQ.EventAccessAll(ctx, imsDBQ)
+	accessRows, err := action.imsDBQ.EventAccessAll(ctx, action.imsDBQ)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch EventAccess", err).From("[EventAccessAll]")
 	}
@@ -80,6 +81,12 @@ func getEventsAccess(ctx context.Context, imsDBQ *store.DBQ) (imsjson.EventsAcce
 	}
 
 	result := make(imsjson.EventsAccess)
+
+	users, err := action.userStore.GetAllUsers(ctx)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch Users", err).From("[Users]")
+	}
+
 	for _, e := range storedEvents {
 		ea := imsjson.EventAccess{
 			Readers:   []imsjson.AccessRule{},
@@ -89,6 +96,21 @@ func getEventsAccess(ctx context.Context, imsDBQ *store.DBQ) (imsjson.EventsAcce
 		for _, accessRow := range accessRowByEventID[e.ID] {
 			access := accessRow
 			rule := imsjson.AccessRule{Expression: access.Expression, Validity: string(access.Validity)}
+
+			if access.Expression == "*" && access.Validity == imsdb.EventAccessValidityAlways {
+				rule.DebugInfo.MatchesAllUsers = true
+			} else {
+				for _, person := range users {
+					if authz.PersonMatches(access, person.Person.Callsign, person.PositionNames, person.TeamNames, person.Person.OnSite) {
+						rule.DebugInfo.MatchesUsers = append(rule.DebugInfo.MatchesUsers, person.Person.Callsign)
+					}
+				}
+				if len(rule.DebugInfo.MatchesUsers) == 0 {
+					rule.DebugInfo.MatchesNoOne = true
+				}
+			}
+			slices.Sort(rule.DebugInfo.MatchesUsers)
+
 			switch access.Mode {
 			case imsdb.EventAccessModeRead:
 				ea.Readers = append(ea.Readers, rule)

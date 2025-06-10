@@ -154,33 +154,43 @@ func ManyEventPermissions(
 	for eventID, accesses := range accessByEvent {
 		eventPermissions[eventID] = EventNoPermissions
 		for _, ea := range accesses {
-			matchExpr := false
-			if ea.Expression == "*" {
-				matchExpr = true
-			}
-			if strings.HasPrefix(ea.Expression, "person:") &&
-				strings.TrimPrefix(ea.Expression, "person:") == handle {
-				matchExpr = true
-			}
-			if strings.HasPrefix(ea.Expression, "position:") &&
-				slices.Contains(positions, strings.TrimPrefix(ea.Expression, "position:")) {
-				matchExpr = true
-			}
-			if strings.HasPrefix(ea.Expression, "team:") &&
-				slices.Contains(teams, strings.TrimPrefix(ea.Expression, "team:")) {
-				matchExpr = true
-			}
-			matchValidity := false
-			if ea.Validity == imsdb.EventAccessValidityAlways {
-				matchValidity = true
-			}
-			if ea.Validity == imsdb.EventAccessValidityOnsite && onsite {
-				matchValidity = true
-			}
-			if matchExpr && matchValidity {
+			if PersonMatches(ea, handle, positions, teams, onsite) {
 				eventPermissions[eventID] |= RolesToEventPerms[modeToRole[ea.Mode]]
 			}
 		}
 	}
 	return eventPermissions, globalPermissions
+}
+
+func PersonMatches(
+	ea imsdb.EventAccess,
+	handle string,
+	positions []string,
+	teams []string,
+	onsite bool,
+) bool {
+	matchExpr := false
+	if ea.Expression == "*" {
+		matchExpr = true
+	}
+	if strings.HasPrefix(ea.Expression, "person:") &&
+		strings.TrimPrefix(ea.Expression, "person:") == handle {
+		matchExpr = true
+	}
+	if strings.HasPrefix(ea.Expression, "position:") &&
+		slices.Contains(positions, strings.TrimPrefix(ea.Expression, "position:")) {
+		matchExpr = true
+	}
+	if strings.HasPrefix(ea.Expression, "team:") &&
+		slices.Contains(teams, strings.TrimPrefix(ea.Expression, "team:")) {
+		matchExpr = true
+	}
+	matchValidity := false
+	if ea.Validity == imsdb.EventAccessValidityAlways {
+		matchValidity = true
+	}
+	if ea.Validity == imsdb.EventAccessValidityOnsite && onsite {
+		matchValidity = true
+	}
+	return matchExpr && matchValidity
 }

@@ -18,8 +18,7 @@ CREATE TABLE `person` (
     `on_site` tinyint(1) NOT NULL DEFAULT 0,
     `vehicle_blacklisted` tinyint(1) NOT NULL DEFAULT 0,
     `date_verified` date DEFAULT NULL,
-    -- TODO: the actual Clubhouse DB has a varchar(64) here. It's varchar(128) to support upcoming argon2id keys.
-    `password` varchar(128) DEFAULT NULL,
+    `password` varchar(255) DEFAULT NULL,
     `created_at` datetime DEFAULT current_timestamp(),
     `has_note_on_file` tinyint(1) NOT NULL DEFAULT 0,
     `callsign_approved` tinyint(1) NOT NULL DEFAULT 0,

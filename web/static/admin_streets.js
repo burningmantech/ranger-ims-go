@@ -17,7 +17,6 @@
 //
 "use strict";
 import * as ims from "./ims.js";
-let eventDatas = [];
 //
 // Initialize UI
 //
@@ -28,12 +27,6 @@ async function initAdminStreetsPage() {
         await ims.redirectToLogin();
         return;
     }
-    const eds = await initResult.eventDatas;
-    if (eds == null) {
-        console.error(`Failed to fetch events`);
-        return;
-    }
-    eventDatas = eds;
     window.addStreet = addStreet;
     window.removeStreet = removeStreet;
     const { err } = await loadStreets();
@@ -62,13 +55,13 @@ function drawStreets() {
         _streetsEntryTemplate = _streetsTemplate.querySelector("ul").querySelector("li");
     }
     container.replaceChildren();
-    for (const event of eventDatas) {
+    for (const eventName in streets) {
         const eventStreets = _streetsTemplate.cloneNode(true);
         // Add an id to the element for future reference
-        eventStreets.id = `event_streets_${event.name}`;
+        eventStreets.id = `event_streets_${eventName}`;
         // Add to container
         container.append(eventStreets);
-        updateEventStreets(event.name);
+        updateEventStreets(eventName);
     }
 }
 function updateEventStreets(event) {

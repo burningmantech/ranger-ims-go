@@ -62,6 +62,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-sm {
   font-size: var(--font-size-smaller);
+  border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
 }
 
 .text-smaller {

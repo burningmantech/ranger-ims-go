@@ -19,7 +19,7 @@ package template
 templ Incidents(deployment, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Incidents", "incidents.js", true)
+@head("Incidents | " + eventName, "incidents.js", true)
 
 <body>
 <div class="container-fluid">

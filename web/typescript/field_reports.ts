@@ -214,7 +214,9 @@ function frInitDataTables() {
                 "className": "field_report_incident text-center",
                 "data": "incident",
                 "defaultContent": "-",
-                "render": ims.renderIncidentNumber,
+                // don't use renderIncidentNumber, as that includes an <a> tag that messes
+                // with the whole-row linking from renderFieldReportNumber.
+                "render": ims.renderNumber,
                 "responsivePriority": 3,
             },
         ],
@@ -223,31 +225,8 @@ function frInitDataTables() {
             [1, "dsc"],
         ],
         "createdRow": function (row: HTMLElement, fieldReport: ims.FieldReport, _index: number) {
-            const openLink = function(e: MouseEvent): void {
-                // If the user clicked on a link, then let them access that link without the JS below.
-                if (e.target?.constructor?.name === "HTMLAnchorElement") {
-                    return;
-                }
-
-                const isLeftClick = e.type === "click";
-                const isMiddleClick = e.type === "auxclick" && e.button === 1;
-                const holdingModifier = e.altKey || e.ctrlKey || e.metaKey;
-
-                // Left click while not holding a modifier key: open in the same tab
-                if (isLeftClick && !holdingModifier) {
-                    window.location.href = `${ims.urlReplace(url_viewFieldReports)}/${fieldReport.number}`;
-                }
-                // Left click while holding modifier key or middle click: open in a new tab
-                if (isMiddleClick || (isLeftClick && holdingModifier)) {
-                    window.open(
-                        `${ims.urlReplace(url_viewFieldReports)}/${fieldReport.number}`,
-                        "Field_Report:" + fieldReport.number,
-                    );
-                    return;
-                }
-            }
-            row.addEventListener("click", openLink);
-            row.addEventListener("auxclick", openLink);
+            // Necessary to allow the stretched-link to work
+            row.classList.add("position-relative");
 
             row.getElementsByClassName("field_report_created")[0]!
                 .setAttribute(

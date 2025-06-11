@@ -581,9 +581,8 @@ export function renderIncidentNumber(incidentNumber, type, _incident) {
                 return null;
             }
             const dest = urlReplace(url_viewIncidentNumber).replace("<number>", incidentNumber.toString());
-            return `<a href="${dest}">${incidentNumber}</a>`;
+            return `<a class="stretched-link" href="${dest}">${incidentNumber}</a>`;
         case "filter":
-            return incidentNumber;
         case "type":
         case "sort":
             return incidentNumber;
@@ -597,12 +596,22 @@ export function renderFieldReportNumber(fieldReportNumber, type, _fieldReport) {
                 return null;
             }
             const dest = urlReplace(url_viewFieldReportNumber).replace("<number>", fieldReportNumber.toString());
-            return `<a href="${dest}">${fieldReportNumber}</a>`;
+            return `<a class="stretched-link" href="${dest}">${fieldReportNumber}</a>`;
         case "filter":
-            return fieldReportNumber;
         case "type":
         case "sort":
             return fieldReportNumber;
+    }
+    return undefined;
+}
+export function renderNumber(num, type, _obj) {
+    switch (type) {
+        case "display":
+            return num?.toString() ?? null;
+        case "filter":
+        case "type":
+        case "sort":
+            return num;
     }
     return undefined;
 }

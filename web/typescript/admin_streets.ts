@@ -25,8 +25,6 @@ declare global {
     }
 }
 
-let eventDatas: ims.EventData[] = [];
-
 //
 // Initialize UI
 //
@@ -39,12 +37,6 @@ async function initAdminStreetsPage(): Promise<void> {
         await ims.redirectToLogin();
         return;
     }
-    const eds: ims.EventData[]|null = await initResult.eventDatas;
-    if (eds == null) {
-        console.error(`Failed to fetch events`);
-        return;
-    }
-    eventDatas = eds;
 
     window.addStreet = addStreet;
     window.removeStreet = removeStreet;
@@ -82,16 +74,16 @@ function drawStreets(): void {
 
     container.replaceChildren();
 
-    for (const event of eventDatas) {
+    for (const eventName in streets!) {
         const eventStreets = _streetsTemplate.cloneNode(true) as HTMLDivElement;
 
         // Add an id to the element for future reference
-        eventStreets.id = `event_streets_${event.name}`;
+        eventStreets.id = `event_streets_${eventName}`;
 
         // Add to container
         container.append(eventStreets);
 
-        updateEventStreets(event.name);
+        updateEventStreets(eventName);
     }
 }
 

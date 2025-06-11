@@ -63,7 +63,7 @@ func FieldReport(deployment, eventName string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = head("Field Report Details", "field_report.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = head("Field Report Details | "+eventName, "field_report.js", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

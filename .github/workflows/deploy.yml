@@ -7,12 +7,17 @@ run-name: Deploy to production by @${{ github.actor }}
 on: workflow_dispatch
 
 
+defaults:
+  run:
+    shell: bash
+
+
 env:
   AWS_DEPLOY_ROLE: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ranger-gha-deploy"
   AWS_ECR_IMAGE_NAME: "/rangers/ranger-ims-go"
   AWS_ECS_CLUSTER: rangers
   AWS_ECS_CONTAINER_NAME: ranger-ims-go
-  AWS_ECS_SERVICE_PRODUCTION: ranger-ims-go-staging-fg
+  AWS_ECS_SERVICE_PRODUCTION: ranger-ims-go-production-fg
   AWS_ECS_TASK_DEFINITION_ARN_PRODUCTION: "arn:aws:ecs:us-west-2:${{ secrets.AWS_ACCOUNT_ID }}:task-definition/ranger-ims-go-production-fg"
   AWS_ECS_TASK_DEFINITION_FAMILY: ranger-ims-go-production-fg
   AWS_REGION: us-west-2

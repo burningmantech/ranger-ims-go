@@ -96,7 +96,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	_, errHTTP = addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
@@ -176,7 +176,7 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "")
+	_, errHTTP = addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
 	if errHTTP != nil {
 		return errHTTP.From("[addIncidentReportEntry]")
 	}
@@ -189,6 +189,11 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 }
 
 func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.ReportEntry {
+	var attachment imsjson.Attachment
+	if attachmentsEnabled && re.AttachedFileOriginalName.Valid {
+		attachment.Name = re.AttachedFileOriginalName.String
+		attachment.Previewable = safeContentType(re.AttachedFileMediaType.String) != octetStream
+	}
 	return imsjson.ReportEntry{
 		ID:            re.ID,
 		Created:       time.Unix(int64(re.Created), 0),
@@ -197,6 +202,7 @@ func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.Re
 		Text:          re.Text,
 		Stricken:      ptr(re.Stricken),
 		HasAttachment: attachmentsEnabled && re.AttachedFile.String != "",
+		Attachment:    attachment,
 	}
 }
 

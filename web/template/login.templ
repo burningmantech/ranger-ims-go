@@ -19,12 +19,12 @@ package template
 templ Login(deployment string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Log In", "login.js", false)
+@Head("Log In", "login.js", false)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav("")
+@Header(deployment)
+@Nav("")
 <h1 id="doc-title">Incident Management System</h1>
 
 <form method="POST" id="login_form" class="form-horizontal">
@@ -56,7 +56,7 @@ templ Login(deployment string) {
 </div>
 
 </form>
-@footer()
+@Footer()
 </div>
 </body>
 </html>

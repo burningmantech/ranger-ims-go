@@ -19,13 +19,15 @@ package template
 templ FieldReport(deployment, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Field Report Details | " + eventName, "field_report.js", false)
+@Head("Field Report Details | " + eventName, "field_report.js", false)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav(eventName)
+@Header(deployment)
+@Nav(eventName)
 <h1 id="doc-title">Field Report Details</h1>
+
+@LoadingOverlay()
 
   <div id="error_info" class="hidden text-danger">
     <p id="error_text"></p>
@@ -200,7 +202,7 @@ templ FieldReport(deployment, eventName string) {
     </div>
   </div>
 
-@footer()
+@Footer()
 </div>
 </body>
 </html>

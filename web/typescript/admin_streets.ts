@@ -45,6 +45,7 @@ async function initAdminStreetsPage(): Promise<void> {
     if (err == null) {
         drawStreets();
     }
+    ims.hideLoadingOverlay();
 }
 
 let streets: ims.EventsStreets = {};

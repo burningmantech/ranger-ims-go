@@ -47,7 +47,7 @@ async function initAdminEventsPage(): Promise<void> {
 
     await loadAccessControlList();
     drawAccess();
-
+    ims.hideLoadingOverlay();
     ims.enableEditing();
 }
 

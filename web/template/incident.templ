@@ -19,12 +19,14 @@ package template
 templ Incident(deployment, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Incident Details | " + eventName, "incident.js", false)
+@Head("Incident Details | " + eventName, "incident.js", false)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav(eventName)
+@Header(deployment)
+@Nav(eventName)
+
+@LoadingOverlay()
 
     <div id="error_info" class="hidden text-danger">
       <p id="error_text"></p>
@@ -342,7 +344,7 @@ templ Incident(deployment, eventName string) {
       </div>
     </div>
 
-@footer()
+@Footer()
 </div>
 </body>
 </html>

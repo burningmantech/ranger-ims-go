@@ -46,7 +46,7 @@ async function initAdminTypesPage(): Promise<void> {
     window.hideIncidentType = hideIncidentType;
 
     await loadAndDrawIncidentTypes();
-
+    ims.hideLoadingOverlay();
     ims.enableEditing();
 }
 

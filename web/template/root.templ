@@ -19,12 +19,12 @@ package template
 templ Root(deployment string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Home", "root.js", false)
+@Head("Home", "root.js", false)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav("")
+@Header(deployment)
+@Nav("")
 <h1 id="doc-title">Incident Management System</h1>
 
 <p class="mt-3 if-logged-in hidden">
@@ -57,7 +57,7 @@ templ Root(deployment string) {
     Log Out
   </a>
 </div>
-@footer()
+@Footer()
 </div>
 </body>
 </html>

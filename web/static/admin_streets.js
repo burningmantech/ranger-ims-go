@@ -33,6 +33,7 @@ async function initAdminStreetsPage() {
     if (err == null) {
         drawStreets();
     }
+    ims.hideLoadingOverlay();
 }
 let streets = {};
 async function loadStreets() {

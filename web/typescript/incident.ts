@@ -105,6 +105,8 @@ async function initIncidentPage(): Promise<void> {
     drawIncidentTypesToAdd();
     renderFieldReportData();
 
+    ims.hideLoadingOverlay();
+
     // for a new incident, jump to summary field
     if (incident!.number == null) {
         document.getElementById("incident_summary")!.focus();

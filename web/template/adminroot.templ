@@ -19,12 +19,12 @@ package template
 templ AdminRoot(deployment string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Administration Tools", "admin_root.js", false)
+@Head("Administration Tools", "admin_root.js", false)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav("")
+@Header(deployment)
+@Nav("")
 <h1 id="doc-title">Administration Tools</h1>
   <ul>
     <li>
@@ -43,7 +43,7 @@ templ AdminRoot(deployment string) {
       </a>
     </li>
   </ul>
-@footer()
+@Footer()
 </div>
 </body>
 </html>

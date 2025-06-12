@@ -147,7 +147,7 @@ var safeMediaTypes = []string{
 	"video/x-msvideo",
 }
 
-// safeContentType returns a safe form contentType if possible, or octetStream otherwise.
+// safeContentType returns a safe form of contentType if possible, or octetStream otherwise.
 //
 // This is important for the client side. For example, if we're serving an HTML document,
 // we want the client to think it's just text/plain, so that it doesn't attempt to render it.

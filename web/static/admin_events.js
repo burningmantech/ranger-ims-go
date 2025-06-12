@@ -33,6 +33,7 @@ async function initAdminEventsPage() {
     window.removeAccess = removeAccess;
     await loadAccessControlList();
     drawAccess();
+    ims.hideLoadingOverlay();
     ims.enableEditing();
 }
 var Validity;

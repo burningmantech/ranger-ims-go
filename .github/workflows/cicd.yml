@@ -276,11 +276,10 @@ jobs:
           docker tag "ranger-ims-go:${{ github.sha }}" "${image_repository}:${{ github.sha }}"
           docker push "${image_repository}:${{ github.sha }}"
           # Push staging rollback tag
-          if docker pull "${image_repository}:staging"; then
-            echo "Pushing rollback tag for staging"
-            docker tag "${image_repository}:staging" "${image_repository}:staging_rollback"
-            docker push "${image_repository}:staging_rollback"
-          fi
+          docker pull "${image_repository}:staging"
+          echo "Pushing rollback tag for staging"
+          docker tag "${image_repository}:staging" "${image_repository}:staging_rollback"
+          docker push "${image_repository}:staging_rollback"
           # Push staging tag
           echo "Pushing staging tag"
           docker tag "${image_repository}:${{ github.sha }}" "${image_repository}:staging"

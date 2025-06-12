@@ -26,35 +26,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Harden CI
-      uses: step-security/harden-runner@v2.12.0
-      with:
-        egress-policy: audit
-        allowed-endpoints: >
-          api.github.com:443
-          github.com:443
 
-    - name: Checkout source code
-      uses: actions/checkout@v4
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2.12
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            *.github.com:443
+            *.githubusercontent.com:443
+            *.go.dev:443
+            *.golang.org:443
+            cdn.datatables.net:443
+            cdn.jsdelivr.net:443
+            code.jquery.com:443
+            files.pythonhosted.org:443
+            github.com:443
+            go.dev:443
+            golang.org:443
+            pypi.org:443
+            storage.googleapis.com:443
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: "go.mod"
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
-    - name: Fetch external build dependencies
-      run: go run bin/fetchbuilddeps/fetchbuilddeps.go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
 
-    - name: Install Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
+      - name: Fetch external build dependencies
+        run: go run bin/fetchbuilddeps/fetchbuilddeps.go
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
-    - name: Run pre-commit checks
-      run: uvx pre-commit run --all-files
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run pre-commit checks
+        run: uvx pre-commit run --all-files
 
 
   build:
@@ -64,61 +76,61 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Harden CI
-      uses: step-security/harden-runner@v2.12.0
-      with:
-        egress-policy: audit
-        allowed-endpoints: >
-          *.codecov.io:443
-          *.docker.com:443
-          *.docker.io:443
-          *.ingest.us.sentry.io:443
-          api.github.com:443
-          cdn.datatables.net:443
-          cdn.jsdelivr.net:443
-          code.jquery.com:443
-          codecov.io:443
-          github.com:443
-          go.dev:443
-          golang.org:443
-          keybase.io:443
-          objects.githubusercontent.com:443
-          proxy.golang.org:443
-          storage.googleapis.com:443
 
-    - name: Checkout source code
-      uses: actions/checkout@v4
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2.12
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            *.codecov.io:443
+            *.docker.com:443
+            *.docker.io:443
+            *.github.com:443
+            *.githubusercontent.com:443
+            *.golang.org:443
+            *.sentry.io:443
+            cdn.datatables.net:443
+            cdn.jsdelivr.net:443
+            code.jquery.com:443
+            github.com:443
+            go.dev:443
+            golang.org:443
+            keybase.io:443
+            storage.googleapis.com:443
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: "go.mod"
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
-    - name: Fetch external build dependencies
-      run: go run bin/fetchbuilddeps/fetchbuilddeps.go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
 
-    # TODO: maybe install sqlc, templ, and tsc code generation
-    #  here as well. They would add some additional build time
-    #  (mostly due to fetching their deps and building them),
-    #  which is less than ideal. For now, it should be fine to
-    #  do these on the developer's computer, and this can be
-    #  enforced by pre-commit.
+      - name: Fetch external build dependencies
+        run: go run bin/fetchbuilddeps/fetchbuilddeps.go
 
-    - name: Compile, test, and cover
-      run: go test -race -covermode=atomic -coverprofile=coverage.txt --coverpkg ./... ./...
+      # TODO: maybe install sqlc, templ, and tsc code generation
+      #  here as well. They would add some additional build time
+      #  (mostly due to fetching their deps and building them),
+      #  which is less than ideal. For now, it should be fine to
+      #  do these on the developer's computer, and this can be
+      #  enforced by pre-commit.
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: coverage.txt
-        env_vars: GITHUB_REF,GITHUB_COMMIT,GITHUB_USER,GITHUB_WORKFLOW
-        fail_ci_if_error: false
-      env:
-        GITHUB_REF: ${{ github.ref }}
-        GITHUB_COMMIT: ${{ github.sha }}
-        GITHUB_USER: ${{ github.actor }}
-        GITHUB_WORKFLOW: ${{ github.workflow }}
+      - name: Compile, test, and cover
+        run: go test -race -covermode=atomic -coverprofile=coverage.txt --coverpkg ./... ./...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.txt
+          env_vars: GITHUB_REF,GITHUB_COMMIT,GITHUB_USER,GITHUB_WORKFLOW
+          fail_ci_if_error: false
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_COMMIT: ${{ github.sha }}
+          GITHUB_USER: ${{ github.actor }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
 
 
   docker-build:
@@ -130,13 +142,20 @@ jobs:
 
     steps:
 
-      - name: Harden CI
-        uses: step-security/harden-runner@v2.12.0
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2.12
         with:
-          disable-sudo: true
-          egress-policy: audit
+          egress-policy: block
           allowed-endpoints: >
+            *.docker.com:443
             *.docker.io:443
+            *.golang.org:443
+            cdn.datatables.net:443
+            cdn.jsdelivr.net:443
+            code.jquery.com:443
+            dl-cdn.alpinelinux.org:443
+            github.com:443
+            storage.googleapis.com:443
 
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -165,16 +184,20 @@ jobs:
 
     steps:
 
-      - name: Harden CI
-        uses: step-security/harden-runner@v2.12.0
+      - name: Harden Runner
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
         with:
-          disable-sudo: true
           egress-policy: block
           allowed-endpoints: >
             *.docker.com:443
             *.docker.io:443
-            *.github.com:443
+            *.golang.org:443
+            cdn.datatables.net:443
+            cdn.jsdelivr.net:443
+            code.jquery.com:443
+            dl-cdn.alpinelinux.org:443
             github.com:443
+            storage.googleapis.com:443
 
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -207,16 +230,13 @@ jobs:
 
     steps:
 
-      - name: Harden CI
-        uses: step-security/harden-runner@v2.12.0
+      - name: Harden Runner
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
         with:
-          disable-sudo: true
           egress-policy: block
           allowed-endpoints: >
-            *.github.com:443
-            *.githubusercontent.com:443
             *.amazonaws.com:443
-            github.com:443
+            *.docker.io:443
 
       - name: Download Docker image artifacts
         uses: actions/download-artifact@v4

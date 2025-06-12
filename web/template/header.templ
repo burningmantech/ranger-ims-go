@@ -18,7 +18,7 @@ package template
 
 import "strings"
 
-templ header(deployment string) {
+templ Header(deployment string) {
 <header>
     if strings.ToLower(deployment) != "production" {
         <div class="nonprod-warning text-center">This is not production. This is a {strings.ToLower(deployment)} IMS server.</div>

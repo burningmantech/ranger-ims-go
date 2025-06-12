@@ -63,7 +63,7 @@ func AdminTypes(deployment string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = head("Edit Incident Types", "admin_types.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Edit Incident Types", "admin_types.js", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -71,23 +71,31 @@ func AdminTypes(deployment string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = header(deployment).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Header(deployment).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = nav("").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Nav("").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Edit Incident Types</h1><div class=\"row\" id=\"incident_types_container\"><div id=\"incident_types\" class=\"col-sm-12 incident_types\"><div class=\"card\"><label class=\"card-header\">Incident types</label><ul class=\"list-group list-group-small list-group-flush card-body\"><li class=\"list-group-item ps-3\"><button class=\"badge btn btn-primary float-end badge-visible\" onclick=\"hideIncidentType(this)\">Active</button> <button class=\"badge btn btn-warning float-end badge-hidden\" onclick=\"showIncidentType(this)\">Hidden</button></li></ul><div class=\"card-footer\"><label>Add:</label> <input class=\"form-control input-sm auto-width\" type=\"text\" inputmode=\"verbatim\" disabled=\"\" placeholder=\"Chooch\" onchange=\"createIncidentType(this)\"></div></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Edit Incident Types</h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = footer().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = LoadingOverlay().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"row\" id=\"incident_types_container\"><div id=\"incident_types\" class=\"col-sm-12 incident_types\"><div class=\"card\"><label class=\"card-header\">Incident types</label><ul class=\"list-group list-group-small list-group-flush card-body\"><li class=\"list-group-item ps-3\"><button class=\"badge btn btn-primary float-end badge-visible\" onclick=\"hideIncidentType(this)\">Active</button> <button class=\"badge btn btn-warning float-end badge-hidden\" onclick=\"showIncidentType(this)\">Hidden</button></li></ul><div class=\"card-footer\"><label>Add:</label> <input class=\"form-control input-sm auto-width\" type=\"text\" inputmode=\"verbatim\" disabled=\"\" placeholder=\"Chooch\" onchange=\"createIncidentType(this)\"></div></div></div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Footer().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

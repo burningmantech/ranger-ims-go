@@ -57,6 +57,8 @@ async function initFieldReportPage(): Promise<void> {
         return;
     }
 
+    ims.hideLoadingOverlay();
+
     // for a new field report
     if (fieldReport.number == null) {
         // assume that Rangers without Incident access ought to see the instructions by default

@@ -17,6 +17,16 @@ defaults:
     shell: bash
 
 
+env:
+  AWS_DEPLOY_ROLE: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ranger-gha-deploy"
+  AWS_ECR_IMAGE_NAME: /rangers/ranger-ims-go
+  AWS_ECR_REPOSITORY: "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com"
+  AWS_ECS_CLUSTER: rangers
+  AWS_ECS_SERVICE_STAGING: ranger-ims-go-staging-fg
+  AWS_ECS_TASK_DEFINITION_ARN_STAGING: "arn:aws:ecs:us-west-2:${{ secrets.AWS_ACCOUNT_ID }}:task-definition/ranger-ims-go-staging-fg"
+  AWS_REGION: us-west-2
+
+
 jobs:
 
   lint:
@@ -249,8 +259,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE }}
           role-session-name: ranger-gha-${{ github.repository_id }}-${{ github.job }}-${{ github.run_id }}
 
       - name: Login to AWS ECR
@@ -259,8 +269,8 @@ jobs:
 
       - name: Push docker image to Amazon ECR
         run: |
-          docker tag "ranger-ims-go:${{ github.sha }}" "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
-          docker push "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+          docker tag "ranger-ims-go:${{ github.sha }}" "${{ env.AWS_ECR_REPOSITORY }}:${{ github.sha }}"
+          docker push "${{ env.AWS_ECR_REPOSITORY }}:${{ github.sha }}"
 
       - name: Get current date
         id: date
@@ -270,10 +280,10 @@ jobs:
         id: new-task-definition
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition-arn:  ${{ secrets.AWS_ECS_TASK_DEFINITION_ARN }}
+          task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_STAGING }}"
           task-definition-family: ranger-ims-go-staging-fg
           container-name: ranger-ims-go
-          image: "${{ secrets.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+          image: "${{ env.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
           environment-variables: |
             GHA_ACTOR_ID=${{ github.actor_id }}
             GHA_ACTOR=${{ github.actor }}
@@ -296,6 +306,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"
-          service: ranger-ims-go-staging-fg
-          cluster: rangers
+          service: "${{ env.AWS_ECS_SERVICE_STAGING }}"
+          cluster: "${{ env.AWS_ECS_CLUSTER }}"
           wait-for-service-stability: true

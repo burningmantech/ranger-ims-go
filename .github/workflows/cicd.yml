@@ -18,12 +18,14 @@ defaults:
 
 
 env:
-  AWS_REGION: us-west-2
   AWS_DEPLOY_ROLE: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ranger-gha-deploy"
   AWS_ECR_IMAGE_NAME: "/rangers/ranger-ims-go"
   AWS_ECS_CLUSTER: rangers
+  AWS_ECS_CONTAINER_NAME: ranger-ims-go
   AWS_ECS_SERVICE_STAGING: ranger-ims-go-staging-fg
   AWS_ECS_TASK_DEFINITION_ARN_STAGING: "arn:aws:ecs:us-west-2:${{ secrets.AWS_ACCOUNT_ID }}:task-definition/ranger-ims-go-staging-fg"
+  AWS_ECS_TASK_DEFINITION_FAMILY: ranger-ims-go-staging-fg
+  AWS_REGION: us-west-2
 
 
 jobs:
@@ -269,17 +271,18 @@ jobs:
       - name: Push docker image to Amazon ECR
         run: |
           image_repository="${{ steps.aws-login-ecr.outputs.registry }}${{ env.AWS_ECR_IMAGE_NAME }}"
-          # Push to ECR
+          docker login
+          # Push SHA tag
           docker tag "ranger-ims-go:${{ github.sha }}" "${image_repository}:${{ github.sha }}"
           docker push "${image_repository}:${{ github.sha }}"
-          # Set rollback tag
+          # Push staging rollback tag
           if docker pull "${image_repository}:staging"; then
-            echo "Setting rollback tag for staging"
+            echo "Pushing rollback tag for staging"
             docker tag "${image_repository}:staging" "${image_repository}:staging_rollback"
             docker push "${image_repository}:staging_rollback"
           fi
-          # Set staging tag
-          echo "Setting staging tag"
+          # Push staging tag
+          echo "Pushing staging tag"
           docker tag "${image_repository}:${{ github.sha }}" "${image_repository}:staging"
           docker push "${image_repository}:staging"
 
@@ -292,8 +295,8 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_STAGING }}"
-          task-definition-family: ranger-ims-go-staging-fg
-          container-name: ranger-ims-go
+          task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY }}"
+          container-name: "${{ env.AWS_ECS_CONTAINER_NAME }}"
           image: "${{ steps.aws-login-ecr.outputs.registry }}${{ env.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
           environment-variables: |
             GHA_ACTOR_ID=${{ github.actor_id }}
@@ -306,10 +309,6 @@ jobs:
             GHA_RUN_NUMBER=${{ github.run_number }}
             GHA_TRIGGERING_ACTOR=${{ github.triggering_actor }}
             GHA_WORKFLOW=${{ github.workflow }}
-            GIT_AUTHOR_EMAIL=${{ github.event.head_commit.author.email }}
-            GIT_AUTHOR_NAME=${{ github.event.head_commit.author.name }}
-            GIT_AUTHOR_USER=${{ github.event.head_commit.author.username }}
-            GIT_REPOSITORY=${{ github.github.repositoryUrl }}
             GIT_SHA=${{ github.sha }}
             TASK_UPDATED=${{ steps.date.outputs.date }}
 

@@ -269,10 +269,12 @@ jobs:
       - name: Push docker image to Amazon ECR
         run: |
           image_repository="${{ steps.aws-login-ecr.outputs.registry }}${{ env.AWS_ECR_IMAGE_NAME }}"
+          # Push to ECR
           docker tag "ranger-ims-go:${{ github.sha }}" "${image_repository}:${{ github.sha }}"
-          docker tag "ranger-ims-go:${{ github.sha }}" "${image_repository}:staging"
           docker push "${image_repository}:${{ github.sha }}"
-          docker push "${image_repository}:staging"
+          # Set tags in ECR
+          docker tag "${image_repository}:staging" "${image_repository}:staging_rollback"
+          docker tag "${image_repository}:${{ github.sha }}" "${image_repository}:staging"
 
       - name: Get current date
         id: date

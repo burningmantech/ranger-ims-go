@@ -61,9 +61,11 @@ jobs:
           docker tag "${image_repository}:staging" "${image_repository}:${{ github.sha }}"
           docker push "${image_repository}:${{ github.sha }}"
           # Push production rollback tag
-          echo "Pushing rollback tag for production"
-          docker tag "${image_repository}:production" "${image_repository}:production_rollback"
-          docker push "${image_repository}:production_rollback"
+          if docker pull "${image_repository}:production"; then
+            echo "Pushing rollback tag for production"
+            docker tag "${image_repository}:production" "${image_repository}:production_rollback"
+            docker push "${image_repository}:production_rollback"
+          fi
           # Push production tag
           echo "Pushing production tag"
           docker tag "${image_repository}:staging" "${image_repository}:production"

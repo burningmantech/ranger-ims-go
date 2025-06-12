@@ -24,7 +24,7 @@ env:
   AWS_ECS_CONTAINER_NAME: ranger-ims-go
   AWS_ECS_SERVICE_STAGING: ranger-ims-go-staging-fg
   AWS_ECS_TASK_DEFINITION_ARN_STAGING: "arn:aws:ecs:us-west-2:${{ secrets.AWS_ACCOUNT_ID }}:task-definition/ranger-ims-go-staging-fg"
-  AWS_ECS_TASK_DEFINITION_FAMILY: ranger-ims-go-staging-fg
+  AWS_ECS_TASK_DEFINITION_FAMILY_STAGING: ranger-ims-go-staging-fg
   AWS_REGION: us-west-2
 
 
@@ -295,7 +295,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_STAGING }}"
-          task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY }}"
+          task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY_STAGING }}"
           container-name: "${{ env.AWS_ECS_CONTAINER_NAME }}"
           image: "${{ steps.aws-login-ecr.outputs.registry }}${{ env.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
           environment-variables: |

@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (15);
+insert into SCHEMA_INFO (VERSION) values (16);
 
 
 create table `EVENT` (
@@ -41,17 +41,16 @@ insert into INCIDENT_TYPE (NAME, HIDDEN) values ('Junk' , 0);
 
 
 create table REPORT_ENTRY (
-    ID        integer       not null auto_increment,
-    AUTHOR    varchar(64)   not null,
-    TEXT      mediumtext    not null,
-    CREATED   double        not null,
-    `GENERATED` boolean     not null,
-    STRICKEN  boolean       not null,
+    ID              integer         not null auto_increment,
+    AUTHOR          varchar(64)     not null,
+    TEXT            mediumtext      not null,
+    CREATED         double          not null,
+    `GENERATED`     boolean         not null,
+    STRICKEN        boolean         not null,
 
-    ATTACHED_FILE varchar(128),
-
-    -- FIXME: AUTHOR is an external non-primary key.
-    -- Primary key is DMS Person ID.
+    ATTACHED_FILE                   varchar(128),
+    ATTACHED_FILE_ORIGINAL_NAME     varchar(128),
+    ATTACHED_FILE_MEDIA_TYPE        varchar(128),
 
     primary key (ID)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

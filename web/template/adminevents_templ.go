@@ -63,7 +63,7 @@ func AdminEvents(deployment string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = head("Edit Events", "admin_events.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Edit Events", "admin_events.js", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -71,23 +71,31 @@ func AdminEvents(deployment string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = header(deployment).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Header(deployment).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = nav("").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Nav("").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Edit Events</h1><p>For each event, you can configure permissions for individuals, positions, or teams. For example:</p><ul><li>person:Tool</li><li>position:007</li><li>team:Council</li></ul><p>You can also choose when each permission is valid:</p><ul><li>Always: valid all year long</li><li>On-Site: valid only when a matching Ranger is marked \"on-site\" in Clubhouse</li></ul><p><strong>The REQUIRE_ACTIVE flag is unused</strong>, replaced by \"on-site\" validity.</p><div class=\"row\" id=\"event_access_container\"><div class=\"col-sm-12 py-1 event_access\"><div class=\"card\"><label class=\"card-header\">Access for <span class=\"event_name\"></span> (<span class=\"access_mode\"></span>):</label><ul class=\"list-group list-group-small list-group-flush card-body\"><li class=\"list-group-item ps-3\"><select class=\"access_validity\" onchange=\"setValidity(this)\"><option value=\"always\">Always</option> <option value=\"onsite\">On-Site</option></select> <button class=\"badge btn btn-danger remove-badge float-end\" onclick=\"removeAccess(this)\">X</button></li></ul><div class=\"card-footer\"><label for=\"access_add\">Add:</label> <input id=\"access_add\" class=\"form-control input-sm auto-width\" type=\"text\" inputmode=\"verbatim\" placeholder=\"person:Tool\" onchange=\"addAccess(this)\"></div></div></div></div><div class=\"row\" id=\"event_new_container\"><div class=\"col-sm-12 event_access\"><label for=\"event_add\">Create New Event:</label> <input id=\"event_add\" class=\"form-control input-sm auto-width\" disabled=\"\" type=\"text\" inputmode=\"verbatim\" placeholder=\"Burn-A-Matic 3000\" onchange=\"addEvent(this)\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Edit Events</h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = footer().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = LoadingOverlay().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p>For each event, you can configure permissions for individuals, positions, or teams. For example:</p><ul><li>person:Tool</li><li>position:007</li><li>team:Council</li></ul><p>You can also choose when each permission is valid:</p><ul><li>Always: valid all year long</li><li>On-Site: valid only when a matching Ranger is marked \"on-site\" in Clubhouse</li></ul><p><strong>The REQUIRE_ACTIVE flag is unused</strong>, replaced by \"on-site\" validity.</p><div class=\"row\" id=\"event_access_container\"><div class=\"col-sm-12 py-1 event_access\"><div class=\"card\"><label class=\"card-header\">Access for <span class=\"event_name\"></span> (<span class=\"access_mode\"></span>):</label><ul class=\"list-group list-group-small list-group-flush card-body\"><li class=\"list-group-item ps-3\"><select class=\"access_validity\" onchange=\"setValidity(this)\"><option value=\"always\">Always</option> <option value=\"onsite\">On-Site</option></select> <button class=\"badge btn btn-danger remove-badge float-end\" onclick=\"removeAccess(this)\">X</button></li></ul><div class=\"card-footer\"><label for=\"access_add\">Add:</label> <input id=\"access_add\" class=\"form-control input-sm auto-width\" type=\"text\" inputmode=\"verbatim\" placeholder=\"person:Tool\" onchange=\"addAccess(this)\"></div></div></div></div><div class=\"row\" id=\"event_new_container\"><div class=\"col-sm-12 event_access\"><label for=\"event_add\">Create New Event:</label> <input id=\"event_add\" class=\"form-control input-sm auto-width\" disabled=\"\" type=\"text\" inputmode=\"verbatim\" placeholder=\"Burn-A-Matic 3000\" onchange=\"addEvent(this)\"></div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Footer().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

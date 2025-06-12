@@ -19,13 +19,14 @@ package template
 templ AdminStreets(deployment string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Edit Streets", "admin_streets.js", false)
+@Head("Edit Streets", "admin_streets.js", false)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav("")
+@Header(deployment)
+@Nav("")
 <h1 id="doc-title">Edit Streets</h1>
+@LoadingOverlay()
   <p>
     <strong>IMPORTANT</strong>: this page/the API does not permit editing or removing streets once they've been added. Further edits must be
     done via SQL against the IMS database. Get it right the first time!
@@ -55,7 +56,7 @@ templ AdminStreets(deployment string) {
       </div>
     </div>
   </div>
-@footer()
+@Footer()
 </div>
 </body>
 </html>

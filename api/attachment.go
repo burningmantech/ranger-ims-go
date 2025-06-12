@@ -40,7 +40,10 @@ import (
 	"time"
 )
 
-const IMSAttachmentFormKey = "imsAttachment"
+const (
+	IMSAttachmentFormKey = "imsAttachment"
+	octetStream          = "application/octet-stream"
+)
 
 type GetIncidentAttachment struct {
 	imsDBQ           *store.DBQ
@@ -144,7 +147,7 @@ var safeMediaTypes = []string{
 	"video/x-msvideo",
 }
 
-// safeContentType returns contentType if we deem it to be safe, or octetStream otherwise.
+// safeContentType returns a safe form of contentType if possible, or octetStream otherwise.
 //
 // This is important for the client side. For example, if we're serving an HTML document,
 // we want the client to think it's just text/plain, so that it doesn't attempt to render it.
@@ -153,7 +156,6 @@ var safeMediaTypes = []string{
 // for unsafe files. This function works conservatively by returning octetStream unless we
 // know the content type ought to be safe.
 func safeContentType(contentType string) string {
-	const octetStream = "application/octet-stream"
 	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return octetStream
@@ -331,10 +333,12 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		return 0, errHTTP.From("[saveFile]")
 	}
 
-	reText := fmt.Sprintf("File Type: %v, Size: %v, Name:%v",
-		sniffedContentType, format.HumanByteSize(fiHead.Size), fiHead.Filename)
-	reID, errHTTP := addIncidentReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber,
-		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
+	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
+		fiHead.Filename, format.HumanByteSize(fiHead.Size), sniffedContentType)
+	reID, errHTTP := addIncidentReportEntry(
+		ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber, jwtCtx.Claims.RangerHandle(),
+		reText, false, newFileName, fiHead.Filename, sniffedContentType,
+	)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addIncidentReportEntry]")
 	}
@@ -438,10 +442,13 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		return 0, errHTTP.From("[saveFile]")
 	}
 
-	reText := fmt.Sprintf("File Type: %v, Size: %v, Name:%v",
-		sniffedContentType, format.HumanByteSize(fiHead.Size), fiHead.Filename)
-	reID, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
-		jwtCtx.Claims.RangerHandle(), reText, false, newFileName)
+	reText := fmt.Sprintf("File Name: %v, Size: %v, Type: %v",
+		fiHead.Filename, format.HumanByteSize(fiHead.Size), sniffedContentType)
+	reID, errHTTP := addFRReportEntry(
+		ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
+		jwtCtx.Claims.RangerHandle(), reText, false,
+		newFileName, fiHead.Filename, sniffedContentType,
+	)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addFRReportEntry]")
 	}

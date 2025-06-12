@@ -32,6 +32,7 @@ async function initAdminTypesPage() {
     window.showIncidentType = showIncidentType;
     window.hideIncidentType = hideIncidentType;
     await loadAndDrawIncidentTypes();
+    ims.hideLoadingOverlay();
     ims.enableEditing();
 }
 async function loadAndDrawIncidentTypes() {

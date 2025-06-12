@@ -801,22 +801,19 @@ function reportEntryElement(entry) {
         textContainer.textContent = line;
         entryContainer.append(textContainer);
     }
-    if (entry.has_attachment && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
+    if (entry.attachment?.name && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
         let url = "";
-        let filename = "";
         if (pathIds.incidentNumber != null && entry.merged == null) {
             // incident attachment on incident page
             url = urlReplace(url_incidentAttachmentNumber)
                 .replace("<incident_number>", pathIds.incidentNumber.toString())
                 .replace("<attachment_number>", entry.id.toString());
-            filename = `ims_${pathIds.incidentNumber.toString()}_${entry.id.toString()}`;
         }
         else if (pathIds.incidentNumber != null && entry.merged != null) {
             // FR attachment on incident page
             url = urlReplace(url_fieldReportAttachmentNumber)
                 .replace("<field_report_number>", entry.merged.toString())
                 .replace("<attachment_number>", entry.id.toString());
-            filename = `fr_${entry.merged.toString()}_${entry.id.toString()}`;
         }
         else {
             // FR attachment on FR page
@@ -824,40 +821,9 @@ function reportEntryElement(entry) {
             url = urlReplace(url_fieldReportAttachmentNumber)
                 .replace("<field_report_number>", frNum)
                 .replace("<attachment_number>", entry.id.toString());
-            filename = `fr_${frNum}_${entry.id.toString()}`;
         }
-        const previewButt = document.createElement("button");
-        previewButt.textContent = "Preview file";
-        previewButt.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
-        // We need to do a JavaScript fetch of the file, rather than simply
-        // opening a new browser tab that GETs it, because we have to send
-        // the Authorization header.
-        previewButt.onclick = async (e) => {
-            e.preventDefault();
-            const { resp, err } = await fetchJsonNoThrow(url, {});
-            if (err != null || resp == null) {
-                setErrorMessage(`Failed to fetch attachment: ${err}`);
-                return;
-            }
-            const blobUrl = window.URL.createObjectURL(await resp.blob());
-            const tmpLink = document.createElement("a");
-            // Preview mode: open a preview in a new window.
-            // We'd use window.open with target _blank, but Safari iOS doesn't support that,
-            // and a lot of Rangers use iPhones.
-            tmpLink.target = "_blank";
-            tmpLink.href = blobUrl;
-            document.body.appendChild(tmpLink);
-            tmpLink.click();
-            document.body.removeChild(tmpLink);
-            // Wait a little while before cleaning up the blob, in case the user opts
-            // to download the file from the preview (that will fail once the object URL
-            // has been revoked).
-            setTimeout(function () {
-                URL.revokeObjectURL(blobUrl);
-            }, 60_000 /* milliseconds */);
-        };
         const downloadButt = document.createElement("button");
-        downloadButt.textContent = "Download file";
+        downloadButt.textContent = "Download";
         downloadButt.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
         downloadButt.onclick = async (e) => {
             e.preventDefault();
@@ -869,14 +835,47 @@ function reportEntryElement(entry) {
             const blobUrl = window.URL.createObjectURL(await resp.blob());
             const tmpLink = document.createElement("a");
             // Download mode: set a suggested filename.
-            tmpLink.download = filename;
+            tmpLink.download = entry?.attachment?.name ?? "imsfile";
             tmpLink.href = blobUrl;
             document.body.appendChild(tmpLink);
             tmpLink.click();
             document.body.removeChild(tmpLink);
             URL.revokeObjectURL(blobUrl);
         };
-        entryContainer.append(previewButt, downloadButt);
+        entryContainer.append(downloadButt);
+        if (entry.attachment?.previewable) {
+            const previewButt = document.createElement("button");
+            previewButt.textContent = "Preview";
+            previewButt.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
+            // We need to do a JavaScript fetch of the file, rather than simply
+            // opening a new browser tab that GETs it, because we have to send
+            // the Authorization header.
+            previewButt.onclick = async (e) => {
+                e.preventDefault();
+                const { resp, err } = await fetchJsonNoThrow(url, {});
+                if (err != null || resp == null) {
+                    setErrorMessage(`Failed to fetch attachment: ${err}`);
+                    return;
+                }
+                const blobUrl = window.URL.createObjectURL(await resp.blob());
+                const tmpLink = document.createElement("a");
+                // Preview mode: open a preview in a new window.
+                // We'd use window.open with target _blank, but Safari iOS doesn't support that,
+                // and a lot of Rangers use iPhones.
+                tmpLink.target = "_blank";
+                tmpLink.href = blobUrl;
+                document.body.appendChild(tmpLink);
+                tmpLink.click();
+                document.body.removeChild(tmpLink);
+                // Wait a little while before cleaning up the blob, in case the user opts
+                // to download the file from the preview (that will fail once the object URL
+                // has been revoked).
+                setTimeout(function () {
+                    URL.revokeObjectURL(blobUrl);
+                }, 60_000 /* milliseconds */);
+            };
+            entryContainer.append(previewButt);
+        }
     }
     // Add a horizontal line after each entry
     const hr = document.createElement("hr");
@@ -1201,6 +1200,12 @@ export async function loadIncidentTypes() {
         types: _incidentTypes,
         err: null,
     };
+}
+export function hideLoadingOverlay() {
+    const overlay = document.getElementById("loading-overlay");
+    if (overlay) {
+        overlay.style.display = "none";
+    }
 }
 // Remove the old LocalStorage caches that IMS no longer uses, so that
 // they can't act against the ~5 MB per-domain limit of HTML5 LocalStorage.

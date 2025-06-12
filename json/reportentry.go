@@ -19,11 +19,22 @@ package json
 import "time"
 
 type ReportEntry struct {
-	ID            int32     `json:"id"`
-	Created       time.Time `json:"created,omitzero"`
-	Author        string    `json:"author"`
-	SystemEntry   bool      `json:"system_entry"`
-	Text          string    `json:"text"`
-	Stricken      *bool     `json:"stricken"`
-	HasAttachment bool      `json:"has_attachment"`
+	ID          int32     `json:"id"`
+	Created     time.Time `json:"created,omitzero"`
+	Author      string    `json:"author"`
+	SystemEntry bool      `json:"system_entry"`
+	Text        string    `json:"text"`
+	Stricken    *bool     `json:"stricken"`
+
+	// HasAttachment is no longer needed, as it's the same as checking
+	// if Attachment.Name is not empty. We should wait until prod is no
+	// longer reading this before removing it though, due to the 4-hour
+	// caching of JS files done by CloudFlare.
+	HasAttachment bool       `json:"has_attachment"`
+	Attachment    Attachment `json:"attachment,omitzero"`
+}
+
+type Attachment struct {
+	Name        string `json:"name"`
+	Previewable bool   `json:"previewable"`
 }

@@ -19,12 +19,12 @@ package template
 templ Incidents(deployment, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Incidents | " + eventName, "incidents.js", true)
+@Head("Incidents | " + eventName, "incidents.js", true)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav(eventName)
+@Header(deployment)
+@Nav(eventName)
 <h1 id="doc-title">Incidents</h1>
 
 
@@ -216,7 +216,7 @@ templ Incidents(deployment, eventName string) {
       </tfoot>
     </table>
 
-@footer()
+@Footer()
 </div>
 </body>
 </html>

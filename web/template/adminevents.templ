@@ -19,13 +19,14 @@ package template
 templ AdminEvents(deployment string) {
 <!DOCTYPE html>
 <html lang="en">
-@head("Edit Events", "admin_events.js", false)
+@Head("Edit Events", "admin_events.js", false)
 
 <body>
 <div class="container-fluid">
-@header(deployment)
-@nav("")
+@Header(deployment)
+@Nav("")
 <h1 id="doc-title">Edit Events</h1>
+@LoadingOverlay()
   <p>For each event, you can configure permissions for individuals, positions, or teams. For example:</p>
   <ul>
     <li>person:Tool</li>
@@ -80,7 +81,7 @@ templ AdminEvents(deployment string) {
       />
     </div>
   </div>
-@footer()
+@Footer()
 </div>
 </body>
 </html>

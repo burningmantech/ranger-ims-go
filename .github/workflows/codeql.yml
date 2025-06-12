@@ -22,6 +22,8 @@ jobs:
     permissions:
       security-events: write
       packages: read
+      actions: read
+      contents: read
 
     strategy:
       fail-fast: false
@@ -36,7 +38,7 @@ jobs:
 
     steps:
 
-      - name: Checkout repository
+      - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL

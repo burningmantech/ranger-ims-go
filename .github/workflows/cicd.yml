@@ -271,7 +271,7 @@ jobs:
           image_repository="${{ steps.aws-login-ecr.outputs.registry }}${{ env.AWS_ECR_IMAGE_NAME }}"
           # Push to ECR
           docker tag "ranger-ims-go:${{ github.sha }}" "${image_repository}:${{ github.sha }}"
-          docker push "${image_ repository}:${{ github.sha }}"
+          docker push "${image_repository}:${{ github.sha }}"
           # Set rollback tag
           if docker pull "${image_repository}:staging"; then
             echo "Setting rollback tag for staging"

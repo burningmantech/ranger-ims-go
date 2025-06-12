@@ -246,16 +246,19 @@ func fetchIncident(ctx context.Context, imsDBQ *store.DBQ, eventID, incidentNumb
 }
 
 func addIncidentReportEntry(
-	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX, eventID, incidentNum int32,
-	author, text string, generated bool, attachment string,
+	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX,
+	eventID, incidentNum int32, author, text string, generated bool,
+	attachment, attachmentOriginalName, attachmentMediaType string,
 ) (int32, *herr.HTTPError) {
 	reID64, err := db.CreateReportEntry(ctx, dbtx, imsdb.CreateReportEntryParams{
-		Author:       author,
-		Text:         text,
-		Created:      conv.TimeToFloat(time.Now()),
-		Generated:    generated,
-		Stricken:     false,
-		AttachedFile: conv.StringToSql(&attachment),
+		Author:                   author,
+		Text:                     text,
+		Created:                  conv.TimeToFloat(time.Now()),
+		Generated:                generated,
+		Stricken:                 false,
+		AttachedFile:             conv.StringToSql(&attachment, 128),
+		AttachedFileOriginalName: conv.StringToSql(&attachmentOriginalName, 128),
+		AttachedFileMediaType:    conv.StringToSql(&attachmentMediaType, 128),
 	})
 	if err != nil {
 		return 0, herr.InternalServerError("Failed to create report entry", err).From("[MustInt32]")
@@ -418,15 +421,15 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		logs = append(logs, fmt.Sprintf("Changed start time: %v", newIncident.Started.In(time.UTC).Truncate(time.Second)))
 	}
 	if newIncident.Summary != nil {
-		update.Summary = conv.StringToSql(newIncident.Summary)
+		update.Summary = conv.StringToSql(newIncident.Summary, 0)
 		logs = append(logs, fmt.Sprintf("Changed summary: %v", update.Summary.String))
 	}
 	if newIncident.Location.Name != nil {
-		update.LocationName = conv.StringToSql(newIncident.Location.Name)
+		update.LocationName = conv.StringToSql(newIncident.Location.Name, 0)
 		logs = append(logs, fmt.Sprintf("Changed location name: %v", update.LocationName.String))
 	}
 	if newIncident.Location.Concentric != nil {
-		update.LocationConcentric = conv.StringToSql(newIncident.Location.Concentric)
+		update.LocationConcentric = conv.StringToSql(newIncident.Location.Concentric, 0)
 		logs = append(logs, fmt.Sprintf("Changed location concentric: %v", update.LocationConcentric.String))
 	}
 	if newIncident.Location.RadialHour != nil {
@@ -438,7 +441,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		logs = append(logs, fmt.Sprintf("Changed location radial minute: %v", update.LocationRadialMinute.Int16))
 	}
 	if newIncident.Location.Description != nil {
-		update.LocationDescription = conv.StringToSql(newIncident.Location.Description)
+		update.LocationDescription = conv.StringToSql(newIncident.Location.Description, 0)
 		logs = append(logs, fmt.Sprintf("Changed location description: %v", update.LocationDescription.String))
 	}
 	err = imsDBQ.UpdateIncident(ctx, txn, update)
@@ -553,7 +556,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 
 	if len(logs) > 0 {
-		_, errHTTP := addIncidentReportEntry(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, author, strings.Join(logs, "\n"), true, "")
+		_, errHTTP := addIncidentReportEntry(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, author, strings.Join(logs, "\n"), true, "", "", "")
 		if errHTTP != nil {
 			return errHTTP.From("[addIncidentReportEntry]")
 		}
@@ -563,7 +566,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addIncidentReportEntry(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, author, entry.Text, false, "")
+		_, errHTTP := addIncidentReportEntry(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, author, entry.Text, false, "", "", "")
 		if errHTTP != nil {
 			return errHTTP.From("[addIncidentReportEntry]")
 		}

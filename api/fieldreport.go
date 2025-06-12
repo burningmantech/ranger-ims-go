@@ -313,11 +313,9 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	defer rollback(txn)
 
 	if requestFR.Summary != nil {
-		storedFR.Summary = conv.StringToSql(requestFR.Summary)
+		storedFR.Summary = conv.StringToSql(requestFR.Summary, 0)
 		text := "Changed summary to: " + *requestFR.Summary
-		_, errHTTP := addFRReportEntry(
-			ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, text, true, "",
-		)
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, text, true, "", "", "")
 		if errHTTP != nil {
 			return errHTTP.From("[addFRReportEntry]")
 		}
@@ -337,9 +335,7 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addFRReportEntry(
-			ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, entry.Text, false, "",
-		)
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, entry.Text, false, "", "", "")
 		if errHTTP != nil {
 			return errHTTP.From("[addFRReportEntry]")
 		}
@@ -390,10 +386,7 @@ func (action EditFieldReport) handleLinkToIncident(
 	if err != nil {
 		return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
 	}
-	_, errHTTP := addFRReportEntry(
-		ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
-		actor, entryText, true, "",
-	)
+	_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, actor, entryText, true, "", "", "")
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
@@ -485,7 +478,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 			Event:          event.ID,
 			Number:         newFrNum,
 			Created:        conv.TimeToFloat(time.Now()),
-			Summary:        conv.StringToSql(fr.Summary),
+			Summary:        conv.StringToSql(fr.Summary, 0),
 			IncidentNumber: sql.NullInt32{},
 		},
 	)
@@ -501,7 +494,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 
 	if fr.Summary != nil {
 		text := "Changed summary to: " + *fr.Summary
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, text, true, "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, text, true, "", "", "")
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -511,7 +504,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, entry.Text, false, "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, entry.Text, false, "", "", "")
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -527,17 +520,21 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 }
 
 func addFRReportEntry(
-	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX, eventID, frNum int32, author, text string, generated bool, attachment string,
+	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX, eventID, frNum int32,
+	author, text string, generated bool,
+	attachment, attachmentOriginalName, attachmentMediaType string,
 ) (int32, *herr.HTTPError) {
 	reID64, err := imsDBQ.CreateReportEntry(ctx,
 		dbtx,
 		imsdb.CreateReportEntryParams{
-			Author:       author,
-			Text:         text,
-			Created:      conv.TimeToFloat(time.Now()),
-			Generated:    generated,
-			Stricken:     false,
-			AttachedFile: conv.StringToSql(&attachment),
+			Author:                   author,
+			Text:                     text,
+			Created:                  conv.TimeToFloat(time.Now()),
+			Generated:                generated,
+			Stricken:                 false,
+			AttachedFile:             conv.StringToSql(&attachment, 128),
+			AttachedFileOriginalName: conv.StringToSql(&attachmentOriginalName, 128),
+			AttachedFileMediaType:    conv.StringToSql(&attachmentMediaType, 128),
 		},
 	)
 	if err != nil {

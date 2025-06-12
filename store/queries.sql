@@ -229,9 +229,10 @@ where EVENT = ? and NUMBER = ?;
 
 -- name: CreateReportEntry :execlastid
 insert into REPORT_ENTRY (
-    AUTHOR, TEXT, CREATED, `GENERATED`, STRICKEN, ATTACHED_FILE
+    AUTHOR, TEXT, CREATED, `GENERATED`, STRICKEN,
+    ATTACHED_FILE, ATTACHED_FILE_ORIGINAL_NAME, ATTACHED_FILE_MEDIA_TYPE
 ) values (
-   ?, ?, ?, ?, ?, ?
+   ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: AttachReportEntryToFieldReport :exec

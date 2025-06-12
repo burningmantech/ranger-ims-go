@@ -270,13 +270,15 @@ type IncidentType struct {
 }
 
 type ReportEntry struct {
-	ID           int32
-	Author       string
-	Text         string
-	Created      float64
-	Generated    bool
-	Stricken     bool
-	AttachedFile sql.NullString
+	ID                       int32
+	Author                   string
+	Text                     string
+	Created                  float64
+	Generated                bool
+	Stricken                 bool
+	AttachedFile             sql.NullString
+	AttachedFileOriginalName sql.NullString
+	AttachedFileMediaType    sql.NullString
 }
 
 type SchemaInfo struct {

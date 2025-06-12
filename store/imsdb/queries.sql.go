@@ -298,19 +298,22 @@ func (q *Queries) CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg C
 
 const createReportEntry = `-- name: CreateReportEntry :execlastid
 insert into REPORT_ENTRY (
-    AUTHOR, TEXT, CREATED, ` + "`" + `GENERATED` + "`" + `, STRICKEN, ATTACHED_FILE
+    AUTHOR, TEXT, CREATED, ` + "`" + `GENERATED` + "`" + `, STRICKEN,
+    ATTACHED_FILE, ATTACHED_FILE_ORIGINAL_NAME, ATTACHED_FILE_MEDIA_TYPE
 ) values (
-   ?, ?, ?, ?, ?, ?
+   ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
 type CreateReportEntryParams struct {
-	Author       string
-	Text         string
-	Created      float64
-	Generated    bool
-	Stricken     bool
-	AttachedFile sql.NullString
+	Author                   string
+	Text                     string
+	Created                  float64
+	Generated                bool
+	Stricken                 bool
+	AttachedFile             sql.NullString
+	AttachedFileOriginalName sql.NullString
+	AttachedFileMediaType    sql.NullString
 }
 
 func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error) {
@@ -321,6 +324,8 @@ func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateRepo
 		arg.Generated,
 		arg.Stricken,
 		arg.AttachedFile,
+		arg.AttachedFileOriginalName,
+		arg.AttachedFileMediaType,
 	)
 	if err != nil {
 		return 0, err
@@ -505,7 +510,7 @@ func (q *Queries) FieldReport(ctx context.Context, db DBTX, arg FieldReportParam
 
 const fieldReport_ReportEntries = `-- name: FieldReport_ReportEntries :many
 select
-    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file
+    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
 from
     FIELD_REPORT__REPORT_ENTRY irre
         join REPORT_ENTRY re
@@ -541,6 +546,8 @@ func (q *Queries) FieldReport_ReportEntries(ctx context.Context, db DBTX, arg Fi
 			&i.ReportEntry.Generated,
 			&i.ReportEntry.Stricken,
 			&i.ReportEntry.AttachedFile,
+			&i.ReportEntry.AttachedFileOriginalName,
+			&i.ReportEntry.AttachedFileMediaType,
 		); err != nil {
 			return nil, err
 		}
@@ -597,7 +604,7 @@ func (q *Queries) FieldReports(ctx context.Context, db DBTX, event int32) ([]Fie
 const fieldReports_ReportEntries = `-- name: FieldReports_ReportEntries :many
 select
     irre.FIELD_REPORT_NUMBER,
-    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file
+    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
 from
     FIELD_REPORT__REPORT_ENTRY irre
         join REPORT_ENTRY re
@@ -635,6 +642,8 @@ func (q *Queries) FieldReports_ReportEntries(ctx context.Context, db DBTX, arg F
 			&i.ReportEntry.Generated,
 			&i.ReportEntry.Stricken,
 			&i.ReportEntry.AttachedFile,
+			&i.ReportEntry.AttachedFileOriginalName,
+			&i.ReportEntry.AttachedFileMediaType,
 		); err != nil {
 			return nil, err
 		}
@@ -762,7 +771,7 @@ func (q *Queries) IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRo
 const incident_ReportEntries = `-- name: Incident_ReportEntries :many
 select
     ire.INCIDENT_NUMBER,
-    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file
+    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
 from
     INCIDENT__REPORT_ENTRY ire
         join REPORT_ENTRY re
@@ -800,6 +809,8 @@ func (q *Queries) Incident_ReportEntries(ctx context.Context, db DBTX, arg Incid
 			&i.ReportEntry.Generated,
 			&i.ReportEntry.Stricken,
 			&i.ReportEntry.AttachedFile,
+			&i.ReportEntry.AttachedFileOriginalName,
+			&i.ReportEntry.AttachedFileMediaType,
 		); err != nil {
 			return nil, err
 		}
@@ -894,7 +905,7 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 const incidents_ReportEntries = `-- name: Incidents_ReportEntries :many
 select
     ire.INCIDENT_NUMBER,
-    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file
+    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
 from
     INCIDENT__REPORT_ENTRY ire
         join REPORT_ENTRY re
@@ -932,6 +943,8 @@ func (q *Queries) Incidents_ReportEntries(ctx context.Context, db DBTX, arg Inci
 			&i.ReportEntry.Generated,
 			&i.ReportEntry.Stricken,
 			&i.ReportEntry.AttachedFile,
+			&i.ReportEntry.AttachedFileOriginalName,
+			&i.ReportEntry.AttachedFileMediaType,
 		); err != nil {
 			return nil, err
 		}

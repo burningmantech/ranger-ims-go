@@ -19,8 +19,7 @@ defaults:
 
 env:
   AWS_DEPLOY_ROLE: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ranger-gha-deploy"
-  AWS_ECR_IMAGE_NAME: /rangers/ranger-ims-go
-  AWS_ECR_REPOSITORY: "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com"
+  AWS_ECR_IMAGE_NAME: "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com/rangers/ranger-ims-go"
   AWS_ECS_CLUSTER: rangers
   AWS_ECS_SERVICE_STAGING: ranger-ims-go-staging-fg
   AWS_ECS_TASK_DEFINITION_ARN_STAGING: "arn:aws:ecs:us-west-2:${{ secrets.AWS_ACCOUNT_ID }}:task-definition/ranger-ims-go-staging-fg"
@@ -269,8 +268,8 @@ jobs:
 
       - name: Push docker image to Amazon ECR
         run: |
-          docker tag "ranger-ims-go:${{ github.sha }}" "${{ env.AWS_ECR_REPOSITORY }}:${{ github.sha }}"
-          docker push "${{ env.AWS_ECR_REPOSITORY }}:${{ github.sha }}"
+          docker tag "ranger-ims-go:${{ github.sha }}" "${{ env.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+          docker push "${{ env.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
 
       - name: Get current date
         id: date

@@ -74,11 +74,12 @@ const (
 	GlobalAdministrateEvents
 	GlobalAdministrateStreets
 	GlobalAdministrateIncidentTypes
+	GlobalAdministrateDebugging
 )
 
 var RolesToGlobalPerms = map[Role]GlobalPermissionMask{
 	AnyAuthenticatedUser: GlobalListEvents | GlobalReadIncidentTypes | GlobalReadPersonnel | GlobalReadStreets,
-	Administrator:        GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes,
+	Administrator:        GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministrateDebugging,
 }
 
 var RolesToEventPerms = map[Role]EventPermissionMask{

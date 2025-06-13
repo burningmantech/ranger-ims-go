@@ -16,38 +16,29 @@
 
 package template
 
-templ AdminRoot(deployment string) {
+templ AdminDebug(deployment string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Administration Tools", "admin_root.js", false)
+@Head("Debugging Details", "admin_debug.js", false)
 
 <body>
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
-<h1 id="doc-title">Administration Tools</h1>
-  <ul>
-    <li>
-      <a href="/ims/app/admin/types">
-        Incident Types
-      </a>
-    </li>
-    <li>
-      <a href="/ims/app/admin/events">
-        Events
-      </a>
-    </li>
-    <li>
-      <a href="/ims/app/admin/streets">
-        Event Concentric Streets
-      </a>
-    </li>
-    <li>
-      <a href="/ims/app/admin/debug">
-        Server Debugging Details
-      </a>
-    </li>
-  </ul>
+<h1 id="doc-title">Debugging Details</h1>
+
+<h4>Build Info</h4>
+<button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Build Info</button>
+<pre id="build-info"></pre>
+
+<h4>Garbage Collection</h4>
+<button id="perform-gc" onclick="performGC()" class="btn btn-sm btn-default btn-primary">Perform GC</button>
+<pre id="gc"></pre>
+
+<h4>Runtime Metrics</h4>
+<button id="show-metrics" onclick="fetchRuntimeMetrics()" class="btn btn-sm btn-default btn-primary">Fetch Runtime Metrics</button>
+<pre id="runtime-metrics"></pre>
+
 @Footer()
 </div>
 </body>

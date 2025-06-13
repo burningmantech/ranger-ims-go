@@ -28,7 +28,6 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -338,6 +337,36 @@ func AddToMux(
 		),
 	)
 
+	mux.Handle("GET /ims/api/debug/buildinfo",
+		Adapt(
+			GetBuildInfo{db, userStore, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("GET /ims/api/debug/runtimemetrics",
+		Adapt(
+			GetRuntimeMetrics{db, userStore, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("POST /ims/api/debug/gc",
+		Adapt(
+			PerformGC{db, userStore, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
 	return AddBasicHandlers(mux)
 }
 
@@ -358,27 +387,8 @@ func AddBasicHandlers(mux *http.ServeMux) *http.ServeMux {
 		},
 	)
 
-	mux.HandleFunc("GET /ims/api/debug/buildinfo",
-		func(w http.ResponseWriter, req *http.Request) {
-			bi := buildInfo()
-			http.Error(w, bi.String(), http.StatusOK)
-		},
-	)
-
 	return mux
 }
-
-var buildInfo = sync.OnceValue[debug.BuildInfo](func() debug.BuildInfo {
-	bi, ok := debug.ReadBuildInfo()
-	if ok {
-		return *bi
-	}
-	// The conditions for this to happen aren't really possible, but returning an
-	// empty struct instead is a good alternative. These values are just used for
-	// informational purposes in the server anyway.
-	slog.Info("Build info was unavailable, so an empty placeholder will be used instead")
-	return debug.BuildInfo{}
-})
 
 type Adapter func(http.Handler) http.Handler
 

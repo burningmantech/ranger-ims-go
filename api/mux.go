@@ -367,6 +367,17 @@ func AddToMux(
 		),
 	)
 
+	// Uncomment these to add pprof into the program. Note that we'd probably want
+	// these endpoints to be restricted to admins only, were this going to run in
+	// production.
+	// https://pkg.go.dev/runtime/pprof
+	// https://github.com/google/pprof/blob/main/doc/README.md
+	// mux.HandleFunc("GET /debug/pprof/", pprof.Index)
+	// mux.HandleFunc("GET /debug/pprof/cmdline", pprof.Cmdline)
+	// mux.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
+	// mux.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
+	// mux.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
+
 	return AddBasicHandlers(mux)
 }
 

@@ -48,8 +48,32 @@ async function fetchBuildInfo(): Promise<void> {
     if (err != null || resp == null) {
         throw err;
     }
+    const buildInfoText = await resp.text();
     const targetPre = document.getElementById("build-info") as HTMLPreElement
-    targetPre.textContent = await resp.text();
+    targetPre.textContent = buildInfoText;
+
+    const ref = substringBetween(buildInfoText, "build\tvcs.revision=", "\n")
+    const dirty = buildInfoText.indexOf("vcs.modified=true") >= 0;
+    const targetP = document.getElementById("build-info-p") as HTMLParagraphElement;
+    const link = document.createElement("a");
+    link.text = `The server was built at revision ${ref.substring(0,12)} ${dirty ? " (dirty)" : ""}`;
+    link.href = `https://github.com/burningmantech/ranger-ims-go/tree/${ref}`;
+    targetP.replaceChildren(link);
+    const targetDiv = document.getElementById("build-info-div") as HTMLParagraphElement;
+    targetDiv.style.display = "";
+}
+
+function substringBetween(s: string, start: string, end: string): string {
+    const startInd = s.indexOf(start);
+    if (startInd < 0) {
+        return "";
+    }
+    const substrBeginInd = startInd + start.length;
+    let endInd = s.indexOf(end, substrBeginInd);
+    if (endInd < 0) {
+        endInd = s.length;
+    }
+    return s.substring(substrBeginInd, endInd);
 }
 
 async function fetchRuntimeMetrics(): Promise<void> {
@@ -59,6 +83,8 @@ async function fetchRuntimeMetrics(): Promise<void> {
     }
     const targetPre = document.getElementById("runtime-metrics") as HTMLPreElement
     targetPre.textContent = await resp.text();
+    const targetDiv = document.getElementById("runtime-metrics-div") as HTMLParagraphElement;
+    targetDiv.style.display = "";
 }
 
 async function performGC(): Promise<void> {
@@ -68,4 +94,6 @@ async function performGC(): Promise<void> {
     }
     const targetPre = document.getElementById("gc") as HTMLPreElement
     targetPre.textContent = await resp.text();
+    const targetDiv = document.getElementById("gc-div") as HTMLParagraphElement;
+    targetDiv.style.display = "";
 }

@@ -28,16 +28,24 @@ templ AdminDebug(deployment string) {
 <h1 id="doc-title">Debugging Details</h1>
 
 <h4>Build Info</h4>
-<button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Build Info</button>
-<pre id="build-info"></pre>
+<p><button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Build Info</button></p>
+<div id="build-info-div" style="display:none;">
+  <p id="build-info-p"></p>
+  <pre id="build-info"></pre>
+</div>
 
 <h4>Garbage Collection</h4>
-<button id="perform-gc" onclick="performGC()" class="btn btn-sm btn-default btn-primary">Perform GC</button>
-<pre id="gc"></pre>
+<p><button id="perform-gc" onclick="performGC()" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
+<div id="gc-div" style="display:none;">
+  <pre id="gc"></pre>
+</div>
 
 <h4>Runtime Metrics</h4>
-<button id="show-metrics" onclick="fetchRuntimeMetrics()" class="btn btn-sm btn-default btn-primary">Fetch Runtime Metrics</button>
-<pre id="runtime-metrics"></pre>
+<p><button id="show-metrics" onclick="fetchRuntimeMetrics()" class="btn btn-sm btn-default btn-primary">Fetch Runtime Metrics</button></p>
+<div id="runtime-metrics-div" style="display:none;">
+  <p id="runtime-metrics-p"><a href="https://pkg.go.dev/runtime/metrics#hdr-Supported_metrics">See the metric definitions here</a></p>
+  <pre id="runtime-metrics"></pre>
+</div>
 
 @Footer()
 </div>

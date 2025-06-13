@@ -1,0 +1,71 @@
+//
+// See the file COPYRIGHT for copyright information.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+"use strict";
+
+import * as ims from "./ims.ts";
+
+declare global {
+    interface Window {
+        fetchBuildInfo: (el: HTMLElement) => Promise<void>;
+        fetchRuntimeMetrics: (el: HTMLElement) => Promise<void>;
+        performGC: (el: HTMLElement) => Promise<void>;
+    }
+}
+//
+// Initialize UI
+//
+
+initAdminDebugPage();
+
+async function initAdminDebugPage(): Promise<void> {
+    const initResult = await ims.commonPageInit();
+    if (!initResult.authInfo.authenticated) {
+        await ims.redirectToLogin();
+        return;
+    }
+
+    window.fetchBuildInfo = fetchBuildInfo;
+    window.fetchRuntimeMetrics = fetchRuntimeMetrics;
+    window.performGC = performGC;
+}
+
+async function fetchBuildInfo(): Promise<void> {
+    const {resp, err} = await ims.fetchJsonNoThrow(url_debugBuildInfo, {});
+    if (err != null || resp == null) {
+        throw err;
+    }
+    const targetPre = document.getElementById("build-info") as HTMLPreElement
+    targetPre.textContent = await resp.text();
+}
+
+async function fetchRuntimeMetrics(): Promise<void> {
+    const {resp, err} = await ims.fetchJsonNoThrow(url_debugRuntimeMetrics, {});
+    if (err != null || resp == null) {
+        throw err;
+    }
+    const targetPre = document.getElementById("runtime-metrics") as HTMLPreElement
+    targetPre.textContent = await resp.text();
+}
+
+async function performGC(): Promise<void> {
+    const {resp, err} = await ims.fetchJsonNoThrow(url_debugGC, {body: JSON.stringify({})});
+    if (err != null || resp == null) {
+        throw err;
+    }
+    const targetPre = document.getElementById("gc") as HTMLPreElement
+    targetPre.textContent = await resp.text();
+}

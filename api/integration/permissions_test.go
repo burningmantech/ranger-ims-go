@@ -46,6 +46,9 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		{http.MethodPost, "/ims/api/events"},
 		{http.MethodPost, "/ims/api/streets"},
 		{http.MethodPost, "/ims/api/incident_types"},
+		{http.MethodGet, "/ims/api/debug/buildinfo"},
+		{http.MethodGet, "/ims/api/debug/runtimemetrics"},
+		{http.MethodPost, "/ims/api/debug/gc"},
 	}
 
 	for _, api := range adminOnly {
@@ -250,8 +253,8 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 func TestPublicAPIs_RequireNoAuthn(t *testing.T) {
 	t.Parallel()
 	public := []MethodURL{
+		{http.MethodGet, "/"},
 		{http.MethodGet, "/ims/api/ping"},
-		{http.MethodGet, "/ims/api/debug/buildinfo"},
 	}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 	for _, api := range public {

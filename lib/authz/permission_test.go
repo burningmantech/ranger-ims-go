@@ -30,7 +30,7 @@ const (
 	writerPerm             = EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports
 	reporterPerm           = EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports
 	authenticatedUserPerms = GlobalListEvents | GlobalReadIncidentTypes | GlobalReadPersonnel | GlobalReadStreets
-	adminGlobalPerms       = GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes
+	adminGlobalPerms       = GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministrateDebugging
 )
 
 func addPerm(m map[int32][]imsdb.EventAccess, eventID int32, expr, mode, validity string) {

@@ -661,7 +661,8 @@ function safeShortDescribeLocation(location: EventLocation): string {
 export function renderSafeSorted(strings: string[]): string {
     const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
     const joined = sortedCopy.join(", ");
-    return DataTable.render.text().display(joined);
+    const safeText: string = DataTable.render.text().display(joined);
+    return renderCellText(safeText, null);
 }
 
 export function renderIncidentNumber(incidentNumber: number|null, type: string, _incident: any): number|string|null|undefined {
@@ -743,14 +744,6 @@ export const fullDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefin
     // timeZone not specified; will use user's timezone
 });
 
-export const editStyleTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    hour12: false,
-    minute: "numeric",
-    timeZoneName: "short",
-    // timeZone not specified; will use user's timezone
-});
-
 export function localTzShortName(d: Date): string|null {
     const parts = new Intl.DateTimeFormat(
         undefined, { timeZoneName: 'short' }).formatToParts(d);
@@ -767,9 +760,10 @@ export function localDateISO(d: Date): string {
 
 export function renderDate(date: string, type: string, _incident: any): string|number|undefined {
     const d = Date.parse(date);
+    const fullDate = fullDateTime.format(d);
     switch (type) {
         case "display":
-            return shortDate.format(d) + "<wbr />@" + shortTime.format(d);
+            return renderCellText(`${shortDate.format(d)}<wbr />@${shortTime.format(d)}`, fullDate);
         case "filter":
             return shortDate.format(d) + " " + shortTime.format(d);
         case "type":
@@ -786,6 +780,7 @@ export function renderState(state: string, type: string, incident: Incident): st
 
     switch (type) {
         case "display":
+            return renderCellText(stateNameFromID(state), null);
         case "filter":
             return stateNameFromID(state);
         case "type":
@@ -801,14 +796,20 @@ export function renderLocation(data: EventLocation|null, type: string, _incident
         return undefined;
     }
     switch (type) {
-        case "display":
         case "filter":
         case "sort":
-            return safeShortDescribeLocation(data)??"";
+            return safeShortDescribeLocation(data)??""
+        case "display":
+            return renderCellText(safeShortDescribeLocation(data)??"", null);
         case "type":
             return "";
     }
     return undefined;
+}
+
+export function renderCellText(rawHtml: string, title: string|null): string {
+    const titlePart = title ? `title="${title}"` : "";
+    return `<span class="datatable-cell-text" ${titlePart}>${rawHtml}</span>`
 }
 
 //

@@ -79,7 +79,7 @@ function updateEventStreets(event) {
         const streetName = eventStreets[streetID];
         const entryItem = _streetsEntryTemplate.cloneNode(true);
         entryItem.append(streetID + ": " + streetName);
-        entryItem.setAttribute("value", streetID);
+        entryItem.dataset["streetId"] = streetID;
         entryContainer.append(entryItem);
     }
 }

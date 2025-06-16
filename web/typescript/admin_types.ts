@@ -115,9 +115,11 @@ function updateIncidentTypes(): void {
             entryItem.classList.add("item-visible");
         }
 
-        const safeIncidentType = ims.textAsHTML(incidentType);
-        entryItem.append(safeIncidentType);
-        entryItem.setAttribute("value", safeIncidentType);
+        const typeSpan = document.createElement("span");
+        typeSpan.textContent = incidentType;
+
+        entryItem.append(typeSpan);
+        entryItem.dataset["incidentTypeName"] = incidentType;
 
         entryContainer.append(entryItem);
     }
@@ -140,14 +142,16 @@ function deleteIncidentType(_sender: HTMLElement) {
 
 async function showIncidentType(sender: HTMLElement): Promise<void> {
     await sendIncidentTypes({"show": [
-        sender.parentElement!.getAttribute("value")!]});
+        sender.parentElement!.dataset["incidentTypeName"]!]
+    });
     await loadAndDrawIncidentTypes();
 }
 
 
 async function hideIncidentType(sender: HTMLElement): Promise<void> {
     await sendIncidentTypes({"hide": [
-        sender.parentElement!.getAttribute("value")!]});
+        sender.parentElement!.dataset["incidentTypeName"]!]
+    });
     await loadAndDrawIncidentTypes();
 }
 

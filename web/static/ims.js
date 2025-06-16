@@ -30,16 +30,6 @@ const accessTokenRefreshAfterKey = "access_token_refresh_after";
 //
 // HTML encoding
 //
-// It seems ridiculous that this isn't standard in JavaScript
-// It is certainly ridiculous to involve the DOM, but on the other hand, the
-// browser will implement this correctly, and any solution using .replace()
-// will be buggy.  And this will be fast.  But still, this is weak.
-const _domTextAreaForHaxxors = document.createElement("textarea");
-// Convert text to HTML.
-export function textAsHTML(text) {
-    _domTextAreaForHaxxors.textContent = text;
-    return _domTextAreaForHaxxors.innerHTML;
-}
 export const integerRegExp = /^\d+$/;
 function idsFromPath() {
     const splits = window.location.pathname.split("/");
@@ -552,7 +542,7 @@ export function reportTextFromIncident(incidentOrFR, eventFieldReports) {
     return texts.join(" ");
 }
 // Return a short description for a given location.
-function shortDescribeLocation(location) {
+function safeShortDescribeLocation(location) {
     const locationBits = [];
     if (location.name != null) {
         locationBits.push(location.name);
@@ -566,15 +556,15 @@ function shortDescribeLocation(location) {
         locationBits.push(concentricStreetFromID(location.concentric));
         locationBits.push(")");
     }
-    return locationBits.join("");
+    return DataTable.render.text().display(locationBits.join(""));
 }
 //
 // DataTables rendering
 //
 export function renderSafeSorted(strings) {
-    const safe = strings.map(s => textAsHTML(s));
-    const copy = safe.toSorted((a, b) => a.localeCompare(b));
-    return copy.join(", ");
+    const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
+    const joined = sortedCopy.join(", ");
+    return DataTable.render.text().display(joined);
 }
 export function renderIncidentNumber(incidentNumber, type, _incident) {
     switch (type) {
@@ -603,17 +593,6 @@ export function renderFieldReportNumber(fieldReportNumber, type, _fieldReport) {
         case "type":
         case "sort":
             return fieldReportNumber;
-    }
-    return undefined;
-}
-export function renderNumber(num, type, _obj) {
-    switch (type) {
-        case "display":
-            return num?.toString() ?? null;
-        case "filter":
-        case "type":
-        case "sort":
-            return num;
     }
     return undefined;
 }
@@ -696,7 +675,6 @@ export function renderState(state, type, incident) {
     }
     switch (type) {
         case "display":
-            return textAsHTML(stateNameFromID(state));
         case "filter":
             return stateNameFromID(state);
         case "type":
@@ -712,10 +690,9 @@ export function renderLocation(data, type, _incident) {
     }
     switch (type) {
         case "display":
-            return textAsHTML(shortDescribeLocation(data) ?? "");
         case "filter":
         case "sort":
-            return shortDescribeLocation(data);
+            return safeShortDescribeLocation(data) ?? "";
         case "type":
             return "";
     }

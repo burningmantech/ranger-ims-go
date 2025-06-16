@@ -186,7 +186,7 @@ function frInitDataTables() {
                 "defaultContent": "-",
                 // don't use renderIncidentNumber, as that includes an <a> tag that messes
                 // with the whole-row linking from renderFieldReportNumber.
-                "render": ims.renderNumber,
+                "render": DataTable.render.number(),
                 "responsivePriority": 3,
             },
         ],
@@ -205,7 +205,8 @@ function frInitDataTables() {
 function renderSummary(_data, type, fieldReport) {
     switch (type) {
         case "display":
-            return ims.textAsHTML(ims.summarizeIncidentOrFR(fieldReport));
+            // XSS prevention
+            return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport));
         case "sort":
             return ims.summarizeIncidentOrFR(fieldReport);
         case "filter":

@@ -110,7 +110,7 @@ function updateEventStreets(event: string) {
         const entryItem = _streetsEntryTemplate!.cloneNode(true) as HTMLElement;
 
         entryItem.append(streetID + ": " + streetName);
-        entryItem.setAttribute("value", streetID);
+        entryItem.dataset["streetId"] = streetID;
 
         entryContainer.append(entryItem);
     }

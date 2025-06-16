@@ -117,7 +117,7 @@ function drawAccess(): void {
         for (const mode of allAccessModes) {
             const eventAccess = _accessTemplate.cloneNode(true) as HTMLElement;
             // Add an id to the element for future reference
-            eventAccess.setAttribute("id", "event_access_" + event + "_" + mode);
+            eventAccess.id = eventAccessContainerId(event, mode);
 
             // Add to container
             container.append(eventAccess);
@@ -127,6 +127,9 @@ function drawAccess(): void {
     }
 }
 
+function eventAccessContainerId(event: string, mode: string): string {
+    return "event_access_" + event + "_" + mode;
+}
 
 function updateEventAccess(event: string, mode: AccessMode): void {
     if (accessControlList == null) {
@@ -137,7 +140,7 @@ function updateEventAccess(event: string, mode: AccessMode): void {
         return;
     }
 
-    const eventAccess: HTMLElement = document.getElementById("event_access_" + event + "_" + mode)!;
+    const eventAccess: HTMLElement = document.getElementById(eventAccessContainerId(event, mode))!;
 
     // Set displayed event name and mode
     eventAccess.getElementsByClassName("event_name")[0]!.textContent = event;
@@ -151,7 +154,7 @@ function updateEventAccess(event: string, mode: AccessMode): void {
         const entryItem = _eventsEntryTemplate!.cloneNode(true) as HTMLElement;
 
         entryItem.append(accessEntry.expression);
-        entryItem.setAttribute("value", accessEntry.expression);
+        entryItem.dataset["expression"] = accessEntry.expression;
 
         if (accessEntry.debug_info) {
             let msg: string = `Rule "${accessEntry.validity}, ${accessEntry.expression}" currently matches`;
@@ -163,7 +166,7 @@ function updateEventAccess(event: string, mode: AccessMode): void {
                 msg += ":\n  ";
                 msg += accessEntry.debug_info.matches_users?.join("\n  ");
             }
-            entryItem.setAttribute("title", msg);
+            entryItem.title = msg;
         }
 
         const validityField = entryItem.getElementsByClassName("access_validity")[0] as HTMLSelectElement;
@@ -267,7 +270,7 @@ async function removeAccess(sender: HTMLButtonElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
     const event = container.getElementsByClassName("event_name")[0]!.textContent!;
     const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
-    const expression = sender.parentElement!.getAttribute("value")!.trim();
+    const expression = sender.parentElement!.dataset["expression"]!.trim();
 
     const acl: Access[] = accessControlList![event]![mode]!.slice();
 
@@ -300,7 +303,7 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
     const event: string = container.getElementsByClassName("event_name")[0]!.textContent!;
     const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
-    const expression = sender.parentElement!.getAttribute("value")!.trim();
+    const expression = sender.parentElement!.dataset["expression"]!.trim();
 
     let acl: Access[] = accessControlList![event]![mode]!.slice();
 

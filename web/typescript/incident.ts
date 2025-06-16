@@ -555,7 +555,7 @@ function drawStarted(): void {
     const dateDate: Date = new Date(dateNum);
     const startedElement: HTMLElement = document.getElementById("started_datetime")!;
     startedElement.textContent = `${ims.longDate.format(dateNum)}, ${ims.shortTimeTZ.format(dateNum)}`;
-    startedElement.setAttribute("title", ims.fullDateTime.format(dateNum));
+    startedElement.title = ims.fullDateTime.format(dateNum);
 
     const dateInput = document.getElementById("override_start_date") as HTMLInputElement;
     const newDateISO = ims.localDateISO(dateDate);
@@ -606,7 +606,6 @@ function drawIncidentSummary(): void {
     if (incident!.summary) {
         summaryElement.value = incident!.summary;
         summaryElement.placeholder = "";
-        summaryElement.setAttribute("placeholder", "");
         return;
     }
 
@@ -637,21 +636,25 @@ function drawRangers() {
     const rangersElement: HTMLElement = document.getElementById("incident_rangers_list")!;
     rangersElement.replaceChildren();
     for (const handle of handles) {
-        let ranger: string|HTMLAnchorElement|null = null;
+
+        const rangerContainer = _rangerItem!.cloneNode(true) as HTMLElement;
+        rangerContainer.dataset["rangerHandle"] = handle;
+
         if (personnel?.[handle] == null) {
-            ranger = ims.textAsHTML(handle);
+            const rangerNoLink = document.createElement("span");
+            rangerNoLink.textContent = handle;
+            rangerContainer.append(rangerNoLink!);
         } else {
             const person = personnel[handle];
-            ranger = document.createElement("a");
-            ranger.innerText = ims.textAsHTML(rangerAsString(person));
+            const rangerLink = document.createElement("a");
+            rangerLink.textContent = rangerAsString(person);
             if (person.directory_id != null) {
-                ranger.href = `${clubhousePersonURL}/${person.directory_id}`;
+                rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
             }
+            rangerContainer.append(rangerLink);
         }
-        const item = _rangerItem!.cloneNode(true) as HTMLElement;
-        item.append(ranger!);
-        item.setAttribute("value", ims.textAsHTML(handle));
-        rangersElement.append(item);
+
+        rangersElement.append(rangerContainer);
     }
 }
 
@@ -711,8 +714,10 @@ function drawIncidentTypes() {
 
     for (const incidentType of incidentTypes) {
         const item = _typesItem!.cloneNode(true) as HTMLElement;
-        item.append(ims.textAsHTML(incidentType));
-        item.setAttribute("value", ims.textAsHTML(incidentType));
+        const typeSpan = document.createElement("span");
+        typeSpan.textContent = incidentType;
+        item.append(typeSpan);
+        item.dataset["incidentTypeName"] = incidentType;
         typesElement.append(item);
     }
 }
@@ -837,7 +842,7 @@ function drawAttachedFieldReports() {
 
         const item = _reportsItem.cloneNode(true) as HTMLElement;
         item.append(link);
-        item.setAttribute("fr-number", report.number!.toString());
+        item.dataset["frNumber"] = report.number!.toString();
 
         container.append(item);
     }
@@ -1068,7 +1073,7 @@ async function editLocationDescription(): Promise<void> {
 
 async function removeRanger(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
-    const rangerHandle = parent.getAttribute("value");
+    const rangerHandle = parent.dataset["rangerHandle"];
 
     await sendEdits(
         {
@@ -1082,7 +1087,7 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
 
 async function removeIncidentType(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
-    const incidentType = parent.getAttribute("value");
+    const incidentType = parent.dataset["incidentTypeName"];
     await sendEdits({
         "incident_types": (incident!.incident_types??[]).filter(
             function(t) { return t !== incidentType; }
@@ -1190,7 +1195,7 @@ async function addIncidentType(): Promise<void> {
 
 async function detachFieldReport(sender: HTMLElement): Promise<void> {
     const parent: HTMLElement = sender.parentElement!;
-    const frNumber = parent.getAttribute("fr-number")!;
+    const frNumber = parent.dataset["frNumber"]!;
 
     const url = (
         `${ims.urlReplace(url_fieldReports)}/${frNumber}` +

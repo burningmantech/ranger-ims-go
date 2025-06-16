@@ -45,7 +45,7 @@ function setTheme(theme: string): void {
     if (theme === "auto") {
         theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
-    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.documentElement.dataset["bsTheme"] = theme;
 }
 function applyTheme(): void {
     setTheme(getPreferredTheme());
@@ -57,24 +57,24 @@ function applyTheme(): void {
             return;
         }
 
-        const themeSwitcherText: Element = document.querySelector("#bd-theme-text")!;
+        const themeSwitcherText = document.querySelector("#bd-theme-text")!;
         const activeThemeIcon = document.querySelector(".theme-icon-active use") as SVGUseElement;
         const btnToActive: HTMLButtonElement = document.querySelector(`[data-bs-theme-value="${theme}"]`)!;
         const svgOfActiveBtn: string = (btnToActive.querySelector("svg use") as SVGUseElement).href.baseVal;
 
-        document.querySelectorAll("[data-bs-theme-value]").forEach((element: Element): void => {
-            element.classList.remove("active");
-            element.setAttribute("aria-pressed", "false");
-        });
+        for (const val of document.querySelectorAll("[data-bs-theme-value]")) {
+            val.classList.remove("active");
+            val.ariaPressed = "false";
+        }
 
         btnToActive.classList.add("active");
-        btnToActive.setAttribute("aria-pressed", "true");
+        btnToActive.ariaPressed = "true";
         if (svgOfActiveBtn) {
             activeThemeIcon.href.baseVal = svgOfActiveBtn;
         }
         if (themeSwitcherText) {
-            const themeSwitcherLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset["bsThemeValue"]})`;
-            themeSwitcher.setAttribute("aria-label", themeSwitcherLabel);
+            // Set theme switcher label
+            themeSwitcher.ariaLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset["bsThemeValue"]})`;
         }
 
         if (focus) {
@@ -83,7 +83,7 @@ function applyTheme(): void {
     }
 
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (): void => {
-        const storedTheme: string|null = getStoredTheme();
+        const storedTheme = getStoredTheme();
         if (storedTheme !== "light" && storedTheme !== "dark") {
             setTheme(getPreferredTheme());
         }
@@ -91,14 +91,15 @@ function applyTheme(): void {
 
     showActiveTheme(getPreferredTheme());
 
-    document.querySelectorAll("[data-bs-theme-value]").forEach((toggle: Element): void => {
-        (toggle as HTMLElement).addEventListener("click", function(_e: MouseEvent): void {
-            const theme = toggle.getAttribute("data-bs-theme-value");
+    for (const togEl of document.querySelectorAll("[data-bs-theme-value]")) {
+        const toggle = togEl as HTMLElement;
+        toggle.addEventListener("click", function(_e: MouseEvent): void {
+            const theme = toggle.dataset["bsThemeValue"];
             if (theme) {
                 setStoredTheme(theme);
                 setTheme(theme);
                 showActiveTheme(theme, true);
             }
         });
-    });
+    }
 }

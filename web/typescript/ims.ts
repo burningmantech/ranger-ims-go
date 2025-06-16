@@ -39,19 +39,6 @@ const accessTokenRefreshAfterKey = "access_token_refresh_after";
 // HTML encoding
 //
 
-// It seems ridiculous that this isn't standard in JavaScript
-// It is certainly ridiculous to involve the DOM, but on the other hand, the
-// browser will implement this correctly, and any solution using .replace()
-// will be buggy.  And this will be fast.  But still, this is weak.
-
-const _domTextAreaForHaxxors: HTMLTextAreaElement = document.createElement("textarea");
-
-// Convert text to HTML.
-export function textAsHTML(text: string): string {
-    _domTextAreaForHaxxors.textContent = text;
-    return _domTextAreaForHaxxors.innerHTML;
-}
-
 export const integerRegExp: RegExp = /^\d+$/;
 
 function idsFromPath(): {eventID: string|null, incidentNumber: number|null, fieldReportNumber: number|null} {
@@ -646,7 +633,7 @@ export function reportTextFromIncident(incidentOrFR: Incident|FieldReport, event
 
 
 // Return a short description for a given location.
-function shortDescribeLocation(location: EventLocation): string {
+function safeShortDescribeLocation(location: EventLocation): string {
     const locationBits: string[] = [];
 
     if (location.name != null) {
@@ -663,7 +650,7 @@ function shortDescribeLocation(location: EventLocation): string {
         locationBits.push(")");
     }
 
-    return locationBits.join("");
+    return DataTable.render.text().display(locationBits.join(""));
 }
 
 
@@ -672,9 +659,9 @@ function shortDescribeLocation(location: EventLocation): string {
 //
 
 export function renderSafeSorted(strings: string[]): string {
-    const safe = strings.map(s => textAsHTML(s));
-    const copy = safe.toSorted((a, b) => a.localeCompare(b));
-    return copy.join(", ");
+    const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
+    const joined = sortedCopy.join(", ");
+    return DataTable.render.text().display(joined);
 }
 
 export function renderIncidentNumber(incidentNumber: number|null, type: string, _incident: any): number|string|null|undefined {
@@ -705,18 +692,6 @@ export function renderFieldReportNumber(fieldReportNumber: number|null, type: st
         case "type":
         case "sort":
             return fieldReportNumber;
-    }
-    return undefined;
-}
-
-export function renderNumber(num: number|null, type: string, _obj: any): number|string|null|undefined {
-    switch (type) {
-        case "display":
-            return num?.toString() ?? null;
-        case "filter":
-        case "type":
-        case "sort":
-            return num;
     }
     return undefined;
 }
@@ -811,7 +786,6 @@ export function renderState(state: string, type: string, incident: Incident): st
 
     switch (type) {
         case "display":
-            return textAsHTML(stateNameFromID(state));
         case "filter":
             return stateNameFromID(state);
         case "type":
@@ -828,10 +802,9 @@ export function renderLocation(data: EventLocation|null, type: string, _incident
     }
     switch (type) {
         case "display":
-            return textAsHTML(shortDescribeLocation(data)??"");
         case "filter":
         case "sort":
-            return shortDescribeLocation(data);
+            return safeShortDescribeLocation(data)??"";
         case "type":
             return "";
     }
@@ -1577,3 +1550,5 @@ declare namespace bootstrap {
         show(): void;
     }
 }
+
+declare let DataTable: any;

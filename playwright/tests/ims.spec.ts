@@ -113,7 +113,7 @@ test("admin_incident_types", async ({ page }) => {
 
   await incidentTypePage(page);
 
-  const newLi = page.locator(`li[value="${incidentType}"]`);
+  const newLi = page.locator(`li[data-incident-type-name="${incidentType}"]`);
   await expect(newLi).toBeVisible();
   await expect(newLi.getByRole("button", {name: "Active"})).toBeVisible();
   await expect(newLi.getByRole("button", {name: "Hidden"})).toBeHidden();

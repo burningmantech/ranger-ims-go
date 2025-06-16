@@ -43,7 +43,7 @@ function setTheme(theme) {
     if (theme === "auto") {
         theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
-    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.documentElement.dataset["bsTheme"] = theme;
 }
 function applyTheme() {
     setTheme(getPreferredTheme());
@@ -56,18 +56,18 @@ function applyTheme() {
         const activeThemeIcon = document.querySelector(".theme-icon-active use");
         const btnToActive = document.querySelector(`[data-bs-theme-value="${theme}"]`);
         const svgOfActiveBtn = btnToActive.querySelector("svg use").href.baseVal;
-        document.querySelectorAll("[data-bs-theme-value]").forEach((element) => {
-            element.classList.remove("active");
-            element.setAttribute("aria-pressed", "false");
-        });
+        for (const val of document.querySelectorAll("[data-bs-theme-value]")) {
+            val.classList.remove("active");
+            val.ariaPressed = "false";
+        }
         btnToActive.classList.add("active");
-        btnToActive.setAttribute("aria-pressed", "true");
+        btnToActive.ariaPressed = "true";
         if (svgOfActiveBtn) {
             activeThemeIcon.href.baseVal = svgOfActiveBtn;
         }
         if (themeSwitcherText) {
-            const themeSwitcherLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset["bsThemeValue"]})`;
-            themeSwitcher.setAttribute("aria-label", themeSwitcherLabel);
+            // Set theme switcher label
+            themeSwitcher.ariaLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset["bsThemeValue"]})`;
         }
         if (focus) {
             themeSwitcher.focus();
@@ -80,14 +80,15 @@ function applyTheme() {
         }
     });
     showActiveTheme(getPreferredTheme());
-    document.querySelectorAll("[data-bs-theme-value]").forEach((toggle) => {
+    for (const togEl of document.querySelectorAll("[data-bs-theme-value]")) {
+        const toggle = togEl;
         toggle.addEventListener("click", function (_e) {
-            const theme = toggle.getAttribute("data-bs-theme-value");
+            const theme = toggle.dataset["bsThemeValue"];
             if (theme) {
                 setStoredTheme(theme);
                 setTheme(theme);
                 showActiveTheme(theme, true);
             }
         });
-    });
+    }
 }

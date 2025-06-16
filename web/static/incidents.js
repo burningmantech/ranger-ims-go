@@ -308,13 +308,9 @@ function initDataTables(tablePrereqs) {
         "order": [
             [0, "dsc"],
         ],
-        "createdRow": function (row, incident, _index) {
+        "createdRow": function (row, _incident, _index) {
             // Necessary to allow the stretched-link to work
             row.classList.add("position-relative");
-            row.querySelector(".incident_started")
-                .title = ims.fullDateTime.format(Date.parse(incident.started));
-            row.querySelector(".incident_last_modified")
-                .title = ims.fullDateTime.format(Date.parse(incident.last_modified));
         },
     });
 }
@@ -327,7 +323,8 @@ function renderSummary(_data, type, incident) {
                 summarized = summarized.substring(0, maxDisplayLength - 3) + "...";
             }
             // XSS prevention
-            return DataTable.render.text().display(summarized);
+            const safeSummary = DataTable.render.text().display(summarized);
+            return ims.renderCellText(safeSummary, null);
         }
         case "sort":
             return ims.summarizeIncidentOrFR(incident);

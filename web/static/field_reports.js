@@ -186,7 +186,7 @@ function frInitDataTables() {
                 "defaultContent": "-",
                 // don't use renderIncidentNumber, as that includes an <a> tag that messes
                 // with the whole-row linking from renderFieldReportNumber.
-                "render": DataTable.render.number(),
+                "render": renderNumber,
                 "responsivePriority": 3,
             },
         ],
@@ -194,19 +194,32 @@ function frInitDataTables() {
             // creation time descending
             [1, "dsc"],
         ],
-        "createdRow": function (row, fieldReport, _index) {
+        "createdRow": function (row, _fieldReport, _index) {
             // Necessary to allow the stretched-link to work
             row.classList.add("position-relative");
-            row.getElementsByClassName("field_report_created")[0]
-                .setAttribute("title", ims.fullDateTime.format(Date.parse(fieldReport.created)));
         },
     });
+}
+function renderNumber(data, type, _fieldReport) {
+    switch (type) {
+        case "display":
+            if (data == null) {
+                return "";
+            }
+            return ims.renderCellText(DataTable.render.number().display(data), null);
+        case "sort":
+        case "filter":
+        case "type":
+            return data;
+    }
+    return undefined;
 }
 function renderSummary(_data, type, fieldReport) {
     switch (type) {
         case "display":
             // XSS prevention
-            return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport));
+            const safeText = DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport));
+            return ims.renderCellText(safeText, null);
         case "sort":
             return ims.summarizeIncidentOrFR(fieldReport);
         case "filter":

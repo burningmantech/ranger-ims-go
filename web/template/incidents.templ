@@ -87,13 +87,13 @@ templ Incidents(deployment, eventName string) {
           <span class="selection">All</span>
         </button>
         <ul class="dropdown-menu">
-          <li id="show_state_all">
+          <li id="show_state_all" title="New, dispatched, on-scene, on-hold, or closed">
             <a href="#" class="name dropdown-item" onclick="showState('all', true); return false;">All States</a>
           </li>
-          <li id="show_state_open">
+          <li id="show_state_open" title="New, dispatched, on-scene, or on-hold">
             <a href="#" class="name dropdown-item" onclick="showState('open', true); return false;">Open</a>
           </li>
-          <li id="show_state_active">
+          <li id="show_state_active" title="New, dispatched, or on-scene">
             <a href="#" class="name dropdown-item" onclick="showState('active', true); return false;">Active</a>
           </li>
         </ul>

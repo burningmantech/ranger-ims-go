@@ -901,12 +901,13 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 
     // Add report text
 
-    const lines: string[] = entry.text!.split("\n");
-    for (const line of lines) {
+    const paragraphs: string[] = entry.text!.split(/\n\s*\n/);
+    for (const paragraph of paragraphs) {
         const textContainer: HTMLParagraphElement = document.createElement("p");
         textContainer.classList.add("report_entry_text");
-        textContainer.textContent = line;
-
+        // innerText automatically converts "\n" into "<br>", which is what we want.
+        // Note that textContent does not do this.
+        textContainer.innerText = paragraph;
         entryContainer.append(textContainer);
     }
     if (entry.attachment?.name && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {

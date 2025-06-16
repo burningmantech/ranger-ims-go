@@ -772,11 +772,13 @@ function reportEntryElement(entry) {
     metaDataContainer.append(":");
     entryContainer.append(metaDataContainer);
     // Add report text
-    const lines = entry.text.split("\n");
-    for (const line of lines) {
+    const paragraphs = entry.text.split(/\n\s*\n/);
+    for (const paragraph of paragraphs) {
         const textContainer = document.createElement("p");
         textContainer.classList.add("report_entry_text");
-        textContainer.textContent = line;
+        // innerText automatically converts "\n" into "<br>", which is what we want.
+        // Note that textContent does not do this.
+        textContainer.innerText = paragraph;
         entryContainer.append(textContainer);
     }
     if (entry.attachment?.name && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {

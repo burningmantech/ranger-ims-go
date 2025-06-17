@@ -363,9 +363,32 @@ function initDataTables(tablePrereqs: Promise<void>): void {
         "order": [
             [0, "dsc"],
         ],
-        "createdRow": function (row: HTMLElement, _incident: ims.Incident, _index: number) {
-            // Necessary to allow the stretched-link to work
-            row.classList.add("position-relative");
+        "createdRow": function (row: HTMLElement, incident: ims.Incident, _index: number) {
+            const openLink = function(e: MouseEvent): void {
+                // If the user clicked on a link, then let them access that link without the JS below.
+                if (e.target?.constructor?.name === "HTMLAnchorElement") {
+                    return;
+                }
+
+                const isLeftClick = e.type === "click";
+                const isMiddleClick = e.type === "auxclick" && e.button === 1;
+                const holdingModifier = e.altKey || e.ctrlKey || e.metaKey;
+
+                // Left click while not holding a modifier key: open in the same tab
+                if (isLeftClick && !holdingModifier) {
+                    window.location.href = `${ims.urlReplace(url_viewIncidents)}/${incident.number}`;
+                }
+                // Left click while holding modifier key or middle click: open in a new tab
+                if (isMiddleClick || (isLeftClick && holdingModifier)) {
+                    window.open(
+                        `${ims.urlReplace(url_viewIncidents)}/${incident.number}`,
+                        "Incident:" + ims.pathIds.eventID + "#" + incident.number,
+                    );
+                    return;
+                }
+            }
+            row.addEventListener("click", openLink);
+            row.addEventListener("auxclick", openLink);
         },
     });
 }
@@ -379,8 +402,7 @@ function renderSummary(_data: string|null, type: string, incident: ims.Incident)
                 summarized = summarized.substring(0, maxDisplayLength - 3) + "...";
             }
             // XSS prevention
-            const safeSummary = DataTable.render.text().display(summarized);
-            return ims.renderCellText(safeSummary, null);
+            return DataTable.render.text().display(summarized) as string;
         }
         case "sort":
             return ims.summarizeIncidentOrFR(incident);

@@ -196,14 +196,6 @@ h1 {
   display: inline-block;
 }
 
-/* Actually, don't do this, because it's annoying that so much of the row then becomes non-linkified...
-/*!* On non-touch devices, elevate the cell text above the stretched-link for the row.*/
-/* * This allows the user to select the text and to see "title" on hover. *!*/
-/*.no-touch .datatable-cell-text {*/
-/*  position: relative;*/
-/*  z-index: 2;*/
-/*}*/
-
 /* Disable on touch devices if editing is disabled. */
 .no-edit .remove-badge {
   display: none;
@@ -337,6 +329,14 @@ h1 {
   left: .4rem;
   content: '✓';
   font-weight: 600;
+}
+
+#queue_table>tbody>tr {
+  cursor: pointer;
+}
+
+#field_reports_table>tbody>tr {
+  cursor: pointer;
 }
 
 .show-pointer {

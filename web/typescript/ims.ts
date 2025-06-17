@@ -578,22 +578,19 @@ function fieldReportAuthor(report: FieldReport): string {
 
 // Render incident as a string
 export function incidentAsString(incident: Incident): string {
-    const eventSuffix = pathIds.eventID != null ? ` | ${pathIds.eventID}` : "";
     if (incident.number == null) {
-        return `New Incident${eventSuffix}`;
+        return `New Incident`;
     }
-    return `#${incident.number}: ${summarizeIncidentOrFR(incident)}${eventSuffix}`;
+    return `#${incident.number}: ${summarizeIncidentOrFR(incident)}`;
 }
 
 
 // Render field report as a string
 export function fieldReportAsString(report: FieldReport): string {
-    const eventSuffix = pathIds.eventID != null ? ` | ${pathIds.eventID}` : "";
     if (report.number == null) {
-        return `New Field Report${eventSuffix}`;
+        return `New Field Report`;
     }
-    return `FR #${report.number} (${fieldReportAuthor(report)}): ` +
-        `${summarizeIncidentOrFR(report)}${eventSuffix}`;
+    return `FR #${report.number} (${fieldReportAuthor(report)}): ${summarizeIncidentOrFR(report)}`;
 }
 
 // Return all user-entered report text for a given incident as a single string.

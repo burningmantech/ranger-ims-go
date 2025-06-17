@@ -207,7 +207,8 @@ async function loadAndDisplayFieldReport(): Promise<void> {
 //
 
 function drawTitle(): void {
-    document.title = ims.fieldReportAsString(fieldReport!);
+    const eventSuffix = ims.pathIds.eventID != null ? ` | ${ims.pathIds.eventID}` : "";
+    document.title = `${ims.fieldReportAsString(fieldReport!)}${eventSuffix}`;
 }
 
 

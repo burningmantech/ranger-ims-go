@@ -171,7 +171,8 @@ async function loadAndDisplayFieldReport() {
 // Populate page title
 //
 function drawTitle() {
-    document.title = ims.fieldReportAsString(fieldReport);
+    const eventSuffix = ims.pathIds.eventID != null ? ` | ${ims.pathIds.eventID}` : "";
+    document.title = `${ims.fieldReportAsString(fieldReport)}${eventSuffix}`;
 }
 //
 // Populate field report number

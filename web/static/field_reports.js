@@ -165,6 +165,14 @@ function frInitDataTables() {
                 "cellType": "th",
             },
             {
+                "name": "field_report_incident",
+                "className": "field_report_incident text-center",
+                "data": "incident",
+                "defaultContent": "-",
+                "render": ims.renderIncidentNumber,
+                "responsivePriority": 3,
+            },
+            {
                 "name": "field_report_created",
                 "className": "field_report_created text-center",
                 "data": "created",
@@ -178,14 +186,6 @@ function frInitDataTables() {
                 "data": "summary",
                 "defaultContent": "",
                 "render": renderSummary,
-            },
-            {
-                "name": "field_report_incident",
-                "className": "field_report_incident text-center",
-                "data": "incident",
-                "defaultContent": "-",
-                "render": ims.renderIncidentNumber,
-                "responsivePriority": 3,
             },
         ],
         "order": [

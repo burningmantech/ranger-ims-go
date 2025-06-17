@@ -521,7 +521,8 @@ function addLocationAddressOptions(): void {
 //
 
 function drawIncidentTitle(): void {
-    document.title = ims.incidentAsString(incident!);
+    const eventSuffix = ims.pathIds.eventID != null ? ` | ${ims.pathIds.eventID}` : "";
+    document.title = `${ims.incidentAsString(incident!)}${eventSuffix}`;
 }
 
 

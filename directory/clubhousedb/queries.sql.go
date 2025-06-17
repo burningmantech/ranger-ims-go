@@ -110,7 +110,7 @@ select
     on_site,
     password
 from person
-where status in ('active', 'inactive', 'inactive extension', 'auditor')
+where status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha')
 `
 
 type RangersByIdRow struct {

@@ -264,7 +264,7 @@ async function loadPersonnel() {
     const _personnel = {};
     for (const record of json) {
         // Filter inactive Rangers out
-        if (record.status === "active") {
+        if (record.status === "active" || record.status === 'prospective' || record.status === 'alpha') {
             _personnel[record.handle] = record;
         }
     }

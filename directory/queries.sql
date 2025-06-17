@@ -7,7 +7,7 @@ select
     on_site,
     password
 from person
-where status in ('active', 'inactive', 'inactive extension', 'auditor');
+where status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha');
 
 -- name: Positions :many
 select id, title from position where all_rangers = 0;

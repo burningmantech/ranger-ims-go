@@ -343,7 +343,7 @@ async function loadPersonnel(): Promise<{err: string|null}> {
     const _personnel: PersonnelMap = {};
     for (const record of json!) {
         // Filter inactive Rangers out
-        if (record.status === "active") {
+        if (record.status === "active" || record.status === 'prospective' || record.status === 'alpha') {
             _personnel[record.handle] = record;
         }
     }

@@ -268,6 +268,7 @@ function initDataTables(tablePrereqs) {
                 "data": "summary",
                 "defaultContent": "",
                 "render": renderSummary,
+                "width": "40%",
                 // "all" class --> very high responsivePriority
             },
             {
@@ -276,7 +277,6 @@ function initDataTables(tablePrereqs) {
                 "data": "incident_types",
                 "defaultContent": "",
                 "render": ims.renderSafeSorted,
-                "width": "5em",
                 "responsivePriority": 4,
             },
             {
@@ -293,7 +293,6 @@ function initDataTables(tablePrereqs) {
                 "data": "ranger_handles",
                 "defaultContent": "",
                 "render": ims.renderSafeSorted,
-                "width": "6em",
                 "responsivePriority": 6,
             },
             {

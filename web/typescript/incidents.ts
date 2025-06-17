@@ -323,6 +323,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 "data": "summary",
                 "defaultContent": "",
                 "render": renderSummary,
+                "width": "40%",
                 // "all" class --> very high responsivePriority
             },
             {   // 4
@@ -331,7 +332,6 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 "data": "incident_types",
                 "defaultContent": "",
                 "render": ims.renderSafeSorted,
-                "width": "5em",
                 "responsivePriority": 4,
             },
             {   // 5
@@ -348,7 +348,6 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 "data": "ranger_handles",
                 "defaultContent": "",
                 "render": ims.renderSafeSorted,
-                "width": "6em",
                 "responsivePriority": 6,
             },
             {   // 7

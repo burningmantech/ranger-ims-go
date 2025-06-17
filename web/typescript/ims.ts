@@ -661,8 +661,7 @@ function safeShortDescribeLocation(location: EventLocation): string {
 export function renderSafeSorted(strings: string[]): string {
     const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
     const joined = sortedCopy.join(", ");
-    const safeText: string = DataTable.render.text().display(joined);
-    return renderCellText(safeText, null);
+    return DataTable.render.text().display(joined) as string;
 }
 
 export function renderIncidentNumber(incidentNumber: number|null, type: string, _incident: any): number|string|null|undefined {
@@ -672,7 +671,7 @@ export function renderIncidentNumber(incidentNumber: number|null, type: string, 
                 return null;
             }
             const dest = urlReplace(url_viewIncidentNumber).replace("<number>", incidentNumber.toString());
-            return `<a class="stretched-link" href="${dest}">${incidentNumber}</a>`;
+            return `<a href="${dest}">${incidentNumber}</a>`;
         case "filter":
         case "type":
         case "sort":
@@ -688,7 +687,7 @@ export function renderFieldReportNumber(fieldReportNumber: number|null, type: st
                 return null;
             }
             const dest = urlReplace(url_viewFieldReportNumber).replace("<number>", fieldReportNumber.toString());
-            return `<a class="stretched-link" href="${dest}">${fieldReportNumber}</a>`;
+            return `<a href="${dest}">${fieldReportNumber}</a>`;
         case "filter":
         case "type":
         case "sort":
@@ -763,7 +762,7 @@ export function renderDate(date: string, type: string, _incident: any): string|n
     const fullDate = fullDateTime.format(d);
     switch (type) {
         case "display":
-            return renderCellText(`${shortDate.format(d)}<wbr />@${shortTime.format(d)}`, fullDate);
+            return `<span title="${fullDate}">${shortDate.format(d)}<wbr />@${shortTime.format(d)}</span>`;
         case "filter":
             return shortDate.format(d) + " " + shortTime.format(d);
         case "type":
@@ -780,7 +779,6 @@ export function renderState(state: string, type: string, incident: Incident): st
 
     switch (type) {
         case "display":
-            return renderCellText(stateNameFromID(state), null);
         case "filter":
             return stateNameFromID(state);
         case "type":
@@ -798,18 +796,12 @@ export function renderLocation(data: EventLocation|null, type: string, _incident
     switch (type) {
         case "filter":
         case "sort":
-            return safeShortDescribeLocation(data)??""
         case "display":
-            return renderCellText(safeShortDescribeLocation(data)??"", null);
+            return safeShortDescribeLocation(data)??"";
         case "type":
             return "";
     }
     return undefined;
-}
-
-export function renderCellText(rawHtml: string, title: string|null): string {
-    const titlePart = title ? `title="${title}"` : "";
-    return `<span class="datatable-cell-text" ${titlePart}>${rawHtml}</span>`
 }
 
 //

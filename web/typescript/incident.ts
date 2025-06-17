@@ -326,7 +326,9 @@ let personnel: PersonnelMap|null = null;
 interface Personnel {
     handle: string;
     directory_id?: number|null;
-    status: string;
+    // These are only the statuses that IMS actually reads from Clubhouse.
+    // See https://github.com/burningmantech/ranger-ims-go/blob/master/directory/queries.sql
+    status: "active"|"alpha"|"auditor"|"inactive extension"|"inactive"|"prospective";
 }
 
 // key is Ranger handle
@@ -342,9 +344,15 @@ async function loadPersonnel(): Promise<{err: string|null}> {
     }
     const _personnel: PersonnelMap = {};
     for (const record of json!) {
-        // Filter inactive Rangers out
-        if (record.status === "active" || record.status === 'prospective' || record.status === 'alpha') {
-            _personnel[record.handle] = record;
+        switch (record.status) {
+            case "active":
+            case "alpha":
+            case "prospective":
+                _personnel[record.handle] = record;
+                break
+            default:
+                // Don't add this person to the personnel list.
+                break;
         }
     }
     personnel = _personnel;

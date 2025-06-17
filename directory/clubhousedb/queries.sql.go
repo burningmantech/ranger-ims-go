@@ -69,6 +69,60 @@ func (q *Queries) PersonTeams(ctx context.Context, db DBTX) ([]PersonTeamsRow, e
 	return items, nil
 }
 
+const persons = `-- name: Persons :many
+select
+    id,
+    callsign,
+    email,
+    status,
+    on_site,
+    password
+from person
+where status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha')
+`
+
+type PersonsRow struct {
+	ID       int64
+	Callsign string
+	Email    sql.NullString
+	Status   PersonStatus
+	OnSite   bool
+	Password sql.NullString
+}
+
+// Filter persons to those with statuses that may be of interest to IMS.
+// These Persons results are used to determine who may log into IMS, and also
+// to determine who shows up in the Incident page's "Add Ranger" section.
+func (q *Queries) Persons(ctx context.Context, db DBTX) ([]PersonsRow, error) {
+	rows, err := db.QueryContext(ctx, persons)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PersonsRow
+	for rows.Next() {
+		var i PersonsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Callsign,
+			&i.Email,
+			&i.Status,
+			&i.OnSite,
+			&i.Password,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const positions = `-- name: Positions :many
 select id, title from position where all_rangers = 0
 `
@@ -88,57 +142,6 @@ func (q *Queries) Positions(ctx context.Context, db DBTX) ([]PositionsRow, error
 	for rows.Next() {
 		var i PositionsRow
 		if err := rows.Scan(&i.ID, &i.Title); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const rangersById = `-- name: RangersById :many
-select
-    id,
-    callsign,
-    email,
-    status,
-    on_site,
-    password
-from person
-where status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha')
-`
-
-type RangersByIdRow struct {
-	ID       int64
-	Callsign string
-	Email    sql.NullString
-	Status   PersonStatus
-	OnSite   bool
-	Password sql.NullString
-}
-
-func (q *Queries) RangersById(ctx context.Context, db DBTX) ([]RangersByIdRow, error) {
-	rows, err := db.QueryContext(ctx, rangersById)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []RangersByIdRow
-	for rows.Next() {
-		var i RangersByIdRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Callsign,
-			&i.Email,
-			&i.Status,
-			&i.OnSite,
-			&i.Password,
-		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

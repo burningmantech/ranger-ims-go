@@ -263,9 +263,15 @@ async function loadPersonnel() {
     }
     const _personnel = {};
     for (const record of json) {
-        // Filter inactive Rangers out
-        if (record.status === "active" || record.status === 'prospective' || record.status === 'alpha') {
-            _personnel[record.handle] = record;
+        switch (record.status) {
+            case "active":
+            case "alpha":
+            case "prospective":
+                _personnel[record.handle] = record;
+                break;
+            default:
+                // Don't add this person to the personnel list.
+                break;
         }
     }
     personnel = _personnel;

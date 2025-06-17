@@ -1,4 +1,4 @@
--- name: RangersById :many
+-- name: Persons :many
 select
     id,
     callsign,
@@ -7,6 +7,9 @@ select
     on_site,
     password
 from person
+-- Filter persons to those with statuses that may be of interest to IMS.
+-- These Persons results are used to determine who may log into IMS, and also
+-- to determine who shows up in the Incident page's "Add Ranger" section.
 where status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha');
 
 -- name: Positions :many

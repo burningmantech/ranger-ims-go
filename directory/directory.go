@@ -109,7 +109,7 @@ func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions, te
 
 func (store *UserStore) refreshUserCache(ctx context.Context) (map[int64]*User, error) {
 	var errs []error
-	rangers, err := store.DBQ.RangersById(ctx, store.DBQ)
+	persons, err := store.DBQ.Persons(ctx, store.DBQ)
 	errs = append(errs, err)
 	teamRows, err := store.DBQ.Teams(ctx, store.DBQ)
 	errs = append(errs, err)
@@ -123,15 +123,15 @@ func (store *UserStore) refreshUserCache(ctx context.Context) (map[int64]*User, 
 		return nil, fmt.Errorf("[Teams,Positions,PersonTeams,PersonPositions] %w", err)
 	}
 
-	m := make(map[int64]*User, len(rangers))
-	for _, ranger := range rangers {
-		m[ranger.ID] = &User{
-			ID:       ranger.ID,
-			Handle:   ranger.Callsign,
-			Email:    ranger.Email.String,
-			Status:   string(ranger.Status),
-			Onsite:   ranger.OnSite,
-			Password: ranger.Password.String,
+	m := make(map[int64]*User, len(persons))
+	for _, person := range persons {
+		m[person.ID] = &User{
+			ID:       person.ID,
+			Handle:   person.Callsign,
+			Email:    person.Email.String,
+			Status:   string(person.Status),
+			Onsite:   person.OnSite,
+			Password: person.Password.String,
 		}
 	}
 	positions := make(map[int64]string, len(positionRows))

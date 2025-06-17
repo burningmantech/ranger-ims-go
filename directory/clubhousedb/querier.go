@@ -11,8 +11,11 @@ import (
 type Querier interface {
 	PersonPositions(ctx context.Context, db DBTX) ([]PersonPosition, error)
 	PersonTeams(ctx context.Context, db DBTX) ([]PersonTeamsRow, error)
+	// Filter persons to those with statuses that may be of interest to IMS.
+	// These Persons results are used to determine who may log into IMS, and also
+	// to determine who shows up in the Incident page's "Add Ranger" section.
+	Persons(ctx context.Context, db DBTX) ([]PersonsRow, error)
 	Positions(ctx context.Context, db DBTX) ([]PositionsRow, error)
-	RangersById(ctx context.Context, db DBTX) ([]RangersByIdRow, error)
 	Teams(ctx context.Context, db DBTX) ([]TeamsRow, error)
 }
 

@@ -114,8 +114,8 @@ func (l DBQ) Positions(ctx context.Context, db chqueries.DBTX) ([]chqueries.Posi
 	return l.q.Positions(ctx, db)
 }
 
-func (l DBQ) RangersById(ctx context.Context, db chqueries.DBTX) ([]chqueries.RangersByIdRow, error) {
-	return l.q.RangersById(ctx, db)
+func (l DBQ) Persons(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonsRow, error) {
+	return l.q.Persons(ctx, db)
 }
 
 func (l DBQ) Teams(ctx context.Context, db chqueries.DBTX) ([]chqueries.TeamsRow, error) {

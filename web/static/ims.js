@@ -543,28 +543,23 @@ export function reportTextFromIncident(incidentOrFR, eventFieldReports) {
 }
 // Return a short description for a given location.
 function safeShortDescribeLocation(location) {
-    const locationBits = [];
-    if (location.name != null) {
-        locationBits.push(location.name);
-    }
+    const locName = DataTable.render.text().display(location.name ?? "");
+    let locAddr = "";
     if (location.radial_hour || location.radial_minute || location.concentric) {
-        locationBits.push(" (");
-        locationBits.push(padTwo(location.radial_hour));
-        locationBits.push(":");
-        locationBits.push(padTwo(location.radial_minute));
-        locationBits.push("@");
-        locationBits.push(concentricStreetFromID(location.concentric));
-        locationBits.push(")");
+        const hour = padTwo(location.radial_hour);
+        const minute = padTwo(location.radial_minute);
+        const street = concentricStreetFromID(location.concentric);
+        locAddr = DataTable.render.text().display(`(${hour}:${minute}@${street})`);
     }
-    return DataTable.render.text().display(locationBits.join(""));
+    return [locName, locAddr].join("<wbr />");
 }
 //
 // DataTables rendering
 //
 export function renderSafeSorted(strings) {
     const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
-    const joined = sortedCopy.join(", ");
-    return DataTable.render.text().display(joined);
+    const safeSorted = sortedCopy.map((a) => DataTable.render.text().display(a));
+    return safeSorted.join(", <wbr />");
 }
 export function renderIncidentNumber(incidentNumber, type, _incident) {
     switch (type) {

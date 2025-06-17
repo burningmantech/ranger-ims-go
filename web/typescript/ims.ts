@@ -200,7 +200,7 @@ export async function fetchJsonNoThrow<T>(url: string, init: RequestInit|null): 
 //
 
 // Pad a string representing an integer to two digits.
-export function padTwo(value: number|null): string {
+export function padTwo(value: number|null|undefined): string {
     if (value == null) {
         return "?";
     }
@@ -509,7 +509,7 @@ export async function loadStreets(eventID: string|null): Promise<{err:string|nul
 }
 
 // Look up a concentric street's name given its ID.
-function concentricStreetFromID(streetID: string|null): string {
+function concentricStreetFromID(streetID: string|null|undefined): string {
     if (streetID == null || typeof concentricStreetNameByID === "undefined") {
         return "";
     }
@@ -634,23 +634,17 @@ export function reportTextFromIncident(incidentOrFR: Incident|FieldReport, event
 
 // Return a short description for a given location.
 function safeShortDescribeLocation(location: EventLocation): string {
-    const locationBits: string[] = [];
-
-    if (location.name != null) {
-        locationBits.push(location.name);
-    }
-
+    const locName: string = DataTable.render.text().display(location.name??"");
+    let locAddr: string = "";
     if (location.radial_hour || location.radial_minute || location.concentric) {
-        locationBits.push(" (");
-        locationBits.push(padTwo(location.radial_hour!));
-        locationBits.push(":");
-        locationBits.push(padTwo(location.radial_minute!));
-        locationBits.push("@");
-        locationBits.push(concentricStreetFromID(location.concentric!));
-        locationBits.push(")");
+        const hour = padTwo(location.radial_hour);
+        const minute = padTwo(location.radial_minute);
+        const street = concentricStreetFromID(location.concentric);
+        locAddr = DataTable.render.text().display(
+            `(${hour}:${minute}@${street})`
+        );
     }
-
-    return DataTable.render.text().display(locationBits.join(""));
+    return [locName, locAddr].join("<wbr />");
 }
 
 
@@ -660,8 +654,8 @@ function safeShortDescribeLocation(location: EventLocation): string {
 
 export function renderSafeSorted(strings: string[]): string {
     const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
-    const joined = sortedCopy.join(", ");
-    return DataTable.render.text().display(joined) as string;
+    const safeSorted = sortedCopy.map((a): string => DataTable.render.text().display(a));
+    return safeSorted.join(", <wbr />");
 }
 
 export function renderIncidentNumber(incidentNumber: number|null, type: string, _incident: any): number|string|null|undefined {

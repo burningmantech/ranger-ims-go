@@ -760,10 +760,10 @@ function reportEntryElement(entry) {
     const paragraphs = entry.text.split(/\n\s*\n/);
     for (const paragraph of paragraphs) {
         const textContainer = document.createElement("p");
+        // Don't collapse whitespace; leave it how the user entered it.
+        textContainer.style.whiteSpace = "pre-wrap";
         textContainer.classList.add("report_entry_text");
-        // innerText automatically converts "\n" into "<br>", which is what we want.
-        // Note that textContent does not do this.
-        textContainer.innerText = paragraph;
+        textContainer.textContent = paragraph;
         entryContainer.append(textContainer);
     }
     if (entry.attachment?.name && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
@@ -925,7 +925,7 @@ export function setSendEdits(func) {
     sendEditsFunc = func;
 }
 export async function submitReportEntry() {
-    const text = document.getElementById("report_entry_add").value.trim();
+    const text = document.getElementById("report_entry_add").value;
     if (!text) {
         return;
     }

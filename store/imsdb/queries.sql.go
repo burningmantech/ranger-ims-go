@@ -667,11 +667,17 @@ select
     (
         select coalesce(json_arrayagg(it.NAME), "[]")
         from INCIDENT__INCIDENT_TYPE iit
-                 join INCIDENT_TYPE it
-                      on i.EVENT = iit.EVENT
-                          and i.NUMBER = iit.INCIDENT_NUMBER
-                          and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPES,
+        join INCIDENT_TYPE it
+            on i.EVENT = iit.EVENT
+            and i.NUMBER = iit.INCIDENT_NUMBER
+            and iit.INCIDENT_TYPE = it.ID
+    ) as INCIDENT_TYPE_NAMES,
+    (
+        select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
+        from INCIDENT__INCIDENT_TYPE iit
+        where i.EVENT = iit.EVENT
+          and i.NUMBER = iit.INCIDENT_NUMBER
+    ) as INCIDENT_TYPE_IDS,
     (
         select coalesce(json_arrayagg(irep.NUMBER), "[]")
         from FIELD_REPORT irep
@@ -682,7 +688,7 @@ select
         select coalesce(json_arrayagg(ir.RANGER_HANDLE), "[]")
         from INCIDENT__RANGER ir
         where i.EVENT = ir.EVENT
-          and i.NUMBER = ir.INCIDENT_NUMBER
+            and i.NUMBER = ir.INCIDENT_NUMBER
     ) as RANGER_HANDLES
 from INCIDENT i
 where i.EVENT = ?
@@ -696,7 +702,8 @@ type IncidentParams struct {
 
 type IncidentRow struct {
 	Incident           Incident
-	IncidentTypes      interface{}
+	IncidentTypeNames  interface{}
+	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
 	RangerHandles      interface{}
 }
@@ -717,7 +724,8 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.LocationRadialHour,
 		&i.Incident.LocationRadialMinute,
 		&i.Incident.LocationDescription,
-		&i.IncidentTypes,
+		&i.IncidentTypeNames,
+		&i.IncidentTypeIds,
 		&i.FieldReportNumbers,
 		&i.RangerHandles,
 	)
@@ -850,7 +858,13 @@ select
             on i.EVENT = iit.EVENT
             and i.NUMBER = iit.INCIDENT_NUMBER
             and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPES,
+    ) as INCIDENT_TYPE_NAMES,
+    (
+        select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
+        from INCIDENT__INCIDENT_TYPE iit
+        where i.EVENT = iit.EVENT
+            and i.NUMBER = iit.INCIDENT_NUMBER
+    ) as INCIDENT_TYPE_IDS,
     (
         select coalesce(json_arrayagg(irep.NUMBER), "[]")
         from FIELD_REPORT irep
@@ -873,7 +887,8 @@ group by
 
 type IncidentsRow struct {
 	Incident           Incident
-	IncidentTypes      interface{}
+	IncidentTypeNames  interface{}
+	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
 	RangerHandles      interface{}
 }
@@ -900,7 +915,8 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.LocationRadialHour,
 			&i.Incident.LocationRadialMinute,
 			&i.Incident.LocationDescription,
-			&i.IncidentTypes,
+			&i.IncidentTypeNames,
+			&i.IncidentTypeIds,
 			&i.FieldReportNumbers,
 			&i.RangerHandles,
 		); err != nil {
@@ -1173,17 +1189,24 @@ func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateInciden
 const updateIncidentType = `-- name: UpdateIncidentType :exec
 update INCIDENT_TYPE
 set HIDDEN = ?,
-    NAME = ?
+    NAME = ?,
+    DESCRIPTION = ?
 where ID = ?
 `
 
 type UpdateIncidentTypeParams struct {
-	Hidden bool
-	Name   string
-	ID     int32
+	Hidden      bool
+	Name        string
+	Description sql.NullString
+	ID          int32
 }
 
 func (q *Queries) UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error {
-	_, err := db.ExecContext(ctx, updateIncidentType, arg.Hidden, arg.Name, arg.ID)
+	_, err := db.ExecContext(ctx, updateIncidentType,
+		arg.Hidden,
+		arg.Name,
+		arg.Description,
+		arg.ID,
+	)
 	return err
 }

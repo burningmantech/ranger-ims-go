@@ -19,7 +19,7 @@ package json
 type IncidentType struct {
 	ID          int32   `json:"id"`
 	Name        *string `json:"name"`
-	Description *string `json:"description"`
+	Description *string `json:"description,omitempty"`
 	Hidden      *bool   `json:"hidden"`
 }
 

@@ -68,11 +68,17 @@ select
     (
         select coalesce(json_arrayagg(it.NAME), "[]")
         from INCIDENT__INCIDENT_TYPE iit
-                 join INCIDENT_TYPE it
-                      on i.EVENT = iit.EVENT
-                          and i.NUMBER = iit.INCIDENT_NUMBER
-                          and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPES,
+        join INCIDENT_TYPE it
+            on i.EVENT = iit.EVENT
+            and i.NUMBER = iit.INCIDENT_NUMBER
+            and iit.INCIDENT_TYPE = it.ID
+    ) as INCIDENT_TYPE_NAMES,
+    (
+        select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
+        from INCIDENT__INCIDENT_TYPE iit
+        where i.EVENT = iit.EVENT
+          and i.NUMBER = iit.INCIDENT_NUMBER
+    ) as INCIDENT_TYPE_IDS,
     (
         select coalesce(json_arrayagg(irep.NUMBER), "[]")
         from FIELD_REPORT irep
@@ -83,7 +89,7 @@ select
         select coalesce(json_arrayagg(ir.RANGER_HANDLE), "[]")
         from INCIDENT__RANGER ir
         where i.EVENT = ir.EVENT
-          and i.NUMBER = ir.INCIDENT_NUMBER
+            and i.NUMBER = ir.INCIDENT_NUMBER
     ) as RANGER_HANDLES
 from INCIDENT i
 where i.EVENT = ?
@@ -99,7 +105,13 @@ select
             on i.EVENT = iit.EVENT
             and i.NUMBER = iit.INCIDENT_NUMBER
             and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPES,
+    ) as INCIDENT_TYPE_NAMES,
+    (
+        select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
+        from INCIDENT__INCIDENT_TYPE iit
+        where i.EVENT = iit.EVENT
+            and i.NUMBER = iit.INCIDENT_NUMBER
+    ) as INCIDENT_TYPE_IDS,
     (
         select coalesce(json_arrayagg(irep.NUMBER), "[]")
         from FIELD_REPORT irep
@@ -319,7 +331,8 @@ values (?, ?)
 -- name: UpdateIncidentType :exec
 update INCIDENT_TYPE
 set HIDDEN = ?,
-    NAME = ?
+    NAME = ?,
+    DESCRIPTION = ?
 where ID = ?;
 
 -- name: CreateConcentricStreet :exec

@@ -72,7 +72,7 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 			response = append(response, imsjson.IncidentType{
 				ID:          t.ID,
 				Name:        ptr(t.Name),
-				Description: nil,
+				Description: conv.SqlToString(t.Description),
 				Hidden:      ptr(t.Hidden),
 			})
 		}
@@ -110,18 +110,18 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) (newTypeID 
 		return nil, herr.Forbidden("The requestor does not have GlobalAdministrateIncidentTypes permission", nil)
 	}
 	ctx := req.Context()
-	typesReq, errHTTP := readBodyAs[imsjson.IncidentType](req)
+	typeReq, errHTTP := readBodyAs[imsjson.IncidentType](req)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[readBodyAs]")
 	}
-	if typesReq.ID == 0 {
-		if typesReq.Name == nil {
+	if typeReq.ID == 0 {
+		if typeReq.Name == nil {
 			return nil, herr.BadRequest("Incident Type name is required for a new Incident Type", nil)
 		}
 		id, err := action.imsDBQ.CreateIncidentTypeOrIgnore(ctx, action.imsDBQ,
 			imsdb.CreateIncidentTypeOrIgnoreParams{
-				Name:   *typesReq.Name,
-				Hidden: typesReq.Hidden != nil && *typesReq.Hidden,
+				Name:   *typeReq.Name,
+				Hidden: typeReq.Hidden != nil && *typeReq.Hidden,
 			},
 		)
 		if err != nil {
@@ -131,20 +131,24 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) (newTypeID 
 		return &newID, nil
 	}
 
-	typeRow, err := action.imsDBQ.IncidentType(ctx, action.imsDBQ, typesReq.ID)
+	typeRow, err := action.imsDBQ.IncidentType(ctx, action.imsDBQ, typeReq.ID)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch Incident Type", err).From("[IncidentType]")
 	}
-	if typesReq.Name != nil {
-		typeRow.IncidentType.Name = *typesReq.Name
+	if typeReq.Name != nil {
+		typeRow.IncidentType.Name = *typeReq.Name
 	}
-	if typesReq.Hidden != nil {
-		typeRow.IncidentType.Hidden = *typesReq.Hidden
+	if typeReq.Hidden != nil {
+		typeRow.IncidentType.Hidden = *typeReq.Hidden
+	}
+	if typeReq.Description != nil {
+		typeRow.IncidentType.Description = conv.StringToSql(typeReq.Description, 1023)
 	}
 	err = action.imsDBQ.UpdateIncidentType(ctx, action.imsDBQ, imsdb.UpdateIncidentTypeParams{
-		Hidden: typeRow.IncidentType.Hidden,
-		Name:   typeRow.IncidentType.Name,
-		ID:     typeRow.IncidentType.ID,
+		Hidden:      typeRow.IncidentType.Hidden,
+		Name:        typeRow.IncidentType.Name,
+		ID:          typeRow.IncidentType.ID,
+		Description: typeRow.IncidentType.Description,
 	})
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to update incident type", nil).From("[UpdateIncidentType]")

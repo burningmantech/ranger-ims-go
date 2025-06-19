@@ -34,10 +34,25 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	}
 
 	deployment := string(cfg.Core.Deployment)
-	mux.Handle("GET /ims/static/",
+	mux.Handle("GET /ims/static/ext/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
 			Static(cfg.Core.CacheControlLong),
+		),
+	)
+	mux.Handle("GET /ims/static/logos/",
+		Adapt(
+			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
+			Static(cfg.Core.CacheControlLong),
+		),
+	)
+	mux.Handle("GET /ims/static/",
+		Adapt(
+			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
+			// Don't cache IMS's own JS/CSS files, because Cloudflare ups this duration to
+			// 4 hours, and that's a pain when we're trying to push fixes out. We can remove
+			// this and allow caching again once we're nearer to event time.
+			Static(0),
 		),
 	)
 	mux.Handle("GET /ims/app",

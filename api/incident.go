@@ -386,7 +386,6 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	storedIncident := storedIncidentRow.Incident
 
-	// TODO: actually use the incidentTypeIDs, once the client starts sending them instead of the names
 	incidentTypes, rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	_ = incidentTypeIDs
 	if err != nil {
@@ -489,6 +488,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		}
 	}
 
+	// TODO: remove this functionality and just allow addition/removal by incident type ID
 	if newIncident.IncidentTypeNames != nil {
 		add := sliceSubtract(*newIncident.IncidentTypeNames, incidentTypes)
 		sub := sliceSubtract(incidentTypes, *newIncident.IncidentTypeNames)
@@ -515,6 +515,40 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 						Event:          newIncident.EventID,
 						IncidentNumber: newIncident.Number,
 						Name:           rh,
+					},
+				)
+				if err != nil {
+					return herr.InternalServerError("Failed to detach Incident Type", err).From("[AttachIncidentTypeToIncident]")
+				}
+			}
+		}
+	}
+	if newIncident.IncidentTypeIDs != nil {
+		add := sliceSubtract(*newIncident.IncidentTypeIDs, incidentTypeIDs)
+		sub := sliceSubtract(incidentTypeIDs, *newIncident.IncidentTypeIDs)
+		if len(add) > 0 {
+			logs = append(logs, fmt.Sprintf("Added type: %v", add))
+			for _, itype := range add {
+				err = imsDBQ.AttachIncidentTypeByIdToIncident(ctx, txn,
+					imsdb.AttachIncidentTypeByIdToIncidentParams{
+						Event:          newIncident.EventID,
+						IncidentNumber: newIncident.Number,
+						IncidentType:   itype,
+					},
+				)
+				if err != nil {
+					return herr.InternalServerError("Failed to add Incident Type", err).From("[AttachIncidentTypeToIncident]")
+				}
+			}
+		}
+		if len(sub) > 0 {
+			logs = append(logs, fmt.Sprintf("Removed type: %v", sub))
+			for _, rh := range sub {
+				err = imsDBQ.DetachIncidentTypeByIdFromIncident(ctx, txn,
+					imsdb.DetachIncidentTypeByIdFromIncidentParams{
+						Event:          newIncident.EventID,
+						IncidentNumber: newIncident.Number,
+						IncidentType:   rh,
 					},
 				)
 				if err != nil {

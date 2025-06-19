@@ -1329,9 +1329,9 @@ export function clearAccessToken(): void {
 // Load incident types
 //
 
-export async function loadIncidentTypes(): Promise<{types: string[], err: string|null}> {
+export async function loadIncidentTypes(): Promise<{types: IncidentType[], err: string|null}> {
     const {json, err} = await fetchJsonNoThrow<IncidentType[]>(url_incidentTypes, null);
-    if (err != null) {
+    if (err != null || json == null) {
         const message = `Failed to load incident types: ${err}`;
         console.error(message);
         setErrorMessage(message);
@@ -1340,15 +1340,11 @@ export async function loadIncidentTypes(): Promise<{types: string[], err: string
             err: message,
         };
     }
-    const _incidentTypes: string[] = [];
-    for (const record of json!) {
-        if (record.name) {
-            _incidentTypes.push(record.name);
-        }
-    }
-    _incidentTypes.sort();
+    json.sort((a: IncidentType, b: IncidentType): number => {
+        return (a.name??"").localeCompare(b.name??"");
+    });
     return {
-        types: _incidentTypes,
+        types: json,
         err: null,
     };
 }

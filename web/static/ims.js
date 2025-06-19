@@ -1147,7 +1147,7 @@ export function clearAccessToken() {
 //
 export async function loadIncidentTypes() {
     const { json, err } = await fetchJsonNoThrow(url_incidentTypes, null);
-    if (err != null) {
+    if (err != null || json == null) {
         const message = `Failed to load incident types: ${err}`;
         console.error(message);
         setErrorMessage(message);
@@ -1156,15 +1156,11 @@ export async function loadIncidentTypes() {
             err: message,
         };
     }
-    const _incidentTypes = [];
-    for (const record of json) {
-        if (record.name) {
-            _incidentTypes.push(record.name);
-        }
-    }
-    _incidentTypes.sort();
+    json.sort((a, b) => {
+        return (a.name ?? "").localeCompare(b.name ?? "");
+    });
     return {
-        types: _incidentTypes,
+        types: json,
         err: null,
     };
 }

@@ -47,7 +47,7 @@ const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 
 let incident: ims.Incident|null = null;
 
-let incidentTypes: string[] = [];
+let allIncidentTypes: ims.IncidentType[] = [];
 
 //
 // Initialize UI
@@ -89,7 +89,7 @@ async function initIncidentPage(): Promise<void> {
         await loadIncident(),
         await loadPersonnel(),
         await ims.loadIncidentTypes().then(
-            value=> {incidentTypes = value.types;},
+            value=> {allIncidentTypes = value.types;},
         ),
         await loadAllFieldReports(),
     ]);
@@ -715,19 +715,18 @@ function drawIncidentTypes() {
             .getElementsByClassName("list-group-item")[0] as HTMLElement;
     }
 
-    const incidentTypes: string[] = incident!.incident_types??[];
-    incidentTypes.sort();
-
     const typesElement: HTMLElement = document.getElementById("incident_types_list")!;
     typesElement.replaceChildren();
 
-    for (const incidentType of incidentTypes) {
-        const item = _typesItem!.cloneNode(true) as HTMLElement;
-        const typeSpan = document.createElement("span");
-        typeSpan.textContent = incidentType;
-        item.append(typeSpan);
-        item.dataset["incidentTypeName"] = incidentType;
-        typesElement.append(item);
+    for (const validType of allIncidentTypes) {
+        if ((incident!.incident_type_ids??[]).includes(validType.id??-1)) {
+            const item = _typesItem!.cloneNode(true) as HTMLElement;
+            const typeSpan = document.createElement("span");
+            typeSpan.textContent = validType.name??"";
+            item.append(typeSpan);
+            item.dataset["incidentTypeId"] = (validType.id??-1).toString();
+            typesElement.append(item);
+        }
     }
 }
 
@@ -736,9 +735,12 @@ function drawIncidentTypesToAdd() {
     const datalist = document.getElementById("incident_types") as HTMLDataListElement;
     datalist.replaceChildren();
     datalist.append(document.createElement("option"));
-    for (const incidentType of incidentTypes) {
+    for (const incidentType of allIncidentTypes) {
+        if (incidentType.hidden || !incidentType.name) {
+            continue;
+        }
         const option: HTMLOptionElement = document.createElement("option");
-        option.value = incidentType;
+        option.value = incidentType.name;
         datalist.append(option);
     }
 }
@@ -1096,9 +1098,9 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
 
 async function removeIncidentType(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
-    const incidentType = parent.dataset["incidentTypeName"];
+    const incidentType = ims.parseInt10(parent.dataset["incidentTypeId"]);
     await sendEdits({
-        "incident_types": (incident!.incident_types??[]).filter(
+        "incident_type_ids": (incident!.incident_type_ids??[]).filter(
             function(t) { return t !== incidentType; }
         ),
     });
@@ -1157,38 +1159,39 @@ async function addRanger(): Promise<void> {
 
 async function addIncidentType(): Promise<void> {
     const addType = document.getElementById("incident_type_add") as HTMLInputElement;
-    let incidentType = addType.value;
+    let typeInput = addType.value;
 
     // make a copy of the incident types
-    const currentIncidentTypes = (incident!.incident_types??[]).slice();
+    const currentIncidentTypes = (incident!.incident_type_ids??[]).slice();
 
     // fuzzy-match on incidentType, to allow case insensitivity and
     // leading/trailing whitespace.
-    if (incidentTypes.indexOf(incidentType) === -1) {
-        const normalized = normalize(incidentType);
-        for (const validType of incidentTypes) {
-            if (normalized === normalize(validType)) {
-                incidentType = validType;
-                break;
-            }
+    const normalizedTypeInput = normalize(typeInput);
+    // let validTypeInput: string = "";
+    let validTypeInputId: number|null = null;
+    for (const validType of allIncidentTypes) {
+        if (validType.name && normalizedTypeInput === normalize(validType.name)) {
+            // validTypeInput = validType.name;
+            validTypeInputId = validType.id??null;
+            break;
         }
     }
-    if (incidentTypes.indexOf(incidentType) === -1) {
+    if (validTypeInputId == null) {
         // Not a valid incident type
         addType.value = "";
         return;
     }
 
-    if (currentIncidentTypes.indexOf(incidentType) !== -1) {
+    if (currentIncidentTypes.indexOf(validTypeInputId) !== -1) {
         // Already in the list, so… move along.
         addType.value = "";
         return;
     }
 
-    currentIncidentTypes.push(incidentType);
+    currentIncidentTypes.push(validTypeInputId);
 
     addType.disabled = true;
-    const {err} = await sendEdits({"incident_types": currentIncidentTypes});
+    const {err} = await sendEdits({"incident_type_ids": currentIncidentTypes});
     if (err != null) {
         ims.controlHasError(addType);
         addType.value = "";

@@ -16,10 +16,11 @@
 
 package json
 
-type IncidentTypes []string
-
-type EditIncidentTypesRequest struct {
-	Add  IncidentTypes `json:"add"`
-	Hide IncidentTypes `json:"hide"`
-	Show IncidentTypes `json:"show"`
+type IncidentType struct {
+	ID          int32   `json:"id"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Hidden      *bool   `json:"hidden"`
 }
+
+type IncidentTypes []IncidentType

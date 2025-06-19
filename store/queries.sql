@@ -154,6 +154,11 @@ where cs.EVENT = ?;
 select sqlc.embed(it)
 from INCIDENT_TYPE it;
 
+-- name: IncidentType :one
+select sqlc.embed(it)
+from INCIDENT_TYPE it
+where it.ID = ?;
+
 -- name: FieldReports :many
 select sqlc.embed(fr)
 from FIELD_REPORT fr
@@ -305,15 +310,17 @@ where
     and INCIDENT_TYPE = (select it.ID from INCIDENT_TYPE it where it.NAME = ?)
 ;
 
--- name: CreateIncidentTypeOrIgnore :exec
+-- name: CreateIncidentTypeOrIgnore :execlastid
 insert into INCIDENT_TYPE (NAME, HIDDEN)
 values (?, ?)
     on duplicate key update NAME=NAME
 ;
 
--- name: HideShowIncidentType :exec
-update INCIDENT_TYPE set HIDDEN = ?
-where NAME = ?;
+-- name: UpdateIncidentType :exec
+update INCIDENT_TYPE
+set HIDDEN = ?,
+    NAME = ?
+where ID = ?;
 
 -- name: CreateConcentricStreet :exec
 insert into CONCENTRIC_STREET (EVENT, ID, NAME)

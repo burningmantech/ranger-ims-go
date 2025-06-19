@@ -1330,7 +1330,7 @@ export function clearAccessToken(): void {
 //
 
 export async function loadIncidentTypes(): Promise<{types: string[], err: string|null}> {
-    const {json, err} = await fetchJsonNoThrow<string[]>(url_incidentTypes, null);
+    const {json, err} = await fetchJsonNoThrow<IncidentType[]>(url_incidentTypes, null);
     if (err != null) {
         const message = `Failed to load incident types: ${err}`;
         console.error(message);
@@ -1342,7 +1342,9 @@ export async function loadIncidentTypes(): Promise<{types: string[], err: string
     }
     const _incidentTypes: string[] = [];
     for (const record of json!) {
-        _incidentTypes.push(record);
+        if (record.name) {
+            _incidentTypes.push(record.name);
+        }
     }
     _incidentTypes.sort();
     return {
@@ -1450,6 +1452,13 @@ export interface ReportEntry {
     stricken?: boolean|null;
     has_attachment?: boolean|null;
     attachment?: Attachment|null;
+}
+
+export interface IncidentType {
+    id?: number|null;
+    name?: string|null;
+    hidden?: boolean|null;
+    description?: string|null;
 }
 
 export type UnauthenticatedAuthInfo = {

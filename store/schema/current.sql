@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (16);
+insert into SCHEMA_INFO (VERSION) values (17);
 
 
 create table `EVENT` (
@@ -28,16 +28,17 @@ create table CONCENTRIC_STREET (
 
 
 create table INCIDENT_TYPE (
-    ID     integer      not null auto_increment,
-    NAME   varchar(128) not null,
-    HIDDEN boolean      not null,
+    ID          integer      not null auto_increment,
+    NAME        varchar(128) not null,
+    HIDDEN      boolean      not null,
+    DESCRIPTION varchar(1024),
 
     primary key (ID),
     unique key (NAME)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-insert into INCIDENT_TYPE (NAME, HIDDEN) values ('Admin', 0);
-insert into INCIDENT_TYPE (NAME, HIDDEN) values ('Junk' , 0);
+insert into INCIDENT_TYPE (ID, NAME, HIDDEN) values (1, 'Admin', 0);
+insert into INCIDENT_TYPE (ID, NAME, HIDDEN) values (2, 'Junk' , 0);
 
 
 create table REPORT_ENTRY (

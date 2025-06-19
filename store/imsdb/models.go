@@ -264,9 +264,10 @@ type IncidentReportEntry struct {
 }
 
 type IncidentType struct {
-	ID     int32
-	Name   string
-	Hidden bool
+	ID          int32
+	Name        string
+	Hidden      bool
+	Description sql.NullString
 }
 
 type ReportEntry struct {

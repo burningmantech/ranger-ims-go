@@ -57,26 +57,20 @@ async function loadAndDrawIncidentTypes(): Promise<void> {
 }
 
 
-let adminIncidentTypes: string[]|null = null;
-let incidentTypesVisible: string[]|null = null;
+let adminIncidentTypes: ims.IncidentType[]|null = null;
 
 async function loadAllIncidentTypes(): Promise<{err:string|null}> {
-    let errOne: string|null, errTwo: string|null;
-    [{json: incidentTypesVisible, err: errOne}, {json: adminIncidentTypes, err: errTwo}] =
-        await Promise.all([
-            ims.fetchJsonNoThrow<string[]>(url_incidentTypes, {
-                headers: {"Cache-Control": "no-cache"},
-            }),
-            ims.fetchJsonNoThrow<string[]>(url_incidentTypes + "?hidden=true", {
-                headers: {"Cache-Control": "no-cache"},
-            }),
-        ]);
-    if (errOne != null || errTwo != null) {
-        const message = "Failed to load incident types:\n" + errOne + "," + errTwo;
+    const {json, err} = await ims.fetchJsonNoThrow<ims.IncidentType[]>(url_incidentTypes + "?hidden=true", {
+        headers: {"Cache-Control": "no-cache"},
+    });
+    if (err != null || json == null) {
+        const message = "Failed to load incident types:\n" + err;
         console.error(message);
         window.alert(message);
         return {err: message};
     }
+    json.sort((a, b) => (a.name??"").localeCompare(b.name??""));
+    adminIncidentTypes = json;
     return {err: null};
 }
 
@@ -109,17 +103,18 @@ function updateIncidentTypes(): void {
     for (const incidentType of adminIncidentTypes??[]) {
         const entryItem = _entryTemplate!.cloneNode(true) as HTMLElement;
 
-        if (incidentTypesVisible!.indexOf(incidentType) === -1) {
+        if (incidentType.hidden) {
             entryItem.classList.add("item-hidden");
         } else {
             entryItem.classList.add("item-visible");
         }
 
         const typeSpan = document.createElement("span");
-        typeSpan.textContent = incidentType;
+        typeSpan.textContent = incidentType.name??null;
 
         entryItem.append(typeSpan);
-        entryItem.dataset["incidentTypeName"] = incidentType;
+        entryItem.dataset["incidentTypeName"] = incidentType.name??"";
+        entryItem.dataset["incidentTypeId"] = incidentType.id?.toString();
 
         entryContainer.append(entryItem);
     }
@@ -127,7 +122,7 @@ function updateIncidentTypes(): void {
 
 
 async function createIncidentType(sender: HTMLInputElement): Promise<void> {
-    const {err} = await sendIncidentTypes({"add": [sender.value]});
+    const {err} = await sendIncidentTypes({"name": sender.value});
     if (err == null) {
         sender.value = "";
     }
@@ -141,27 +136,23 @@ function deleteIncidentType(_sender: HTMLElement) {
 
 
 async function showIncidentType(sender: HTMLElement): Promise<void> {
-    await sendIncidentTypes({"show": [
-        sender.parentElement!.dataset["incidentTypeName"]!]
+    await sendIncidentTypes({
+        "id": ims.parseInt10(sender.parentElement!.dataset["incidentTypeId"]!),
+        "hidden": false,
     });
     await loadAndDrawIncidentTypes();
 }
 
 
 async function hideIncidentType(sender: HTMLElement): Promise<void> {
-    await sendIncidentTypes({"hide": [
-        sender.parentElement!.dataset["incidentTypeName"]!]
+    await sendIncidentTypes({
+        "id": ims.parseInt10(sender.parentElement!.dataset["incidentTypeId"]!),
+        "hidden": true,
     });
     await loadAndDrawIncidentTypes();
 }
 
-interface AdminTypesEdits {
-    add?: string[];
-    show?: string[];
-    hide?: string[];
-}
-
-async function sendIncidentTypes(edits: AdminTypesEdits): Promise<{err:string|null}> {
+async function sendIncidentTypes(edits: ims.IncidentType): Promise<{err:string|null}> {
     const {err} = await ims.fetchJsonNoThrow(url_incidentTypes, {
         body: JSON.stringify(edits),
     });

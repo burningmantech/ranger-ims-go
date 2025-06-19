@@ -94,9 +94,17 @@ func (a ApiHelper) getAuth(ctx context.Context, eventName string) (api.GetAuthRe
 	return *bod.(*api.GetAuthResponse), resp
 }
 
-func (a ApiHelper) editTypes(ctx context.Context, req imsjson.EditIncidentTypesRequest) *http.Response {
+func (a ApiHelper) editType(ctx context.Context, req imsjson.IncidentType) (*int32, *http.Response) {
 	a.t.Helper()
-	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/incident_types").String())
+	httpResp := a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/incident_types").String())
+	numStr := httpResp.Header.Get("IMS-Incident-Type-ID")
+	require.NoError(a.t, httpResp.Body.Close())
+	if numStr == "" {
+		return nil, httpResp
+	}
+	num, err := conv.ParseInt32(numStr)
+	require.NoError(a.t, err)
+	return &num, httpResp
 }
 
 func (a ApiHelper) getTypes(ctx context.Context, includeHidden bool) (imsjson.IncidentTypes, *http.Response) {

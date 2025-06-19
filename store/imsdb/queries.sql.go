@@ -280,7 +280,7 @@ func (q *Queries) CreateIncident(ctx context.Context, db DBTX, arg CreateInciden
 	return result.LastInsertId()
 }
 
-const createIncidentTypeOrIgnore = `-- name: CreateIncidentTypeOrIgnore :exec
+const createIncidentTypeOrIgnore = `-- name: CreateIncidentTypeOrIgnore :execlastid
 insert into INCIDENT_TYPE (NAME, HIDDEN)
 values (?, ?)
     on duplicate key update NAME=NAME
@@ -291,9 +291,12 @@ type CreateIncidentTypeOrIgnoreParams struct {
 	Hidden bool
 }
 
-func (q *Queries) CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) error {
-	_, err := db.ExecContext(ctx, createIncidentTypeOrIgnore, arg.Name, arg.Hidden)
-	return err
+func (q *Queries) CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) (int64, error) {
+	result, err := db.ExecContext(ctx, createIncidentTypeOrIgnore, arg.Name, arg.Hidden)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
 }
 
 const createReportEntry = `-- name: CreateReportEntry :execlastid
@@ -658,21 +661,6 @@ func (q *Queries) FieldReports_ReportEntries(ctx context.Context, db DBTX, arg F
 	return items, nil
 }
 
-const hideShowIncidentType = `-- name: HideShowIncidentType :exec
-update INCIDENT_TYPE set HIDDEN = ?
-where NAME = ?
-`
-
-type HideShowIncidentTypeParams struct {
-	Hidden bool
-	Name   string
-}
-
-func (q *Queries) HideShowIncidentType(ctx context.Context, db DBTX, arg HideShowIncidentTypeParams) error {
-	_, err := db.ExecContext(ctx, hideShowIncidentType, arg.Hidden, arg.Name)
-	return err
-}
-
 const incident = `-- name: Incident :one
 select
     i.event, i.number, i.created, i.priority, i.state, i.started, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
@@ -736,8 +724,30 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 	return i, err
 }
 
+const incidentType = `-- name: IncidentType :one
+select it.id, it.name, it.hidden, it.description
+from INCIDENT_TYPE it
+where it.ID = ?
+`
+
+type IncidentTypeRow struct {
+	IncidentType IncidentType
+}
+
+func (q *Queries) IncidentType(ctx context.Context, db DBTX, id int32) (IncidentTypeRow, error) {
+	row := db.QueryRowContext(ctx, incidentType, id)
+	var i IncidentTypeRow
+	err := row.Scan(
+		&i.IncidentType.ID,
+		&i.IncidentType.Name,
+		&i.IncidentType.Hidden,
+		&i.IncidentType.Description,
+	)
+	return i, err
+}
+
 const incidentTypes = `-- name: IncidentTypes :many
-select it.id, it.name, it.hidden
+select it.id, it.name, it.hidden, it.description
 from INCIDENT_TYPE it
 `
 
@@ -754,7 +764,12 @@ func (q *Queries) IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRo
 	var items []IncidentTypesRow
 	for rows.Next() {
 		var i IncidentTypesRow
-		if err := rows.Scan(&i.IncidentType.ID, &i.IncidentType.Name, &i.IncidentType.Hidden); err != nil {
+		if err := rows.Scan(
+			&i.IncidentType.ID,
+			&i.IncidentType.Name,
+			&i.IncidentType.Hidden,
+			&i.IncidentType.Description,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1152,5 +1167,23 @@ func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateInciden
 		arg.Event,
 		arg.Number,
 	)
+	return err
+}
+
+const updateIncidentType = `-- name: UpdateIncidentType :exec
+update INCIDENT_TYPE
+set HIDDEN = ?,
+    NAME = ?
+where ID = ?
+`
+
+type UpdateIncidentTypeParams struct {
+	Hidden bool
+	Name   string
+	ID     int32
+}
+
+func (q *Queries) UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error {
+	_, err := db.ExecContext(ctx, updateIncidentType, arg.Hidden, arg.Name, arg.ID)
 	return err
 }

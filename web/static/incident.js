@@ -19,7 +19,7 @@
 import * as ims from "./ims.js";
 const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 let incident = null;
-let incidentTypes = [];
+let allIncidentTypes = [];
 //
 // Initialize UI
 //
@@ -55,7 +55,7 @@ async function initIncidentPage() {
         await ims.loadStreets(ims.pathIds.eventID),
         await loadIncident(),
         await loadPersonnel(),
-        await ims.loadIncidentTypes().then(value => { incidentTypes = value.types; }),
+        await ims.loadIncidentTypes().then(value => { allIncidentTypes = value.types; }),
         await loadAllFieldReports(),
     ]);
     addLocationAddressOptions();
@@ -563,26 +563,29 @@ function drawIncidentTypes() {
         _typesItem = document.getElementById("incident_types_list")
             .getElementsByClassName("list-group-item")[0];
     }
-    const incidentTypes = incident.incident_types ?? [];
-    incidentTypes.sort();
     const typesElement = document.getElementById("incident_types_list");
     typesElement.replaceChildren();
-    for (const incidentType of incidentTypes) {
-        const item = _typesItem.cloneNode(true);
-        const typeSpan = document.createElement("span");
-        typeSpan.textContent = incidentType;
-        item.append(typeSpan);
-        item.dataset["incidentTypeName"] = incidentType;
-        typesElement.append(item);
+    for (const validType of allIncidentTypes) {
+        if ((incident.incident_type_ids ?? []).includes(validType.id ?? -1)) {
+            const item = _typesItem.cloneNode(true);
+            const typeSpan = document.createElement("span");
+            typeSpan.textContent = validType.name ?? "";
+            item.append(typeSpan);
+            item.dataset["incidentTypeId"] = (validType.id ?? -1).toString();
+            typesElement.append(item);
+        }
     }
 }
 function drawIncidentTypesToAdd() {
     const datalist = document.getElementById("incident_types");
     datalist.replaceChildren();
     datalist.append(document.createElement("option"));
-    for (const incidentType of incidentTypes) {
+    for (const incidentType of allIncidentTypes) {
+        if (incidentType.hidden || !incidentType.name) {
+            continue;
+        }
         const option = document.createElement("option");
-        option.value = incidentType;
+        option.value = incidentType.name;
         datalist.append(option);
     }
 }
@@ -850,9 +853,9 @@ async function removeRanger(sender) {
 }
 async function removeIncidentType(sender) {
     const parent = sender.parentElement;
-    const incidentType = parent.dataset["incidentTypeName"];
+    const incidentType = ims.parseInt10(parent.dataset["incidentTypeId"]);
     await sendEdits({
-        "incident_types": (incident.incident_types ?? []).filter(function (t) { return t !== incidentType; }),
+        "incident_type_ids": (incident.incident_type_ids ?? []).filter(function (t) { return t !== incidentType; }),
     });
 }
 function normalize(str) {
@@ -900,33 +903,34 @@ async function addRanger() {
 }
 async function addIncidentType() {
     const addType = document.getElementById("incident_type_add");
-    let incidentType = addType.value;
+    let typeInput = addType.value;
     // make a copy of the incident types
-    const currentIncidentTypes = (incident.incident_types ?? []).slice();
+    const currentIncidentTypes = (incident.incident_type_ids ?? []).slice();
     // fuzzy-match on incidentType, to allow case insensitivity and
     // leading/trailing whitespace.
-    if (incidentTypes.indexOf(incidentType) === -1) {
-        const normalized = normalize(incidentType);
-        for (const validType of incidentTypes) {
-            if (normalized === normalize(validType)) {
-                incidentType = validType;
-                break;
-            }
+    const normalizedTypeInput = normalize(typeInput);
+    // let validTypeInput: string = "";
+    let validTypeInputId = null;
+    for (const validType of allIncidentTypes) {
+        if (validType.name && normalizedTypeInput === normalize(validType.name)) {
+            // validTypeInput = validType.name;
+            validTypeInputId = validType.id ?? null;
+            break;
         }
     }
-    if (incidentTypes.indexOf(incidentType) === -1) {
+    if (validTypeInputId == null) {
         // Not a valid incident type
         addType.value = "";
         return;
     }
-    if (currentIncidentTypes.indexOf(incidentType) !== -1) {
+    if (currentIncidentTypes.indexOf(validTypeInputId) !== -1) {
         // Already in the list, so… move along.
         addType.value = "";
         return;
     }
-    currentIncidentTypes.push(incidentType);
+    currentIncidentTypes.push(validTypeInputId);
     addType.disabled = true;
-    const { err } = await sendEdits({ "incident_types": currentIncidentTypes });
+    const { err } = await sendEdits({ "incident_type_ids": currentIncidentTypes });
     if (err != null) {
         ims.controlHasError(addType);
         addType.value = "";

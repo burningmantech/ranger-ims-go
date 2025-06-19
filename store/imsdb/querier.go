@@ -11,6 +11,7 @@ import (
 type Querier interface {
 	AddEventAccess(ctx context.Context, db DBTX, arg AddEventAccessParams) (int64, error)
 	AttachFieldReportToIncident(ctx context.Context, db DBTX, arg AttachFieldReportToIncidentParams) error
+	AttachIncidentTypeByIdToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeByIdToIncidentParams) error
 	AttachIncidentTypeToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeToIncidentParams) error
 	AttachRangerHandleToIncident(ctx context.Context, db DBTX, arg AttachRangerHandleToIncidentParams) error
 	AttachReportEntryToFieldReport(ctx context.Context, db DBTX, arg AttachReportEntryToFieldReportParams) error
@@ -24,6 +25,7 @@ type Querier interface {
 	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
 	CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) (int64, error)
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
+	DetachIncidentTypeByIdFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeByIdFromIncidentParams) error
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
 	EventAccess(ctx context.Context, db DBTX, event int32) ([]EventAccessRow, error)

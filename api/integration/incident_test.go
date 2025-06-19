@@ -38,10 +38,9 @@ func sampleIncident1(eventName string) imsjson.Incident {
 			RadialMinute: ptr("5"),
 			Description:  ptr("unknown"),
 		},
-		IncidentTypeNames: &[]string{"Admin", "Junk"},
-		IncidentTypeIDs:   &[]int32{1, 2},
-		FieldReports:      &[]int32{},
-		RangerHandles:     &[]string{"SomeOne", "SomeTwo"},
+		IncidentTypeIDs: &[]int32{1, 2},
+		FieldReports:    &[]int32{},
+		RangerHandles:   &[]string{"SomeOne", "SomeTwo"},
 		ReportEntries: []imsjson.ReportEntry{
 			{Text: "This is some report text lol"},
 			{Text: ""},
@@ -341,7 +340,7 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	require.Equal(t, before.Priority, after.Priority)
 	require.Equal(t, before.Summary, after.Summary)
 	require.Equal(t, before.Location, after.Location)
-	require.Equal(t, before.IncidentTypeNames, after.IncidentTypeNames)
+	// require.Equal(t, before.IncidentTypeNames, after.IncidentTypeNames)
 	require.Equal(t, before.IncidentTypeIDs, after.IncidentTypeIDs)
 	require.Equal(t, before.RangerHandles, after.RangerHandles)
 	require.Equal(t, before.FieldReports, after.FieldReports)

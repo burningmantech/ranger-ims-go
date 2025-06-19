@@ -322,6 +322,22 @@ where
     and INCIDENT_TYPE = (select it.ID from INCIDENT_TYPE it where it.NAME = ?)
 ;
 
+-- name: AttachIncidentTypeByIdToIncident :exec
+insert into INCIDENT__INCIDENT_TYPE (
+    EVENT, INCIDENT_NUMBER, INCIDENT_TYPE
+) values (
+     ?, ?, ?
+ );
+
+-- name: DetachIncidentTypeByIdFromIncident :exec
+delete from INCIDENT__INCIDENT_TYPE
+where
+    EVENT = ?
+    and INCIDENT_NUMBER = ?
+    and INCIDENT_TYPE = ?
+;
+
+
 -- name: CreateIncidentTypeOrIgnore :execlastid
 insert into INCIDENT_TYPE (NAME, HIDDEN)
 values (?, ?)

@@ -52,6 +52,25 @@ func (q *Queries) AttachFieldReportToIncident(ctx context.Context, db DBTX, arg 
 	return err
 }
 
+const attachIncidentTypeByIdToIncident = `-- name: AttachIncidentTypeByIdToIncident :exec
+insert into INCIDENT__INCIDENT_TYPE (
+    EVENT, INCIDENT_NUMBER, INCIDENT_TYPE
+) values (
+     ?, ?, ?
+ )
+`
+
+type AttachIncidentTypeByIdToIncidentParams struct {
+	Event          int32
+	IncidentNumber int32
+	IncidentType   int32
+}
+
+func (q *Queries) AttachIncidentTypeByIdToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeByIdToIncidentParams) error {
+	_, err := db.ExecContext(ctx, attachIncidentTypeByIdToIncident, arg.Event, arg.IncidentNumber, arg.IncidentType)
+	return err
+}
+
 const attachIncidentTypeToIncident = `-- name: AttachIncidentTypeToIncident :exec
 insert into INCIDENT__INCIDENT_TYPE (
     EVENT, INCIDENT_NUMBER, INCIDENT_TYPE
@@ -334,6 +353,25 @@ func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateRepo
 		return 0, err
 	}
 	return result.LastInsertId()
+}
+
+const detachIncidentTypeByIdFromIncident = `-- name: DetachIncidentTypeByIdFromIncident :exec
+delete from INCIDENT__INCIDENT_TYPE
+where
+    EVENT = ?
+    and INCIDENT_NUMBER = ?
+    and INCIDENT_TYPE = ?
+`
+
+type DetachIncidentTypeByIdFromIncidentParams struct {
+	Event          int32
+	IncidentNumber int32
+	IncidentType   int32
+}
+
+func (q *Queries) DetachIncidentTypeByIdFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeByIdFromIncidentParams) error {
+	_, err := db.ExecContext(ctx, detachIncidentTypeByIdFromIncident, arg.Event, arg.IncidentNumber, arg.IncidentType)
+	return err
 }
 
 const detachIncidentTypeFromIncident = `-- name: DetachIncidentTypeFromIncident :exec

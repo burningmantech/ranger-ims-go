@@ -36,6 +36,7 @@ const _otherPlaceholder = "(other)";
 let _showRows = null;
 const defaultRows = 25;
 let allIncidentTypes = [];
+let allIncidentTypeIds = [];
 //
 // Initialize UI
 //
@@ -134,7 +135,10 @@ async function initIncidentsTable() {
     // Fetch Incident Types and Streets asynchronously, so that the DataTables ajax
     // handler can start its own API calls before these need to complete.
     const tablePrereqs = Promise.all([
-        await ims.loadIncidentTypes().then(value => { allIncidentTypes = value.types; }),
+        await ims.loadIncidentTypes().then(value => {
+            allIncidentTypes = value.types;
+            allIncidentTypeIds = value.types.map(it => it.id).filter(id => id != null);
+        }),
         ims.loadStreets(ims.pathIds.eventID),
     ]).then(_ => { });
     initDataTables(tablePrereqs);
@@ -360,7 +364,8 @@ function initTableButtons() {
         const a = document.createElement("a");
         a.href = "#";
         a.classList.add("dropdown-item", "dropdown-item-checkable", "dropdown-item-checked");
-        a.textContent = type.toString();
+        a.dataset["incidentTypeId"] = type.id?.toString();
+        a.textContent = type.name ?? "";
         typeFilter.append(a);
     }
     for (const el of document.getElementsByClassName("dropdown-item-checkable")) {
@@ -379,8 +384,9 @@ function initTableButtons() {
         let includeBlanks = false;
         let includeOthers = false;
         for (const t of types) {
-            if (t && allIncidentTypes.indexOf(t) !== -1) {
-                validTypes.push(t);
+            const typeId = ims.parseInt10(t);
+            if (typeId && allIncidentTypeIds.indexOf(typeId) !== -1) {
+                validTypes.push(typeId);
             }
             else if (t === _blankPlaceholder) {
                 includeBlanks = true;
@@ -490,10 +496,11 @@ function initSearch() {
         // don't bother with filtering, which may be computationally expensive,
         // if all types seem to be selected
         if (!allTypesChecked()) {
-            const rowTypes = Object.values(incident.incident_types ?? []);
-            const intersect = rowTypes.filter(t => _showTypes.includes(t)).length > 0;
+            const rowTypes = Object.values(incident.incident_type_ids ?? []);
+            // const intersect = rowTypes.filter(t => _showTypes.includes(t)).length > 0;
+            const intersect = rowTypes.filter(t => _showTypes.includes(t.toString())).length > 0;
             const blankShow = _showBlankType && rowTypes.length === 0;
-            const otherShow = _showOtherType && rowTypes.filter(t => !(allIncidentTypes.includes(t))).length > 0;
+            const otherShow = _showOtherType && rowTypes.filter(t => !(allIncidentTypeIds.includes(t))).length > 0;
             if (!intersect && !blankShow && !otherShow) {
                 return false;
             }
@@ -550,7 +557,9 @@ function showDays(daysBackToShow, replaceState) {
 //
 function setCheckedTypes(types, includeBlanks, includeOthers) {
     for (const type of document.querySelectorAll('#ul_show_type > a')) {
-        if (types.includes(type.textContent) ||
+        const typeIdStr = type.dataset["incidentTypeId"];
+        const typeIdNum = ims.parseInt10(typeIdStr);
+        if (types.includes(typeIdNum) ||
             (includeBlanks && type.id === "show_blank_type") ||
             (includeOthers && type.id === "show_other_type")) {
             type.classList.add("dropdown-item-checked");
@@ -562,7 +571,7 @@ function setCheckedTypes(types, includeBlanks, includeOthers) {
 }
 function toggleCheckAllTypes() {
     if (_showTypes.length === 0 || _showTypes.length < allIncidentTypes.length) {
-        setCheckedTypes(allIncidentTypes, true, true);
+        setCheckedTypes(allIncidentTypeIds, true, true);
     }
     else {
         setCheckedTypes([], false, false);
@@ -579,7 +588,8 @@ function readCheckedTypes() {
             _showOtherType = type.classList.contains("dropdown-item-checked");
         }
         else if (type.classList.contains("dropdown-item-checked")) {
-            _showTypes.push(type.textContent);
+            const typeId = type.dataset["incidentTypeId"];
+            _showTypes.push(typeId ?? "");
         }
     }
 }

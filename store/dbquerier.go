@@ -335,3 +335,17 @@ func (l DBQ) UpdateIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.Update
 	logQuery("UpdateIncident", start, err)
 	return err
 }
+
+func (l DBQ) AttachIncidentTypeByIdToIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.AttachIncidentTypeByIdToIncidentParams) error {
+	start := time.Now()
+	err := l.q.AttachIncidentTypeByIdToIncident(ctx, db, arg)
+	logQuery("AttachIncidentTypeByIdToIncident", start, err)
+	return err
+}
+
+func (l DBQ) DetachIncidentTypeByIdFromIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.DetachIncidentTypeByIdFromIncidentParams) error {
+	start := time.Now()
+	err := l.q.DetachIncidentTypeByIdFromIncident(ctx, db, arg)
+	logQuery("DetachIncidentTypeByIdFromIncident", start, err)
+	return err
+}

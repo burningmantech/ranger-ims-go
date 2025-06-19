@@ -278,9 +278,17 @@ function initDataTables(tablePrereqs) {
             {
                 "name": "incident_types",
                 "className": "incident_types",
-                "data": "incident_types",
+                "data": "incident_type_ids",
                 "defaultContent": "",
-                "render": ims.renderSafeSorted,
+                "render": function (ids, _type, _incident) {
+                    const vals = [];
+                    for (const it of allIncidentTypes) {
+                        if (ids.includes(it.id ?? -1) && it.name) {
+                            vals.push(it.name);
+                        }
+                    }
+                    return DataTable.render.text().display(vals.join(", "));
+                },
                 "responsivePriority": 4,
             },
             {

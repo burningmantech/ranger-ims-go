@@ -246,10 +246,10 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 			RadialMinute: ptr(""),
 			Description:  ptr(""),
 		},
-		IncidentTypeNames: &[]string{},
-		FieldReports:      &[]int32{},
-		RangerHandles:     &[]string{},
-		ReportEntries:     []imsjson.ReportEntry{},
+		IncidentTypeIDs: &[]int32{},
+		FieldReports:    &[]int32{},
+		RangerHandles:   &[]string{},
+		ReportEntries:   []imsjson.ReportEntry{},
 	}
 	resp = apisNonAdmin.updateIncident(ctx, eventName, num, updates)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
@@ -259,16 +259,15 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	expected := imsjson.Incident{
-		Event:             eventName,
-		Number:            num,
-		State:             "closed",
-		Priority:          1,
-		Started:           time.UnixMilli(1),
-		Location:          imsjson.Location{},
-		IncidentTypeNames: &[]string{},
-		IncidentTypeIDs:   &[]int32{},
-		FieldReports:      &[]int32{},
-		RangerHandles:     &[]string{},
+		Event:           eventName,
+		Number:          num,
+		State:           "closed",
+		Priority:        1,
+		Started:         time.UnixMilli(1),
+		Location:        imsjson.Location{},
+		IncidentTypeIDs: &[]int32{},
+		FieldReports:    &[]int32{},
+		RangerHandles:   &[]string{},
 	}
 	requireEqualIncident(t, expected, retrievedIncidentAfterUpdate)
 }
@@ -340,7 +339,6 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	require.Equal(t, before.Priority, after.Priority)
 	require.Equal(t, before.Summary, after.Summary)
 	require.Equal(t, before.Location, after.Location)
-	// require.Equal(t, before.IncidentTypeNames, after.IncidentTypeNames)
 	require.Equal(t, before.IncidentTypeIDs, after.IncidentTypeIDs)
 	require.Equal(t, before.RangerHandles, after.RangerHandles)
 	require.Equal(t, before.FieldReports, after.FieldReports)

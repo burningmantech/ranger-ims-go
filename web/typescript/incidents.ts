@@ -333,9 +333,17 @@ function initDataTables(tablePrereqs: Promise<void>): void {
             {   // 4
                 "name": "incident_types",
                 "className": "incident_types",
-                "data": "incident_types",
+                "data": "incident_type_ids",
                 "defaultContent": "",
-                "render": ims.renderSafeSorted,
+                "render": function(ids: number[], _type: string, _incident: ims.Incident) {
+                    const vals: string[] = [];
+                    for (const it of allIncidentTypes) {
+                        if (ids.includes(it.id??-1) && it.name) {
+                            vals.push(it.name);
+                        }
+                    }
+                    return DataTable.render.text().display(vals.join(", "));
+                },
                 "responsivePriority": 4,
             },
             {   // 5

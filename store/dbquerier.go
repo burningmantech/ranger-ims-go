@@ -77,13 +77,6 @@ func (l DBQ) AttachFieldReportToIncident(ctx context.Context, db imsdb.DBTX, arg
 	return err
 }
 
-func (l DBQ) AttachIncidentTypeToIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.AttachIncidentTypeToIncidentParams) error {
-	start := time.Now()
-	err := l.q.AttachIncidentTypeToIncident(ctx, db, arg)
-	logQuery("AttachIncidentTypeToIncident", start, err)
-	return err
-}
-
 func (l DBQ) AttachRangerHandleToIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.AttachRangerHandleToIncidentParams) error {
 	start := time.Now()
 	err := l.q.AttachRangerHandleToIncident(ctx, db, arg)
@@ -154,10 +147,10 @@ func (l DBQ) CreateIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.Create
 	return incident, err
 }
 
-func (l DBQ) CreateIncidentTypeOrIgnore(ctx context.Context, db imsdb.DBTX, arg imsdb.CreateIncidentTypeOrIgnoreParams) (int64, error) {
+func (l DBQ) CreateIncidentType(ctx context.Context, db imsdb.DBTX, arg imsdb.CreateIncidentTypeParams) (int64, error) {
 	start := time.Now()
-	id, err := l.q.CreateIncidentTypeOrIgnore(ctx, db, arg)
-	logQuery("CreateIncidentTypeOrIgnore", start, err)
+	id, err := l.q.CreateIncidentType(ctx, db, arg)
+	logQuery("CreateIncidentType", start, err)
 	return id, err
 }
 
@@ -166,13 +159,6 @@ func (l DBQ) CreateReportEntry(ctx context.Context, db imsdb.DBTX, arg imsdb.Cre
 	entry, err := l.q.CreateReportEntry(ctx, db, arg)
 	logQuery("CreateReportEntry", start, err)
 	return entry, err
-}
-
-func (l DBQ) DetachIncidentTypeFromIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.DetachIncidentTypeFromIncidentParams) error {
-	start := time.Now()
-	err := l.q.DetachIncidentTypeFromIncident(ctx, db, arg)
-	logQuery("DetachIncidentTypeFromIncident", start, err)
-	return err
 }
 
 func (l DBQ) DetachRangerHandleFromIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.DetachRangerHandleFromIncidentParams) error {
@@ -336,16 +322,16 @@ func (l DBQ) UpdateIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.Update
 	return err
 }
 
-func (l DBQ) AttachIncidentTypeByIdToIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.AttachIncidentTypeByIdToIncidentParams) error {
+func (l DBQ) AttachIncidentTypeToIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.AttachIncidentTypeToIncidentParams) error {
 	start := time.Now()
-	err := l.q.AttachIncidentTypeByIdToIncident(ctx, db, arg)
-	logQuery("AttachIncidentTypeByIdToIncident", start, err)
+	err := l.q.AttachIncidentTypeToIncident(ctx, db, arg)
+	logQuery("AttachIncidentTypeToIncident", start, err)
 	return err
 }
 
-func (l DBQ) DetachIncidentTypeByIdFromIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.DetachIncidentTypeByIdFromIncidentParams) error {
+func (l DBQ) DetachIncidentTypeFromIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.DetachIncidentTypeFromIncidentParams) error {
 	start := time.Now()
-	err := l.q.DetachIncidentTypeByIdFromIncident(ctx, db, arg)
-	logQuery("DetachIncidentTypeByIdFromIncident", start, err)
+	err := l.q.DetachIncidentTypeFromIncident(ctx, db, arg)
+	logQuery("DetachIncidentTypeFromIncident", start, err)
 	return err
 }

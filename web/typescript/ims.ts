@@ -1411,7 +1411,6 @@ export type Incident = {
     started?: string|null;
     last_modified?: string|null;
     ranger_handles?: string[]|null;
-    incident_types?: string[]|null;
     incident_type_ids?: number[]|null;
     location?: EventLocation|null;
     report_entries?: ReportEntry[]|null;

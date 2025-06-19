@@ -52,7 +52,7 @@ func (q *Queries) AttachFieldReportToIncident(ctx context.Context, db DBTX, arg 
 	return err
 }
 
-const attachIncidentTypeByIdToIncident = `-- name: AttachIncidentTypeByIdToIncident :exec
+const attachIncidentTypeToIncident = `-- name: AttachIncidentTypeToIncident :exec
 insert into INCIDENT__INCIDENT_TYPE (
     EVENT, INCIDENT_NUMBER, INCIDENT_TYPE
 ) values (
@@ -60,33 +60,14 @@ insert into INCIDENT__INCIDENT_TYPE (
  )
 `
 
-type AttachIncidentTypeByIdToIncidentParams struct {
+type AttachIncidentTypeToIncidentParams struct {
 	Event          int32
 	IncidentNumber int32
 	IncidentType   int32
 }
 
-func (q *Queries) AttachIncidentTypeByIdToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeByIdToIncidentParams) error {
-	_, err := db.ExecContext(ctx, attachIncidentTypeByIdToIncident, arg.Event, arg.IncidentNumber, arg.IncidentType)
-	return err
-}
-
-const attachIncidentTypeToIncident = `-- name: AttachIncidentTypeToIncident :exec
-insert into INCIDENT__INCIDENT_TYPE (
-    EVENT, INCIDENT_NUMBER, INCIDENT_TYPE
-) values (
-    ?, ?, (select it.ID from INCIDENT_TYPE it where it.NAME = ?)
-)
-`
-
-type AttachIncidentTypeToIncidentParams struct {
-	Event          int32
-	IncidentNumber int32
-	Name           string
-}
-
 func (q *Queries) AttachIncidentTypeToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeToIncidentParams) error {
-	_, err := db.ExecContext(ctx, attachIncidentTypeToIncident, arg.Event, arg.IncidentNumber, arg.Name)
+	_, err := db.ExecContext(ctx, attachIncidentTypeToIncident, arg.Event, arg.IncidentNumber, arg.IncidentType)
 	return err
 }
 
@@ -299,19 +280,18 @@ func (q *Queries) CreateIncident(ctx context.Context, db DBTX, arg CreateInciden
 	return result.LastInsertId()
 }
 
-const createIncidentTypeOrIgnore = `-- name: CreateIncidentTypeOrIgnore :execlastid
+const createIncidentType = `-- name: CreateIncidentType :execlastid
 insert into INCIDENT_TYPE (NAME, HIDDEN)
 values (?, ?)
-    on duplicate key update NAME=NAME
 `
 
-type CreateIncidentTypeOrIgnoreParams struct {
+type CreateIncidentTypeParams struct {
 	Name   string
 	Hidden bool
 }
 
-func (q *Queries) CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) (int64, error) {
-	result, err := db.ExecContext(ctx, createIncidentTypeOrIgnore, arg.Name, arg.Hidden)
+func (q *Queries) CreateIncidentType(ctx context.Context, db DBTX, arg CreateIncidentTypeParams) (int64, error) {
+	result, err := db.ExecContext(ctx, createIncidentType, arg.Name, arg.Hidden)
 	if err != nil {
 		return 0, err
 	}
@@ -355,7 +335,7 @@ func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateRepo
 	return result.LastInsertId()
 }
 
-const detachIncidentTypeByIdFromIncident = `-- name: DetachIncidentTypeByIdFromIncident :exec
+const detachIncidentTypeFromIncident = `-- name: DetachIncidentTypeFromIncident :exec
 delete from INCIDENT__INCIDENT_TYPE
 where
     EVENT = ?
@@ -363,33 +343,14 @@ where
     and INCIDENT_TYPE = ?
 `
 
-type DetachIncidentTypeByIdFromIncidentParams struct {
+type DetachIncidentTypeFromIncidentParams struct {
 	Event          int32
 	IncidentNumber int32
 	IncidentType   int32
 }
 
-func (q *Queries) DetachIncidentTypeByIdFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeByIdFromIncidentParams) error {
-	_, err := db.ExecContext(ctx, detachIncidentTypeByIdFromIncident, arg.Event, arg.IncidentNumber, arg.IncidentType)
-	return err
-}
-
-const detachIncidentTypeFromIncident = `-- name: DetachIncidentTypeFromIncident :exec
-delete from INCIDENT__INCIDENT_TYPE
-where
-    EVENT = ?
-    and INCIDENT_NUMBER = ?
-    and INCIDENT_TYPE = (select it.ID from INCIDENT_TYPE it where it.NAME = ?)
-`
-
-type DetachIncidentTypeFromIncidentParams struct {
-	Event          int32
-	IncidentNumber int32
-	Name           string
-}
-
 func (q *Queries) DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error {
-	_, err := db.ExecContext(ctx, detachIncidentTypeFromIncident, arg.Event, arg.IncidentNumber, arg.Name)
+	_, err := db.ExecContext(ctx, detachIncidentTypeFromIncident, arg.Event, arg.IncidentNumber, arg.IncidentType)
 	return err
 }
 
@@ -703,14 +664,6 @@ const incident = `-- name: Incident :one
 select
     i.event, i.number, i.created, i.priority, i.state, i.started, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
-        select coalesce(json_arrayagg(it.NAME), "[]")
-        from INCIDENT__INCIDENT_TYPE iit
-        join INCIDENT_TYPE it
-            on i.EVENT = iit.EVENT
-            and i.NUMBER = iit.INCIDENT_NUMBER
-            and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPE_NAMES,
-    (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
         where i.EVENT = iit.EVENT
@@ -740,7 +693,6 @@ type IncidentParams struct {
 
 type IncidentRow struct {
 	Incident           Incident
-	IncidentTypeNames  interface{}
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
 	RangerHandles      interface{}
@@ -762,7 +714,6 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.LocationRadialHour,
 		&i.Incident.LocationRadialMinute,
 		&i.Incident.LocationDescription,
-		&i.IncidentTypeNames,
 		&i.IncidentTypeIds,
 		&i.FieldReportNumbers,
 		&i.RangerHandles,
@@ -890,14 +841,6 @@ const incidents = `-- name: Incidents :many
 select
     i.event, i.number, i.created, i.priority, i.state, i.started, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
-        select coalesce(json_arrayagg(it.NAME), "[]")
-        from INCIDENT__INCIDENT_TYPE iit
-        join INCIDENT_TYPE it
-            on i.EVENT = iit.EVENT
-            and i.NUMBER = iit.INCIDENT_NUMBER
-            and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPE_NAMES,
-    (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
         where i.EVENT = iit.EVENT
@@ -925,7 +868,6 @@ group by
 
 type IncidentsRow struct {
 	Incident           Incident
-	IncidentTypeNames  interface{}
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
 	RangerHandles      interface{}
@@ -953,7 +895,6 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.LocationRadialHour,
 			&i.Incident.LocationRadialMinute,
 			&i.Incident.LocationDescription,
-			&i.IncidentTypeNames,
 			&i.IncidentTypeIds,
 			&i.FieldReportNumbers,
 			&i.RangerHandles,

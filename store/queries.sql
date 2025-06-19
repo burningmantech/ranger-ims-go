@@ -66,14 +66,6 @@ where
 select
     sqlc.embed(i),
     (
-        select coalesce(json_arrayagg(it.NAME), "[]")
-        from INCIDENT__INCIDENT_TYPE iit
-        join INCIDENT_TYPE it
-            on i.EVENT = iit.EVENT
-            and i.NUMBER = iit.INCIDENT_NUMBER
-            and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPE_NAMES,
-    (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
         where i.EVENT = iit.EVENT
@@ -98,14 +90,6 @@ where i.EVENT = ?
 -- name: Incidents :many
 select
     sqlc.embed(i),
-    (
-        select coalesce(json_arrayagg(it.NAME), "[]")
-        from INCIDENT__INCIDENT_TYPE iit
-        join INCIDENT_TYPE it
-            on i.EVENT = iit.EVENT
-            and i.NUMBER = iit.INCIDENT_NUMBER
-            and iit.INCIDENT_TYPE = it.ID
-    ) as INCIDENT_TYPE_NAMES,
     (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -311,25 +295,10 @@ where
 insert into INCIDENT__INCIDENT_TYPE (
     EVENT, INCIDENT_NUMBER, INCIDENT_TYPE
 ) values (
-    ?, ?, (select it.ID from INCIDENT_TYPE it where it.NAME = ?)
-);
-
--- name: DetachIncidentTypeFromIncident :exec
-delete from INCIDENT__INCIDENT_TYPE
-where
-    EVENT = ?
-    and INCIDENT_NUMBER = ?
-    and INCIDENT_TYPE = (select it.ID from INCIDENT_TYPE it where it.NAME = ?)
-;
-
--- name: AttachIncidentTypeByIdToIncident :exec
-insert into INCIDENT__INCIDENT_TYPE (
-    EVENT, INCIDENT_NUMBER, INCIDENT_TYPE
-) values (
      ?, ?, ?
  );
 
--- name: DetachIncidentTypeByIdFromIncident :exec
+-- name: DetachIncidentTypeFromIncident :exec
 delete from INCIDENT__INCIDENT_TYPE
 where
     EVENT = ?
@@ -338,10 +307,9 @@ where
 ;
 
 
--- name: CreateIncidentTypeOrIgnore :execlastid
+-- name: CreateIncidentType :execlastid
 insert into INCIDENT_TYPE (NAME, HIDDEN)
 values (?, ?)
-    on duplicate key update NAME=NAME
 ;
 
 -- name: UpdateIncidentType :exec

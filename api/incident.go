@@ -177,7 +177,7 @@ func incidentToJSON(
 		resultEntries = append(resultEntries, reportEntryToJSON(re, attachmentsEnabled))
 	}
 
-	incidentTypes, rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
+	rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
 	if err != nil {
 		return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -205,11 +205,10 @@ func incidentToJSON(
 			RadialMinute: conv.FormatSqlInt16(storedRow.Incident.LocationRadialMinute),
 			Description:  conv.SqlToString(storedRow.Incident.LocationDescription),
 		},
-		IncidentTypeNames: &incidentTypes,
-		IncidentTypeIDs:   &incidentTypeIDs,
-		FieldReports:      &fieldReportNumbers,
-		RangerHandles:     &rangerHandles,
-		ReportEntries:     resultEntries,
+		IncidentTypeIDs: &incidentTypeIDs,
+		FieldReports:    &fieldReportNumbers,
+		RangerHandles:   &rangerHandles,
+		ReportEntries:   resultEntries,
 	}
 	return resp, nil
 }
@@ -353,24 +352,20 @@ func unmarshalByteSlice[T any](isByteSlice any) (T, error) {
 	return result, nil
 }
 
-func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeNames, rangerHandles []string, incidentTypeIDs, fieldReportNumbers []int32, err error) {
-	incidentTypeNames, err = unmarshalByteSlice[[]string](row.IncidentTypeNames)
-	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
-	}
+func readExtraIncidentRowFields(row imsdb.IncidentRow) (rangerHandles []string, incidentTypeIDs, fieldReportNumbers []int32, err error) {
 	rangerHandles, err = unmarshalByteSlice[[]string](row.RangerHandles)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
 	incidentTypeIDs, err = unmarshalByteSlice[[]int32](row.IncidentTypeIds)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
 	fieldReportNumbers, err = unmarshalByteSlice[[]int32](row.FieldReportNumbers)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
-	return incidentTypeNames, rangerHandles, incidentTypeIDs, fieldReportNumbers, nil
+	return rangerHandles, incidentTypeIDs, fieldReportNumbers, nil
 }
 
 func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
@@ -386,7 +381,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	storedIncident := storedIncidentRow.Incident
 
-	incidentTypes, rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
+	rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	_ = incidentTypeIDs
 	if err != nil {
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
@@ -487,50 +482,14 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 			}
 		}
 	}
-
-	// TODO: remove this functionality and just allow addition/removal by incident type ID
-	if newIncident.IncidentTypeNames != nil {
-		add := sliceSubtract(*newIncident.IncidentTypeNames, incidentTypes)
-		sub := sliceSubtract(incidentTypes, *newIncident.IncidentTypeNames)
-		if len(add) > 0 {
-			logs = append(logs, fmt.Sprintf("Added type: %v", strings.Join(add, ", ")))
-			for _, itype := range add {
-				err = imsDBQ.AttachIncidentTypeToIncident(ctx, txn,
-					imsdb.AttachIncidentTypeToIncidentParams{
-						Event:          newIncident.EventID,
-						IncidentNumber: newIncident.Number,
-						Name:           itype,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to add Incident Type", err).From("[AttachIncidentTypeToIncident]")
-				}
-			}
-		}
-		if len(sub) > 0 {
-			logs = append(logs, fmt.Sprintf("Removed type: %v", strings.Join(sub, ", ")))
-			for _, rh := range sub {
-				err = imsDBQ.DetachIncidentTypeFromIncident(ctx, txn,
-					imsdb.DetachIncidentTypeFromIncidentParams{
-						Event:          newIncident.EventID,
-						IncidentNumber: newIncident.Number,
-						Name:           rh,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to detach Incident Type", err).From("[AttachIncidentTypeToIncident]")
-				}
-			}
-		}
-	}
 	if newIncident.IncidentTypeIDs != nil {
 		add := sliceSubtract(*newIncident.IncidentTypeIDs, incidentTypeIDs)
 		sub := sliceSubtract(incidentTypeIDs, *newIncident.IncidentTypeIDs)
 		if len(add) > 0 {
 			logs = append(logs, fmt.Sprintf("Added type: %v", add))
 			for _, itype := range add {
-				err = imsDBQ.AttachIncidentTypeByIdToIncident(ctx, txn,
-					imsdb.AttachIncidentTypeByIdToIncidentParams{
+				err = imsDBQ.AttachIncidentTypeToIncident(ctx, txn,
+					imsdb.AttachIncidentTypeToIncidentParams{
 						Event:          newIncident.EventID,
 						IncidentNumber: newIncident.Number,
 						IncidentType:   itype,
@@ -544,8 +503,8 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		if len(sub) > 0 {
 			logs = append(logs, fmt.Sprintf("Removed type: %v", sub))
 			for _, rh := range sub {
-				err = imsDBQ.DetachIncidentTypeByIdFromIncident(ctx, txn,
-					imsdb.DetachIncidentTypeByIdFromIncidentParams{
+				err = imsDBQ.DetachIncidentTypeFromIncident(ctx, txn,
+					imsdb.DetachIncidentTypeFromIncidentParams{
 						Event:          newIncident.EventID,
 						IncidentNumber: newIncident.Number,
 						IncidentType:   rh,

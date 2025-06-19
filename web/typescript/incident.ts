@@ -980,7 +980,7 @@ ims.setSendEdits(sendEdits);
 async function editState(): Promise<void> {
     const state = document.getElementById("incident_state") as HTMLSelectElement;
 
-    if (state.value === "closed" && (incident!.incident_types??[]).length === 0) {
+    if (state.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
         window.alert(
             "Closing out this incident?\n"+
             "Please add an incident type!\n\n" +

@@ -118,8 +118,8 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) (newTypeID 
 		if typeReq.Name == nil {
 			return nil, herr.BadRequest("Incident Type name is required for a new Incident Type", nil)
 		}
-		id, err := action.imsDBQ.CreateIncidentTypeOrIgnore(ctx, action.imsDBQ,
-			imsdb.CreateIncidentTypeOrIgnoreParams{
+		id, err := action.imsDBQ.CreateIncidentType(ctx, action.imsDBQ,
+			imsdb.CreateIncidentTypeParams{
 				Name:   *typeReq.Name,
 				Hidden: typeReq.Hidden != nil && *typeReq.Hidden,
 			},

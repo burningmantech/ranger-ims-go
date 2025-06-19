@@ -177,7 +177,7 @@ func incidentToJSON(
 		resultEntries = append(resultEntries, reportEntryToJSON(re, attachmentsEnabled))
 	}
 
-	incidentTypes, rangerHandles, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
+	incidentTypes, rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
 	if err != nil {
 		return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -205,10 +205,11 @@ func incidentToJSON(
 			RadialMinute: conv.FormatSqlInt16(storedRow.Incident.LocationRadialMinute),
 			Description:  conv.SqlToString(storedRow.Incident.LocationDescription),
 		},
-		IncidentTypes: &incidentTypes,
-		FieldReports:  &fieldReportNumbers,
-		RangerHandles: &rangerHandles,
-		ReportEntries: resultEntries,
+		IncidentTypeNames: &incidentTypes,
+		IncidentTypeIDs:   &incidentTypeIDs,
+		FieldReports:      &fieldReportNumbers,
+		RangerHandles:     &rangerHandles,
+		ReportEntries:     resultEntries,
 	}
 	return resp, nil
 }
@@ -352,20 +353,24 @@ func unmarshalByteSlice[T any](isByteSlice any) (T, error) {
 	return result, nil
 }
 
-func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypes, rangerHandles []string, fieldReportNumbers []int32, err error) {
-	incidentTypes, err = unmarshalByteSlice[[]string](row.IncidentTypes)
+func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeNames, rangerHandles []string, incidentTypeIDs, fieldReportNumbers []int32, err error) {
+	incidentTypeNames, err = unmarshalByteSlice[[]string](row.IncidentTypeNames)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
 	rangerHandles, err = unmarshalByteSlice[[]string](row.RangerHandles)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+	}
+	incidentTypeIDs, err = unmarshalByteSlice[[]int32](row.IncidentTypeIds)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
 	fieldReportNumbers, err = unmarshalByteSlice[[]int32](row.FieldReportNumbers)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
-	return incidentTypes, rangerHandles, fieldReportNumbers, nil
+	return incidentTypeNames, rangerHandles, incidentTypeIDs, fieldReportNumbers, nil
 }
 
 func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
@@ -381,7 +386,9 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	storedIncident := storedIncidentRow.Incident
 
-	incidentTypes, rangerHandles, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
+	// TODO: actually use the incidentTypeIDs, once the client starts sending them instead of the names
+	incidentTypes, rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
+	_ = incidentTypeIDs
 	if err != nil {
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -482,9 +489,9 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		}
 	}
 
-	if newIncident.IncidentTypes != nil {
-		add := sliceSubtract(*newIncident.IncidentTypes, incidentTypes)
-		sub := sliceSubtract(incidentTypes, *newIncident.IncidentTypes)
+	if newIncident.IncidentTypeNames != nil {
+		add := sliceSubtract(*newIncident.IncidentTypeNames, incidentTypes)
+		sub := sliceSubtract(incidentTypes, *newIncident.IncidentTypeNames)
 		if len(add) > 0 {
 			logs = append(logs, fmt.Sprintf("Added type: %v", strings.Join(add, ", ")))
 			for _, itype := range add {

@@ -22,7 +22,7 @@ type Querier interface {
 	CreateEvent(ctx context.Context, db DBTX, name string) (int64, error)
 	CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error
 	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
-	CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) error
+	CreateIncidentTypeOrIgnore(ctx context.Context, db DBTX, arg CreateIncidentTypeOrIgnoreParams) (int64, error)
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
@@ -33,8 +33,8 @@ type Querier interface {
 	FieldReport_ReportEntries(ctx context.Context, db DBTX, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error)
 	FieldReports(ctx context.Context, db DBTX, event int32) ([]FieldReportsRow, error)
 	FieldReports_ReportEntries(ctx context.Context, db DBTX, arg FieldReports_ReportEntriesParams) ([]FieldReports_ReportEntriesRow, error)
-	HideShowIncidentType(ctx context.Context, db DBTX, arg HideShowIncidentTypeParams) error
 	Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error)
+	IncidentType(ctx context.Context, db DBTX, id int32) (IncidentTypeRow, error)
 	IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRow, error)
 	Incident_ReportEntries(ctx context.Context, db DBTX, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
 	Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error)
@@ -55,6 +55,7 @@ type Querier interface {
 	SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error
 	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error
 	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error
+	UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error
 }
 
 var _ Querier = (*Queries)(nil)

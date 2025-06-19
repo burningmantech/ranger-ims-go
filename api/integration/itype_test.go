@@ -32,55 +32,63 @@ func TestCreateIncidentTypes(t *testing.T) {
 
 	// Make three new incident types
 	typeA, typeB, typeC := rand.NonCryptoText(), rand.NonCryptoText(), rand.NonCryptoText()
-	createTypes := imsjson.EditIncidentTypesRequest{
-		Add:  imsjson.IncidentTypes{typeA, typeB, typeC},
-		Hide: nil,
-		Show: nil,
-	}
-	resp := apis.editTypes(ctx, createTypes)
+	typeAID, resp := apis.editType(ctx, imsjson.IncidentType{Name: &typeA})
 	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, typeAID)
+	typeBID, resp := apis.editType(ctx, imsjson.IncidentType{Name: &typeB})
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, typeBID)
+	typeCID, resp := apis.editType(ctx, imsjson.IncidentType{Name: &typeC})
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, typeCID)
 
 	// All three types should now be retrievable and non-hidden
 	typesResp, resp := apis.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Contains(t, typesResp, typeA)
-	require.Contains(t, typesResp, typeB)
-	require.Contains(t, typesResp, typeC)
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeAID, Name: &typeA, Hidden: ptr(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeBID, Name: &typeB, Hidden: ptr(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeCID, Name: &typeC, Hidden: ptr(false)})
 
 	// Hide one of those types
-	hideOne := imsjson.EditIncidentTypesRequest{
-		Hide: imsjson.IncidentTypes{typeA},
-	}
-	resp = apis.editTypes(ctx, hideOne)
+	hideOne := imsjson.IncidentType{ID: *typeAID, Hidden: ptr(true)}
+	_, resp = apis.editType(ctx, hideOne)
 	require.NoError(t, resp.Body.Close())
 
 	// That type should no longer appear from the standard incident type query
 	typesVisibleOnly, resp := apis.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.NotContains(t, typesVisibleOnly, typeA)
-	require.Contains(t, typesVisibleOnly, typeB)
-	require.Contains(t, typesVisibleOnly, typeC)
+	require.NotContains(t, namesOf(typesVisibleOnly), typeA)
+	require.Contains(t, namesOf(typesVisibleOnly), typeB)
+	require.Contains(t, namesOf(typesVisibleOnly), typeC)
 	// but it will still appears when includeHidden=true
 	typesIncludeHidden, resp := apis.getTypes(ctx, true)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Contains(t, typesIncludeHidden, typeA)
-	require.Contains(t, typesIncludeHidden, typeB)
-	require.Contains(t, typesIncludeHidden, typeC)
+	require.Contains(t, namesOf(typesIncludeHidden), typeA)
+	require.Contains(t, namesOf(typesIncludeHidden), typeB)
+	require.Contains(t, namesOf(typesIncludeHidden), typeC)
 
 	// Unhide that type we previously hid
-	showItAgain := imsjson.EditIncidentTypesRequest{
-		Show: imsjson.IncidentTypes{typeA, typeB},
-	}
-	resp = apis.editTypes(ctx, showItAgain)
+	showItAgain := imsjson.IncidentType{ID: *typeAID, Hidden: ptr(false)}
+	_, resp = apis.editType(ctx, showItAgain)
 	require.NoError(t, resp.Body.Close())
 	// and see that it's back in the standard incident type query results
 	typesVisibleOnly, resp = apis.getTypes(ctx, false)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Contains(t, typesVisibleOnly, typeA)
-	require.Contains(t, typesVisibleOnly, typeB)
-	require.Contains(t, typesVisibleOnly, typeC)
+	require.Contains(t, namesOf(typesVisibleOnly), typeA)
+	require.Contains(t, namesOf(typesVisibleOnly), typeB)
+	require.Contains(t, namesOf(typesVisibleOnly), typeC)
+}
+
+func namesOf(types imsjson.IncidentTypes) []string {
+	var names []string
+	for _, t := range types {
+		if t.Name != nil {
+			names = append(names, *t.Name)
+		}
+	}
+	return names
 }

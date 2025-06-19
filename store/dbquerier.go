@@ -154,11 +154,11 @@ func (l DBQ) CreateIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.Create
 	return incident, err
 }
 
-func (l DBQ) CreateIncidentTypeOrIgnore(ctx context.Context, db imsdb.DBTX, arg imsdb.CreateIncidentTypeOrIgnoreParams) error {
+func (l DBQ) CreateIncidentTypeOrIgnore(ctx context.Context, db imsdb.DBTX, arg imsdb.CreateIncidentTypeOrIgnoreParams) (int64, error) {
 	start := time.Now()
-	err := l.q.CreateIncidentTypeOrIgnore(ctx, db, arg)
+	id, err := l.q.CreateIncidentTypeOrIgnore(ctx, db, arg)
 	logQuery("CreateIncidentTypeOrIgnore", start, err)
-	return err
+	return id, err
 }
 
 func (l DBQ) CreateReportEntry(ctx context.Context, db imsdb.DBTX, arg imsdb.CreateReportEntryParams) (int64, error) {
@@ -231,10 +231,10 @@ func (l DBQ) FieldReports_ReportEntries(ctx context.Context, db imsdb.DBTX, arg 
 	return entries, err
 }
 
-func (l DBQ) HideShowIncidentType(ctx context.Context, db imsdb.DBTX, arg imsdb.HideShowIncidentTypeParams) error {
+func (l DBQ) UpdateIncidentType(ctx context.Context, db imsdb.DBTX, arg imsdb.UpdateIncidentTypeParams) error {
 	start := time.Now()
-	err := l.q.HideShowIncidentType(ctx, db, arg)
-	logQuery("HideShowIncidentType", start, err)
+	err := l.q.UpdateIncidentType(ctx, db, arg)
+	logQuery("UpdateIncidentType", start, err)
 	return err
 }
 
@@ -250,6 +250,13 @@ func (l DBQ) IncidentTypes(ctx context.Context, db imsdb.DBTX) ([]imsdb.Incident
 	types, err := l.q.IncidentTypes(ctx, db)
 	logQuery("IncidentTypes", start, err)
 	return types, err
+}
+
+func (l DBQ) IncidentType(ctx context.Context, db imsdb.DBTX, id int32) (imsdb.IncidentTypeRow, error) {
+	start := time.Now()
+	iType, err := l.q.IncidentType(ctx, db, id)
+	logQuery("IncidentType", start, err)
+	return iType, err
 }
 
 func (l DBQ) Incident_ReportEntries(ctx context.Context, db imsdb.DBTX, arg imsdb.Incident_ReportEntriesParams) ([]imsdb.Incident_ReportEntriesRow, error) {

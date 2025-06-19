@@ -21,11 +21,13 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -67,10 +69,17 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 	for _, typeRow := range typeRows {
 		t := typeRow.IncidentType
 		if includeHidden || !t.Hidden {
-			response = append(response, t.Name)
+			response = append(response, imsjson.IncidentType{
+				ID:          t.ID,
+				Name:        ptr(t.Name),
+				Description: nil,
+				Hidden:      ptr(t.Hidden),
+			})
 		}
 	}
-	slices.Sort(response)
+	slices.SortFunc(response, func(a, b imsjson.IncidentType) int {
+		return int(a.ID) - int(b.ID)
+	})
 
 	return response, nil
 }
@@ -82,57 +91,64 @@ type EditIncidentTypes struct {
 }
 
 func (action EditIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if errHTTP := action.editIncidentTypes(req); errHTTP != nil {
+	newID, errHTTP := action.editIncidentTypes(req)
+	if errHTTP != nil {
 		errHTTP.From("[editIncidentTypes]").WriteResponse(w)
 		return
 	}
+	if newID != nil {
+		w.Header().Set("IMS-Incident-Type-ID", strconv.Itoa(int(*newID)))
+	}
 	http.Error(w, "Success", http.StatusNoContent)
 }
-func (action EditIncidentTypes) editIncidentTypes(req *http.Request) *herr.HTTPError {
+func (action EditIncidentTypes) editIncidentTypes(req *http.Request) (newTypeID *int32, errHTTP *herr.HTTPError) {
 	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[getGlobalPermissions]")
+		return nil, errHTTP.From("[getGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateIncidentTypes == 0 {
-		return herr.Forbidden("The requestor does not have GlobalAdministrateIncidentTypes permission", nil)
+		return nil, herr.Forbidden("The requestor does not have GlobalAdministrateIncidentTypes permission", nil)
 	}
 	ctx := req.Context()
-	typesReq, errHTTP := readBodyAs[imsjson.EditIncidentTypesRequest](req)
+	typesReq, errHTTP := readBodyAs[imsjson.IncidentType](req)
 	if errHTTP != nil {
-		return errHTTP.From("[readBodyAs]")
+		return nil, errHTTP.From("[readBodyAs]")
 	}
-	for _, it := range typesReq.Add {
-		err := action.imsDBQ.CreateIncidentTypeOrIgnore(ctx, action.imsDBQ,
+	if typesReq.ID == 0 {
+		if typesReq.Name == nil {
+			return nil, herr.BadRequest("Incident Type name is required for a new Incident Type", nil)
+		}
+		id, err := action.imsDBQ.CreateIncidentTypeOrIgnore(ctx, action.imsDBQ,
 			imsdb.CreateIncidentTypeOrIgnoreParams{
-				Name:   it,
-				Hidden: false,
+				Name:   *typesReq.Name,
+				Hidden: typesReq.Hidden != nil && *typesReq.Hidden,
 			},
 		)
 		if err != nil {
-			return herr.InternalServerError("Failed to create Incident Type", err).From("[CreateIncidentTypeOrIgnore]")
+			return nil, herr.InternalServerError("Failed to create Incident Type", err).From("[CreateIncidentTypeOrIgnore]")
 		}
+		newID := conv.MustInt32(id)
+		return &newID, nil
 	}
-	for _, it := range typesReq.Hide {
-		err := action.imsDBQ.HideShowIncidentType(ctx, action.imsDBQ,
-			imsdb.HideShowIncidentTypeParams{
-				Name:   it,
-				Hidden: true,
-			},
-		)
-		if err != nil {
-			return herr.InternalServerError("Failed to hide incident type", nil).From("[HideShowIncidentType]")
-		}
+
+	typeRow, err := action.imsDBQ.IncidentType(ctx, action.imsDBQ, typesReq.ID)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch Incident Type", err).From("[IncidentType]")
 	}
-	for _, it := range typesReq.Show {
-		err := action.imsDBQ.HideShowIncidentType(ctx, action.imsDBQ,
-			imsdb.HideShowIncidentTypeParams{
-				Name:   it,
-				Hidden: false,
-			},
-		)
-		if err != nil {
-			return herr.InternalServerError("Failed to unhide incident type", err).From("[HideShowIncidentType]")
-		}
+	if typesReq.Name != nil {
+		typeRow.IncidentType.Name = *typesReq.Name
 	}
-	return nil
+	if typesReq.Hidden != nil {
+		typeRow.IncidentType.Hidden = *typesReq.Hidden
+	}
+	err = action.imsDBQ.UpdateIncidentType(ctx, action.imsDBQ, imsdb.UpdateIncidentTypeParams{
+		Hidden: typeRow.IncidentType.Hidden,
+		Name:   typeRow.IncidentType.Name,
+		ID:     typeRow.IncidentType.ID,
+	})
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to update incident type", nil).From("[UpdateIncidentType]")
+	}
+
+	return nil, nil
 }

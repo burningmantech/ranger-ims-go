@@ -1158,7 +1158,9 @@ export async function loadIncidentTypes() {
     }
     const _incidentTypes = [];
     for (const record of json) {
-        _incidentTypes.push(record);
+        if (record.name) {
+            _incidentTypes.push(record.name);
+        }
     }
     _incidentTypes.sort();
     return {

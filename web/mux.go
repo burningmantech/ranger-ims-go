@@ -52,7 +52,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			// Don't cache IMS's own JS/CSS files, because Cloudflare ups this duration to
 			// 4 hours, and that's a pain when we're trying to push fixes out. We can remove
 			// this and allow caching again once we're nearer to event time.
-			Static(0),
+			NoStore(),
 		),
 	)
 	mux.Handle("GET /ims/app",
@@ -143,6 +143,15 @@ func Static(dur time.Duration) Adapter {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			durSec := dur.Milliseconds() / 1000
 			w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", durSec))
+			next.ServeHTTP(w, r.WithContext(r.Context()))
+		})
+	}
+}
+
+func NoStore() Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "max-age=0, no-store")
 			next.ServeHTTP(w, r.WithContext(r.Context()))
 		})
 	}

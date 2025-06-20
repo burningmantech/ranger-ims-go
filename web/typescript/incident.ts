@@ -61,6 +61,13 @@ async function initIncidentPage(): Promise<void> {
         await ims.redirectToLogin();
         return;
     }
+    if (!ims.eventAccess!.readIncidents) {
+        ims.setErrorMessage(
+            `You're not currently authorized to view Incidents in Event "${ims.pathIds.eventID}".`
+        );
+        ims.hideLoadingOverlay();
+        return;
+    }
 
     window.editState = editState;
     window.editIncidentSummary = editIncidentSummary;

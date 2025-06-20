@@ -28,6 +28,12 @@ async function initFieldReportPage() {
         await ims.redirectToLogin();
         return;
     }
+    const canReadFieldReports = ims.eventAccess.readIncidents || ims.eventAccess.writeFieldReports;
+    if (!canReadFieldReports) {
+        ims.setErrorMessage(`You're not currently authorized to view Field Reports in Event "${ims.pathIds.eventID}".`);
+        ims.hideLoadingOverlay();
+        return;
+    }
     window.makeIncident = makeIncident;
     window.editSummary = editSummary;
     window.toggleShowHistory = ims.toggleShowHistory;
@@ -147,6 +153,7 @@ async function loadAndDisplayFieldReport() {
     if (fieldReport == null || err != null) {
         console.log(err);
         ims.setErrorMessage(err ?? "");
+        ims.hideLoadingOverlay();
         return;
     }
     drawTitle();

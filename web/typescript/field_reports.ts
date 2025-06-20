@@ -49,6 +49,13 @@ async function initFieldReportsPage(): Promise<void> {
         await ims.redirectToLogin();
         return;
     }
+    if (!ims.eventAccess!.readIncidents && !ims.eventAccess!.writeFieldReports) {
+        ims.setErrorMessage(
+            `You're not currently authorized to view Field Reports in Event "${ims.pathIds.eventID}".`
+        );
+        ims.hideLoadingOverlay();
+        return;
+    }
 
     window.frShowDays = frShowDays;
     window.frShowRows = frShowRows;

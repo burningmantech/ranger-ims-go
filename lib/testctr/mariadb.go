@@ -18,7 +18,6 @@ package testctr
 
 import (
 	"context"
-	"errors"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log/slog"
@@ -39,7 +38,6 @@ func MariaDBContainer(ctx context.Context, database, username, password string) 
 	port int32,
 	err error,
 ) {
-	var errs []error
 	ctr, err = testcontainers.GenericContainer(
 		ctx,
 		testcontainers.GenericContainerRequest{
@@ -58,19 +56,22 @@ func MariaDBContainer(ctx context.Context, database, username, password string) 
 		},
 	)
 	cleanup = func() {
-		err := ctr.Terminate(ctx)
-		if err != nil {
-			slog.Error("Failed to terminate container", "error", err)
+		if ctr != nil {
+			err := ctr.Terminate(ctx)
+			if err != nil {
+				slog.Error("Failed to terminate container", "error", err)
+			}
 		}
 	}
-	errs = append(errs, err)
-	natPort, err := ctr.MappedPort(ctx, "3306/tcp")
-	errs = append(errs, err)
-	dbHostPort := int32(natPort.Int())
-
-	err = errors.Join(errs...)
 	if err != nil {
 		cleanup()
+		return nil, func() {}, 0, err
 	}
-	return ctr, cleanup, dbHostPort, errors.Join(errs...)
+	natPort, err := ctr.MappedPort(ctx, "3306/tcp")
+	if err != nil {
+		cleanup()
+		return nil, func() {}, 0, err
+	}
+	dbHostPort := int32(natPort.Int())
+	return ctr, cleanup, dbHostPort, nil
 }

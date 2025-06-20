@@ -608,10 +608,8 @@ export function reportTextFromIncident(incidentOrFR: Incident|FieldReport, event
             continue;
         }
 
-        const text = reportEntry.text;
-
-        if (text != null) {
-            texts.push(text);
+        if (reportEntry.text != null) {
+            texts.push(reportEntry.text);
         }
     }
 
@@ -1091,7 +1089,7 @@ export async function submitReportEntry(): Promise<void> {
         controlHasError(document.getElementById("report_entry_add")!);
         return;
     }
-    const textArea = document.getElementById("report_entry_add")! as HTMLTextAreaElement;
+    const textArea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
     // Clear the report entry
     textArea.value = "";
     controlHasSuccess(textArea, 1000);

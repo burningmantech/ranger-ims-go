@@ -22,6 +22,7 @@ import (
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -150,6 +151,31 @@ func TestGetAuthWithEvent(t *testing.T) {
 		},
 	}, authResp)
 	require.NoError(t, resp.Body.Close())
+}
+
+func TestGetAuthWithBadEventNames(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	// non-existent event case
+	gar, httpResp := apisAdmin.getAuth(ctx, "ThisEventDoesNotExist")
+	assert.Equal(t, http.StatusOK, httpResp.StatusCode)
+	require.NoError(t, httpResp.Body.Close())
+	assert.Contains(t, gar.EventAccess, "ThisEventDoesNotExist")
+	assert.Equal(t, api.AccessForEvent{
+		ReadIncidents:     false,
+		WriteIncidents:    false,
+		WriteFieldReports: false,
+		AttachFiles:       false,
+	}, gar.EventAccess["ThisEventDoesNotExist"])
+
+	// bad event name (has spaces)
+	gar, httpResp = apisAdmin.getAuth(ctx, "This event name is invalid")
+	assert.Equal(t, http.StatusBadRequest, httpResp.StatusCode)
+	require.NoError(t, httpResp.Body.Close())
+	assert.Empty(t, gar.EventAccess)
 }
 
 func TestPostAuthMakesRefreshCookie(t *testing.T) {

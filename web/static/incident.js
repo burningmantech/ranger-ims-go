@@ -55,7 +55,9 @@ async function initIncidentPage() {
         await ims.loadStreets(ims.pathIds.eventID),
         await loadIncident(),
         await loadPersonnel(),
-        await ims.loadIncidentTypes().then(value => { allIncidentTypes = value.types; }),
+        await ims.loadIncidentTypes().then(value => {
+            allIncidentTypes = value.types;
+        }),
         await loadAllFieldReports(),
     ]);
     addLocationAddressOptions();
@@ -67,6 +69,7 @@ async function initIncidentPage() {
     drawRangers();
     drawRangersToAdd();
     drawIncidentTypesToAdd();
+    drawIncidentTypeInfo();
     renderFieldReportData();
     ims.hideLoadingOverlay();
     // for a new incident, jump to summary field
@@ -110,6 +113,7 @@ async function initIncidentPage() {
     };
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
     const startTimeModal = ims.bsModal(document.getElementById("startTimeModal"));
+    const incidentTypeInfoModal = ims.bsModal(document.getElementById("incidentTypeInfoModal"));
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
@@ -157,6 +161,10 @@ async function initIncidentPage() {
     });
     document.getElementById("override_started_button").addEventListener("click", function (_) {
         startTimeModal.show();
+    });
+    document.getElementById("show-incident-type-info").addEventListener("click", function (e) {
+        e.preventDefault();
+        incidentTypeInfoModal.show();
     });
     // Incident fields generally trigger an update call automatically when the user
     // sets a new value in the field. This behavior is tricky to get right for date
@@ -587,6 +595,24 @@ function drawIncidentTypesToAdd() {
         const option = document.createElement("option");
         option.value = incidentType.name;
         datalist.append(option);
+    }
+}
+function drawIncidentTypeInfo() {
+    const infosUL = document.getElementById("incident-type-info");
+    infosUL.style.whiteSpace = "pre-wrap";
+    for (const incidentType of allIncidentTypes) {
+        const li = document.createElement("li");
+        li.classList.add("list-group-item");
+        const name = document.createElement("div");
+        name.textContent = incidentType.name ?? "";
+        li.append(name);
+        if (incidentType.description) {
+            const description = document.createElement("div");
+            description.classList.add("ms-3", "text-body-secondary");
+            description.textContent = incidentType.description;
+            li.append(description);
+        }
+        infosUL.append(li);
     }
 }
 //

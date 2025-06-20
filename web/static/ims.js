@@ -523,9 +523,8 @@ export function reportTextFromIncident(incidentOrFR, eventFieldReports) {
         if (reportEntry.system_entry) {
             continue;
         }
-        const text = reportEntry.text;
-        if (text != null) {
-            texts.push(text);
+        if (reportEntry.text != null) {
+            texts.push(reportEntry.text);
         }
     }
     // Incidents page loads all field reports for the event

@@ -17,6 +17,7 @@
 "use strict";
 
 import * as ims from "./ims.ts";
+import {IncidentType} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -24,6 +25,8 @@ declare global {
         deleteIncidentType: (el: HTMLElement)=>void;
         showIncidentType: (el: HTMLElement)=>Promise<void>;
         hideIncidentType: (el: HTMLElement)=>Promise<void>;
+        setIncidentTypeName: (el: HTMLInputElement)=>Promise<void>;
+        setIncidentTypeDescription: (el: HTMLTextAreaElement)=>Promise<void>;
     }
 }
 
@@ -44,6 +47,8 @@ async function initAdminTypesPage(): Promise<void> {
     window.deleteIncidentType = deleteIncidentType;
     window.showIncidentType = showIncidentType;
     window.hideIncidentType = hideIncidentType;
+    window.setIncidentTypeName = setIncidentTypeName;
+    window.setIncidentTypeDescription = setIncidentTypeDescription;
 
     await loadAndDrawIncidentTypes();
     ims.hideLoadingOverlay();
@@ -69,36 +74,30 @@ async function loadAllIncidentTypes(): Promise<{err:string|null}> {
         window.alert(message);
         return {err: message};
     }
-    json.sort((a, b) => (a.name??"").localeCompare(b.name??""));
+    json.sort((a: IncidentType, b: IncidentType): number => (a.name??"").localeCompare(b.name??""));
     adminIncidentTypes = json;
     return {err: null};
 }
 
 
-let _incidentTypesTemplate: Element|null = null;
 let _entryTemplate: Element|null = null;
 
 function drawAllIncidentTypes(): void {
-    const container: HTMLElement = document.getElementById("incident_types_container")!;
-
-    if (_incidentTypesTemplate == null) {
-        _incidentTypesTemplate = container.getElementsByClassName("incident_types")[0]!;
-
-        _entryTemplate = _incidentTypesTemplate!
-            .getElementsByClassName("list-group")[0]!
-            .getElementsByClassName("list-group-item")[0]!;
+    if (_entryTemplate == null) {
+        _entryTemplate = document.querySelector("#incident_types li");
     }
-
     updateIncidentTypes();
 }
 
+const editModalElement: HTMLElement = document.getElementById("editIncidentTypeModal")!;
 
 function updateIncidentTypes(): void {
     const incidentTypesElement: HTMLElement = document.getElementById("incident_types")!;
 
-    const entryContainer = incidentTypesElement.getElementsByClassName("list-group")[0]!;
-
+    const entryContainer = incidentTypesElement.getElementsByClassName("list-group")[0] as HTMLElement;
     entryContainer.replaceChildren();
+
+    const editIncidentTypeModal = ims.bsModal(editModalElement);
 
     for (const incidentType of adminIncidentTypes??[]) {
         const entryItem = _entryTemplate!.cloneNode(true) as HTMLElement;
@@ -109,12 +108,28 @@ function updateIncidentTypes(): void {
             entryItem.classList.add("item-visible");
         }
 
-        const typeSpan = document.createElement("span");
+        const typeSpan = document.createElement("div");
         typeSpan.textContent = incidentType.name??null;
-
         entryItem.append(typeSpan);
-        entryItem.dataset["incidentTypeName"] = incidentType.name??"";
+
+        if (incidentType.description) {
+            const descriptionSpan = document.createElement("div");
+            descriptionSpan.classList.add("text-body-secondary", "ms-3");
+            descriptionSpan.textContent = `${incidentType.description}`;
+            entryItem.append(descriptionSpan);
+        }
+
         entryItem.dataset["incidentTypeId"] = incidentType.id?.toString();
+
+        const showEditModal: HTMLElement = entryItem.querySelector(".show-edit-modal")!;
+        showEditModal.addEventListener("click",
+            function (_e: MouseEvent): void  {
+                editModalElement.dataset["incidentTypeId"] = incidentType.id?.toString();
+                (document.getElementById("edit_incident_type_name") as HTMLInputElement).value = incidentType.name??"";
+                (document.getElementById("edit_incident_type_description") as HTMLTextAreaElement).value = incidentType.description??"";
+                editIncidentTypeModal.show();
+            },
+        );
 
         entryContainer.append(entryItem);
     }
@@ -136,8 +151,12 @@ function deleteIncidentType(_sender: HTMLElement) {
 
 
 async function showIncidentType(sender: HTMLElement): Promise<void> {
+    const typeId = sender.closest("li")?.dataset["incidentTypeId"];
+    if (!typeId) {
+        return;
+    }
     await sendIncidentTypes({
-        "id": ims.parseInt10(sender.parentElement!.dataset["incidentTypeId"]!),
+        "id": ims.parseInt10(typeId),
         "hidden": false,
     });
     await loadAndDrawIncidentTypes();
@@ -145,10 +164,48 @@ async function showIncidentType(sender: HTMLElement): Promise<void> {
 
 
 async function hideIncidentType(sender: HTMLElement): Promise<void> {
+    const typeId = sender.closest("li")?.dataset["incidentTypeId"];
+    if (!typeId) {
+        return;
+    }
     await sendIncidentTypes({
-        "id": ims.parseInt10(sender.parentElement!.dataset["incidentTypeId"]!),
+        "id": ims.parseInt10(typeId),
         "hidden": true,
     });
+    await loadAndDrawIncidentTypes();
+}
+
+async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
+    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    if (id == null || !sender.value) {
+        return;
+    }
+    const {err} = await sendIncidentTypes({
+        "id": id,
+        "name": sender.value,
+    });
+    if (err != null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender, 1000);
+    await loadAndDrawIncidentTypes();
+}
+
+async function setIncidentTypeDescription(sender: HTMLTextAreaElement): Promise<void> {
+    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    if (id == null || !sender.value) {
+        return;
+    }
+    const {err} = await sendIncidentTypes({
+        "id": id,
+        "description": sender.value,
+    });
+    if (err != null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender, 1000);
     await loadAndDrawIncidentTypes();
 }
 

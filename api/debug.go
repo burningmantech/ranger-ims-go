@@ -141,16 +141,7 @@ func (action GetRuntimeMetrics) getRuntimeMetrics(req *http.Request) (string, *h
 			// The histogram may be quite large, so let's just pull out
 			// a crude estimate for the median for the sake of this example.
 			bufPrintf("%s: %f\n", name, medianBucket(value.Float64Histogram()))
-		case metrics.KindBad:
-			// This should never happen because all metrics are supported
-			// by construction.
-			return "", herr.InternalServerError("bug in runtime/metrics package!", nil)
 		default:
-			// This may happen as new metrics get added.
-			//
-			// The safest thing to do here is to simply log it somewhere
-			// as something to look into, but ignore it for now.
-			// In the worst case, you might temporarily miss out on a new metric.
 			bufPrintf("%s: unexpected metric Kind: %v\n", name, value.Kind())
 		}
 	}

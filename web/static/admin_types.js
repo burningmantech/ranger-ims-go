@@ -31,6 +31,8 @@ async function initAdminTypesPage() {
     window.deleteIncidentType = deleteIncidentType;
     window.showIncidentType = showIncidentType;
     window.hideIncidentType = hideIncidentType;
+    window.setIncidentTypeName = setIncidentTypeName;
+    window.setIncidentTypeDescription = setIncidentTypeDescription;
     await loadAndDrawIncidentTypes();
     ims.hideLoadingOverlay();
     ims.enableEditing();
@@ -54,22 +56,19 @@ async function loadAllIncidentTypes() {
     adminIncidentTypes = json;
     return { err: null };
 }
-let _incidentTypesTemplate = null;
 let _entryTemplate = null;
 function drawAllIncidentTypes() {
-    const container = document.getElementById("incident_types_container");
-    if (_incidentTypesTemplate == null) {
-        _incidentTypesTemplate = container.getElementsByClassName("incident_types")[0];
-        _entryTemplate = _incidentTypesTemplate
-            .getElementsByClassName("list-group")[0]
-            .getElementsByClassName("list-group-item")[0];
+    if (_entryTemplate == null) {
+        _entryTemplate = document.querySelector("#incident_types li");
     }
     updateIncidentTypes();
 }
+const editModalElement = document.getElementById("editIncidentTypeModal");
 function updateIncidentTypes() {
     const incidentTypesElement = document.getElementById("incident_types");
     const entryContainer = incidentTypesElement.getElementsByClassName("list-group")[0];
     entryContainer.replaceChildren();
+    const editIncidentTypeModal = ims.bsModal(editModalElement);
     for (const incidentType of adminIncidentTypes ?? []) {
         const entryItem = _entryTemplate.cloneNode(true);
         if (incidentType.hidden) {
@@ -78,11 +77,23 @@ function updateIncidentTypes() {
         else {
             entryItem.classList.add("item-visible");
         }
-        const typeSpan = document.createElement("span");
+        const typeSpan = document.createElement("div");
         typeSpan.textContent = incidentType.name ?? null;
         entryItem.append(typeSpan);
-        entryItem.dataset["incidentTypeName"] = incidentType.name ?? "";
+        if (incidentType.description) {
+            const descriptionSpan = document.createElement("div");
+            descriptionSpan.classList.add("text-body-secondary", "ms-3");
+            descriptionSpan.textContent = `${incidentType.description}`;
+            entryItem.append(descriptionSpan);
+        }
         entryItem.dataset["incidentTypeId"] = incidentType.id?.toString();
+        const showEditModal = entryItem.querySelector(".show-edit-modal");
+        showEditModal.addEventListener("click", function (_e) {
+            editModalElement.dataset["incidentTypeId"] = incidentType.id?.toString();
+            document.getElementById("edit_incident_type_name").value = incidentType.name ?? "";
+            document.getElementById("edit_incident_type_description").value = incidentType.description ?? "";
+            editIncidentTypeModal.show();
+        });
         entryContainer.append(entryItem);
     }
 }
@@ -97,17 +108,57 @@ function deleteIncidentType(_sender) {
     alert("Remove unimplemented");
 }
 async function showIncidentType(sender) {
+    const typeId = sender.closest("li")?.dataset["incidentTypeId"];
+    if (!typeId) {
+        return;
+    }
     await sendIncidentTypes({
-        "id": ims.parseInt10(sender.parentElement.dataset["incidentTypeId"]),
+        "id": ims.parseInt10(typeId),
         "hidden": false,
     });
     await loadAndDrawIncidentTypes();
 }
 async function hideIncidentType(sender) {
+    const typeId = sender.closest("li")?.dataset["incidentTypeId"];
+    if (!typeId) {
+        return;
+    }
     await sendIncidentTypes({
-        "id": ims.parseInt10(sender.parentElement.dataset["incidentTypeId"]),
+        "id": ims.parseInt10(typeId),
         "hidden": true,
     });
+    await loadAndDrawIncidentTypes();
+}
+async function setIncidentTypeName(sender) {
+    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    if (id == null || !sender.value) {
+        return;
+    }
+    const { err } = await sendIncidentTypes({
+        "id": id,
+        "name": sender.value,
+    });
+    if (err != null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender, 1000);
+    await loadAndDrawIncidentTypes();
+}
+async function setIncidentTypeDescription(sender) {
+    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    if (id == null || !sender.value) {
+        return;
+    }
+    const { err } = await sendIncidentTypes({
+        "id": id,
+        "description": sender.value,
+    });
+    if (err != null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender, 1000);
     await loadAndDrawIncidentTypes();
 }
 async function sendIncidentTypes(edits) {

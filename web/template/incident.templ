@@ -62,8 +62,8 @@ templ Incident(deployment, eventName string) {
             </p>
             <div class="input-group mb-3">
               <label for="override_start_date" class="control-label input-group-text">Started</label>
-              <input id="override_start_date" type="date" class="form-control form-control-sm" />
-              <input id="override_start_time" type="time" class="form-control form-control-sm" />
+              <input id="override_start_date" aria-label="Start Date" type="date" class="form-control form-control-sm" />
+              <input id="override_start_time" aria-label="Start Time" type="time" class="form-control form-control-sm" />
               <span id="override_start_tz" class="input-group-text control-label"
                     title="This date and time must be edited in your computer's local time zone."
               ></span>
@@ -73,6 +73,21 @@ templ Incident(deployment, eventName string) {
               time that the incident was created in IMS. This override is intended for
               cases in which the incident began hours or days before it was logged in IMS.
             </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Incident type info -->
+    <div class="modal no-print" id="incidentTypeInfoModal" tabindex="-1" aria-labelledby="incidentTypeInfoModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <p class="modal-title fs-5" id="incidentTypeInfoModalLabel">Incident Types</p>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+          </div>
+          <div class="modal-body">
+            <ul id="incident-type-info" class="list-group list-group-small"></ul>
           </div>
         </div>
       </div>
@@ -108,8 +123,8 @@ templ Incident(deployment, eventName string) {
           <label class="control-label input-group-text" for="started_datetime">Started</label>
           <span class="form-control form-control-static align-middle d-flex justify-content-between">
             <span id="started_datetime"></span>
-            <span class="show-pointer">
-              <svg id="override_started_button" fill="currentColor" class="bi align-middle">
+            <span id="override_started_button" class="show-pointer" title="Override Start Time">
+              <svg fill="currentColor" class="bi align-middle">
                 <use href="#pencil-square" />
               </svg>
             </span>
@@ -163,7 +178,7 @@ templ Incident(deployment, eventName string) {
       <div class="col-sm-6 py-2">
         <div class="card">
           <label class="control-label card-header">Incident Types
-            <a href="https://github.com/burningmantech/ranger-ims-go/wiki/Incident-Types" class="link-body-emphasis">
+            <a href="#" class="link-body-emphasis" id="show-incident-type-info" title="Show Incident Type descriptions">
               <svg fill="currentColor" class="bi">
                 <use href="#question-circle" />
               </svg>

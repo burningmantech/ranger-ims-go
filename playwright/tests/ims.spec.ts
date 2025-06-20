@@ -76,6 +76,16 @@ async function addWriter(page: Page, eventName: string, writer: string): Promise
   await expect(writers.getByText(writer)).toBeVisible({timeout: 5000});
 }
 
+async function addReporter(page: Page, eventName: string, writer: string): Promise<void> {
+  await eventsPage(page);
+
+  const reporters = page.locator("div.card").filter({has: page.getByText(`Access for ${eventName} (reporters)`)});
+
+  await reporters.getByRole("textbox").fill(writer);
+  await reporters.getByRole("textbox").press("Enter");
+  await expect(reporters.getByText(writer)).toBeVisible({timeout: 5000});
+}
+
 async function maybeOpenNav(page: Page): Promise<void> {
   const toggler = page.getByLabel("Toggle navigation");
   await expect(async (): Promise<void> => {
@@ -113,7 +123,7 @@ test("admin_incident_types", async ({ page }) => {
 
   await incidentTypePage(page);
 
-  const newLi = page.locator(`li[data-incident-type-name="${incidentType}"]`);
+  const newLi = page.locator("li", {hasText: incidentType});
   await expect(newLi).toBeVisible();
   await expect(newLi.getByRole("button", {name: "Active"})).toBeVisible();
   await expect(newLi.getByRole("button", {name: "Hidden"})).toBeHidden();
@@ -235,6 +245,23 @@ test("incidents", async ({ page, browser }) => {
       await addRanger(incidentPage, "TheMan");
     }
 
+    // TODO: figure out what goes wrong in WebKit
+    // // override start time
+    // {
+    //   await incidentPage.getByTitle("Override Start Time").click();
+    //   // await incidentPage.getByRole("textbox", { name: "Start Date" }).clear();
+    //   await incidentPage.getByRole("textbox", { name: "Start Date" }).pressSequentially("01272025");
+    //   await incidentPage.getByRole("textbox", { name: "Start Date" }).blur();
+    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).focus();
+    //   await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025");
+    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).pressSequentially("12:34");
+    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).blur();
+    //   await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
+    //   await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 12:34");
+    //   // Close the modwal
+    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
+    // }
+
     // add location details
     {
       await incidentPage.getByLabel("Location name").click();
@@ -295,5 +322,100 @@ test("incidents", async ({ page, browser }) => {
     await incidentPage.close();
     await incidentsPage.close();
     await ctx.close();
+  }
+})
+
+
+test("field_reports", async ({ page, browser }) => {
+  test.slow();
+
+  // make a new event with a writer
+  await login(page);
+  const eventName: string = randomName("event");
+  await addEvent(page, eventName);
+  await addReporter(page, eventName, "person:" + username);
+
+  // check that we can navigate to the incidents page for that event
+  await page.goto("http://localhost:8080/ims/app/");
+  await maybeOpenNav(page);
+  await page.getByRole("button", {name: "Event"}).click();
+  await page.getByRole("link", {name: eventName}).click();
+  // we'll first hit the Incidents page, but because we're a reporter, we'll
+  // get auto-redirected to Field Reports.
+  await page.waitForURL(`http://localhost:8080/ims/app/events/${eventName}/field_reports`)
+
+  await page.close();
+
+  for (let i = 0; i < 3; i++) {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage()
+    await login(page);
+
+    await page.goto(`http://localhost:8080/ims/app/events/${eventName}/field_reports`);
+    const tablePage = page;
+
+    const frPage = await ctx.newPage();
+    await frPage.goto(`http://localhost:8080/ims/app/events/${eventName}/field_reports`);
+    await frPage.getByRole("button", {name: "New"}).click();
+
+    await expect(frPage.getByLabel("FR #")).toHaveText("(new)");
+    const frSummary = randomName("summary");
+    await frPage.getByLabel("Summary").fill(frSummary);
+    await frPage.getByLabel("Summary").press("Tab");
+    // wait for the new incident to be persisted
+    await expect(frPage.getByLabel("FR #")).toHaveText(/^\d+$/);
+
+    // check that the BroadcastChannel update to the first page worked
+    await expect(tablePage.getByText(frSummary)).toBeVisible();
+
+      // change the summary
+      const newSummary = frSummary + " with suffix";
+      await frPage.getByLabel("Summary").fill(newSummary);
+      await frPage.getByLabel("Summary").press("Tab");
+      // check that the BroadcastChannel update to the first page worked
+      await expect(tablePage.getByText(newSummary)).toBeVisible();
+
+      // add a report entry
+      const reportEntry = `This is some text - ${randomName("text")}`;
+      {
+        await frPage.getByLabel("New report entry text").fill(reportEntry);
+        await frPage.getByLabel("Submit report entry").click();
+        await expect(frPage.getByText(reportEntry)).toBeVisible();
+      }
+      // strike the entry, verified it's stricken
+      {
+        await frPage.getByText(reportEntry).hover();
+        await frPage.getByRole("button", {name: "Strike"}).click();
+        await expect(frPage.getByText(reportEntry)).toBeHidden();
+      }
+      // but the entry is shown when the right checkbox is ticked
+      {
+        await frPage.getByLabel("Show history and stricken").check();
+        await expect(frPage.getByText(reportEntry)).toBeVisible();
+      }
+      // unstrike the entry and see it return to the default view
+      {
+        await frPage.getByText(reportEntry).hover();
+        await frPage.getByRole("button", {name: "Unstrike"}).click();
+        await frPage.getByLabel("Show history and stricken").uncheck();
+        await expect(frPage.getByText(reportEntry)).toBeVisible();
+      }
+
+      // try searching for the incident by its report text
+      {
+        await tablePage.getByRole("searchbox").fill(reportEntry);
+        await tablePage.getByRole("searchbox").press("Enter");
+        await expect(tablePage.getByText(newSummary)).toBeVisible();
+        await tablePage.getByRole("searchbox").fill("The wrong text!");
+        await tablePage.getByRole("searchbox").press("Enter");
+        await expect(tablePage.getByText(newSummary)).toBeHidden();
+        await tablePage.getByRole("searchbox").clear();
+        await tablePage.getByRole("searchbox").press("Enter");
+        await expect(tablePage.getByText(newSummary)).toBeVisible();
+      }
+
+      await frPage.close();
+      await tablePage.close();
+      await ctx.close();
   }
 })

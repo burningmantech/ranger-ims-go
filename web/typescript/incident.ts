@@ -89,7 +89,9 @@ async function initIncidentPage(): Promise<void> {
         await loadIncident(),
         await loadPersonnel(),
         await ims.loadIncidentTypes().then(
-            value=> {allIncidentTypes = value.types;},
+            value=> {
+                allIncidentTypes = value.types;
+            },
         ),
         await loadAllFieldReports(),
     ]);
@@ -103,6 +105,7 @@ async function initIncidentPage(): Promise<void> {
     drawRangers();
     drawRangersToAdd();
     drawIncidentTypesToAdd();
+    drawIncidentTypeInfo();
     renderFieldReportData();
 
     ims.hideLoadingOverlay();
@@ -157,6 +160,8 @@ async function initIncidentPage(): Promise<void> {
 
     const startTimeModal = ims.bsModal(document.getElementById("startTimeModal")!);
 
+    const incidentTypeInfoModal = ims.bsModal(document.getElementById("incidentTypeInfoModal")!);
+
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -208,6 +213,14 @@ async function initIncidentPage(): Promise<void> {
             startTimeModal.show();
         },
     );
+    (document.getElementById("show-incident-type-info") as HTMLElement).addEventListener(
+        "click",
+        function (e: MouseEvent): void {
+            e.preventDefault();
+            incidentTypeInfoModal.show();
+        },
+    );
+
 
     // Incident fields generally trigger an update call automatically when the user
     // sets a new value in the field. This behavior is tricky to get right for date
@@ -742,6 +755,28 @@ function drawIncidentTypesToAdd() {
         const option: HTMLOptionElement = document.createElement("option");
         option.value = incidentType.name;
         datalist.append(option);
+    }
+}
+
+function drawIncidentTypeInfo(): void {
+    const infosUL = document.getElementById("incident-type-info") as HTMLUListElement;
+    infosUL.style.whiteSpace = "pre-wrap";
+
+    for (const incidentType of allIncidentTypes) {
+        const li: HTMLLIElement = document.createElement("li");
+        li.classList.add("list-group-item");
+
+        const name = document.createElement("div");
+        name.textContent = incidentType.name??"";
+        li.append(name);
+
+        if (incidentType.description) {
+            const description = document.createElement("div");
+            description.classList.add("ms-3", "text-body-secondary");
+            description.textContent = incidentType.description;
+            li.append(description);
+        }
+        infosUL.append(li);
     }
 }
 

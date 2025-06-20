@@ -150,7 +150,8 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
     entryContainer.replaceChildren();
 
-    for (const accessEntry of eventACL[mode]??[]) {
+    const accessEntries = (eventACL[mode]??[]).toSorted((a, b) => a.expression.localeCompare(b.expression));
+    for (const accessEntry of accessEntries) {
         const entryItem = _eventsEntryTemplate!.cloneNode(true) as HTMLElement;
 
         entryItem.append(accessEntry.expression);
@@ -270,7 +271,7 @@ async function removeAccess(sender: HTMLButtonElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
     const event = container.getElementsByClassName("event_name")[0]!.textContent!;
     const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
-    const expression = sender.parentElement!.dataset["expression"]!.trim();
+    const expression = sender.closest("li")!.dataset["expression"]!.trim();
 
     const acl: Access[] = accessControlList![event]![mode]!.slice();
 
@@ -303,7 +304,7 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
     const event: string = container.getElementsByClassName("event_name")[0]!.textContent!;
     const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
-    const expression = sender.parentElement!.dataset["expression"]!.trim();
+    const expression = sender.closest("li")!.dataset["expression"]!.trim();
 
     let acl: Access[] = accessControlList![event]![mode]!.slice();
 

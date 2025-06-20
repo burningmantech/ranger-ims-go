@@ -102,7 +102,8 @@ function updateEventAccess(event, mode) {
     eventAccess.getElementsByClassName("access_mode")[0].textContent = mode;
     const entryContainer = eventAccess.getElementsByClassName("list-group")[0];
     entryContainer.replaceChildren();
-    for (const accessEntry of eventACL[mode] ?? []) {
+    const accessEntries = (eventACL[mode] ?? []).toSorted((a, b) => a.expression.localeCompare(b.expression));
+    for (const accessEntry of accessEntries) {
         const entryItem = _eventsEntryTemplate.cloneNode(true);
         entryItem.append(accessEntry.expression);
         entryItem.dataset["expression"] = accessEntry.expression;
@@ -201,7 +202,7 @@ async function removeAccess(sender) {
     const container = sender.closest(".event_access");
     const event = container.getElementsByClassName("event_name")[0].textContent;
     const mode = container.getElementsByClassName("access_mode")[0].textContent;
-    const expression = sender.parentElement.dataset["expression"].trim();
+    const expression = sender.closest("li").dataset["expression"].trim();
     const acl = accessControlList[event][mode].slice();
     let foundIndex = -1;
     for (const [i, access] of acl.entries()) {
@@ -228,7 +229,7 @@ async function setValidity(sender) {
     const container = sender.closest(".event_access");
     const event = container.getElementsByClassName("event_name")[0].textContent;
     const mode = container.getElementsByClassName("access_mode")[0].textContent;
-    const expression = sender.parentElement.dataset["expression"].trim();
+    const expression = sender.closest("li").dataset["expression"].trim();
     let acl = accessControlList[event][mode].slice();
     // remove other acls for this mode for the same expression
     acl = acl.filter((v) => { return v.expression !== expression; });

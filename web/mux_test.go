@@ -17,6 +17,8 @@
 package web_test
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/stretchr/testify/require"
@@ -104,4 +106,64 @@ func TestCatchall(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+}
+
+type exampleAction struct {
+	output *bytes.Buffer
+}
+
+func (e exampleAction) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintln(e.output, "      in the action")
+}
+
+func firstAdapter(output *bytes.Buffer) web.Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(output, "firstAdapter before")
+			next.ServeHTTP(w, r)
+			fmt.Fprintln(output, "firstAdapter after")
+		})
+	}
+}
+
+func secondAdapter(output *bytes.Buffer) web.Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(output, "  secondAdapter before")
+			next.ServeHTTP(w, r)
+			fmt.Fprintln(output, "  secondAdapter after")
+		})
+	}
+}
+
+func thirdAdapter(output *bytes.Buffer) web.Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(output, "    thirdAdapter before")
+			next.ServeHTTP(w, r)
+			fmt.Fprintln(output, "    thirdAdapter after")
+		})
+	}
+}
+
+// TestAdapt demonstrates how the Adapter pattern works.
+func TestAdapt(t *testing.T) {
+	t.Parallel()
+	b := bytes.Buffer{}
+	web.Adapt(
+		exampleAction{output: &b}.ServeHTTP,
+		firstAdapter(&b),
+		secondAdapter(&b),
+		thirdAdapter(&b),
+	).ServeHTTP(nil, nil)
+	require.Equal(t, ""+
+		"firstAdapter before\n"+
+		"  secondAdapter before\n"+
+		"    thirdAdapter before\n"+
+		"      in the action\n"+
+		"    thirdAdapter after\n"+
+		"  secondAdapter after\n"+
+		"firstAdapter after\n",
+		b.String(),
+	)
 }

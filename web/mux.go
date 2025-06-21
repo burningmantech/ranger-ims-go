@@ -37,22 +37,24 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/static/ext/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
-			Static(cfg.Core.CacheControlLong),
+			CacheControl(cfg.Core.CacheControlLong),
 		),
 	)
 	mux.Handle("GET /ims/static/logos/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
-			Static(cfg.Core.CacheControlLong),
+			CacheControl(cfg.Core.CacheControlLong),
 		),
 	)
 	mux.Handle("GET /ims/static/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
-			// Don't cache IMS's own JS/CSS files, because Cloudflare ups this duration to
-			// 4 hours, and that's a pain when we're trying to push fixes out. We can remove
-			// this and allow caching again once we're nearer to event time.
-			NoStore(),
+			// Cache IMS's internal JS and CSS for a shorter duration than external JS/CSS
+			// and logos, since we want updates to these files to get sent out to users
+			// somewhat soon after deployment to production. If we don't do some custom
+			// overriding here, then Cloudflare sets a 4-hour Cache-Control header.
+			CacheControl(cfg.Core.CacheControlShort),
+			CdnCacheControl(cfg.Core.CacheControlShort),
 		),
 	)
 	mux.Handle("GET /ims/app",
@@ -138,23 +140,23 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	return mux
 }
 
-func Static(dur time.Duration) Adapter {
+func CacheControl(maxAge time.Duration) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			durSec := dur.Milliseconds() / 1000
-			w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", durSec))
-			next.ServeHTTP(w, r.WithContext(r.Context()))
+			durSec := maxAge.Milliseconds() / 1000
+			w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v", durSec))
+			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-func NoStore() Adapter {
+func CdnCacheControl(maxAge time.Duration) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "max-age=0, no-store")
+			durSec := maxAge.Milliseconds() / 1000
 			// https://developers.cloudflare.com/cache/concepts/cdn-cache-control/
-			w.Header().Set("CDN-Cache-Control", "max-age=0, no-store")
-			next.ServeHTTP(w, r.WithContext(r.Context()))
+			w.Header().Set("CDN-Cache-Control", fmt.Sprintf("max-age=%v", durSec))
+			next.ServeHTTP(w, r)
 		})
 	}
 }
@@ -165,13 +167,13 @@ func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
 	handler := http.Handler(h)
 	for i := range adapters {
 		adapter := adapters[len(adapters)-1-i] // range in reverse
-		handler = adapter(h)
+		handler = adapter(handler)
 	}
 	return handler
 }
 
 func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, adapters ...Adapter) http.Handler {
-	adapters = append(adapters, Static(cacheControlLong))
+	adapters = append(adapters, CacheControl(cacheControlLong))
 	return Adapt(
 		func(w http.ResponseWriter, req *http.Request) {
 			err := comp.Render(req.Context(), w)

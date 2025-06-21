@@ -107,6 +107,11 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			).ServeHTTP(w, r)
 		},
 	)
+	mux.HandleFunc("GET /ims/app/events/{eventName}",
+		func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/ims/app/events/"+r.PathValue("eventName")+"/incidents", http.StatusFound)
+		},
+	)
 	mux.Handle("GET /ims/auth/login",
 		AdaptTempl(template.Login(deployment), cfg.Core.CacheControlLong),
 	)

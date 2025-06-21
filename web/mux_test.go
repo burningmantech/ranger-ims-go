@@ -73,7 +73,7 @@ func TestTemplEndpoints(t *testing.T) {
 	}
 }
 
-func TestCatchall(t *testing.T) {
+func TestRedirects(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	cfg := conf.DefaultIMS()
@@ -96,6 +96,16 @@ func TestCatchall(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	// Ta-da! Now there's no trailing slash
+	require.Equal(t, "/ims/app/events/SomeEvent/incidents", resp.Request.URL.Path)
+
+	// This will get redirected to the Incidents page
+	path = serverURL.JoinPath("/ims/app/events/SomeEvent")
+	httpReq, err = http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
+	require.NoError(t, err)
+	resp, err = client.Do(httpReq)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 	require.Equal(t, "/ims/app/events/SomeEvent/incidents", resp.Request.URL.Path)
 
 	// This won't match any endpoint

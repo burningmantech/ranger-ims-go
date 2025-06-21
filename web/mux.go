@@ -152,6 +152,8 @@ func NoStore() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "max-age=0, no-store")
+			// https://developers.cloudflare.com/cache/concepts/cdn-cache-control/
+			w.Header().Set("CDN-Cache-Control", "max-age=0, no-store")
 			next.ServeHTTP(w, r.WithContext(r.Context()))
 		})
 	}

@@ -54,7 +54,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			// somewhat soon after deployment to production. If we don't do some custom
 			// overriding here, then Cloudflare sets a 4-hour Cache-Control header.
 			CacheControl(cfg.Core.CacheControlShort),
-			CdnCacheControl(cfg.Core.CacheControlShort),
+			CdnCacheControlOff(),
 		),
 	)
 	mux.Handle("GET /ims/app",
@@ -150,12 +150,11 @@ func CacheControl(maxAge time.Duration) Adapter {
 	}
 }
 
-func CdnCacheControl(maxAge time.Duration) Adapter {
+func CdnCacheControlOff() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			durSec := maxAge.Milliseconds() / 1000
 			// https://developers.cloudflare.com/cache/concepts/cdn-cache-control/
-			w.Header().Set("CDN-Cache-Control", fmt.Sprintf("max-age=%v", durSec))
+			w.Header().Set("CDN-Cache-Control", "max-age=0, no-store")
 			next.ServeHTTP(w, r)
 		})
 	}

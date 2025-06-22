@@ -322,7 +322,8 @@ function initDataTables(tablePrereqs) {
             },
         ],
         "order": [
-            [0, "dsc"],
+            // 1 --> "Started" time
+            [1, "dsc"],
         ],
         "createdRow": function (row, incident, _index) {
             const openLink = function (e) {

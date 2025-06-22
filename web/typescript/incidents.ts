@@ -377,7 +377,8 @@ function initDataTables(tablePrereqs: Promise<void>): void {
             },
         ],
         "order": [
-            [0, "dsc"],
+            // 1 --> "Started" time
+            [1, "dsc"],
         ],
         "createdRow": function (row: HTMLElement, incident: ims.Incident, _index: number) {
             const openLink = function(e: MouseEvent): void {

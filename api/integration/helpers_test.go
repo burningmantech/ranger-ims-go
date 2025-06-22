@@ -107,12 +107,9 @@ func (a ApiHelper) editType(ctx context.Context, req imsjson.IncidentType) (*int
 	return &num, httpResp
 }
 
-func (a ApiHelper) getTypes(ctx context.Context, includeHidden bool) (imsjson.IncidentTypes, *http.Response) {
+func (a ApiHelper) getTypes(ctx context.Context) (imsjson.IncidentTypes, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/incident_types").String()
-	if includeHidden {
-		path += "?hidden=true"
-	}
 	bod, resp := a.imsGet(ctx, path, &imsjson.IncidentTypes{})
 	return *bod.(*imsjson.IncidentTypes), resp
 }

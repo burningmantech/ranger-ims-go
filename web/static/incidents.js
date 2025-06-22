@@ -37,6 +37,8 @@ let _showRows = null;
 const defaultRows = 25;
 let allIncidentTypes = [];
 let allIncidentTypeIds = [];
+let visibleIncidentTypes = [];
+let visibleIncidentTypeIds = [];
 //
 // Initialize UI
 //
@@ -138,6 +140,8 @@ async function initIncidentsTable() {
         await ims.loadIncidentTypes().then(value => {
             allIncidentTypes = value.types;
             allIncidentTypeIds = value.types.map(it => it.id).filter(id => id != null);
+            visibleIncidentTypes = value.types.filter(it => !it.hidden);
+            visibleIncidentTypeIds = visibleIncidentTypes.map(it => it.id).filter(id => id != null);
         }),
         ims.loadStreets(ims.pathIds.eventID),
     ]).then(_ => { });
@@ -282,6 +286,7 @@ function initDataTables(tablePrereqs) {
                 "defaultContent": "",
                 "render": function (ids, _type, _incident) {
                     const vals = [];
+                    // render hidden incident types too here
                     for (const it of allIncidentTypes) {
                         if (ids.includes(it.id ?? -1) && it.name) {
                             vals.push(it.name);
@@ -317,7 +322,8 @@ function initDataTables(tablePrereqs) {
             },
         ],
         "order": [
-            [0, "dsc"],
+            // 1 --> "Started" time
+            [1, "dsc"],
         ],
         "createdRow": function (row, incident, _index) {
             const openLink = function (e) {
@@ -368,7 +374,7 @@ function renderSummary(_data, type, incident) {
 //
 function initTableButtons() {
     const typeFilter = document.getElementById("ul_show_type");
-    for (const type of allIncidentTypes) {
+    for (const type of visibleIncidentTypes) {
         const a = document.createElement("a");
         a.href = "#";
         a.classList.add("dropdown-item", "dropdown-item-checkable", "dropdown-item-checked");
@@ -393,7 +399,7 @@ function initTableButtons() {
         let includeOthers = false;
         for (const t of types) {
             const typeId = ims.parseInt10(t);
-            if (typeId && allIncidentTypeIds.indexOf(typeId) !== -1) {
+            if (typeId && visibleIncidentTypeIds.indexOf(typeId) !== -1) {
                 validTypes.push(typeId);
             }
             else if (t === _blankPlaceholder) {
@@ -578,7 +584,7 @@ function setCheckedTypes(types, includeBlanks, includeOthers) {
     }
 }
 function toggleCheckAllTypes() {
-    if (_showTypes.length === 0 || _showTypes.length < allIncidentTypes.length) {
+    if (_showTypes.length === 0 || _showTypes.length < visibleIncidentTypes.length) {
         setCheckedTypes(allIncidentTypeIds, true, true);
     }
     else {
@@ -602,7 +608,7 @@ function readCheckedTypes() {
     }
 }
 function allTypesChecked() {
-    return _showTypes.length === allIncidentTypes.length && _showBlankType && _showOtherType;
+    return _showTypes.length === visibleIncidentTypes.length && _showBlankType && _showOtherType;
 }
 function showCheckedTypes(replaceState) {
     readCheckedTypes();

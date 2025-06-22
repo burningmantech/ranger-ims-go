@@ -60,7 +60,6 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 	if err := req.ParseForm(); err != nil {
 		return response, herr.BadRequest("Unable to parse HTTP form", err).From("[ParseForm]")
 	}
-	includeHidden := req.Form.Get("hidden") == "true"
 	typeRows, err := action.imsDBQ.IncidentTypes(req.Context(), action.imsDBQ)
 	if err != nil {
 		return response, herr.InternalServerError("Failed to fetch Incident Types", err).From("[IncidentTypes]")
@@ -68,14 +67,12 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 
 	for _, typeRow := range typeRows {
 		t := typeRow.IncidentType
-		if includeHidden || !t.Hidden {
-			response = append(response, imsjson.IncidentType{
-				ID:          t.ID,
-				Name:        ptr(t.Name),
-				Description: conv.SqlToString(t.Description),
-				Hidden:      ptr(t.Hidden),
-			})
-		}
+		response = append(response, imsjson.IncidentType{
+			ID:          t.ID,
+			Name:        ptr(t.Name),
+			Description: conv.SqlToString(t.Description),
+			Hidden:      ptr(t.Hidden),
+		})
 	}
 	slices.SortFunc(response, func(a, b imsjson.IncidentType) int {
 		return int(a.ID) - int(b.ID)

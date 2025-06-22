@@ -53,6 +53,8 @@ const defaultRows = 25;
 
 let allIncidentTypes: ims.IncidentType[] = [];
 let allIncidentTypeIds: number[] = [];
+let visibleIncidentTypes: ims.IncidentType[] = [];
+let visibleIncidentTypeIds: number[] = [];
 
 //
 // Initialize UI
@@ -177,6 +179,8 @@ async function initIncidentsTable(): Promise<void> {
             value=>{
                 allIncidentTypes=value.types;
                 allIncidentTypeIds=value.types.map(it=>it.id).filter(id=>id != null);
+                visibleIncidentTypes=value.types.filter(it=>!it.hidden);
+                visibleIncidentTypeIds=visibleIncidentTypes.map(it=>it.id).filter(id=>id != null);
             },
         ),
         ims.loadStreets(ims.pathIds.eventID),
@@ -337,6 +341,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 "defaultContent": "",
                 "render": function(ids: number[], _type: string, _incident: ims.Incident) {
                     const vals: string[] = [];
+                    // render hidden incident types too here
                     for (const it of allIncidentTypes) {
                         if (ids.includes(it.id??-1) && it.name) {
                             vals.push(it.name);
@@ -372,7 +377,8 @@ function initDataTables(tablePrereqs: Promise<void>): void {
             },
         ],
         "order": [
-            [0, "dsc"],
+            // 1 --> "Started" time
+            [1, "dsc"],
         ],
         "createdRow": function (row: HTMLElement, incident: ims.Incident, _index: number) {
             const openLink = function(e: MouseEvent): void {
@@ -433,7 +439,7 @@ function renderSummary(_data: string|null, type: string, incident: ims.Incident)
 function initTableButtons(): void {
 
     const typeFilter = document.getElementById("ul_show_type") as HTMLUListElement;
-    for (const type of allIncidentTypes) {
+    for (const type of visibleIncidentTypes) {
         const a: HTMLAnchorElement = document.createElement("a");
         a.href = "#";
         a.classList.add("dropdown-item", "dropdown-item-checkable", "dropdown-item-checked");
@@ -462,7 +468,7 @@ function initTableButtons(): void {
         let includeOthers = false;
         for (const t of types) {
             const typeId = ims.parseInt10(t);
-            if (typeId && allIncidentTypeIds.indexOf(typeId) !== -1) {
+            if (typeId && visibleIncidentTypeIds.indexOf(typeId) !== -1) {
                 validTypes.push(typeId);
             } else if (t === _blankPlaceholder) {
                 includeBlanks = true;
@@ -683,7 +689,7 @@ function setCheckedTypes(types: number[], includeBlanks: boolean, includeOthers:
 }
 
 function toggleCheckAllTypes(): void {
-    if (_showTypes.length === 0 || _showTypes.length < allIncidentTypes.length) {
+    if (_showTypes.length === 0 || _showTypes.length < visibleIncidentTypes.length) {
         setCheckedTypes(allIncidentTypeIds, true, true);
     } else {
         setCheckedTypes([], false, false);
@@ -706,7 +712,7 @@ function readCheckedTypes(): void {
 }
 
 function allTypesChecked(): boolean {
-    return _showTypes.length === allIncidentTypes.length && _showBlankType && _showOtherType;
+    return _showTypes.length === visibleIncidentTypes.length && _showBlankType && _showOtherType;
 }
 
 function showCheckedTypes(replaceState: boolean): void {

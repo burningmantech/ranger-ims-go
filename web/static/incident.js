@@ -943,8 +943,7 @@ async function addIncidentType() {
     // let validTypeInput: string = "";
     let validTypeInputId = null;
     for (const validType of allIncidentTypes) {
-        if (validType.name && normalizedTypeInput === normalize(validType.name)) {
-            // validTypeInput = validType.name;
+        if (!validType.hidden && validType.name && normalizedTypeInput === normalize(validType.name)) {
             validTypeInputId = validType.id ?? null;
             break;
         }

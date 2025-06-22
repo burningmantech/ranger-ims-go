@@ -17,7 +17,6 @@
 "use strict";
 
 import * as ims from "./ims.ts";
-import {IncidentType} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -65,7 +64,7 @@ async function loadAndDrawIncidentTypes(): Promise<void> {
 let adminIncidentTypes: ims.IncidentType[]|null = null;
 
 async function loadAllIncidentTypes(): Promise<{err:string|null}> {
-    const {json, err} = await ims.fetchJsonNoThrow<ims.IncidentType[]>(url_incidentTypes + "?hidden=true", {
+    const {json, err} = await ims.fetchJsonNoThrow<ims.IncidentType[]>(url_incidentTypes, {
         headers: {"Cache-Control": "no-cache"},
     });
     if (err != null || json == null) {
@@ -74,7 +73,7 @@ async function loadAllIncidentTypes(): Promise<{err:string|null}> {
         window.alert(message);
         return {err: message};
     }
-    json.sort((a: IncidentType, b: IncidentType): number => (a.name??"").localeCompare(b.name??""));
+    json.sort((a: ims.IncidentType, b: ims.IncidentType): number => (a.name??"").localeCompare(b.name??""));
     adminIncidentTypes = json;
     return {err: null};
 }

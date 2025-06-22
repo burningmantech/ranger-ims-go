@@ -507,14 +507,15 @@ function initSearch() {
     });
     incidentsTable.search.fixed("type", function (_searchStr, _rowData, rowIndex) {
         const incident = incidentsTable.data()[rowIndex];
-        // don't bother with filtering, which may be computationally expensive,
-        // if all types seem to be selected
+        // don't bother with filtering if all types are selected
         if (!allTypesChecked()) {
             const rowTypes = Object.values(incident.incident_type_ids ?? []);
-            // const intersect = rowTypes.filter(t => _showTypes.includes(t)).length > 0;
+            // the selected types include one of this row's types
             const intersect = rowTypes.filter(t => _showTypes.includes(t.toString())).length > 0;
+            // "blank" is selected, and this row has no types
             const blankShow = _showBlankType && rowTypes.length === 0;
-            const otherShow = _showOtherType && rowTypes.filter(t => !(allIncidentTypeIds.includes(t))).length > 0;
+            // "other" is selected, and this row has a type that is hidden
+            const otherShow = _showOtherType && rowTypes.filter(t => !(visibleIncidentTypeIds.includes(t))).length > 0;
             if (!intersect && !blankShow && !otherShow) {
                 return false;
             }

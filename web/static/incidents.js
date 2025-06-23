@@ -515,7 +515,7 @@ function initSearch() {
             // "blank" is selected, and this row has no types
             const blankShow = _showBlankType && rowTypes.length === 0;
             // "other" is selected, and this row has a type that is hidden
-            const otherShow = _showOtherType && rowTypes.filter(t => !(visibleIncidentTypeIds.includes(t))).length > 0;
+            const otherShow = _showOtherType && rowTypes.some(t => !(visibleIncidentTypeIds.includes(t)));
             if (!intersect && !blankShow && !otherShow) {
                 return false;
             }

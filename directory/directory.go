@@ -33,16 +33,18 @@ type UserStore struct {
 }
 
 type User struct {
-	ID            int64
-	Handle        string
-	Email         string
-	Status        string
-	Onsite        bool
-	Password      string
-	PositionIDs   []int64
-	PositionNames []string
-	TeamIDs       []int64
-	TeamNames     []string
+	ID                 int64
+	Handle             string
+	Email              string
+	Status             string
+	Onsite             bool
+	Password           string
+	PositionIDs        []int64
+	PositionNames      []string
+	TeamIDs            []int64
+	TeamNames          []string
+	OnDutyPositionID   *int64
+	OnDutyPositionName *string
 }
 
 func NewUserStore(dbq *DBQ, cacheTTL time.Duration) *UserStore {
@@ -119,6 +121,8 @@ func (store *UserStore) refreshUserCache(ctx context.Context) (map[int64]*User, 
 	errs = append(errs, err)
 	personPositions, err := store.DBQ.PersonPositions(ctx, store.DBQ)
 	errs = append(errs, err)
+	personsOnDuty, err := store.DBQ.PersonsOnDuty(ctx, store.DBQ)
+	errs = append(errs, err)
 	if err := errors.Join(errs...); err != nil {
 		return nil, fmt.Errorf("[Teams,Positions,PersonTeams,PersonPositions] %w", err)
 	}
@@ -154,6 +158,15 @@ func (store *UserStore) refreshUserCache(ctx context.Context) (map[int64]*User, 
 			person := m[pt.PersonID]
 			person.TeamIDs = append(person.TeamIDs, pt.TeamID)
 			person.TeamNames = append(person.TeamNames, teams[pt.TeamID])
+		}
+	}
+	for _, pod := range personsOnDuty {
+		if _, ok := m[int64(pod.PersonID)]; ok {
+			posID := int64(pod.PositionID)
+			m[int64(pod.PersonID)].OnDutyPositionID = &posID
+			if pos, ok := positions[int64(pod.PositionID)]; ok {
+				m[int64(pod.PersonID)].OnDutyPositionName = &pos
+			}
 		}
 	}
 	return m, nil

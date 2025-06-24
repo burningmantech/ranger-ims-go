@@ -33,6 +33,7 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 		[]int64{10, 20, 40, 150},
 		[]int64{15, 25, 45, 155},
 		true,
+		ptr(int64(20)),
 		time.Now().Add(1*time.Hour),
 	)
 	require.NoError(t, err)
@@ -57,6 +58,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 			nil,
 			nil,
 			true,
+			ptr(int64(20)),
 			time.Now().Add(-1*time.Hour),
 		)
 		require.NoError(t, err)
@@ -71,6 +73,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 			nil,
 			nil,
 			true,
+			ptr(int64(20)),
 			time.Now().Add(1*time.Hour),
 		)
 		require.NoError(t, err)
@@ -86,6 +89,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 			nil,
 			nil,
 			true,
+			ptr(int64(20)),
 			time.Now().Add(1*time.Hour),
 		)
 		require.NoError(t, err)
@@ -93,4 +97,8 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ranger handle is required")
 	}
+}
+
+func ptr[T any](s T) *T {
+	return &s
 }

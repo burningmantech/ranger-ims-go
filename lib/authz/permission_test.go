@@ -56,6 +56,7 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 		true,
 		[]string{},
 		[]string{},
+		"",
 	)
 	require.Equal(t, EventNoPermissions, permissions[999])
 	require.Equal(t, readerPerm, permissions[123])
@@ -68,6 +69,7 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 		true,
 		[]string{},
 		[]string{},
+		"",
 	)
 	require.Equal(t, EventNoPermissions, permissions[999])
 	require.Equal(t, writerPerm, permissions[123])
@@ -80,6 +82,7 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 		true,
 		[]string{},
 		[]string{},
+		"",
 	)
 	require.Equal(t, EventNoPermissions, permissions[999])
 	require.Equal(t, reporterPerm, permissions[123])
@@ -92,6 +95,7 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 		true,
 		[]string{},
 		[]string{},
+		"",
 	)
 	require.Equal(t, EventNoPermissions, permissions[999])
 	require.Equal(t, EventNoPermissions, permissions[123])
@@ -113,6 +117,7 @@ func TestManyEventPermissions_positionRules(t *testing.T) {
 		true,
 		[]string{"Runner", "Swimmer"},
 		[]string{},
+		"",
 	)
 	require.Equal(t, EventNoPermissions, permissions[999])
 	require.Equal(t, readerPerm|reporterPerm, permissions[123])
@@ -134,6 +139,29 @@ func TestManyEventPermissions_teamRules(t *testing.T) {
 		true,
 		[]string{"Runner", "Swimmer"},
 		[]string{"Running Squad", "Swimming Squad"},
+		"",
+	)
+	require.Equal(t, EventNoPermissions, permissions[999])
+	require.Equal(t, readerPerm|reporterPerm, permissions[123])
+	require.Equal(t, authenticatedUserPerms, globalPermissions)
+}
+
+func TestManyEventPermissions_onDutyRules(t *testing.T) {
+	t.Parallel()
+	accessByEvent := make(map[int32][]imsdb.EventAccess)
+	addPerm(accessByEvent, 123, "person:Running Ranger", "report", "always")
+	addPerm(accessByEvent, 123, "onduty:Runner", "read", "always")
+	addPerm(accessByEvent, 999, "position:Runner", "read", "always")
+
+	// this user matches both a person and an onduty rule on event 123
+	permissions, globalPermissions := ManyEventPermissions(
+		accessByEvent,
+		testAdmins,
+		"Running Ranger",
+		true,
+		[]string{},
+		[]string{},
+		"Runner",
 	)
 	require.Equal(t, EventNoPermissions, permissions[999])
 	require.Equal(t, readerPerm|reporterPerm, permissions[123])
@@ -152,6 +180,7 @@ func TestManyEventPermissions_wildcardValidity(t *testing.T) {
 		true,
 		[]string{"Runner", "Swimmer"},
 		[]string{"Running Squad", "Swimming Squad"},
+		"",
 	)
 	require.Equal(t, reporterPerm, permissions[123])
 	require.Equal(t, authenticatedUserPerms, globalPermissions)
@@ -163,6 +192,7 @@ func TestManyEventPermissions_wildcardValidity(t *testing.T) {
 		false,
 		[]string{"Runner", "Swimmer"},
 		[]string{"Running Squad", "Swimming Squad"},
+		"",
 	)
 	require.Equal(t, EventNoPermissions, permissions[123])
 	require.Equal(t, authenticatedUserPerms, globalPermissions)

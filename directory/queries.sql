@@ -12,6 +12,17 @@ from person
 -- to determine who shows up in the Incident page's "Add Ranger" section.
 where status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha');
 
+-- name: PersonsOnDuty :many
+select
+    person_id,
+    position_id
+from
+    timesheet
+where
+    on_duty > date_sub(now(), interval 60 day)
+    and off_duty is null
+;
+
 -- name: Positions :many
 select id, title from position where all_rangers = 0;
 

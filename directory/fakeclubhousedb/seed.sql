@@ -44,3 +44,9 @@ insert into `person_team`
 values
 (600, 800)
 ;
+
+insert into `timesheet`
+(`person_id`, `position_id`, `on_duty`, `off_duty`)
+values
+(600, 702, now(), null)
+;

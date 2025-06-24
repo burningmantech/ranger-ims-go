@@ -33,6 +33,7 @@ func (j JWTer) CreateAccessToken(
 	positionIDs []int64,
 	teamIDs []int64,
 	onsite bool,
+	onDutyPositionID *int64,
 	expiration time.Time,
 ) (string, error) {
 	return j.createJWT(
@@ -42,6 +43,7 @@ func (j JWTer) CreateAccessToken(
 			WithIssuer("ims").
 			WithRangerHandle(rangerName).
 			WithRangerOnSite(onsite).
+			WithRangerOnDutyPosition(onDutyPositionID).
 			WithRangerPositions(positionIDs...).
 			WithRangerTeams(teamIDs...).
 			WithSubject(strconv.FormatInt(clubhouseID, 10)),

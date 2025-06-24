@@ -80,7 +80,7 @@ func DefaultIMS() *IMSConfig {
 				// https://github.com/dolthub/go-mysql-server/issues/1306
 				MaxOpenConns: 1,
 			},
-			InMemoryCacheTTL: 10 * time.Minute,
+			InMemoryCacheTTL: 5 * time.Minute,
 		},
 		AttachmentsStore: AttachmentsStore{
 			Type: AttachmentsStoreNone,

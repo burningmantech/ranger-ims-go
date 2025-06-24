@@ -121,6 +121,11 @@ func EventPermissions(
 	for _, userTeamID := range userTeamIDs {
 		userTeamNames = append(userTeamNames, allTeams[userTeamID])
 	}
+	onDutyPosition := ""
+	onDutyPositionID := claims.RangerOnDutyPosition()
+	if onDutyPositionID != nil {
+		onDutyPosition = allPositions[*onDutyPositionID]
+	}
 
 	eventPermissions, globalPermissions = ManyEventPermissions(
 		accessByEvent,
@@ -129,6 +134,7 @@ func EventPermissions(
 		claims.RangerOnSite(),
 		userPosNames,
 		userTeamNames,
+		onDutyPosition,
 	)
 	return eventPermissions, globalPermissions, nil
 }
@@ -140,6 +146,7 @@ func ManyEventPermissions(
 	onsite bool,
 	positions []string,
 	teams []string,
+	onDutyPosition string,
 ) (eventPermissions map[int32]EventPermissionMask, globalPermissions GlobalPermissionMask) {
 	eventPermissions = make(map[int32]EventPermissionMask)
 	globalPermissions = GlobalNoPermissions
@@ -155,7 +162,7 @@ func ManyEventPermissions(
 	for eventID, accesses := range accessByEvent {
 		eventPermissions[eventID] = EventNoPermissions
 		for _, ea := range accesses {
-			if PersonMatches(ea, handle, positions, teams, onsite) {
+			if PersonMatches(ea, handle, positions, teams, onsite, onDutyPosition) {
 				eventPermissions[eventID] |= RolesToEventPerms[modeToRole[ea.Mode]]
 			}
 		}
@@ -169,6 +176,7 @@ func PersonMatches(
 	positions []string,
 	teams []string,
 	onsite bool,
+	onDutyPosition string,
 ) bool {
 	matchExpr := false
 	if ea.Expression == "*" {
@@ -180,6 +188,10 @@ func PersonMatches(
 	}
 	if strings.HasPrefix(ea.Expression, "position:") &&
 		slices.Contains(positions, strings.TrimPrefix(ea.Expression, "position:")) {
+		matchExpr = true
+	}
+	if strings.HasPrefix(ea.Expression, "onduty:") &&
+		onDutyPosition == strings.TrimPrefix(ea.Expression, "onduty:") {
 		matchExpr = true
 	}
 	if strings.HasPrefix(ea.Expression, "team:") &&

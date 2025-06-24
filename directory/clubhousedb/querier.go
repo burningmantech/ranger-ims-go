@@ -15,6 +15,7 @@ type Querier interface {
 	// These Persons results are used to determine who may log into IMS, and also
 	// to determine who shows up in the Incident page's "Add Ranger" section.
 	Persons(ctx context.Context, db DBTX) ([]PersonsRow, error)
+	PersonsOnDuty(ctx context.Context, db DBTX) ([]PersonsOnDutyRow, error)
 	Positions(ctx context.Context, db DBTX) ([]PositionsRow, error)
 	Teams(ctx context.Context, db DBTX) ([]TeamsRow, error)
 }

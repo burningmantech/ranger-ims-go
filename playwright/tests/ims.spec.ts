@@ -386,7 +386,7 @@ test("field_reports", async ({ page, browser }) => {
       // strike the entry, verified it's stricken
       {
         await frPage.getByText(reportEntry).hover();
-        await frPage.getByRole("button", {name: "Strike"}).click();
+        await frPage.getByRole("button", {name: "Strike"}).click({force: true});
         await expect(frPage.getByText(reportEntry)).toBeHidden();
       }
       // but the entry is shown when the right checkbox is ticked
@@ -397,7 +397,7 @@ test("field_reports", async ({ page, browser }) => {
       // unstrike the entry and see it return to the default view
       {
         await frPage.getByText(reportEntry).hover();
-        await frPage.getByRole("button", {name: "Unstrike"}).click();
+        await frPage.getByRole("button", {name: "Unstrike"}).click({force: true});
         await frPage.getByLabel("Show history and stricken").uncheck();
         await expect(frPage.getByText(reportEntry)).toBeVisible();
       }

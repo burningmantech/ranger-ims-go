@@ -852,13 +852,10 @@ function drawMergedReportEntries(): void {
     const entries: ims.ReportEntry[] = (incident!.report_entries??[]).slice()
 
     if (attachedFieldReports) {
-        const mergedCheckbox = document.getElementById("merge_reports_checkbox") as HTMLInputElement;
-        if (mergedCheckbox.checked) {
-            for (const report of attachedFieldReports) {
-                for (const entry of report.report_entries??[]) {
-                    entry.merged = report.number??null;
-                    entries.push(entry);
-                }
+        for (const report of attachedFieldReports) {
+            for (const entry of report.report_entries??[]) {
+                entry.merged = report.number??null;
+                entries.push(entry);
             }
         }
     }

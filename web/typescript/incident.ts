@@ -509,7 +509,7 @@ function addLocationAddressOptions(): void {
     const hours: number[] = ims.range(1, 13);
     const hourElement: HTMLElement = document.getElementById("incident_location_address_radial_hour")!;
     for (const hour of hours) {
-        const hourStr: string = ims.padTwo(hour);
+        const hourStr: string = hour.toString();
         const newOption: HTMLOptionElement = document.createElement("option");
         newOption.value = hourStr;
         newOption.textContent = hourStr;
@@ -803,7 +803,7 @@ function drawLocationName() {
 function drawLocationAddressRadialHour() {
     let hour: string|null = null;
     if (incident!.location?.radial_hour != null) {
-        hour = ims.padTwo(incident!.location.radial_hour);
+        hour = incident!.location.radial_hour.toString();
     }
     ims.selectOptionWithValue(
         document.getElementById("incident_location_address_radial_hour") as HTMLSelectElement,

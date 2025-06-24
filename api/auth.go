@@ -106,7 +106,15 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateAccessToken(matchedPerson.Handle, matchedPerson.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Onsite, accessTokenExpiration)
+		CreateAccessToken(
+			matchedPerson.Handle,
+			matchedPerson.ID,
+			matchedPerson.PositionIDs,
+			matchedPerson.TeamIDs,
+			matchedPerson.Onsite,
+			matchedPerson.OnDutyPositionID,
+			accessTokenExpiration,
+		)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
@@ -281,7 +289,13 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
 	accessToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(
-			jwt.RangerHandle(), matchedPerson.ID, matchedPerson.PositionIDs, matchedPerson.TeamIDs, matchedPerson.Onsite, accessTokenExpiration,
+			jwt.RangerHandle(),
+			matchedPerson.ID,
+			matchedPerson.PositionIDs,
+			matchedPerson.TeamIDs,
+			matchedPerson.Onsite,
+			matchedPerson.OnDutyPositionID,
+			accessTokenExpiration,
 		)
 	if err != nil {
 		return empty, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")

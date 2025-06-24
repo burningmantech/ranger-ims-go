@@ -123,6 +123,45 @@ func (q *Queries) Persons(ctx context.Context, db DBTX) ([]PersonsRow, error) {
 	return items, nil
 }
 
+const personsOnDuty = `-- name: PersonsOnDuty :many
+select
+    person_id,
+    position_id
+from
+    timesheet
+where
+    on_duty > date_sub(now(), interval 60 day)
+    and off_duty is null
+`
+
+type PersonsOnDutyRow struct {
+	PersonID   uint64
+	PositionID uint64
+}
+
+func (q *Queries) PersonsOnDuty(ctx context.Context, db DBTX) ([]PersonsOnDutyRow, error) {
+	rows, err := db.QueryContext(ctx, personsOnDuty)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PersonsOnDutyRow
+	for rows.Next() {
+		var i PersonsOnDutyRow
+		if err := rows.Scan(&i.PersonID, &i.PositionID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const positions = `-- name: Positions :many
 select id, title from position where all_rangers = 0
 `

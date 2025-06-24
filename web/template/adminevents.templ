@@ -27,18 +27,18 @@ templ AdminEvents(deployment string) {
 @Nav("")
 <h1 id="doc-title">Edit Events</h1>
 @LoadingOverlay()
-  <p>For each event, you can configure permissions for individuals, positions, or teams. For example:</p>
+  <p>For each event, you can configure permissions for individuals, positions, onduty positions, or teams. For example:</p>
   <ul>
-    <li>person:Tool</li>
-    <li>position:007</li>
-    <li>team:Council</li>
+    <li><strong>person:Tool</strong></li>
+    <li><strong>position:007</strong> - grants access to Rangers who are eligible to work shifts for the provided position</li>
+    <li><strong>onduty:Operations Manager</strong> - grants access to Rangers currently on-duty for the provided position</li>
+    <li><strong>team:Council</strong></li>
   </ul>
   <p>You can also choose when each permission is valid:</p>
   <ul>
     <li>Always: valid all year long</li>
     <li>On-Site: valid only when a matching Ranger is marked "on-site" in Clubhouse</li>
   </ul>
-  <p><strong>The REQUIRE_ACTIVE flag is unused</strong>, replaced by "on-site" validity.</p>
 
   <div class="row" id="event_access_container">
     <div class="col-sm-12 py-1 event_access">

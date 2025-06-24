@@ -83,6 +83,35 @@ CREATE TABLE `person` (
     KEY `person_status_index` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `timesheet` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `position_id` bigint(20) unsigned NOT NULL,
+    `person_id` bigint(20) unsigned NOT NULL,
+    `on_duty` datetime NOT NULL COMMENT 'date/time that person signed onto duty',
+    `off_duty` datetime DEFAULT NULL COMMENT 'date/time that person signed off of duty',
+    `verified_at` datetime DEFAULT NULL,
+    `verified_person_id` bigint(20) DEFAULT NULL,
+    `review_status` enum('approved','rejected','pending','unverified','verified') DEFAULT 'unverified',
+    `reviewer_person_id` bigint(20) DEFAULT NULL,
+    `reviewed_at` datetime DEFAULT NULL,
+    `slot_id` bigint(20) DEFAULT NULL,
+    `is_echelon` tinyint(1) NOT NULL DEFAULT 0,
+    `suppress_duration_warning` tinyint(1) NOT NULL DEFAULT 0,
+    `was_signin_forced` tinyint(1) NOT NULL DEFAULT 0,
+    `desired_position_id` int(11) DEFAULT NULL,
+    `desired_on_duty` datetime DEFAULT NULL,
+    `desired_off_duty` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `position_id` (`position_id`),
+    KEY `person_id` (`person_id`),
+    KEY `verified` (`review_status`),
+    KEY `timesheet_slot_id` (`slot_id`),
+    KEY `timesheet_position_id_on_duty_index` (`position_id`,`on_duty`),
+    KEY `timesheet_person_id_on_duty_index` (`person_id`,`on_duty`),
+    KEY `timesheet_person_id_position_id_index` (`person_id`,`position_id`),
+    KEY `timesheet_on_duty_index` (`on_duty`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+
 CREATE TABLE `position` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
     `title` varchar(40) NOT NULL,

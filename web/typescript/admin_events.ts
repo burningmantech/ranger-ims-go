@@ -223,12 +223,14 @@ async function addAccess(sender: HTMLInputElement): Promise<void> {
     }
 
     const validExpression = newExpression === "**" || newExpression === "*" ||
-        newExpression.startsWith("person:") || newExpression.startsWith("position:") || newExpression.startsWith("team:");
+        newExpression.startsWith("person:") || newExpression.startsWith("position:") ||
+        newExpression.startsWith("team:") || newExpression.startsWith("onduty:");
     if (!validExpression) {
         const confirmed = confirm(
             "WARNING: '" + newExpression + "' does not look like a valid ACL " +
             "expression. Example expressions include 'person:Hubcap' for an individual, " +
-            "'position:007' for a role, and 'team:Council' for a team. Wildcards are " +
+            "'position:007' for a role, 'onduty:007' for people currently on duty for a position, " +
+            "and 'team:Council' for a team. Wildcards are " +
             "supported as well, e.g. '*'\n\n" +
             "Proceed with firing footgun?"
         );

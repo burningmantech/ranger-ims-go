@@ -206,6 +206,51 @@ func (ns NullPositionTeamCategory) Value() (driver.Value, error) {
 	return string(ns.PositionTeamCategory), nil
 }
 
+type TimesheetReviewStatus string
+
+const (
+	TimesheetReviewStatusApproved   TimesheetReviewStatus = "approved"
+	TimesheetReviewStatusRejected   TimesheetReviewStatus = "rejected"
+	TimesheetReviewStatusPending    TimesheetReviewStatus = "pending"
+	TimesheetReviewStatusUnverified TimesheetReviewStatus = "unverified"
+	TimesheetReviewStatusVerified   TimesheetReviewStatus = "verified"
+)
+
+func (e *TimesheetReviewStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TimesheetReviewStatus(s)
+	case string:
+		*e = TimesheetReviewStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TimesheetReviewStatus: %T", src)
+	}
+	return nil
+}
+
+type NullTimesheetReviewStatus struct {
+	TimesheetReviewStatus TimesheetReviewStatus
+	Valid                 bool // Valid is true if TimesheetReviewStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTimesheetReviewStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.TimesheetReviewStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TimesheetReviewStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTimesheetReviewStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TimesheetReviewStatus), nil
+}
+
 type Person struct {
 	ID                 int64
 	FirstName          string
@@ -349,4 +394,26 @@ type Team struct {
 	PvrEligible bool
 	Email       sql.NullString
 	Description sql.NullString
+}
+
+type Timesheet struct {
+	ID         uint64
+	PositionID uint64
+	PersonID   uint64
+	// date/time that person signed onto duty
+	OnDuty time.Time
+	// date/time that person signed off of duty
+	OffDuty                 sql.NullTime
+	VerifiedAt              sql.NullTime
+	VerifiedPersonID        sql.NullInt64
+	ReviewStatus            NullTimesheetReviewStatus
+	ReviewerPersonID        sql.NullInt64
+	ReviewedAt              sql.NullTime
+	SlotID                  sql.NullInt64
+	IsEchelon               bool
+	SuppressDurationWarning bool
+	WasSigninForced         bool
+	DesiredPositionID       sql.NullInt32
+	DesiredOnDuty           sql.NullTime
+	DesiredOffDuty          sql.NullTime
 }

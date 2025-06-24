@@ -27,10 +27,11 @@ const compactIntBase = 62
 
 type IMSClaims struct {
 	jwt.RegisteredClaims
-	Handle    string `json:"han"`
-	Onsite    bool   `json:"ons"`
-	Positions string `json:"pos"`
-	Teams     string `json:"tea"`
+	Handle         string `json:"han"`
+	Positions      string `json:"pos"`
+	Teams          string `json:"tea"`
+	Onsite         bool   `json:"ons"`
+	OnDutyPosition *int64 `json:"dut,omitempty"`
 }
 
 func unmarshalBigInt(s string) *big.Int {
@@ -110,6 +111,11 @@ func (c IMSClaims) WithRangerTeams(teams ...int64) IMSClaims {
 	return c
 }
 
+func (c IMSClaims) WithRangerOnDutyPosition(pos *int64) IMSClaims {
+	c.OnDutyPosition = pos
+	return c
+}
+
 func (c IMSClaims) RangerHandle() string {
 	return c.Handle
 }
@@ -138,4 +144,8 @@ func (c IMSClaims) DirectoryID() int64 {
 		return -1
 	}
 	return subN
+}
+
+func (c IMSClaims) RangerOnDutyPosition() *int64 {
+	return c.OnDutyPosition
 }

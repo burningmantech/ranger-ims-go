@@ -118,6 +118,10 @@ func (l DBQ) Persons(ctx context.Context, db chqueries.DBTX) ([]chqueries.Person
 	return l.q.Persons(ctx, db)
 }
 
+func (l DBQ) PersonsOnDuty(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonsOnDutyRow, error) {
+	return l.q.PersonsOnDuty(ctx, db)
+}
+
 func (l DBQ) Teams(ctx context.Context, db chqueries.DBTX) ([]chqueries.TeamsRow, error) {
 	return l.q.Teams(ctx, db)
 }

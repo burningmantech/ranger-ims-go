@@ -117,6 +117,11 @@ func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContex
 	for _, userTeamID := range userTeamIDs {
 		userTeamNames = append(userTeamNames, allTeams[userTeamID])
 	}
+	onDutyPosition := ""
+	onDutyPositionID := jwtCtx.Claims.RangerOnDutyPosition()
+	if onDutyPositionID != nil {
+		onDutyPosition = allPositions[*onDutyPositionID]
+	}
 
 	permissionsByEvent, _ := authz.ManyEventPermissions(
 		accessRowByEventID,
@@ -125,6 +130,7 @@ func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContex
 		jwtCtx.Claims.RangerOnSite(),
 		userPosNames,
 		userTeamNames,
+		onDutyPosition,
 	)
 	return permissionsByEvent, nil
 }

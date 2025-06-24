@@ -419,7 +419,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	if !newIncident.Started.IsZero() {
 		update.Started = conv.TimeToFloat(newIncident.Started)
-		logs = append(logs, fmt.Sprintf("Changed start time: %v", newIncident.Started.In(time.UTC).Truncate(time.Second)))
+		logs = append(logs, fmt.Sprintf("Changed start time: %v", newIncident.Started.In(time.UTC).Format(time.RFC3339)))
 	}
 	if newIncident.Summary != nil {
 		update.Summary = conv.StringToSql(newIncident.Summary, 0)

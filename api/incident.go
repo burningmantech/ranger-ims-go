@@ -486,7 +486,11 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		add := sliceSubtract(*newIncident.IncidentTypeIDs, incidentTypeIDs)
 		sub := sliceSubtract(incidentTypeIDs, *newIncident.IncidentTypeIDs)
 		if len(add) > 0 {
-			logs = append(logs, fmt.Sprintf("Added type: %v", add))
+			names, errHTTP := namesForIncidentTypes(ctx, imsDBQ, add)
+			if errHTTP != nil {
+				return errHTTP.From("[namesForIncidentTypes]")
+			}
+			logs = append(logs, fmt.Sprintf("Added type: %v", names))
 			for _, itype := range add {
 				err = imsDBQ.AttachIncidentTypeToIncident(ctx, txn,
 					imsdb.AttachIncidentTypeToIncidentParams{
@@ -501,7 +505,11 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 			}
 		}
 		if len(sub) > 0 {
-			logs = append(logs, fmt.Sprintf("Removed type: %v", sub))
+			names, errHTTP := namesForIncidentTypes(ctx, imsDBQ, sub)
+			if errHTTP != nil {
+				return errHTTP.From("[namesForIncidentTypes]")
+			}
+			logs = append(logs, fmt.Sprintf("Removed type: %v", names))
 			for _, rh := range sub {
 				err = imsDBQ.DetachIncidentTypeFromIncident(ctx, txn,
 					imsdb.DetachIncidentTypeFromIncidentParams{
@@ -582,6 +590,20 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 
 	return nil
+}
+
+func namesForIncidentTypes(ctx context.Context, imsDBQ *store.DBQ, typeIDs []int32) (string, *herr.HTTPError) {
+	rows, err := imsDBQ.IncidentTypes(ctx, imsDBQ)
+	if err != nil {
+		return "", herr.InternalServerError("Failed to get IncidentTypes", err).From("[IncidentTypes]")
+	}
+	var names []string
+	for _, row := range rows {
+		if slices.Contains(typeIDs, row.IncidentType.ID) {
+			names = append(names, row.IncidentType.Name)
+		}
+	}
+	return strings.Join(names, ", "), nil
 }
 
 func sliceSubtract[T comparable](a, b []T) []T {

@@ -542,7 +542,7 @@ function safeShortDescribeLocation(location) {
     const locName = DataTable.render.text().display(location.name ?? "");
     let locAddr = "";
     if (location.radial_hour || location.radial_minute || location.concentric) {
-        const hour = padTwo(location.radial_hour);
+        const hour = (location.radial_hour ?? "?").toString();
         const minute = padTwo(location.radial_minute);
         const street = concentricStreetFromID(location.concentric);
         locAddr = DataTable.render.text().display(`(${hour}:${minute}@${street})`);
@@ -945,7 +945,6 @@ export async function submitReportEntry() {
     const textArea = document.getElementById("report_entry_add");
     // Clear the report entry
     textArea.value = "";
-    controlHasSuccess(textArea, 1000);
     // Reset the submit button and its "disabled" status
     reportEntryEdited();
 }

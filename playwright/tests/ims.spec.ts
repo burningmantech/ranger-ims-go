@@ -258,7 +258,7 @@ test("incidents", async ({ page, browser }) => {
     //   await incidentPage.getByRole("textbox", { name: "Start Time" }).blur();
     //   await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
     //   await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 12:34");
-    //   // Close the modwal
+    //   // Close the modal
     //   await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
     // }
 
@@ -267,7 +267,7 @@ test("incidents", async ({ page, browser }) => {
       await incidentPage.getByLabel("Location name").click();
       await incidentPage.getByLabel("Location name").fill("Somewhere");
       await incidentPage.getByLabel("Location name").press("Tab");
-      await incidentPage.getByLabel("Incident location address radial hour").selectOption("03");
+      await incidentPage.getByLabel("Incident location address radial hour").selectOption("3");
       await incidentPage.getByLabel("Incident location address radial minute").selectOption("15");
       await incidentPage.getByLabel("Additional location description").click();
       await incidentPage.getByLabel("Additional location description").fill("other there");
@@ -380,6 +380,7 @@ test("field_reports", async ({ page, browser }) => {
       {
         await frPage.getByLabel("New report entry text").fill(reportEntry);
         await frPage.getByLabel("Submit report entry").click();
+        await expect(frPage.getByLabel("New report entry text")).toBeEmpty();
         await expect(frPage.getByText(reportEntry)).toBeVisible();
       }
       // strike the entry, verified it's stricken

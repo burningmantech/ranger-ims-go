@@ -435,11 +435,19 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	if newIncident.Location.RadialHour != nil {
 		update.LocationRadialHour = conv.ParseSqlInt16(newIncident.Location.RadialHour)
-		logs = append(logs, fmt.Sprintf("Changed location radial hour: %v", update.LocationRadialHour.Int16))
+		newValString := "(empty)"
+		if update.LocationRadialHour.Valid {
+			newValString = strconv.Itoa(int(update.LocationRadialHour.Int16))
+		}
+		logs = append(logs, fmt.Sprintf("Changed location radial hour: %v", newValString))
 	}
 	if newIncident.Location.RadialMinute != nil {
 		update.LocationRadialMinute = conv.ParseSqlInt16(newIncident.Location.RadialMinute)
-		logs = append(logs, fmt.Sprintf("Changed location radial minute: %v", update.LocationRadialMinute.Int16))
+		newValString := "(empty)"
+		if update.LocationRadialMinute.Valid {
+			newValString = strconv.Itoa(int(update.LocationRadialMinute.Int16))
+		}
+		logs = append(logs, fmt.Sprintf("Changed location radial minute: %v", newValString))
 	}
 	if newIncident.Location.Description != nil {
 		update.LocationDescription = conv.StringToSql(newIncident.Location.Description, 0)

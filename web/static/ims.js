@@ -1168,6 +1168,23 @@ export function hideLoadingOverlay() {
         overlay.style.display = "none";
     }
 }
+// Returns whether an input text-ish field is active. This is meant to talk about fields
+// for which keyboard a-z letters are used, such as text field and select fields.
+export function blockKeyboardShortcutFieldActive() {
+    if (document.activeElement === document.body) {
+        return false;
+    }
+    if (document.activeElement instanceof HTMLElement && document.activeElement.classList.contains("modal")) {
+        return false;
+    }
+    if (document.activeElement instanceof HTMLInputElement) {
+        return document.activeElement.type !== "checkbox";
+    }
+    if (document.activeElement instanceof HTMLButtonElement) {
+        return false;
+    }
+    return true;
+}
 // Remove the old LocalStorage caches that IMS no longer uses, so that
 // they can't act against the ~5 MB per-domain limit of HTML5 LocalStorage.
 // This can probably be removed after the 2025 event, when all the relevant

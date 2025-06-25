@@ -68,7 +68,7 @@ async function initFieldReportsPage(): Promise<void> {
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
-        if (document.activeElement !== document.body) {
+        if (ims.blockKeyboardShortcutFieldActive()) {
             return;
         }
         // No shortcuts when ctrl, alt, or meta is being held down

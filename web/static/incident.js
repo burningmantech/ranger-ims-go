@@ -122,7 +122,7 @@ async function initIncidentPage() {
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
-        if (document.activeElement !== document.body) {
+        if (ims.blockKeyboardShortcutFieldActive()) {
             return;
         }
         // No shortcuts when ctrl, alt, or meta is being held down

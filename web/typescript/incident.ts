@@ -675,10 +675,11 @@ function drawRangers() {
             rangerContainer.append(rangerNoLink!);
         } else {
             const person = personnel[handle];
-            const rangerLink = document.createElement("a");
+            const rangerLink: HTMLAnchorElement = document.createElement("a");
             rangerLink.textContent = rangerAsString(person);
             if (person.directory_id != null) {
                 rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
+                rangerLink.target = "_blank";
             }
             rangerContainer.append(rangerLink);
         }

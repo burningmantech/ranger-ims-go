@@ -151,7 +151,18 @@ templ Incident(deployment, eventName string) {
     <div class="row">
       <div class="col-sm-6 py-2">
         <div class="card">
-          <label class="control-label card-header">Rangers</label>
+          <label class="control-label card-header">
+          Rangers
+          <a href="https://ranger-clubhouse.burningman.org/reports/on-duty" target="_blank" class=" float-end" title="On-Duty Report">
+            On-Duty
+            <svg fill="currentColor" class="bi">
+              <use href="#box-arrow-up-right"></use>
+            </svg>
+          </a>
+          <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)">
+                          X
+          </button>
+          </label>
           <ul id="incident_rangers_list" class="list-group list-group-flush list-group-small card-body">
             <li class="list-group-item ps-3">
               <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)">
@@ -178,7 +189,8 @@ templ Incident(deployment, eventName string) {
       <div class="col-sm-6 py-2">
         <div class="card">
           <label class="control-label card-header">Incident Types
-            <a href="#" class="link-body-emphasis" id="show-incident-type-info" title="Show Incident Type descriptions">
+            <a href="#" class="link-body-emphasis float-end" id="show-incident-type-info" title="Show Incident Type descriptions">
+              Info
               <svg fill="currentColor" class="bi">
                 <use href="#question-circle" />
               </svg>

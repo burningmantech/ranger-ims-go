@@ -614,7 +614,26 @@ function allTypesChecked() {
 function showCheckedTypes(replaceState) {
     readCheckedTypes();
     const numTypesShown = _showTypes.length + (_showBlankType ? 1 : 0) + (_showOtherType ? 1 : 0);
-    const showTypeText = allTypesChecked() ? "All Types" : `Types (${numTypesShown})`;
+    let showTypeText;
+    if (numTypesShown === 1) {
+        if (_showBlankType) {
+            showTypeText = "(blank)";
+        }
+        else if (_showOtherType) {
+            showTypeText = "(other)";
+        }
+        else {
+            showTypeText = allIncidentTypes.find(it => it.id?.toString() === _showTypes[0])?.name ?? "Unknown";
+        }
+    }
+    else {
+        if (allTypesChecked()) {
+            showTypeText = "All Types";
+        }
+        else {
+            showTypeText = `Types (${numTypesShown})`;
+        }
+    }
     document.getElementById("show_type").textContent = showTypeText;
     if (replaceState) {
         replaceWindowState();

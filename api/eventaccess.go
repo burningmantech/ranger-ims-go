@@ -26,6 +26,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -113,7 +114,9 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 					rule.DebugInfo.MatchesNoOne = true
 				}
 			}
-			slices.Sort(rule.DebugInfo.MatchesUsers)
+			slices.SortFunc(rule.DebugInfo.MatchesUsers, func(a, b string) int {
+				return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+			})
 
 			switch access.Mode {
 			case imsdb.EventAccessModeRead:

@@ -115,10 +115,9 @@ func runServerInternal(
 		eventSource.Server.Close()
 	})
 
-	addr := fmt.Sprintf("%v:%v", imsCfg.Core.Host, imsCfg.Core.Port)
-	listener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", net.JoinHostPort(imsCfg.Core.Host, conv.FormatInt(imsCfg.Core.Port)))
 	must(err)
-	addr = fmt.Sprintf("%v:%v", imsCfg.Core.Host, listener.Addr().(*net.TCPAddr).Port)
+	addr := net.JoinHostPort(imsCfg.Core.Host, conv.FormatInt(listener.Addr().(*net.TCPAddr).Port))
 
 	go func() {
 		err := s.Serve(listener)

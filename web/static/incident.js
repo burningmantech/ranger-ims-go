@@ -535,6 +535,7 @@ function drawRangers() {
             rangerLink.textContent = rangerAsString(person);
             if (person.directory_id != null) {
                 rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
+                rangerLink.target = "_blank";
             }
             rangerContainer.append(rangerLink);
         }

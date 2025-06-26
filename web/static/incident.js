@@ -523,6 +523,7 @@ function drawRangers() {
     rangersElement.replaceChildren();
     for (const handle of handles) {
         const rangerContainer = _rangerItem.cloneNode(true);
+        rangerContainer.classList.remove("hidden");
         rangerContainer.dataset["rangerHandle"] = handle;
         if (personnel?.[handle] == null) {
             const rangerNoLink = document.createElement("span");
@@ -582,6 +583,7 @@ function drawIncidentTypes() {
     for (const validType of allIncidentTypes) {
         if ((incident.incident_type_ids ?? []).includes(validType.id ?? -1)) {
             const item = _typesItem.cloneNode(true);
+            item.classList.remove("hidden");
             const typeSpan = document.createElement("span");
             typeSpan.textContent = validType.name ?? "";
             item.append(typeSpan);
@@ -693,6 +695,7 @@ function drawAttachedFieldReports() {
         link.href = `${ims.urlReplace(url_viewFieldReports)}/${report.number}`;
         link.innerText = ims.fieldReportAsString(report);
         const item = _reportsItem.cloneNode(true);
+        item.classList.remove("hidden");
         item.append(link);
         item.dataset["frNumber"] = report.number.toString();
         container.append(item);

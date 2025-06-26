@@ -159,12 +159,9 @@ templ Incident(deployment, eventName string) {
               <use href="#box-arrow-up-right"></use>
             </svg>
           </a>
-          <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)">
-                          X
-          </button>
           </label>
           <ul id="incident_rangers_list" class="list-group list-group-flush list-group-small card-body">
-            <li class="list-group-item ps-3">
+            <li class="list-group-item ps-3 hidden">
               <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)">
                 X
               </button>
@@ -197,7 +194,7 @@ templ Incident(deployment, eventName string) {
             </a>
           </label>
           <ul id="incident_types_list" class="list-group list-group-flush list-group-small card-body">
-            <li class="list-group-item ps-3">
+            <li class="list-group-item ps-3 hidden">
               <button class="badge btn btn-danger remove-badge float-end" onclick="removeIncidentType(this)">
                 X
               </button>
@@ -298,7 +295,7 @@ templ Incident(deployment, eventName string) {
         <div class="card">
           <label class="control-label card-header">Attached Field Reports</label>
           <ul id="attached_field_reports" class="list-group list-group-small card-body list-group-flush">
-            <li class="list-group-item ps-3">
+            <li class="list-group-item ps-3 hidden">
               <button class="badge btn btn-danger remove-badge float-end"
                       onclick="detachFieldReport(this)">
                 X

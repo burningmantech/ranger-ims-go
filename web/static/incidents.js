@@ -292,7 +292,7 @@ function initDataTables(tablePrereqs) {
                             vals.push(it.name);
                         }
                     }
-                    return DataTable.render.text().display(vals.join(", "));
+                    return ims.renderSafeSorted(vals);
                 },
                 "responsivePriority": 4,
             },

@@ -41,6 +41,7 @@ func DefaultIMS() *IMSConfig {
 			CacheControlShort:    20 * time.Minute,
 			CacheControlLong:     2 * time.Hour,
 			MaxRequestBytes:      100 << 20,
+			ActionLogEnabled:     true,
 		},
 		Store: DBStore{
 			Type: DBStoreTypeFake,
@@ -247,6 +248,9 @@ type ConfigCore struct {
 	// MaxRequestBytes is a hard limit on request sizes that will be permitted by the API server.
 	// This serve as a backstop against accidentally or maliciously large requests.
 	MaxRequestBytes int64
+
+	// ActionLogEnabled is a global toggle switch for enabling writing to the ACTION_LOG table.
+	ActionLogEnabled bool
 }
 
 type DBStore struct {

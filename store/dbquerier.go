@@ -335,3 +335,10 @@ func (l DBQ) DetachIncidentTypeFromIncident(ctx context.Context, db imsdb.DBTX, 
 	logQuery("DetachIncidentTypeFromIncident", start, err)
 	return err
 }
+
+func (l DBQ) AddActionLog(ctx context.Context, db imsdb.DBTX, arg imsdb.AddActionLogParams) (int64, error) {
+	start := time.Now()
+	id, err := l.q.AddActionLog(ctx, db, arg)
+	logQuery("AddActionLog", start, err)
+	return id, err
+}

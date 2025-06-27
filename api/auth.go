@@ -197,11 +197,8 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 		User:          handle,
 		Admin:         slices.Contains(roles, authz.Administrator),
 	}
-	if err := req.ParseForm(); err != nil {
-		return resp, herr.BadRequest("Failed to parse HTTP form", err).From("[ParseForm]")
-	}
 	// event_id is an optional query param for this endpoint
-	eventName := req.Form.Get("event_id")
+	eventName := req.FormValue("event_id")
 	if eventName != "" {
 		event, errHTTP := getEvent(req, eventName, action.imsDBQ)
 		if errHTTP != nil {

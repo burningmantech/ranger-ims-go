@@ -10,6 +10,47 @@ import (
 	"database/sql"
 )
 
+const addActionLog = `-- name: AddActionLog :execlastid
+insert into ACTION_LOG
+    (ACTION_TYPE, METHOD, PATH, REFERRER, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, HTTP_STATUS, DURATION_MICROS)
+values
+    (?,?,?,?,?,?,?,?,?,?,?)
+`
+
+type AddActionLogParams struct {
+	ActionType     string
+	Method         sql.NullString
+	Path           sql.NullString
+	Referrer       sql.NullString
+	UserID         sql.NullInt64
+	UserName       sql.NullString
+	PositionID     sql.NullInt64
+	PositionName   sql.NullString
+	ClientAddress  sql.NullString
+	HttpStatus     sql.NullInt16
+	DurationMicros sql.NullInt64
+}
+
+func (q *Queries) AddActionLog(ctx context.Context, db DBTX, arg AddActionLogParams) (int64, error) {
+	result, err := db.ExecContext(ctx, addActionLog,
+		arg.ActionType,
+		arg.Method,
+		arg.Path,
+		arg.Referrer,
+		arg.UserID,
+		arg.UserName,
+		arg.PositionID,
+		arg.PositionName,
+		arg.ClientAddress,
+		arg.HttpStatus,
+		arg.DurationMicros,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
 const addEventAccess = `-- name: AddEventAccess :execlastid
 insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY)
 values (?, ?, ?, ?)

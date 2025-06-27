@@ -18,12 +18,16 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/actionlog"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -38,6 +42,7 @@ func AddToMux(
 	db *store.DBQ,
 	userStore *directory.UserStore,
 	s3Client *attachment.S3Client,
+	actionLogger *actionlog.Logger,
 ) *http.ServeMux {
 	if mux == nil {
 		mux = http.NewServeMux()
@@ -51,7 +56,7 @@ func AddToMux(
 			GetEventAccesses{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -61,7 +66,7 @@ func AddToMux(
 			PostEventAccess{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -76,7 +81,7 @@ func AddToMux(
 				cfg.Core.RefreshTokenLifetime,
 			},
 			RecoverFromPanic(),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 			// This endpoint does not require authentication, nor
 			// does it even consider the request's Authorization header,
@@ -96,7 +101,7 @@ func AddToMux(
 			RecoverFromPanic(),
 			// This endpoint does not require authentication or authorization, by design
 			OptionalAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -110,7 +115,7 @@ func AddToMux(
 				cfg.Core.AccessTokenLifetime,
 			},
 			RecoverFromPanic(),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 			// This endpoint does not require authentication, nor
 			// does it even consider the request's Authorization header,
@@ -123,7 +128,7 @@ func AddToMux(
 			GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -133,7 +138,7 @@ func AddToMux(
 			NewIncident{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -143,7 +148,7 @@ func AddToMux(
 			GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -153,7 +158,7 @@ func AddToMux(
 			EditIncident{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -163,7 +168,7 @@ func AddToMux(
 			GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -173,7 +178,7 @@ func AddToMux(
 			AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -183,7 +188,7 @@ func AddToMux(
 			EditIncidentReportEntry{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -193,7 +198,7 @@ func AddToMux(
 			GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -203,7 +208,7 @@ func AddToMux(
 			NewFieldReport{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -213,7 +218,7 @@ func AddToMux(
 			GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -223,7 +228,7 @@ func AddToMux(
 			EditFieldReport{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -233,7 +238,7 @@ func AddToMux(
 			GetFieldReportAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -243,7 +248,7 @@ func AddToMux(
 			AttachToFieldReport{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -253,7 +258,7 @@ func AddToMux(
 			EditFieldReportReportEntry{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -263,7 +268,7 @@ func AddToMux(
 			GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -273,7 +278,7 @@ func AddToMux(
 			EditEvents{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -283,7 +288,7 @@ func AddToMux(
 			GetStreets{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -293,7 +298,7 @@ func AddToMux(
 			EditStreets{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -303,7 +308,7 @@ func AddToMux(
 			GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -313,7 +318,7 @@ func AddToMux(
 			EditIncidentTypes{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -323,7 +328,7 @@ func AddToMux(
 			GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -332,7 +337,7 @@ func AddToMux(
 		Adapt(
 			es.Server.Handler(EventSourceChannel),
 			RecoverFromPanic(),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -342,7 +347,7 @@ func AddToMux(
 			GetBuildInfo{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -352,7 +357,7 @@ func AddToMux(
 			GetRuntimeMetrics{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -362,7 +367,7 @@ func AddToMux(
 			PerformGC{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(),
+			LogRequest(true, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)
@@ -422,7 +427,7 @@ func LimitRequestBytes(maxRequestBytes int64) Adapter {
 	}
 }
 
-func LogRequest() Adapter {
+func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *directory.UserStore) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -430,36 +435,51 @@ func LogRequest() Adapter {
 
 			next.ServeHTTP(writ, r)
 
-			username := "(unauthenticated)"
+			var username sql.NullString
+			var userID sql.NullInt64
+			var positionID sql.NullInt64
+			var positionName sql.NullString
 			jwtCtx, _ := r.Context().Value(JWTContextKey).(JWTContext)
 			if jwtCtx.Claims != nil {
-				username = jwtCtx.Claims.RangerHandle()
+				username = conv.StringToSql(ptr(jwtCtx.Claims.RangerHandle()), 128)
+				userID = sql.NullInt64{Int64: jwtCtx.Claims.DirectoryID(), Valid: true}
+				if posID := jwtCtx.Claims.RangerOnDutyPosition(); posID != nil {
+					positionID = sql.NullInt64{Int64: *posID, Valid: true}
+					positions, _, _ := userStore.GetPositionsAndTeams(r.Context())
+					if positions != nil {
+						posName := positions[*posID]
+						positionName = conv.StringToSql(conv.EmptyToNil(posName), 128)
+					}
+				}
 			}
 
-			durationMS := float64(time.Since(start).Microseconds()) / 1000.0
+			if enable {
+				referrerHeader := r.Header.Get("Referer")
+				referrerUsefulIndex := strings.Index(referrerHeader, "/ims")
+				if referrerUsefulIndex != -1 {
+					referrerHeader = referrerHeader[referrerUsefulIndex:]
+				}
+				referrer := conv.EmptyToNil(referrerHeader)
 
-			// TODO(https://github.com/burningmantech/ranger-ims-go/issues/35)
-			// Finalize the set of columns to collect, then make this a DB insert rather than
-			// a logging statement.
-			slog.Debug("Tentative access log table entry",
-				"start-time", start,
-				"method", r.Method,
-				"path", r.URL.Path,
-				"user", username,
-				"http-status", writ.code,
-				"duration-micros", time.Since(start).Microseconds(),
-				// TODO: decide whether to bother including this. Wow is it verbose.
-				// "headers", r.Header.Get("User-Agent"),
-				"remote-addr", r.RemoteAddr,
-				// TODO: maybe include? Maybe not
-				// "x-forwarded-for", r.Header.Get("X-Forwarded-For"),
-				"build", buildInfo().Main.Version,
-			)
+				actionLogger.Log(imsdb.AddActionLogParams{
+					ActionType:     "api",
+					Method:         conv.StringToSql(&r.Method, 128),
+					Path:           conv.StringToSql(&r.URL.Path, 128),
+					Referrer:       conv.StringToSql(referrer, 128),
+					UserID:         userID,
+					UserName:       username,
+					PositionID:     positionID,
+					PositionName:   positionName,
+					ClientAddress:  conv.StringToSql(&r.RemoteAddr, 128),
+					HttpStatus:     sql.NullInt16{Int16: int16(writ.code), Valid: true},
+					DurationMicros: sql.NullInt64{Int64: time.Since(start).Microseconds(), Valid: true},
+				})
+			}
 
 			slog.Debug(fmt.Sprintf("Served request for: %v %v ", r.Method, r.URL.Path),
-				"duration", fmt.Sprintf("%.3fms", durationMS),
+				"duration", fmt.Sprintf("%.3fms", float64(time.Since(start).Microseconds())/1000.0),
 				"method", r.Method,
-				"user", username,
+				"user", username.String,
 				"code", writ.code,
 			)
 		})

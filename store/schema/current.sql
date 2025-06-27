@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (17);
+insert into SCHEMA_INFO (VERSION) values (18);
 
 
 create table `EVENT` (
@@ -172,4 +172,29 @@ create table FIELD_REPORT__REPORT_ENTRY (
         references REPORT_ENTRY(ID),
 
     primary key (`EVENT`, FIELD_REPORT_NUMBER, REPORT_ENTRY)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+create table `ACTION_LOG` (
+    `ID`                bigint not null auto_increment,
+    `CREATED_AT`        timestamp not null default current_timestamp,
+
+    -- request metadata
+    `ACTION_TYPE`       varchar(128) not null,
+    `METHOD`            varchar(128),
+    `PATH`              varchar(128),
+    `REFERRER`          varchar(128),
+
+    -- requestor metadata
+    `USER_ID`           bigint,
+    `USER_NAME`         varchar(128),
+    `POSITION_ID`       bigint,
+    `POSITION_NAME`     varchar(128),
+    `CLIENT_ADDRESS`    varchar(128),
+
+    -- response metadata
+    `HTTP_STATUS`       smallint,
+    `DURATION_MICROS`   bigint,
+
+    primary key (`ID`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

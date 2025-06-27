@@ -27,6 +27,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/lib/testctr"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/testcontainers/testcontainers-go"
 	"log"
@@ -48,12 +49,13 @@ var mainTestInternal struct {
 // shared contains fields that may be used by any test in the integration package.
 // These are fields from the common setup performed in main_test.go.
 var shared struct {
-	cfg        *conf.IMSConfig
-	imsDBQ     *store.DBQ
-	userStore  *directory.UserStore
-	es         *api.EventSourcerer
-	testServer *httptest.Server
-	serverURL  *url.URL
+	cfg          *conf.IMSConfig
+	imsDBQ       *store.DBQ
+	userStore    *directory.UserStore
+	es           *api.EventSourcerer
+	testServer   *httptest.Server
+	serverURL    *url.URL
+	actionLogger *actionlog.Logger
 }
 
 // These values must align with those in clubhousedb_test_seed.sql.
@@ -117,7 +119,6 @@ func setup(ctx context.Context, tempDir string) {
 		shared.cfg.Directory.InMemoryCacheTTL,
 	)
 	shared.userStore = directory.NewUserStore(clubhouseDBQ, shared.cfg.Directory.InMemoryCacheTTL)
-
 	ctr, cleanup, dbHostPort, err := testctr.MariaDBContainer(
 		ctx,
 		shared.cfg.Store.MariaDB.Database,
@@ -132,8 +133,9 @@ func setup(ctx context.Context, tempDir string) {
 	db, err := store.SqlDB(ctx, shared.cfg.Store, true)
 	must(err)
 	shared.imsDBQ = store.NewDBQ(db, imsdb.New())
+	shared.actionLogger = actionlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ActionLogEnabled)
 	shared.testServer = httptest.NewServer(
-		api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil),
+		api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger),
 	)
 	shared.serverURL, err = url.Parse(shared.testServer.URL)
 	must(err)

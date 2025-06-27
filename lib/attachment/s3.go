@@ -52,11 +52,14 @@ func NewS3Client(ctx context.Context) (*S3Client, error) {
 
 func (c *S3Client) UploadToS3(ctx context.Context, bucketName, objectName string, file io.Reader) *herr.HTTPError {
 	start := time.Now()
-	_, err := c.S3Funcs.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: ptr(bucketName),
-		Key:    ptr(objectName),
-		Body:   file,
-	})
+	_, err := c.S3Funcs.PutObject(
+		ctx,
+		&s3.PutObjectInput{
+			Bucket: ptr(bucketName),
+			Key:    ptr(objectName),
+			Body:   file,
+		},
+	)
 	if err != nil {
 		return herr.InternalServerError("Failed to upload attachment to S3", err).From("[PutObject]")
 	}
@@ -66,10 +69,13 @@ func (c *S3Client) UploadToS3(ctx context.Context, bucketName, objectName string
 
 func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string) (file io.ReadSeeker, httpError *herr.HTTPError) {
 	start := time.Now()
-	output, err := c.S3Funcs.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: ptr(bucketName),
-		Key:    ptr(objectName),
-	})
+	output, err := c.S3Funcs.GetObject(
+		ctx,
+		&s3.GetObjectInput{
+			Bucket: ptr(bucketName),
+			Key:    ptr(objectName),
+		},
+	)
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchKey" {

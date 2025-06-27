@@ -26,6 +26,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/joho/godotenv"
@@ -94,17 +95,18 @@ func runServerInternal(
 	imsDB, err := store.SqlDB(ctx, imsCfg.Store, true)
 	must(err)
 	imsDBQ := store.NewDBQ(imsDB, imsdb.New())
+	actionLogger := actionlog.NewLogger(ctx, imsDBQ, imsCfg.Core.ActionLogEnabled)
 
 	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(mux, eventSource, imsCfg, imsDBQ, userStore, s3Client)
+	api.AddToMux(mux, eventSource, imsCfg, imsDBQ, userStore, s3Client, actionLogger)
 	web.AddToMux(mux, imsCfg)
 
 	s := &http.Server{
 		Handler:     mux,
-		ReadTimeout: 30 * time.Second,
+		ReadTimeout: 1 * time.Minute,
 		// This needs to be long to support long-lived EventSource calls.
 		// After this duration, a client will be disconnected and forced
 		// to reconnect.
@@ -112,6 +114,7 @@ func runServerInternal(
 		MaxHeaderBytes: 1 << 20,
 	}
 	s.RegisterOnShutdown(func() {
+		actionLogger.Close()
 		eventSource.Server.Close()
 	})
 
@@ -136,7 +139,7 @@ func runServerInternal(
 
 	listeningAddr <- addr
 	close(listeningAddr)
-	// The goroutine will hang here until the NotifyContext is done
+	// The goroutine will block here until the NotifyContext is done
 	<-notifyCtx.Done()
 	stop()
 	slog.Error("Shutting down gracefully, press Ctrl+C again to force")
@@ -239,6 +242,9 @@ func mustInitConfig(envFileName string) *conf.IMSConfig {
 	}
 	if v, ok := lookupEnv("IMS_LOG_LEVEL"); ok {
 		newCfg.Core.LogLevel = v
+	}
+	if v, ok := lookupEnv("IMS_ACTION_LOG_ENABLED"); ok {
+		newCfg.Core.ActionLogEnabled = strings.EqualFold(v, "true")
 	}
 	if v, ok := lookupEnv("IMS_DIRECTORY"); ok {
 		newCfg.Directory.Directory = conf.DirectoryType(strings.ToLower(v))

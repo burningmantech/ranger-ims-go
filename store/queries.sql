@@ -322,3 +322,10 @@ where ID = ?;
 -- name: CreateConcentricStreet :exec
 insert into CONCENTRIC_STREET (EVENT, ID, NAME)
 values (?, ?, ?);
+
+-- name: AddActionLog :execlastid
+insert into ACTION_LOG
+    (ACTION_TYPE, METHOD, PATH, REFERRER, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, HTTP_STATUS, DURATION_MICROS)
+values
+    (?,?,?,?,?,?,?,?,?,?,?)
+;

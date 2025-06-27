@@ -119,3 +119,10 @@ func TimeToFloat(t time.Time) float64 {
 	decimalPart := float64(t.Nanosecond()) / 1e9
 	return decimalPart + float64(t.Unix())
 }
+
+func EmptyToNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}

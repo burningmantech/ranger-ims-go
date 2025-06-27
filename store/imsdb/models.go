@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"time"
 )
 
 type EventAccessMode string
@@ -194,6 +195,22 @@ func AllIncidentStateValues() []IncidentState {
 		IncidentStateOnScene,
 		IncidentStateClosed,
 	}
+}
+
+type ActionLog struct {
+	ID             int64
+	CreatedAt      time.Time
+	ActionType     string
+	Method         sql.NullString
+	Path           sql.NullString
+	Referrer       sql.NullString
+	UserID         sql.NullInt64
+	UserName       sql.NullString
+	PositionID     sql.NullInt64
+	PositionName   sql.NullString
+	ClientAddress  sql.NullString
+	HttpStatus     sql.NullInt16
+	DurationMicros sql.NullInt64
 }
 
 type ConcentricStreet struct {

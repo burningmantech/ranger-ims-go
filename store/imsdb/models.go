@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"time"
 )
 
 type EventAccessMode string
@@ -199,7 +198,7 @@ func AllIncidentStateValues() []IncidentState {
 
 type ActionLog struct {
 	ID             int64
-	CreatedAt      time.Time
+	CreatedAt      float64
 	ActionType     string
 	Method         sql.NullString
 	Path           sql.NullString

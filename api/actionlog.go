@@ -51,19 +51,48 @@ func (action GetActionLogs) getActionLogs(req *http.Request) (imsjson.ActionLogs
 	if globalPermissions&authz.GlobalAdministrateDebugging == 0 {
 		return nil, herr.Forbidden("The requestor does not have GlobalAdministrateDebugging permission", nil)
 	}
+
+	// long ago
+	minTime := 1e0
+	// long from now
+	maxTime := 1e100
+
+	userName := req.FormValue("userName")
+	path := req.FormValue("path")
+
+	var err error
+	if req.FormValue("minTimeUnixMs") != "" {
+		minTimeUnixMs, err := conv.ParseInt64(req.FormValue("minTimeUnixMs"))
+		if err != nil {
+			return nil, herr.BadRequest("minTimeUnixMs", err).From("[ParseInt64]")
+		}
+		minTime = float64(minTimeUnixMs) / 1e3
+	}
+	if req.FormValue("maxTimeUnixMs") != "" {
+		maxTimeUnixMs, err := conv.ParseInt64(req.FormValue("maxTimeUnixMs"))
+		if err != nil {
+			return nil, herr.BadRequest("maxTimeUnixMs", err).From("[ParseInt64]")
+		}
+		maxTime = float64(maxTimeUnixMs) / 1e3
+	}
+
 	rows, err := action.imsDBQ.ActionLogs(req.Context(), action.imsDBQ, imsdb.ActionLogsParams{
-		// long ago
-		MinTime: 1e0,
-		// long from now
-		MaxTime: 1e100,
+		MinTime: minTime,
+		MaxTime: maxTime,
 	})
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch ActionLogs", err).From("[ActionLogs]")
 	}
 
-	var resp imsjson.ActionLogs
+	resp := make(imsjson.ActionLogs, 0)
 	for _, row := range rows {
 		al := row.ActionLog
+		if userName != "" && al.UserName.String != userName {
+			continue
+		}
+		if path != "" && al.Path.String != path {
+			continue
+		}
 		resp = append(resp, imsjson.ActionLog{
 			ID:            al.ID,
 			CreatedAt:     conv.FloatToTime(al.CreatedAt),

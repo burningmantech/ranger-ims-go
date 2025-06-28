@@ -21,8 +21,19 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         fetchActionLogs: (el: HTMLElement) => Promise<void>;
+        updateTable: (el: HTMLElement) => Promise<void>;
     }
 }
+
+//
+// Filters
+//
+let filterMinTime: Date|null = null;
+let filterMaxTime: Date|null = null;
+let filterUserName: string|null = null;
+let filterPath: string|null = null;
+
+
 //
 // Initialize UI
 //
@@ -41,6 +52,12 @@ async function initAdminActionLogsPage(): Promise<void> {
     }
 
     window.fetchActionLogs = fetchActionLogs;
+    window.updateTable = updateTable;
+
+    const yesterday: Date = new Date();
+    yesterday.setDate(new Date().getDate() - 1);
+    (document.getElementById("filter_min_time") as HTMLInputElement).value = nerdDateTime.format(yesterday);
+    updateFilters();
 
     // DataTable.ext.errMode = "none";
     actionLogsTable = new DataTable("#action_logs_table", {
@@ -60,8 +77,23 @@ async function initAdminActionLogsPage(): Promise<void> {
         "pageLength": 100,
         "ajax": function (_data: unknown, callback: (resp: {data: ActionLog[]})=>void, _settings: unknown): void {
             async function doAjax(): Promise<void> {
+
+                const params = new URLSearchParams({});
+                if (filterMinTime) {
+                    params.set("minTimeUnixMs", filterMinTime.getTime().toString());
+                }
+                if (filterMaxTime) {
+                    params.set("maxTimeUnixMs", filterMaxTime.getTime().toString());
+                }
+                if (filterUserName) {
+                    params.set("userName", filterUserName);
+                }
+                if (filterPath) {
+                    params.set("path", filterPath);
+                }
+
                 const {json, err} = await ims.fetchJsonNoThrow<ActionLog[]>(
-                    url_actionlogs, null,
+                    `${url_actionlogs}?${params.toString()}`, null,
                 );
                 if (err != null || json == null) {
                     ims.setErrorMessage(`Failed to load table: ${err}`);
@@ -142,45 +174,6 @@ async function initAdminActionLogsPage(): Promise<void> {
             // time descending
             [1, "dsc"],
         ],
-        "initComplete": function (): void {
-            this.api()
-                .columns("log_user_name:name")
-                .every(function (_colInd: number) {
-                    // This is a DataTables "X" type
-                    // @ts-ignore
-                    let column: any = this;
-                    console.log("column is " + column.constructor.name);
-
-                    // Create select element
-                    let select: HTMLSelectElement = document.createElement("select");
-                    const showAll: HTMLOptionElement = document.createElement("option")
-                    showAll.text = "User";
-                    showAll.selected = true;
-                    showAll.dataset["showAll"] = "true";
-                    select.add(showAll);
-                    column.footer().replaceChildren(select);
-
-                    // Apply listener for user change in value
-                    select.addEventListener("change", function(): void {
-                        column
-                            .search(
-                                select.selectedOptions[0]!.dataset["showAll"]
-                                    ? ""
-                                    : select.selectedOptions[0]!.value,
-                                {exact: true})
-                            .draw();
-                    });
-
-                    // Add list of options
-                    column
-                        .data()
-                        .unique()
-                        .sort()
-                        .each(function (username: string, _ind: number): void {
-                            select.add(new Option(username));
-                        });
-                });
-        }
     });
 
     actionLogsTable!.draw();
@@ -197,6 +190,32 @@ async function fetchActionLogs(): Promise<void> {
 
     const targetDiv = document.getElementById("show-action-logs-div") as HTMLParagraphElement;
     targetDiv.style.display = "";
+}
+
+async function updateTable(_el: HTMLElement): Promise<void> {
+    updateFilters();
+    actionLogsTable!.ajax.reload();
+    actionLogsTable!.draw();
+}
+
+function updateFilters(): void {
+    const filterMinTimeInput = document.getElementById("filter_min_time") as HTMLInputElement;
+    const filterMaxTimeInput = document.getElementById("filter_max_time") as HTMLInputElement;
+    const filterUserNameInput = document.getElementById("filter_user_name") as HTMLInputElement;
+    const filterPathInput = document.getElementById("filter_path") as HTMLInputElement;
+
+    if (filterMinTimeInput.value) {
+        filterMinTime = new Date(filterMinTimeInput.value);
+    } else {
+        filterMinTime = null;
+    }
+    if (filterMaxTimeInput.value) {
+        filterMaxTime = new Date(filterMaxTimeInput.value);
+    } else {
+        filterMaxTime = null;
+    }
+    filterUserName = filterUserNameInput.value ? filterUserNameInput.value : null;
+    filterPath = filterPathInput.value ? filterPathInput.value : null;
 }
 
 const nerdDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat("sv-SE", {

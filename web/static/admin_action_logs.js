@@ -18,6 +18,13 @@
 "use strict";
 import * as ims from "./ims.js";
 //
+// Filters
+//
+let filterMinTime = null;
+let filterMaxTime = null;
+let filterUserName = null;
+let filterPath = null;
+//
 // Initialize UI
 //
 initAdminActionLogsPage();
@@ -29,6 +36,11 @@ async function initAdminActionLogsPage() {
         return;
     }
     window.fetchActionLogs = fetchActionLogs;
+    window.updateTable = updateTable;
+    const yesterday = new Date();
+    yesterday.setDate(new Date().getDate() - 1);
+    document.getElementById("filter_min_time").value = nerdDateTime.format(yesterday);
+    updateFilters();
     // DataTable.ext.errMode = "none";
     actionLogsTable = new DataTable("#action_logs_table", {
         "deferRender": true,
@@ -47,7 +59,20 @@ async function initAdminActionLogsPage() {
         "pageLength": 100,
         "ajax": function (_data, callback, _settings) {
             async function doAjax() {
-                const { json, err } = await ims.fetchJsonNoThrow(url_actionlogs, null);
+                const params = new URLSearchParams({});
+                if (filterMinTime) {
+                    params.set("minTimeUnixMs", filterMinTime.getTime().toString());
+                }
+                if (filterMaxTime) {
+                    params.set("maxTimeUnixMs", filterMaxTime.getTime().toString());
+                }
+                if (filterUserName) {
+                    params.set("userName", filterUserName);
+                }
+                if (filterPath) {
+                    params.set("path", filterPath);
+                }
+                const { json, err } = await ims.fetchJsonNoThrow(`${url_actionlogs}?${params.toString()}`, null);
                 if (err != null || json == null) {
                     ims.setErrorMessage(`Failed to load table: ${err}`);
                     return;
@@ -126,40 +151,6 @@ async function initAdminActionLogsPage() {
             // time descending
             [1, "dsc"],
         ],
-        "initComplete": function () {
-            this.api()
-                .columns("log_user_name:name")
-                .every(function (_colInd) {
-                // This is a DataTables "X" type
-                // @ts-ignore
-                let column = this;
-                console.log("column is " + column.constructor.name);
-                // Create select element
-                let select = document.createElement("select");
-                const showAll = document.createElement("option");
-                showAll.text = "User";
-                showAll.selected = true;
-                showAll.dataset["showAll"] = "true";
-                select.add(showAll);
-                column.footer().replaceChildren(select);
-                // Apply listener for user change in value
-                select.addEventListener("change", function () {
-                    column
-                        .search(select.selectedOptions[0].dataset["showAll"]
-                        ? ""
-                        : select.selectedOptions[0].value, { exact: true })
-                        .draw();
-                });
-                // Add list of options
-                column
-                    .data()
-                    .unique()
-                    .sort()
-                    .each(function (username, _ind) {
-                    select.add(new Option(username));
-                });
-            });
-        }
     });
     actionLogsTable.draw();
 }
@@ -173,6 +164,31 @@ async function fetchActionLogs() {
     targetPre.textContent = actionLogsText;
     const targetDiv = document.getElementById("show-action-logs-div");
     targetDiv.style.display = "";
+}
+async function updateTable(_el) {
+    updateFilters();
+    actionLogsTable.ajax.reload();
+    actionLogsTable.draw();
+}
+function updateFilters() {
+    const filterMinTimeInput = document.getElementById("filter_min_time");
+    const filterMaxTimeInput = document.getElementById("filter_max_time");
+    const filterUserNameInput = document.getElementById("filter_user_name");
+    const filterPathInput = document.getElementById("filter_path");
+    if (filterMinTimeInput.value) {
+        filterMinTime = new Date(filterMinTimeInput.value);
+    }
+    else {
+        filterMinTime = null;
+    }
+    if (filterMaxTimeInput.value) {
+        filterMaxTime = new Date(filterMaxTimeInput.value);
+    }
+    else {
+        filterMaxTime = null;
+    }
+    filterUserName = filterUserNameInput.value ? filterUserNameInput.value : null;
+    filterPath = filterPathInput.value ? filterPathInput.value : null;
 }
 const nerdDateTime = new Intl.DateTimeFormat("sv-SE", {
     // weekday: "short",

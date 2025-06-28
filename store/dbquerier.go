@@ -342,3 +342,10 @@ func (l DBQ) AddActionLog(ctx context.Context, db imsdb.DBTX, arg imsdb.AddActio
 	logQuery("AddActionLog", start, err)
 	return id, err
 }
+
+func (l DBQ) ActionLogs(ctx context.Context, db imsdb.DBTX, arg imsdb.ActionLogsParams) ([]imsdb.ActionLogsRow, error) {
+	start := time.Now()
+	rows, err := l.q.ActionLogs(ctx, db, arg)
+	logQuery("ActionLog", start, err)
+	return rows, err
+}

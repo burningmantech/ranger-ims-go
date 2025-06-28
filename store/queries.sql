@@ -329,3 +329,13 @@ insert into ACTION_LOG
 values
     (?,?,?,?,?,?,?,?,?,?,?,?)
 ;
+
+-- name: ActionLogs :many
+select
+    sqlc.embed(al)
+from
+    ACTION_LOG al
+where
+    al.CREATED_AT > sqlc.arg(min_time)
+    and al.CREATED_AT < sqlc.arg(max_time)
+;

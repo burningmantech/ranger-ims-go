@@ -10,6 +10,62 @@ import (
 	"database/sql"
 )
 
+const actionLogs = `-- name: ActionLogs :many
+select
+    al.id, al.created_at, al.action_type, al.method, al.path, al.referrer, al.user_id, al.user_name, al.position_id, al.position_name, al.client_address, al.http_status, al.duration_micros
+from
+    ACTION_LOG al
+where
+    al.CREATED_AT > ?
+    and al.CREATED_AT < ?
+`
+
+type ActionLogsParams struct {
+	MinTime float64
+	MaxTime float64
+}
+
+type ActionLogsRow struct {
+	ActionLog ActionLog
+}
+
+func (q *Queries) ActionLogs(ctx context.Context, db DBTX, arg ActionLogsParams) ([]ActionLogsRow, error) {
+	rows, err := db.QueryContext(ctx, actionLogs, arg.MinTime, arg.MaxTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActionLogsRow
+	for rows.Next() {
+		var i ActionLogsRow
+		if err := rows.Scan(
+			&i.ActionLog.ID,
+			&i.ActionLog.CreatedAt,
+			&i.ActionLog.ActionType,
+			&i.ActionLog.Method,
+			&i.ActionLog.Path,
+			&i.ActionLog.Referrer,
+			&i.ActionLog.UserID,
+			&i.ActionLog.UserName,
+			&i.ActionLog.PositionID,
+			&i.ActionLog.PositionName,
+			&i.ActionLog.ClientAddress,
+			&i.ActionLog.HttpStatus,
+			&i.ActionLog.DurationMicros,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const addActionLog = `-- name: AddActionLog :execlastid
 insert into ACTION_LOG
     (CREATED_AT, ACTION_TYPE, METHOD, PATH, REFERRER, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, HTTP_STATUS, DURATION_MICROS)

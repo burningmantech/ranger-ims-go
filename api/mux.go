@@ -71,6 +71,16 @@ func AddToMux(
 		),
 	)
 
+	mux.Handle("GET /ims/api/actionlogs",
+		Adapt(
+			GetActionLogs{db, userStore, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
 	mux.Handle("POST /ims/api/auth",
 		Adapt(
 			PostAuth{

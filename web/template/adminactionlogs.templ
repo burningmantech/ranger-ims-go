@@ -16,43 +16,47 @@
 
 package template
 
-templ AdminRoot(deployment string) {
+templ AdminActionLogs(deployment string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Administration Tools", "admin_root.js", false)
+@Head("Action Logs", "admin_action_logs.js", true)
 
 <body>
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
-<h1 id="doc-title">Administration Tools</h1>
-  <ul>
-    <li>
-        <a href="/ims/app/admin/actionlogs">
-          Action Logs
-        </a>
-    </li>
-    <li>
-      <a href="/ims/app/admin/types">
-        Incident Types
-      </a>
-    </li>
-    <li>
-      <a href="/ims/app/admin/events">
-        Events
-      </a>
-    </li>
-    <li>
-      <a href="/ims/app/admin/streets">
-        Event Concentric Streets
-      </a>
-    </li>
-    <li>
-      <a href="/ims/app/admin/debug">
-        Server Debugging Details
-      </a>
-    </li>
-  </ul>
+<h1 id="doc-title">Action Logs</h1>
+
+<table id="action_logs_table" class="table table-striped table-hover">
+  <thead>
+  <tr>
+    <th>ID</th>
+    <th>Time</th>
+    <th>User</th>
+    <th>Page</th>
+    <th>Method</th>
+    <th>Path</th>
+    <th>Position</th>
+    <th>Client</th>
+    <th>Duration</th>
+  </tr>
+  </thead>
+  <tbody />
+  <tfoot>
+  <tr>
+    <th>ID</th>
+    <th>Time</th>
+    <th>User</th>
+    <th>Page</th>
+    <th>Method</th>
+    <th>Path</th>
+    <th>Position</th>
+    <th>Client</th>
+    <th>Duration</th>
+  </tr>
+  </tfoot>
+</table>
+
 @Footer()
 </div>
 </body>

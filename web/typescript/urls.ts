@@ -24,6 +24,7 @@ const url_urlsJS = "/ims/urls.js";
 const url_api = "/ims/api";
 const url_ping = "/ims/api/ping";
 const url_bag = "/ims/api/bag";
+const url_actionlogs = "/ims/api/actionlogs";
 const url_auth = "/ims/api/auth";
 const url_authRefresh = "/ims/api/auth/refresh";
 const url_acl = "/ims/api/access";

@@ -462,6 +462,7 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 				referrer := conv.EmptyToNil(referrerHeader)
 
 				actionLogger.Log(imsdb.AddActionLogParams{
+					CreatedAt:      conv.TimeToFloat(time.Now()),
 					ActionType:     "api",
 					Method:         conv.StringToSql(&r.Method, 128),
 					Path:           conv.StringToSql(&r.URL.Path, 128),

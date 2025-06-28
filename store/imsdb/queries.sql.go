@@ -12,12 +12,13 @@ import (
 
 const addActionLog = `-- name: AddActionLog :execlastid
 insert into ACTION_LOG
-    (ACTION_TYPE, METHOD, PATH, REFERRER, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, HTTP_STATUS, DURATION_MICROS)
+    (CREATED_AT, ACTION_TYPE, METHOD, PATH, REFERRER, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, HTTP_STATUS, DURATION_MICROS)
 values
-    (?,?,?,?,?,?,?,?,?,?,?)
+    (?,?,?,?,?,?,?,?,?,?,?,?)
 `
 
 type AddActionLogParams struct {
+	CreatedAt      float64
 	ActionType     string
 	Method         sql.NullString
 	Path           sql.NullString
@@ -33,6 +34,7 @@ type AddActionLogParams struct {
 
 func (q *Queries) AddActionLog(ctx context.Context, db DBTX, arg AddActionLogParams) (int64, error) {
 	result, err := db.ExecContext(ctx, addActionLog,
+		arg.CreatedAt,
 		arg.ActionType,
 		arg.Method,
 		arg.Path,

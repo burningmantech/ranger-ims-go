@@ -9,6 +9,7 @@ import (
 )
 
 type Querier interface {
+	ActionLogs(ctx context.Context, db DBTX, arg ActionLogsParams) ([]ActionLogsRow, error)
 	AddActionLog(ctx context.Context, db DBTX, arg AddActionLogParams) (int64, error)
 	AddEventAccess(ctx context.Context, db DBTX, arg AddEventAccessParams) (int64, error)
 	AttachFieldReportToIncident(ctx context.Context, db DBTX, arg AttachFieldReportToIncidentParams) error

@@ -63,6 +63,9 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/app/admin",
 		AdaptTempl(template.AdminRoot(deployment), cfg.Core.CacheControlLong),
 	)
+	mux.Handle("GET /ims/app/admin/actionlogs",
+		AdaptTempl(template.AdminActionLogs(deployment), cfg.Core.CacheControlLong),
+	)
 	mux.Handle("GET /ims/app/admin/events",
 		AdaptTempl(template.AdminEvents(deployment), cfg.Core.CacheControlLong),
 	)

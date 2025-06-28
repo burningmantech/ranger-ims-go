@@ -38,7 +38,7 @@ package template
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func AdminRoot(deployment string) templ.Component {
+func AdminActionLogs(deployment string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -63,7 +63,7 @@ func AdminRoot(deployment string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head("Administration Tools", "admin_root.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Action Logs", "admin_action_logs.js", true).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -79,7 +79,7 @@ func AdminRoot(deployment string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Administration Tools</h1><ul><li><a href=\"/ims/app/admin/actionlogs\">Action Logs</a></li><li><a href=\"/ims/app/admin/types\">Incident Types</a></li><li><a href=\"/ims/app/admin/events\">Events</a></li><li><a href=\"/ims/app/admin/streets\">Event Concentric Streets</a></li><li><a href=\"/ims/app/admin/debug\">Server Debugging Details</a></li></ul>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Action Logs</h1><table id=\"action_logs_table\" class=\"table table-striped table-hover\"><thead><tr><th>ID</th><th>Time</th><th>User</th><th>Page</th><th>Method</th><th>Path</th><th>Position</th><th>Client</th><th>Duration</th></tr></thead> <tbody></tbody><tfoot><tr><th>ID</th><th>Time</th><th>User</th><th>Page</th><th>Method</th><th>Path</th><th>Position</th><th>Client</th><th>Duration</th></tr></tfoot></table>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

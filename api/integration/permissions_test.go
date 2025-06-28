@@ -43,6 +43,7 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 	adminOnly := []MethodURL{
 		{http.MethodGet, "/ims/api/access"},
 		{http.MethodPost, "/ims/api/access"},
+		{http.MethodGet, "/ims/api/actionlogs"},
 		{http.MethodPost, "/ims/api/events"},
 		{http.MethodPost, "/ims/api/streets"},
 		{http.MethodPost, "/ims/api/incident_types"},

@@ -20,8 +20,10 @@ templ Footer(versionName, versionRef string) {
 <footer>
   <div class="no-print">
     <hr class="footer-hr"/>
-    <p class="footer-text">IMS © Burning Man Project and its contributors. Build: <a class="link-body-emphasis" href={"https://github.com/burningmantech/ranger-ims-go/commit/" + versionRef}>{versionName}</a>
-    <br>All information in IMS is strictly confidential. Access to this system is logged.
+    <p class="footer-text">
+    IMS © Burning Man Project.
+    <wbr />Data in IMS is strictly confidential. Access is logged.
+    <br />Build{":"} <a class="link-body-emphasis" href={"https://github.com/burningmantech/ranger-ims-go/commit/" + versionRef}>{versionName}</a>
     </p>
   </div>
 </footer>

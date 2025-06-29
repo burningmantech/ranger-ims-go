@@ -37,7 +37,8 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	var versionName, versionRef string
 	bi, _ := debug.ReadBuildInfo()
 	if bi != nil {
-		versionName = bi.Main.Version
+		// e.g. "20250629122355-7254ff315bc4"
+		_, versionName, _ = strings.Cut(bi.Main.Version, "-")
 		for _, v := range bi.Settings {
 			if v.Key == "vcs.revision" {
 				versionRef = v.Value

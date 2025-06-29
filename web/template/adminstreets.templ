@@ -16,7 +16,7 @@
 
 package template
 
-templ AdminStreets(deployment string) {
+templ AdminStreets(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Edit Streets", "admin_streets.js", false)
@@ -56,7 +56,7 @@ templ AdminStreets(deployment string) {
       </div>
     </div>
   </div>
-@Footer()
+@Footer(versionName, versionRef)
 </div>
 </body>
 </html>

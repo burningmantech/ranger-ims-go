@@ -16,7 +16,7 @@
 
 package template
 
-templ Root(deployment string) {
+templ Root(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Home | IMS", "root.js", false)
@@ -57,7 +57,7 @@ templ Root(deployment string) {
     Log Out
   </a>
 </div>
-@Footer()
+@Footer(versionName, versionRef)
 </div>
 </body>
 </html>

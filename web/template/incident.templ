@@ -16,7 +16,7 @@
 
 package template
 
-templ Incident(deployment, eventName string) {
+templ Incident(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Incident Details | " + eventName, "incident.js", false)
@@ -363,7 +363,7 @@ templ Incident(deployment, eventName string) {
       </div>
     </div>
 
-@Footer()
+@Footer(versionName, versionRef)
 </div>
 </body>
 </html>

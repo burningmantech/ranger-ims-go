@@ -16,7 +16,7 @@
 
 package template
 
-templ AdminDebug(deployment string) {
+templ AdminDebug(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Debugging Details", "admin_debug.js", false)
@@ -47,7 +47,7 @@ templ AdminDebug(deployment string) {
   <pre id="runtime-metrics"></pre>
 </div>
 
-@Footer()
+@Footer(versionName, versionRef)
 </div>
 </body>
 </html>

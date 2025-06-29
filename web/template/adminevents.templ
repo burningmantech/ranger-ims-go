@@ -16,7 +16,7 @@
 
 package template
 
-templ AdminEvents(deployment string) {
+templ AdminEvents(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Edit Events", "admin_events.js", false)
@@ -81,7 +81,7 @@ templ AdminEvents(deployment string) {
       />
     </div>
   </div>
-@Footer()
+@Footer(versionName, versionRef)
 </div>
 </body>
 </html>

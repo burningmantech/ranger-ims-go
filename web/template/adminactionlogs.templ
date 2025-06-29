@@ -29,30 +29,42 @@ templ AdminActionLogs(deployment, versionName, versionRef string) {
 
 <h4>Filters</h4>
 
-<div class="form-floating mb-3">
-  <input id="filter_min_time" type="text" name="Minimum time"
-         class="form-control text-size-normal"
-         onchange="updateTable()"/>
-  <label for="filter_min_time">Minimum Time</label>
+<div class="row">
+  <div class="col-md mb-2">
+    <div class="form-floating">
+      <input id="filter_min_time" type="text" name="Minimum time"
+             class="form-control text-size-normal"
+             onchange="updateTable()"/>
+      <label for="filter_min_time">Minimum Time</label>
+    </div>
+  </div>
+  <div class="col-md mb-2">
+    <div class="form-floating">
+      <input id="filter_max_time" type="text" name="Maximum time"
+             class="form-control text-size-normal"
+             onchange="updateTable()"/>
+      <label for="filter_max_time">Maximum Time</label>
+    </div>
+  </div>
 </div>
-<div class="form-floating mb-3">
-  <input id="filter_max_time" type="text" name="Maximum time"
-         class="form-control text-size-normal"
-         onchange="updateTable()"/>
-  <label for="filter_max_time">Maximum Time</label>
-</div>
-<div class="form-floating mb-3">
-  <input id="filter_user_name" type="text" inputmode="latin-name"
-         class="form-control text-size-normal"
-         onchange="updateTable()"/>
-  <label for="filter_user_name">User</label>
-</div>
-<div class="form-floating mb-3">
-  <input id="filter_path" type="text" inputmode="latin-name"
-         class="form-control text-size-normal"
-         onchange="updateTable()"
-         value="/ims/api/auth"/>
-  <label for="filter_path">Path</label>
+<div class="row">
+  <div class="col-md mb-2">
+    <div class="form-floating">
+      <input id="filter_user_name" type="text" inputmode="latin-name"
+             class="form-control text-size-normal"
+             onchange="updateTable()"/>
+      <label for="filter_user_name">User</label>
+    </div>
+  </div>
+  <div class="col-md mb-2">
+    <div class="form-floating">
+      <input id="filter_path" type="text" inputmode="latin-name"
+             class="form-control text-size-normal"
+             onchange="updateTable()"
+             value="/ims/api/auth"/>
+      <label for="filter_path">Path</label>
+    </div>
+  </div>
 </div>
 
 

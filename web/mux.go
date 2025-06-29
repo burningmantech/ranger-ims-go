@@ -24,6 +24,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/web/template"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -31,6 +32,17 @@ import (
 func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	if mux == nil {
 		mux = http.NewServeMux()
+	}
+
+	var versionName, versionRef string
+	bi, _ := debug.ReadBuildInfo()
+	if bi != nil {
+		versionName = bi.Main.Version
+		for _, v := range bi.Settings {
+			if v.Key == "vcs.revision" {
+				versionRef = v.Value
+			}
+		}
 	}
 
 	deployment := string(cfg.Core.Deployment)
@@ -58,30 +70,30 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		),
 	)
 	mux.Handle("GET /ims/app",
-		AdaptTempl(template.Root(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Root(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin",
-		AdaptTempl(template.AdminRoot(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminRoot(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/actionlogs",
-		AdaptTempl(template.AdminActionLogs(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminActionLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/events",
-		AdaptTempl(template.AdminEvents(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminEvents(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/streets",
-		AdaptTempl(template.AdminStreets(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminStreets(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/types",
-		AdaptTempl(template.AdminTypes(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminTypes(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/app/admin/debug",
-		AdaptTempl(template.AdminDebug(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.HandleFunc("GET /ims/app/events/{eventName}/field_reports",
 		func(w http.ResponseWriter, r *http.Request) {
 			AdaptTempl(
-				template.FieldReports(deployment, r.PathValue("eventName")),
+				template.FieldReports(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 			).ServeHTTP(w, r)
 		},
@@ -89,7 +101,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.HandleFunc("GET /ims/app/events/{eventName}/field_reports/{fieldReportNumber}",
 		func(w http.ResponseWriter, r *http.Request) {
 			AdaptTempl(
-				template.FieldReport(deployment, r.PathValue("eventName")),
+				template.FieldReport(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 			).ServeHTTP(w, r)
 		},
@@ -97,7 +109,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.HandleFunc("GET /ims/app/events/{eventName}/incidents",
 		func(w http.ResponseWriter, r *http.Request) {
 			AdaptTempl(
-				template.Incidents(deployment, r.PathValue("eventName")),
+				template.Incidents(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 			).ServeHTTP(w, r)
 		},
@@ -105,7 +117,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.HandleFunc("GET /ims/app/events/{eventName}/incidents/{incidentNumber}",
 		func(w http.ResponseWriter, r *http.Request) {
 			AdaptTempl(
-				template.Incident(deployment, r.PathValue("eventName")),
+				template.Incident(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 			).ServeHTTP(w, r)
 		},
@@ -116,7 +128,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		},
 	)
 	mux.Handle("GET /ims/auth/login",
-		AdaptTempl(template.Login(deployment), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Login(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/auth/logout",
 		Adapt(

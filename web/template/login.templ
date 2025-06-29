@@ -16,7 +16,7 @@
 
 package template
 
-templ Login(deployment string) {
+templ Login(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Log In | IMS", "login.js", false)
@@ -56,7 +56,7 @@ templ Login(deployment string) {
 </div>
 
 </form>
-@Footer()
+@Footer(versionName, versionRef)
 </div>
 </body>
 </html>

@@ -16,7 +16,7 @@
 
 package template
 
-templ FieldReport(deployment, eventName string) {
+templ FieldReport(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Field Report Details | " + eventName, "field_report.js", false)
@@ -202,7 +202,7 @@ templ FieldReport(deployment, eventName string) {
     </div>
   </div>
 
-@Footer()
+@Footer(versionName, versionRef)
 </div>
 </body>
 </html>

@@ -30,6 +30,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -437,6 +438,20 @@ func LimitRequestBytes(maxRequestBytes int64) Adapter {
 	}
 }
 
+func clientAddress(r *http.Request) string {
+	if connectingIP := r.Header.Get("CF-Connecting-IP"); connectingIP != "" {
+		return connectingIP
+	}
+	if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
+		return forwardedFor
+	}
+	addrPort, err := netip.ParseAddrPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return addrPort.Addr().String()
+}
+
 func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *directory.UserStore) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -470,7 +485,7 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 					referrerHeader = referrerHeader[referrerUsefulIndex:]
 				}
 				referrer := conv.EmptyToNil(referrerHeader)
-
+				remoteAddr := clientAddress(r)
 				actionLogger.Log(imsdb.AddActionLogParams{
 					CreatedAt:      conv.TimeToFloat(time.Now()),
 					ActionType:     "api",
@@ -481,7 +496,7 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 					UserName:       username,
 					PositionID:     positionID,
 					PositionName:   positionName,
-					ClientAddress:  conv.StringToSql(&r.RemoteAddr, 128),
+					ClientAddress:  conv.StringToSql(&remoteAddr, 128),
 					HttpStatus:     sql.NullInt16{Int16: int16(writ.code), Valid: true},
 					DurationMicros: sql.NullInt64{Int64: time.Since(start).Microseconds(), Valid: true},
 				})

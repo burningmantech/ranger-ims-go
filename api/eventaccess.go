@@ -167,13 +167,16 @@ func (action PostEventAccess) postEventAccess(req *http.Request) *herr.HTTPError
 		if errHTTP != nil {
 			return errHTTP.From("[readBodyAs]")
 		}
-		if errHTTP = action.maybeSetAccess(ctx, event, access.Readers, imsdb.EventAccessModeRead); errHTTP != nil {
+		errHTTP = action.maybeSetAccess(ctx, event, access.Readers, imsdb.EventAccessModeRead)
+		if errHTTP != nil {
 			return errHTTP.From("[maybeSetAccess] EventAccessModeRead")
 		}
-		if errHTTP = action.maybeSetAccess(ctx, event, access.Writers, imsdb.EventAccessModeWrite); errHTTP != nil {
+		errHTTP = action.maybeSetAccess(ctx, event, access.Writers, imsdb.EventAccessModeWrite)
+		if errHTTP != nil {
 			return errHTTP.From("[maybeSetAccess] EventAccessModeWrite")
 		}
-		if errHTTP = action.maybeSetAccess(ctx, event, access.Reporters, imsdb.EventAccessModeReport); errHTTP != nil {
+		errHTTP = action.maybeSetAccess(ctx, event, access.Reporters, imsdb.EventAccessModeReport)
+		if errHTTP != nil {
 			return errHTTP.From("[maybeSetAccess] EventAccessModeReport")
 		}
 	}
@@ -232,7 +235,8 @@ func (action PostEventAccess) maybeSetAccess(
 			return herr.InternalServerError("Failed to add event access", err).From("[AddEventAccess]")
 		}
 	}
-	if err = txn.Commit(); err != nil {
+	err = txn.Commit()
+	if err != nil {
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 	return nil

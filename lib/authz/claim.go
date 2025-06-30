@@ -27,6 +27,7 @@ const compactIntBase = 62
 
 type IMSClaims struct {
 	jwt.RegisteredClaims
+
 	Handle         string `json:"han"`
 	Positions      string `json:"pos"`
 	Teams          string `json:"tea"`

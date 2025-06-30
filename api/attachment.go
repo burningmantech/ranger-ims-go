@@ -329,7 +329,8 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		"extension", extension,
 	)
 
-	if errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi); errHTTP != nil {
+	errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi)
+	if errHTTP != nil {
 		return 0, errHTTP.From("[saveFile]")
 	}
 
@@ -358,12 +359,14 @@ func saveFile(
 			return herr.InternalServerError("Failed to create file", err).From("[Create]")
 		}
 		defer shut(outFi)
-		if _, err = io.Copy(outFi, fi); err != nil {
+		_, err = io.Copy(outFi, fi)
+		if err != nil {
 			return herr.InternalServerError("Failed to write file", err).From("[Copy]")
 		}
 	case conf.AttachmentsStoreS3:
 		s3Name := attachmentsStore.S3.CommonKeyPrefix + newFileName
-		if errHTTP := s3Client.UploadToS3(ctx, attachmentsStore.S3.Bucket, s3Name, fi); errHTTP != nil {
+		errHTTP := s3Client.UploadToS3(ctx, attachmentsStore.S3.Bucket, s3Name, fi)
+		if errHTTP != nil {
 			return errHTTP.From("[UploadToS3]")
 		}
 	default:
@@ -438,7 +441,8 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		"extension", extension,
 	)
 
-	if errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi); errHTTP != nil {
+	errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi)
+	if errHTTP != nil {
 		return 0, errHTTP.From("[saveFile]")
 	}
 
@@ -465,7 +469,8 @@ func sniffFile(fi io.ReadSeeker) (contentType string, errHTTP *herr.HTTPError) {
 	const sniffLen = 512
 	head := make([]byte, sniffLen)
 
-	if n, err := fi.Read(head); err != nil {
+	n, err := fi.Read(head)
+	if err != nil {
 		// It's fine if the file is less than sniffLen bytes long.
 		// We just need to shorten the byte slice afterward to the actual file length.
 		if errors.Is(err, io.EOF) {
@@ -474,7 +479,8 @@ func sniffFile(fi io.ReadSeeker) (contentType string, errHTTP *herr.HTTPError) {
 			return "", herr.InternalServerError("Failed to detect content type", err).From("[ReadAt]")
 		}
 	}
-	if _, err := fi.Seek(0, io.SeekStart); err != nil {
+	_, err = fi.Seek(0, io.SeekStart)
+	if err != nil {
 		return "", herr.InternalServerError("Failed to detect content type", err).From("[Seek]")
 	}
 

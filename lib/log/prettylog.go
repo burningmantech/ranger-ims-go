@@ -189,12 +189,13 @@ func (h *Handler) computeAttrs(
 		h.b.Reset()
 		h.m.Unlock()
 	}()
-	if err := h.h.Handle(ctx, r); err != nil {
+	err := h.h.Handle(ctx, r)
+	if err != nil {
 		return nil, fmt.Errorf("error when calling inner handler's Handle: %w", err)
 	}
 
 	var attrs map[string]any
-	err := json.Unmarshal(h.b.Bytes(), &attrs)
+	err = json.Unmarshal(h.b.Bytes(), &attrs)
 	if err != nil {
 		return nil, fmt.Errorf("error when unmarshaling inner handler's Handle result: %w", err)
 	}

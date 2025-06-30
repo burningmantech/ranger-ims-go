@@ -424,6 +424,7 @@ type Adapter func(http.Handler) http.Handler
 type responseWriter struct {
 	http.ResponseWriter
 	http.Flusher
+
 	code int
 }
 
@@ -486,20 +487,22 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 				}
 				referrer := conv.EmptyToNil(referrerHeader)
 				remoteAddr := clientAddress(r)
-				actionLogger.Log(imsdb.AddActionLogParams{
-					CreatedAt:      conv.TimeToFloat(time.Now()),
-					ActionType:     "api",
-					Method:         conv.StringToSql(&r.Method, 128),
-					Path:           conv.StringToSql(&r.URL.Path, 128),
-					Referrer:       conv.StringToSql(referrer, 128),
-					UserID:         userID,
-					UserName:       username,
-					PositionID:     positionID,
-					PositionName:   positionName,
-					ClientAddress:  conv.StringToSql(&remoteAddr, 128),
-					HttpStatus:     sql.NullInt16{Int16: int16(writ.code), Valid: true},
-					DurationMicros: sql.NullInt64{Int64: time.Since(start).Microseconds(), Valid: true},
-				})
+				actionLogger.Log(
+					r.Context(),
+					imsdb.AddActionLogParams{
+						CreatedAt:      conv.TimeToFloat(time.Now()),
+						ActionType:     "api",
+						Method:         conv.StringToSql(&r.Method, 128),
+						Path:           conv.StringToSql(&r.URL.Path, 128),
+						Referrer:       conv.StringToSql(referrer, 128),
+						UserID:         userID,
+						UserName:       username,
+						PositionID:     positionID,
+						PositionName:   positionName,
+						ClientAddress:  conv.StringToSql(&remoteAddr, 128),
+						HttpStatus:     sql.NullInt16{Int16: int16(writ.code), Valid: true},
+						DurationMicros: sql.NullInt64{Int64: time.Since(start).Microseconds(), Valid: true},
+					})
 			}
 
 			slog.Debug(fmt.Sprintf("Served request for: %v %v ", r.Method, r.URL.Path),

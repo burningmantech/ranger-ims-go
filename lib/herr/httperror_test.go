@@ -80,21 +80,24 @@ func inner() *HTTPError {
 }
 
 func middle() *HTTPError {
-	if err := inner(); err != nil {
+	err := inner()
+	if err != nil {
 		return err.From("[inner]")
 	}
 	return nil
 }
 
 func outer() *HTTPError {
-	if err := middle(); err != nil {
+	err := middle()
+	if err != nil {
 		return err.From("[middle]")
 	}
 	return nil
 }
 
 func sampleFunction() *HTTPError {
-	if err := outer(); err != nil {
+	err := outer()
+	if err != nil {
 		return err.From("[outer]")
 	}
 	return nil

@@ -146,7 +146,8 @@ type EditEvents struct {
 var allowedEventNames = regexp.MustCompile(`^[\w-]+$`)
 
 func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if errHTTP := action.editEvents(req); errHTTP != nil {
+	errHTTP := action.editEvents(req)
+	if errHTTP != nil {
 		errHTTP.From("[editEvents]").WriteResponse(w)
 		return
 	}
@@ -160,7 +161,8 @@ func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
 	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
 		return herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
 	}
-	if err := req.ParseForm(); err != nil {
+	err := req.ParseForm()
+	if err != nil {
 		return herr.BadRequest("Failed to parse HTTP form", err)
 	}
 	editRequest, errHTTP := readBodyAs[imsjson.EditEventsRequest](req)

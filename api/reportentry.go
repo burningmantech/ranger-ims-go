@@ -37,7 +37,8 @@ type EditFieldReportReportEntry struct {
 }
 
 func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if errHTTP := action.editFieldReportEntry(req); errHTTP != nil {
+	errHTTP := action.editFieldReportEntry(req)
+	if errHTTP != nil {
 		errHTTP.From("[editFieldReportEntry]").WriteResponse(w)
 		return
 	}
@@ -100,7 +101,8 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
-	if err = txn.Commit(); err != nil {
+	err = txn.Commit()
+	if err != nil {
 		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
 	}
 
@@ -117,7 +119,8 @@ type EditIncidentReportEntry struct {
 }
 
 func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if errHTTP := action.editIncidentReportEntry(req); errHTTP != nil {
+	errHTTP := action.editIncidentReportEntry(req)
+	if errHTTP != nil {
 		errHTTP.From("[editIncidentReportEntry]").WriteResponse(w)
 		return
 	}
@@ -180,7 +183,8 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 	if errHTTP != nil {
 		return errHTTP.From("[addIncidentReportEntry]")
 	}
-	if err = txn.Commit(); err != nil {
+	err = txn.Commit()
+	if err != nil {
 		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
 	}
 

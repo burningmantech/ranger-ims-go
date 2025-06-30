@@ -64,7 +64,8 @@ func Start(
 		return 0, fmt.Errorf("[NewServer]: %w", err)
 	}
 	go func() {
-		if err = s.Start(); err != nil {
+		err = s.Start()
+		if err != nil {
 			panic(err)
 		}
 	}()

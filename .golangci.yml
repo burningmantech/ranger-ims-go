@@ -24,6 +24,7 @@ linters:
     - testpackage  # annoying
     - staticcheck  # annoying and hard to disable: https://github.com/golangci/golangci-lint/issues/741
     - dupword  # annoying
+    - noctx # issues with deadlocks in txns for in-process MySQL
 
     # Uberbonked
     - dogsled  # dumb
@@ -37,6 +38,7 @@ linters:
     - prealloc  # more annoying than useful
     - varnamelen  # complains about a lot of reasonable variable names
     - wsl  # too annoying
+    - wsl_v5
   settings:
     exhaustive:
       default-signifies-exhaustive: true

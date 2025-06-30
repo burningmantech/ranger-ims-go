@@ -133,7 +133,7 @@ func setup(ctx context.Context, tempDir string) {
 	db, err := store.SqlDB(ctx, shared.cfg.Store, true)
 	must(err)
 	shared.imsDBQ = store.NewDBQ(db, imsdb.New())
-	shared.actionLogger = actionlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ActionLogEnabled)
+	shared.actionLogger = actionlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ActionLogEnabled, true)
 	shared.testServer = httptest.NewServer(
 		api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger),
 	)

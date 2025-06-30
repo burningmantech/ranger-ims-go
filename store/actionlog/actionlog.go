@@ -39,9 +39,19 @@ func NewLogger(
 	ctx context.Context,
 	imsDBQ *store.DBQ,
 	actionLogEnabled bool,
+	// bufferedChannel is useful in tests to prevent race conditions on test assertions.
+	// Don't use bufferedChannel on a real deployment, as it defeats the purpose of logging
+	// asynchronously.
+	bufferedChannel bool,
 ) *Logger {
+	var workCh chan imsdb.AddActionLogParams
+	if bufferedChannel {
+		workCh = make(chan imsdb.AddActionLogParams)
+	} else {
+		workCh = make(chan imsdb.AddActionLogParams, workQueueMaxLength)
+	}
 	logger := &Logger{
-		work:             make(chan imsdb.AddActionLogParams, workQueueMaxLength),
+		work:             workCh,
 		imsDBQ:           imsDBQ,
 		actionLogEnabled: actionLogEnabled,
 	}

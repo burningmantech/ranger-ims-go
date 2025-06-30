@@ -348,7 +348,7 @@ func AddToMux(
 		Adapt(
 			es.Server.Handler(EventSourceChannel),
 			RecoverFromPanic(),
-			LogRequest(true, actionLogger, userStore),
+			LogRequest(false, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		),
 	)

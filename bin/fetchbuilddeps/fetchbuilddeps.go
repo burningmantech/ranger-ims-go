@@ -183,7 +183,8 @@ func must(err error) {
 }
 
 func logClose(closer io.Closer) {
-	if err := closer.Close(); err != nil {
+	err := closer.Close()
+	if err != nil {
 		log.Printf("Failed to close connection: %v", err)
 	}
 }

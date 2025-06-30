@@ -62,7 +62,8 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 	if eventPermissions&authz.EventReadIncidents == 0 {
 		return nil, herr.Forbidden("The requestor does not have EventReadIncidents permission", nil)
 	}
-	if err := req.ParseForm(); err != nil {
+	err := req.ParseForm()
+	if err != nil {
 		return nil, herr.BadRequest("Failed to parse form", err)
 	}
 	includeSystemEntries := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
@@ -102,7 +103,8 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 		}
 		return nil
 	})
-	if err := group.Wait(); err != nil {
+	err = group.Wait()
+	if err != nil {
 		return resp, herr.AsHTTPError(err)
 	}
 
@@ -332,7 +334,8 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 		return 0, "", herr.InternalServerError("Failed to create incident", err).From("[CreateIncident]")
 	}
 
-	if errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author); errHTTP != nil {
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author)
+	if errHTTP != nil {
 		return 0, "", errHTTP.From("[updateIncident]")
 	}
 
@@ -588,7 +591,8 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		}
 	}
 
-	if err = txn.Commit(); err != nil {
+	err = txn.Commit()
+	if err != nil {
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
@@ -632,7 +636,8 @@ type EditIncident struct {
 }
 
 func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if errHTTP := action.editIncident(req); errHTTP != nil {
+	errHTTP := action.editIncident(req)
+	if errHTTP != nil {
 		errHTTP.From("[editIncident]").WriteResponse(w)
 		return
 	}
@@ -663,7 +668,8 @@ func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	if errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author); errHTTP != nil {
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author)
+	if errHTTP != nil {
 		return errHTTP.From("[updateIncident]")
 	}
 

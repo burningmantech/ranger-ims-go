@@ -123,7 +123,8 @@ func (store *UserStore) refreshUserCache(ctx context.Context) (map[int64]*User, 
 	errs = append(errs, err)
 	personsOnDuty, err := store.DBQ.PersonsOnDuty(ctx, store.DBQ)
 	errs = append(errs, err)
-	if err := errors.Join(errs...); err != nil {
+	err = errors.Join(errs...)
+	if err != nil {
 		return nil, fmt.Errorf("[Teams,Positions,PersonTeams,PersonPositions] %w", err)
 	}
 

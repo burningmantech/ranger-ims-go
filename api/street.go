@@ -57,7 +57,8 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 		return nil, herr.Forbidden("The requestor does not have GlobalReadStreets permission", nil)
 	}
 
-	if err := req.ParseForm(); err != nil {
+	err := req.ParseForm()
+	if err != nil {
 		return nil, herr.BadRequest("Failed to parse form", err)
 	}
 	eventName := req.Form.Get("event_id")
@@ -98,7 +99,8 @@ type EditStreets struct {
 }
 
 func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if errHTTP := action.editStreets(req); errHTTP != nil {
+	errHTTP := action.editStreets(req)
+	if errHTTP != nil {
 		errHTTP.From("[editStreets]").WriteResponse(w)
 		return
 	}

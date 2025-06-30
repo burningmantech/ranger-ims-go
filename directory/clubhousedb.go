@@ -89,6 +89,7 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 // DBQ combines the SQL database and the Querier for the Clubhouse datastore.
 type DBQ struct {
 	*sql.DB
+
 	q chqueries.Querier
 }
 

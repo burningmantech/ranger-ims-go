@@ -57,7 +57,8 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 		return response, herr.Forbidden("The requestor does not have GlobalReadIncidentTypes permission", nil)
 	}
 
-	if err := req.ParseForm(); err != nil {
+	err := req.ParseForm()
+	if err != nil {
 		return response, herr.BadRequest("Unable to parse HTTP form", err).From("[ParseForm]")
 	}
 	typeRows, err := action.imsDBQ.IncidentTypes(req.Context(), action.imsDBQ)

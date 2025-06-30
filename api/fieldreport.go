@@ -62,7 +62,8 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 	// i.e. the user has EventReadOwnFieldReports, but not EventReadAllFieldReports
 	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
 
-	if err := req.ParseForm(); err != nil {
+	err := req.ParseForm()
+	if err != nil {
 		return resp, herr.BadRequest("Failed to parse form", err).From("[ParseForm]")
 	}
 
@@ -258,7 +259,8 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	limitedAccess := eventPermissions&authz.EventWriteAllFieldReports == 0
 
 	ctx := req.Context()
-	if err := req.ParseForm(); err != nil {
+	err := req.ParseForm()
+	if err != nil {
 		return herr.BadRequest("Failed to parse form data", err).From("[ParseForm]")
 	}
 	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
@@ -341,7 +343,8 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		}
 	}
 
-	if err = txn.Commit(); err != nil {
+	err = txn.Commit()
+	if err != nil {
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
@@ -510,7 +513,8 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 		}
 	}
 
-	if err = txn.Commit(); err != nil {
+	err = txn.Commit()
+	if err != nil {
 		return 0, "", herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 

@@ -28,6 +28,7 @@ import (
 // DBQ combines the SQL database and the Querier for the IMS datastore.
 type DBQ struct {
 	*sql.DB
+
 	q imsdb.Querier
 }
 

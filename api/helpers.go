@@ -39,7 +39,8 @@ func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 		return empty, herr.BadRequest("Failed to read request body", err).From("[io.ReadAll]")
 	}
 	var t T
-	if err = json.Unmarshal(bodyBytes, &t); err != nil {
+	err = json.Unmarshal(bodyBytes, &t)
+	if err != nil {
 		return empty, herr.BadRequest("Failed to unmarshal request body", err).From("[Unmarshal]")
 	}
 	return t, nil
@@ -47,7 +48,8 @@ func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 
 func eventFromFormValue(req *http.Request, imsDBQ *store.DBQ) (imsdb.Event, *herr.HTTPError) {
 	empty := imsdb.Event{}
-	if err := req.ParseForm(); err != nil {
+	err := req.ParseForm()
+	if err != nil {
 		return empty, herr.BadRequest("Failed to parse form", err).From("ParseForm")
 	}
 	eventName := req.FormValue("event_id")
@@ -145,7 +147,8 @@ func rollback(txn *sql.Tx) {
 }
 
 func shut(c io.Closer) {
-	if err := c.Close(); err != nil {
+	err := c.Close()
+	if err != nil {
 		slog.Error("Failed to close Closer", "error", err)
 	}
 }

@@ -30,38 +30,35 @@ const (
 )
 
 type Logger struct {
-	work             chan imsdb.AddActionLogParams
-	imsDBQ           *store.DBQ
-	actionLogEnabled bool
+	work                chan imsdb.AddActionLogParams
+	imsDBQ              *store.DBQ
+	actionLogEnabled    bool
+	synchronousForTests bool
 }
 
 func NewLogger(
 	ctx context.Context,
 	imsDBQ *store.DBQ,
 	actionLogEnabled bool,
-	// bufferedChannel is useful in tests to prevent race conditions on test assertions.
-	// Don't use bufferedChannel on a real deployment, as it defeats the purpose of logging
-	// asynchronously.
-	bufferedChannel bool,
+	synchronousForTests bool,
 ) *Logger {
-	var workCh chan imsdb.AddActionLogParams
-	if bufferedChannel {
-		workCh = make(chan imsdb.AddActionLogParams)
-	} else {
-		workCh = make(chan imsdb.AddActionLogParams, workQueueMaxLength)
-	}
 	logger := &Logger{
-		work:             workCh,
-		imsDBQ:           imsDBQ,
-		actionLogEnabled: actionLogEnabled,
+		work:                make(chan imsdb.AddActionLogParams, workQueueMaxLength),
+		imsDBQ:              imsDBQ,
+		actionLogEnabled:    actionLogEnabled,
+		synchronousForTests: synchronousForTests,
 	}
 	go logger.startWorker(ctx)
 	return logger
 }
 
-func (l *Logger) Log(record imsdb.AddActionLogParams) {
+func (l *Logger) Log(ctx context.Context, record imsdb.AddActionLogParams) {
 	if l.actionLogEnabled {
-		l.work <- record
+		if l.synchronousForTests {
+			l.writeRow(ctx, record)
+		} else {
+			l.work <- record
+		}
 	}
 }
 
@@ -69,17 +66,21 @@ func (l *Logger) Close() {}
 
 func (l *Logger) startWorker(ctx context.Context) {
 	for row := range l.work {
-		// We don't use loggerCtx here, since it gets cancelled soon after SIGINT.
-		// We use a different context, so that there's still a chance to write a final
-		// row before the server quits.
-		ctx, cancel := context.WithTimeout(ctx, insertDeadline)
-		_, err := l.imsDBQ.AddActionLog(ctx, l.imsDBQ, row)
-		if err != nil {
-			slog.Error("failed to add action log to db", "error", err)
-		}
-		cancel()
+		l.writeRow(ctx, row)
 	}
 	slog.Info("actionlog.Logger worker finished")
+}
+
+func (l *Logger) writeRow(ctx context.Context, row imsdb.AddActionLogParams) {
+	// We don't use loggerCtx here, since it gets cancelled soon after SIGINT.
+	// We use a different context, so that there's still a chance to write a final
+	// row before the server quits.
+	ctx, cancel := context.WithTimeout(ctx, insertDeadline)
+	defer cancel()
+	_, err := l.imsDBQ.AddActionLog(ctx, l.imsDBQ, row)
+	if err != nil {
+		slog.Error("failed to add action log to db", "error", err)
+	}
 }
 
 // Here's how this could work if we wanted to do batched inserts.

@@ -77,7 +77,8 @@ func runScript(ctx context.Context, imsDBQ *sql.DB, script string) error {
 
 func migrate(ctx context.Context, imsDBQ *sql.DB, to, from schemaVersion) error {
 	if from == 0 {
-		if err := runScript(ctx, imsDBQ, CurrentSchema); err != nil {
+		err := runScript(ctx, imsDBQ, CurrentSchema)
+		if err != nil {
 			return fmt.Errorf("[runScript]: %w", err)
 		}
 		slog.Info("Migrated schema version", "to", to, "from", from)
@@ -88,7 +89,8 @@ func migrate(ctx context.Context, imsDBQ *sql.DB, to, from schemaVersion) error 
 		if err != nil {
 			return fmt.Errorf("[ReadFile]: %w", err)
 		}
-		if err := runScript(ctx, imsDBQ, string(b)); err != nil {
+		err = runScript(ctx, imsDBQ, string(b))
+		if err != nil {
 			return fmt.Errorf("[runScript]: %w", err)
 		}
 		slog.Info("Migrated schema version", "to", step, "from", step-1)
@@ -113,7 +115,8 @@ func MigrateDB(ctx context.Context, imsDBQ *sql.DB) error {
 	if dbVersion > repoVersion {
 		return fmt.Errorf("the DB schema is ahead of the schema in the code (%v > %v). Something is wrong", dbVersion, repoVersion)
 	}
-	if err = migrate(ctx, imsDBQ, repoVersion, dbVersion); err != nil {
+	err = migrate(ctx, imsDBQ, repoVersion, dbVersion)
+	if err != nil {
 		return fmt.Errorf("[migrate]: %w", err)
 	}
 

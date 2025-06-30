@@ -384,12 +384,24 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	storedIncident := storedIncidentRow.Incident
 
+	// Look up the incident types before starting the transaction, to avoid DB connection contention.
+	var allIncidentTypes []imsdb.IncidentTypesRow
+	if newIncident.IncidentTypeIDs != nil {
+		allIncidentTypes, err = imsDBQ.IncidentTypes(ctx, imsDBQ)
+		if err != nil {
+			return herr.InternalServerError("Failed to get incident types", err).From("[IncidentTypes]")
+		}
+	}
+
 	rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	_ = incidentTypeIDs
 	if err != nil {
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
 	}
 
+	// Be sure to do any data lookups prior to starting the transaction, as issues can arise
+	// with database connection contention if you try to SELECT while in the process of a transaction.
+	// This is specifically about the in-process MySQL, which only allows one DB connection.
 	txn, err := imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
@@ -497,10 +509,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		add := sliceSubtract(*newIncident.IncidentTypeIDs, incidentTypeIDs)
 		sub := sliceSubtract(incidentTypeIDs, *newIncident.IncidentTypeIDs)
 		if len(add) > 0 {
-			names, errHTTP := namesForIncidentTypes(ctx, imsDBQ, add)
-			if errHTTP != nil {
-				return errHTTP.From("[namesForIncidentTypes]")
-			}
+			names := namesForIncidentTypes(allIncidentTypes, add)
 			logs = append(logs, fmt.Sprintf("Added type: %v", names))
 			for _, itype := range add {
 				err = imsDBQ.AttachIncidentTypeToIncident(ctx, txn,
@@ -516,10 +525,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 			}
 		}
 		if len(sub) > 0 {
-			names, errHTTP := namesForIncidentTypes(ctx, imsDBQ, sub)
-			if errHTTP != nil {
-				return errHTTP.From("[namesForIncidentTypes]")
-			}
+			names := namesForIncidentTypes(allIncidentTypes, add)
 			logs = append(logs, fmt.Sprintf("Removed type: %v", names))
 			for _, rh := range sub {
 				err = imsDBQ.DetachIncidentTypeFromIncident(ctx, txn,
@@ -604,18 +610,14 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	return nil
 }
 
-func namesForIncidentTypes(ctx context.Context, imsDBQ *store.DBQ, typeIDs []int32) (string, *herr.HTTPError) {
-	rows, err := imsDBQ.IncidentTypes(ctx, imsDBQ)
-	if err != nil {
-		return "", herr.InternalServerError("Failed to get IncidentTypes", err).From("[IncidentTypes]")
-	}
+func namesForIncidentTypes(rows []imsdb.IncidentTypesRow, typeIDs []int32) string {
 	var names []string
 	for _, row := range rows {
 		if slices.Contains(typeIDs, row.IncidentType.ID) {
 			names = append(names, row.IncidentType.Name)
 		}
 	}
-	return strings.Join(names, ", "), nil
+	return strings.Join(names, ", ")
 }
 
 func sliceSubtract[T comparable](a, b []T) []T {

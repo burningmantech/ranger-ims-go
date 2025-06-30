@@ -39,6 +39,7 @@ type ApiHelper struct {
 	t         *testing.T
 	serverURL *url.URL
 	jwt       string
+	referrer  string
 }
 
 func (a ApiHelper) postAuth(ctx context.Context, req api.PostAuthRequest) (statusCode int, body, validJWT string) {
@@ -360,6 +361,9 @@ func (a ApiHelper) imsPost(ctx context.Context, body any, path string) *http.Res
 	if a.jwt != "" {
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
+	if a.referrer != "" {
+		httpPost.Header.Set("Referer", a.referrer)
+	}
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -381,6 +385,9 @@ func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *htt
 	if a.jwt != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
+	if a.referrer != "" {
+		httpReq.Header.Set("Referer", a.referrer)
+	}
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -398,6 +405,18 @@ func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *htt
 	}
 	require.NoError(a.t, err)
 	return resp, get
+}
+
+func (a ApiHelper) getActionLogs(ctx context.Context, minTime, maxTime string) (imsjson.ActionLogs, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/actionlogs")
+	q := path.Query()
+	q.Set("minTimeUnixMs", minTime)
+	q.Set("maxTimeUnixMs", maxTime)
+	path.RawQuery = q.Encode()
+
+	bod, resp := a.imsGet(ctx, path.String(), &imsjson.ActionLogs{})
+	return *bod.(*imsjson.ActionLogs), resp
 }
 
 func jwtForAlice(t *testing.T, ctx context.Context) string {

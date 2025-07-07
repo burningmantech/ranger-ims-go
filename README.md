@@ -16,24 +16,20 @@ that occur in Black Rock City.
     go run bin/fetchbuilddeps/fetchbuilddeps.go
    ```
 
-## Run tests
+## Run IMS locally with in-process volatile DBs
 
-To run all the tests (excluding Playwright), just do:
-
-```shell
-go test ./...
-```
-
-or to run all those tests and see a coverage report, do:
+As a super quick development approach for playing with IMS, follow the "getting started" steps above,
+then run the following to build and run IMS. This doesn't require Docker, nor any external DB.
 
 ```shell
-go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html=coverage.out
+go run bin/build/build.go
+./ranger-ims-go serve
 ```
 
-## Run IMS locally
+## Run IMS locally with MariaDB
 
 1. Have a local MariaDB server running. An empty database is fine, as the IMS program will
-   migrate your DB automatically on startup. e.g.
+   migrate your DB automatically on startup from nothing. e.g.
    ```shell
    password=$(openssl rand -hex 16)
    echo "Password is ${password}"
@@ -52,6 +48,20 @@ go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html
    go run bin/build/build.go
    ./ranger-ims-go serve
    ```
+
+## Run tests
+
+To run all the tests (excluding Playwright), just do:
+
+```shell
+go test ./...
+```
+
+or to run all those tests and see a coverage report, do:
+
+```shell
+go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html=coverage.out
+```
 
 ## Build and run with Docker
 

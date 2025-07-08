@@ -179,6 +179,7 @@ const (
 	AttachmentsStoreS3       AttachmentsStoreType = "s3"
 	AttachmentsStoreNone     AttachmentsStoreType = "none"
 	DeploymentTypeDev        DeploymentType       = "dev"
+	DeploymentTypeTraining   DeploymentType       = "training"
 	DeploymentTypeStaging    DeploymentType       = "staging"
 	DeploymentTypeProduction DeploymentType       = "production"
 	DBStoreTypeMaria         DBStoreType          = "mariadb"
@@ -215,7 +216,7 @@ func (a AttachmentsStoreType) Validate() error {
 
 func (d DeploymentType) Validate() error {
 	switch d {
-	case DeploymentTypeDev, DeploymentTypeStaging, DeploymentTypeProduction:
+	case DeploymentTypeDev, DeploymentTypeStaging, DeploymentTypeProduction, DeploymentTypeTraining:
 		return nil
 	default:
 		return fmt.Errorf("unknown deployment type %v", d)

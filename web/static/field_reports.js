@@ -254,11 +254,13 @@ function frInitSearchField() {
         frReplaceWindowState();
         let q = searchInput.value;
         let isRegex = false;
+        let smartSearch = true;
         if (q.startsWith("/") && q.endsWith("/")) {
             isRegex = true;
+            smartSearch = false;
             q = q.slice(1, q.length - 1);
         }
-        fieldReportsTable.search(q, isRegex);
+        fieldReportsTable.search(q, isRegex, smartSearch);
         fieldReportsTable.draw();
     }
     const fragmentParams = ims.windowFragmentParams();

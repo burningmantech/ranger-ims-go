@@ -33,6 +33,8 @@ import (
 	"time"
 )
 
+var serverStartTime = time.Now()
+
 type GetBuildInfo struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
@@ -57,8 +59,10 @@ func (action GetBuildInfo) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[getBuildInfo]").WriteResponse(w)
 		return
 	}
+	serverTimeInfo := fmt.Sprintf("Server started at: %v\nUptime: %v\n\n", serverStartTime, time.Since(serverStartTime))
+	finalRespText := serverTimeInfo + bi.String()
 	w.Header().Set("Cache-Control", "no-cache")
-	http.Error(w, bi.String(), http.StatusOK)
+	http.Error(w, finalRespText, http.StatusOK)
 }
 
 func (action GetBuildInfo) getBuildInfo(req *http.Request) (debug.BuildInfo, *herr.HTTPError) {

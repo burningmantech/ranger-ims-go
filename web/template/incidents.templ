@@ -25,8 +25,18 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav(eventName)
-<h1 id="doc-title">Incidents</h1>
 
+<div class="d-flex justify-content-between">
+  <h1 id="doc-title">Incidents</h1>
+  <span class="align-content-center" title="Are you an RSL/Operator/WSL? Please monitor #ranger-operations-center while on shift!">
+    <a href="https://burningman.slack.com/archives/C07H1059327" target="_blank">
+    <svg fill="currentColor" class="bi">
+      <use href="#slack" />
+    </svg>
+    ROC Chat
+    </a>
+  </span>
+</div>
 
     <div id="error_info" class="hidden text-danger">
       <p id="error_text"></p>

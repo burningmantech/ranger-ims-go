@@ -563,8 +563,10 @@ export function renderIncidentNumber(incidentNumber, type, _incident) {
             if (incidentNumber == null) {
                 return null;
             }
-            const dest = urlReplace(url_viewIncidentNumber).replace("<number>", incidentNumber.toString());
-            return `<a href="${dest}">${incidentNumber}</a>`;
+            const link = document.createElement("a");
+            link.href = urlReplace(url_viewIncidentNumber).replace("<number>", incidentNumber.toString());
+            link.text = incidentNumber.toString();
+            return link.outerHTML;
         case "filter":
         case "type":
         case "sort":
@@ -578,8 +580,10 @@ export function renderFieldReportNumber(fieldReportNumber, type, _fieldReport) {
             if (fieldReportNumber == null) {
                 return null;
             }
-            const dest = urlReplace(url_viewFieldReportNumber).replace("<number>", fieldReportNumber.toString());
-            return `<a href="${dest}">${fieldReportNumber}</a>`;
+            const link = document.createElement("a");
+            link.href = urlReplace(url_viewFieldReportNumber).replace("<number>", fieldReportNumber.toString());
+            link.text = fieldReportNumber.toString();
+            return link.outerHTML;
         case "filter":
         case "type":
         case "sort":

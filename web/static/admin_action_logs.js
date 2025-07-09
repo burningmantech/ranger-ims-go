@@ -109,7 +109,7 @@ async function initAdminActionLogsPage() {
                 "className": "text-center",
                 "data": "referrer",
                 "defaultContent": null,
-                "render": DataTable.render.text(),
+                "render": renderPage,
             },
             {
                 "name": "log_method",
@@ -153,6 +153,25 @@ async function initAdminActionLogsPage() {
         ],
     });
     actionLogsTable.draw();
+}
+function renderPage(pagePath, type, _data) {
+    pagePath = pagePath ?? "";
+    switch (type) {
+        case "display":
+            if (pagePath == "") {
+                return "";
+            }
+            const link = document.createElement("a");
+            link.href = pagePath;
+            link.target = "_blank";
+            link.text = pagePath;
+            return link.outerHTML;
+        case "filter":
+        case "type":
+        case "sort":
+            return pagePath;
+    }
+    return undefined;
 }
 async function fetchActionLogs() {
     const { json, err } = await ims.fetchJsonNoThrow(url_actionlogs, {});

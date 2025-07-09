@@ -60,16 +60,16 @@ func main() {
 	g.Go(func() error {
 		return existOrFetch(groupCtx, root,
 			"bootstrap.min.css",
-			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css",
-			"sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT",
+			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css",
+			"sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr",
 		)
 	})
 
 	g.Go(func() error {
 		return existOrFetch(groupCtx, root,
 			"bootstrap.bundle.min.js",
-			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js",
-			"sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO",
+			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js",
+			"sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q",
 		)
 	})
 
@@ -84,15 +84,15 @@ func main() {
 	g.Go(func() error {
 		return existOrFetch(groupCtx, root,
 			"dataTables.min.js",
-			"https://cdn.datatables.net/2.3.1/js/dataTables.min.js",
-			"sha384-LiV1KhVIIiAY/+IrQtQib29gCaonfR5MgtWzPCTBVtEVJ7uYd0u8jFmf4xka4WVy",
+			"https://cdn.datatables.net/2.3.2/js/dataTables.min.js",
+			"sha384-RZEqG156bBQSxYY9lwjUz/nKVkqYj/QNK9dEjjyJ/EVTO7ndWwk6ZWEkvaKdRm/U",
 		)
 	})
 
 	g.Go(func() error {
 		return existOrFetch(groupCtx, root,
 			"dataTables.bootstrap5.min.js",
-			"https://cdn.datatables.net/2.3.1/js/dataTables.bootstrap5.min.js",
+			"https://cdn.datatables.net/2.3.2/js/dataTables.bootstrap5.min.js",
 			"sha384-G85lmdZCo2WkHaZ8U1ZceHekzKcg37sFrs4St2+u/r2UtfvSDQmQrkMsEx4Cgv/W",
 		)
 	})
@@ -100,8 +100,8 @@ func main() {
 	g.Go(func() error {
 		return existOrFetch(groupCtx, root,
 			"dataTables.bootstrap5.min.css",
-			"https://cdn.datatables.net/2.3.1/css/dataTables.bootstrap5.min.css",
-			"sha384-5hBbs6yhVjtqKk08rsxdk9xO80wJES15HnXHglWBQoj3cus3WT+qDJRpvs5rRP2c",
+			"https://cdn.datatables.net/2.3.2/css/dataTables.bootstrap5.min.css",
+			"sha384-e4/pU/7fdyaPKtXkqAgHNgoYAb2LNmChhpSuSp8o6saYtS2sP+JZsu8Wy/7mGV7w",
 		)
 	})
 

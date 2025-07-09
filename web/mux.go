@@ -64,11 +64,10 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
 			// Cache IMS's internal JS and CSS for a shorter duration than external JS/CSS
 			// and logos, since we want updates to these files to get sent out to users
-			// somewhat soon after deployment to production.
+			// somewhat soon after deployment to production. If we don't do some custom
+			// overriding here, then Cloudflare sets a 4-hour Cache-Control header.
 			CacheControl(cfg.Core.CacheControlShort),
-			// Uncomment this line when larger code changes are expected to the frontend, so
-			// that clients won't cache the JS files for so long.
-			// CdnCacheControlOff(),
+			CdnCacheControlOff(),
 		),
 	)
 	mux.Handle("GET /ims/app",

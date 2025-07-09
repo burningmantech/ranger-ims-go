@@ -16,6 +16,8 @@
 
 package template
 
+import "strings"
+
 templ Incidents(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
@@ -28,6 +30,7 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
 
 <div class="d-flex justify-content-between">
   <h1 id="doc-title">Incidents</h1>
+  if strings.ToLower(deployment) == "production" {
   <span class="align-content-center" title="Are you an RSL/Operator/WSL? Please monitor #ranger-operations-center while on shift!">
     <a href="https://burningman.slack.com/archives/C07H1059327" target="_blank">
     <svg fill="currentColor" class="bi">
@@ -36,6 +39,7 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
     ROC Chat
     </a>
   </span>
+  }
 </div>
 
     <div id="error_info" class="hidden text-danger">

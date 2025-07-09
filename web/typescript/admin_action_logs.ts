@@ -132,7 +132,7 @@ async function initAdminActionLogsPage(): Promise<void> {
                 "className": "text-center",
                 "data": "referrer",
                 "defaultContent": null,
-                "render": DataTable.render.text(),
+                "render": renderPage,
             },
             {   // 4
                 "name": "log_method",
@@ -177,6 +177,26 @@ async function initAdminActionLogsPage(): Promise<void> {
     });
 
     actionLogsTable!.draw();
+}
+
+function renderPage(pagePath: string|null, type: string, _data: any): string|undefined {
+    pagePath = pagePath??"";
+    switch (type) {
+        case "display":
+            if (pagePath == "") {
+                return "";
+            }
+            const link = document.createElement("a");
+            link.href = pagePath;
+            link.target = "_blank";
+            link.text = pagePath;
+            return link.outerHTML;
+        case "filter":
+        case "type":
+        case "sort":
+            return pagePath;
+    }
+    return undefined;
 }
 
 async function fetchActionLogs(): Promise<void> {

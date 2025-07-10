@@ -32,11 +32,11 @@ func TestVerifyPassword_success(t *testing.T) {
 	assert.Equal(t, hashed, authn.Hash(pw, s))
 
 	stored := "my_little_salty:" + hashed
-	vp, err := authn.Verify(pw, stored)
+	vp, err := authn.Verify(t.Context(), pw, stored)
 	require.NoError(t, err)
 	assert.True(t, vp)
 
-	vp, err = authn.Verify("wrong password", stored)
+	vp, err = authn.Verify(t.Context(), "wrong password", stored)
 	require.NoError(t, err)
 	assert.False(t, vp)
 }
@@ -44,7 +44,7 @@ func TestVerifyPassword_success(t *testing.T) {
 func TestVerifyPassword_badStoredValue(t *testing.T) {
 	t.Parallel()
 	noColonInThisString := "abcdefg"
-	_, err := authn.Verify("some_password", noColonInThisString)
+	_, err := authn.Verify(t.Context(), "some_password", noColonInThisString)
 	require.Error(t, err)
 	require.Contains(t, "invalid hashed password", err.Error())
 }
@@ -53,7 +53,7 @@ func TestNewSalted(t *testing.T) {
 	t.Parallel()
 	pw := "this is my password"
 	saltedPw := authn.NewSaltedSha1(pw)
-	isValid, err := authn.Verify(pw, saltedPw)
+	isValid, err := authn.Verify(t.Context(), pw, saltedPw)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -71,7 +71,7 @@ func FuzzNewSaltedVerify(f *testing.F) {
 		assert.Contains(t, saltedHashed, ":")
 		// we use a base64-encoded salt that takes 22 bytes, then ":" is 1, and the hash is 40
 		assert.Len(t, saltedHashed, 63)
-		isValid, err := authn.Verify(pw, saltedHashed)
+		isValid, err := authn.Verify(t.Context(), pw, saltedHashed)
 		require.NoError(t, err)
 		assert.True(t, isValid)
 	})
@@ -81,11 +81,11 @@ func TestHashArgon2id(t *testing.T) {
 	t.Parallel()
 	hash := authn.NewSaltedArgon2idDevOnly("my password 123")
 
-	isValid, err := authn.Verify("my password wrong", hash)
+	isValid, err := authn.Verify(t.Context(), "my password wrong", hash)
 	require.NoError(t, err)
 	assert.False(t, isValid)
 
-	isValid, err = authn.Verify("my password 123", hash)
+	isValid, err = authn.Verify(t.Context(), "my password 123", hash)
 	require.NoError(t, err)
 	assert.True(t, isValid)
 }

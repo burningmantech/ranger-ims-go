@@ -11,7 +11,7 @@ alter table `person`
 insert into `person`
 (`id`,  `callsign`, `email`,                `password`,                     `status`,   `on_site`)
 values
-(600,   "Hardware", "hardware@example.com", concat(":", sha1("Hardware")),  "active",   true),
+(600,   "Hardware", "hardware@example.com", "$argon2id$v=19$m=65536,t=3,p=4$ipVDinFcaxnDwt20s1YPZg$Y1XUdJBb4+VVy7hQ29ORNZvgsMu7ySbzLfdXgGMO6lo",  "active",   true),
 (601,   "Loosy",    "loosy@example.com",    concat(":", sha1("Loosy")),     "active",   true),
 (602,   "Doggy",    "doggy@example.com",    concat(":", sha1("Doggy")),     "active",   true),
 (603,   "Runner",   "runner@example.com",   concat(":", sha1("Runner")),    "active",   true),

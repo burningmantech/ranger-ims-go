@@ -17,38 +17,32 @@
 package authn
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha1" //nolint: gosec // this is the algorithm Clubhouse uses
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/burningmantech/ranger-ims-go/lib/argon2id"
-	"golang.org/x/sync/semaphore"
 	"strings"
+	"sync"
 )
 
 const (
-	saltPasswordSep        = ":"
-	maxArgon2idConcurrency = 3
+	saltPasswordSep = ":"
 )
 
-// argonSemaphore limits the number of goroutines that can concurrently call into
-// the argon2id code. Our standard Clubhouse parameters for Argon2id require the
-// algorithm to use 64 MiB of memory. If too many logins are attempted at once,
-// it's very easy for the Go program's memory use to go above what's allowed by
-// our AWS ECS container, and then the server gets killed.
-var argonSemaphore = semaphore.NewWeighted(maxArgon2idConcurrency)
+// argonLocker is used to disallow concurrent calls into the Argon2id hash algorithm.
+// Our standard Clubhouse parameters for Argon2id require the algorithm to use 64 MiB
+// of memory. If too many logins are attempted at once, it's very easy for the Go
+// program's memory use to go above what's allowed by our AWS ECS container, and then
+// the server gets killed.
+var argonLocker sync.Mutex
 
-func Verify(ctx context.Context, password, storedValue string) (isValid bool, err error) {
+func Verify(password, storedValue string) (isValid bool, err error) {
 	if strings.HasPrefix(storedValue, "$argon2id") {
-		err := argonSemaphore.Acquire(ctx, 1)
-		if err != nil {
-			return false, fmt.Errorf("[Acquire]: %w", err)
-		}
-		defer argonSemaphore.Release(1)
+		argonLocker.Lock()
+		defer argonLocker.Unlock()
 		return argon2id.ComparePasswordAndHash(password, storedValue)
 	}
 

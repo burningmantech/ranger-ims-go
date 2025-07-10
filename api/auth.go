@@ -91,7 +91,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		)
 	}
 
-	correct, err := authn.Verify(req.Context(), vals.Password, matchedPerson.Password)
+	correct, err := authn.Verify(vals.Password, matchedPerson.Password)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Invalid stored password. Get in touch with the tech team.", err).From("[Verify]")
 	}

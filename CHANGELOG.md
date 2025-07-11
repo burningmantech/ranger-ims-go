@@ -35,7 +35,7 @@ Each month below should look like the following, using the same ordering for the
 - Made the access token JWT much shorter, by switching from position/team names to IDs, and then representing those IDs as bitsets. https://github.com/burningmantech/ranger-ims-go/pull/187 https://github.com/burningmantech/ranger-ims-go/pull/189
 - Limited Cloudflare caching of IMS's JavaScript files. This was annoying before, because Cloudflare would override our Cache-Control header and tell clients to cache for 4 hours. That was a problem when we were pushing out new code and wanted clients to get the new code soon after the server code was updated.
 - Switched over to talking about Incident Types by ID rather than name in the APIs. https://github.com/burningmantech/ranger-ims-go/pull/239 https://github.com/burningmantech/ranger-ims-go/pull/240
-- Improved linkification of rows on Incidents and Field Reports tables. 
+- Improved linkification of rows on Incidents and Field Reports tables.
 
 ### Added
 

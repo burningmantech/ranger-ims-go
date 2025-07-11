@@ -19,17 +19,44 @@ Each month below should look like the following, using the same ordering for the
 
 ## 2025-06
 
+### Added
+
+- Added link to #ranger-operations-center Slack channel from Incidents page in prod. https://github.com/burningmantech/ranger-ims-go/pull/296
+
+### Fixed
+
+- Restricted concurrent access to Argon2id code to stop AWS from killing the server. https://github.com/burningmantech/ranger-ims-go/issues/294 https://github.com/burningmantech/ranger-ims-go/pull/300 https://github.com/burningmantech/ranger-ims-go/pull/301
+- Fixed regular expression searching handling of literal " ". https://github.com/burningmantech/ranger-ims-go/pull/289
+
+## 2025-06
+
 ### Changed
 
 - Made the access token JWT much shorter, by switching from position/team names to IDs, and then representing those IDs as bitsets. https://github.com/burningmantech/ranger-ims-go/pull/187 https://github.com/burningmantech/ranger-ims-go/pull/189
+- Limited Cloudflare caching of IMS's JavaScript files. This was annoying before, because Cloudflare would override our Cache-Control header and tell clients to cache for 4 hours. That was a problem when we were pushing out new code and wanted clients to get the new code soon after the server code was updated.
+- Switched over to talking about Incident Types by ID rather than name in the APIs. https://github.com/burningmantech/ranger-ims-go/pull/239 https://github.com/burningmantech/ranger-ims-go/pull/240
+- Improved linkification of rows on Incidents and Field Reports tables. 
 
 ### Added
 
 - Implemented "preview" and "download" functionality for file attachments. https://github.com/burningmantech/ranger-ims-go/pull/185 https://github.com/burningmantech/ranger-ims-go/pull/184
+- Added action logging to IMS. This lets admins see who did what in IMS. https://github.com/burningmantech/ranger-ims-go/pull/267 https://github.com/burningmantech/ranger-ims-go/pull/269 https://github.com/burningmantech/ranger-ims-go/pull/271
+- Added "on-duty" link to Clubhouse on Incident page. https://github.com/burningmantech/ranger-ims-go/pull/261
+- Allowed permissions based on the current position for which a person is on-duty. https://github.com/burningmantech/ranger-ims-go/pull/258
+- Added Incident Type descriptions as a concept. Admins can set the descriptions, and users can view the descriptions via popup on the Incident page. https://github.com/burningmantech/ranger-ims-go/pull/241
+- Added admin debugging pages to the server.
+
+### Removed
+
+- Dropped the "show attached entries" checkbox on the Incident page. We now just always show attached entries. It was overly complex to allow toggling that. https://github.com/burningmantech/ranger-ims-go/pull/256
 
 ### Fixed
 
 - Resolved a bunch of page load flickering problems. https://github.com/burningmantech/ranger-ims-go/pull/175 https://github.com/burningmantech/ranger-ims-go/pull/176 https://github.com/burningmantech/ranger-ims-go/pull/177
+- Resolved DB contention problem with development in-process MySQL. https://github.com/burningmantech/ranger-ims-go/pull/282
+- Fixed remote address logging. https://github.com/burningmantech/ranger-ims-go/pull/276
+- Made keyboard shortcuts work in more cases. https://github.com/burningmantech/ranger-ims-go/pull/264
+- Stopped padding radial hour numbers, allowing for simpler data entry (e.g. highlght field, press "5" to select 5, rather than needing to press "0" then "5"). https://github.com/burningmantech/ranger-ims-go/pull/255
 
 ## 2025-05
 

@@ -30,13 +30,11 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/spf13/cobra"
-	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 )
@@ -76,17 +74,8 @@ func runServerInternal(
 
 	configureLogger(imsCfg)
 
-	// TODO(srabraham): remove this. I just want to run this once in staging to
-	//  see which cgroup files are available.
-	//  https://github.com/burningmantech/ranger-ims-go/issues/302
-	var cgroupPaths []string
-	_ = filepath.WalkDir("/sys/fs/cgroup/",
-		func(path string, d fs.DirEntry, err error) error {
-			cgroupPaths = append(cgroupPaths, path)
-			return nil
-		},
-	)
-	slog.Info("found cgroup paths", "paths", cgroupPaths)
+	cgroupMemLimit, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes")
+	slog.Info("found cgroup memory", "limit_in_bytes", string(cgroupMemLimit), "err", err)
 
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()

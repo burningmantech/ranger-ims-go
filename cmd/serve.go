@@ -157,12 +157,21 @@ func runServerInternal(
 	return 69
 }
 
+// tuneMemoryLimit sets the Go memory limit to something reasonable, given the memory limit
+// imposed on Fargate ECS. This function is a no-op if the program isn't running as a container
+// on Fargate ECS.
+//
+// From https://tip.golang.org/doc/gc-guide#Suggested_uses:
+//
+//	Do take advantage of the memory limit when the execution environment of your
+//	Go program is entirely within your control, and the Go program is the only
+//	program with access to some set of resources (i.e. some kind of memory reservation,
+//	like a container memory limit).
 func tuneMemoryLimit() {
 	if os.Getenv("GOMEMLIMIT") != "" {
 		slog.Info("GOMEMLIMIT was set in the environment, so we won't override it", "GOMEMLIMIT", os.Getenv("GOMEMLIMIT"))
 		return
 	}
-	// https://tip.golang.org/doc/gc-guide#Suggested_uses
 	var memLimitBytes int64
 	cgroupMemStat, err := os.ReadFile("/sys/fs/cgroup/memory/memory.stat")
 	if err != nil {
@@ -182,17 +191,12 @@ func tuneMemoryLimit() {
 		}
 	}
 	if memLimitBytes != 0 {
-		// reduce by 20%
+		// reduce by 20%, to allow for any other memory overhead needed in the VM.
 		memLimitBytes = memLimitBytes / 5 * 4
 		debug.SetMemoryLimit(memLimitBytes)
 		slog.Info("Set Go memory limit below the cgroup-permitted amount",
 			"GOMEMLIMIT", memLimitBytes,
 		)
-
-		// TEMPORARY-ONLY TO TEST ON ECS IN STAGING
-		debug.SetGCPercent(-1)
-		slog.Info("!!!Set GC percent to -1, so GCs will only be triggered on memory limit!!!")
-
 		return
 	}
 }

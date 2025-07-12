@@ -77,8 +77,14 @@ func runServerInternal(
 
 	ecsMetadataUri := os.Getenv("ECS_CONTAINER_METADATA_URI_V4")
 	if ecsMetadataUri != "" {
-		err := fetchECSDockerStats(ecsMetadataUri)
-		slog.Info("Fetched ECS Docker stats", "err", err)
+		go func() {
+			// From AWS docs:
+			// Amazon ECS tasks on AWS Fargate require that the container run
+			// for ~1 second prior to returning the container stats.
+			time.Sleep(5 * time.Second)
+			err := fetchECSDockerStats(ecsMetadataUri)
+			slog.Info("Fetched ECS Docker stats", "err", err)
+		}()
 	}
 
 	if printConfig {

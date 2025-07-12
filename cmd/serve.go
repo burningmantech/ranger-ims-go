@@ -75,16 +75,17 @@ func runServerInternal(
 
 	configureLogger(imsCfg)
 
+	cgroupMemStat, err := os.ReadFile("/sys/fs/cgroup/memory/memory.stat")
+	slog.Info("found cgroup memory.stat file", "contents", string(cgroupMemStat), "err", err)
+
 	ecsMetadataUri := os.Getenv("ECS_CONTAINER_METADATA_URI_V4")
 	if ecsMetadataUri != "" {
-		go func() {
-			// From AWS docs:
-			// Amazon ECS tasks on AWS Fargate require that the container run
-			// for ~1 second prior to returning the container stats.
-			time.Sleep(5 * time.Second)
-			err := fetchECSDockerStats(ecsMetadataUri)
-			slog.Info("Fetched ECS Docker stats", "err", err)
-		}()
+		// From AWS docs:
+		// Amazon ECS tasks on AWS Fargate require that the container run
+		// for ~1 second prior to returning the container stats.
+		time.Sleep(2 * time.Second)
+		err := fetchECSDockerStats(ecsMetadataUri)
+		slog.Info("Fetched ECS Docker stats", "err", err)
 	}
 
 	if printConfig {

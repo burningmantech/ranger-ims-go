@@ -30,6 +30,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/spf13/cobra"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -74,8 +75,11 @@ func runServerInternal(
 
 	configureLogger(imsCfg)
 
-	cgroupMemLimit, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes")
-	slog.Info("found cgroup memory", "limit_in_bytes", string(cgroupMemLimit), "err", err)
+	ecsMetadataUri := os.Getenv("ECS_CONTAINER_METADATA_URI_V4")
+	if ecsMetadataUri != "" {
+		err := fetchECSDockerStats(ecsMetadataUri)
+		slog.Info("Fetched ECS Docker stats", "err", err)
+	}
 
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()
@@ -154,6 +158,25 @@ func runServerInternal(
 	stop()
 	cancel()
 	return 69
+}
+
+func fetchECSDockerStats(ecsMetadataUri string) error {
+	client := http.Client{Timeout: time.Second * 10}
+	request, err := http.NewRequest(http.MethodGet, ecsMetadataUri+"/stats", nil)
+	if err != nil {
+		return fmt.Errorf("[NewRequest]: %w", err)
+	}
+	done, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("[Do]: %w", err)
+	}
+	all, err := io.ReadAll(done.Body)
+	_ = done.Body.Close()
+	if err != nil {
+		return fmt.Errorf("[ReadAll]: %w", err)
+	}
+	slog.Info("got ECS stats", "stats", string(all))
+	return nil
 }
 
 func configureLogger(imsCfg *conf.IMSConfig) {

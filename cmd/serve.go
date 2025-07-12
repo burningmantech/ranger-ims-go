@@ -30,12 +30,13 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/spf13/cobra"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -75,18 +76,7 @@ func runServerInternal(
 
 	configureLogger(imsCfg)
 
-	cgroupMemStat, err := os.ReadFile("/sys/fs/cgroup/memory/memory.stat")
-	slog.Info("found cgroup memory.stat file", "contents", string(cgroupMemStat), "err", err)
-
-	ecsMetadataUri := os.Getenv("ECS_CONTAINER_METADATA_URI_V4")
-	if ecsMetadataUri != "" {
-		// From AWS docs:
-		// Amazon ECS tasks on AWS Fargate require that the container run
-		// for ~1 second prior to returning the container stats.
-		time.Sleep(2 * time.Second)
-		err := fetchECSDockerStats(ecsMetadataUri)
-		slog.Info("Fetched ECS Docker stats", "err", err)
-	}
+	tuneMemoryLimit()
 
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()
@@ -167,23 +157,44 @@ func runServerInternal(
 	return 69
 }
 
-func fetchECSDockerStats(ecsMetadataUri string) error {
-	client := http.Client{Timeout: time.Second * 10}
-	request, err := http.NewRequest(http.MethodGet, ecsMetadataUri+"/stats", nil)
-	if err != nil {
-		return fmt.Errorf("[NewRequest]: %w", err)
+func tuneMemoryLimit() {
+	if os.Getenv("GOMEMLIMIT") != "" {
+		slog.Info("GOMEMLIMIT was set in the environment, so we won't override it", "GOMEMLIMIT", os.Getenv("GOMEMLIMIT"))
+		return
 	}
-	done, err := client.Do(request)
+	// https://tip.golang.org/doc/gc-guide#Suggested_uses
+	var memLimitBytes int64
+	cgroupMemStat, err := os.ReadFile("/sys/fs/cgroup/memory/memory.stat")
 	if err != nil {
-		return fmt.Errorf("[Do]: %w", err)
+		return
 	}
-	all, err := io.ReadAll(done.Body)
-	_ = done.Body.Close()
-	if err != nil {
-		return fmt.Errorf("[ReadAll]: %w", err)
+	slog.Info("found cgroup memory.stat file", "contents", string(cgroupMemStat), "err", err)
+	const targetLine = "hierarchical_memory_limit "
+	for _, line := range strings.Split(string(cgroupMemStat), "\n") {
+		if strings.HasPrefix(line, targetLine) {
+			memLimitStr := strings.TrimPrefix(line, targetLine)
+			memLimitBytes, err = conv.ParseInt64(memLimitStr)
+			if err != nil {
+				slog.Error("Error parsing memory limit", "err", err)
+				return
+			}
+			break
+		}
 	}
-	slog.Info("got ECS stats", "stats", string(all))
-	return nil
+	if memLimitBytes != 0 {
+		// reduce by 20%
+		memLimitBytes = memLimitBytes / 5 * 4
+		debug.SetMemoryLimit(memLimitBytes)
+		slog.Info("Set Go memory limit below the cgroup-permitted amount",
+			"GOMEMLIMIT", memLimitBytes,
+		)
+
+		// TEMPORARY-ONLY TO TEST ON ECS IN STAGING
+		debug.SetGCPercent(-1)
+		slog.Info("!!!Set GC percent to -1, so GCs will only be triggered on memory limit!!!")
+
+		return
+	}
 }
 
 func configureLogger(imsCfg *conf.IMSConfig) {

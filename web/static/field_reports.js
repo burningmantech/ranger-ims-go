@@ -191,11 +191,12 @@ function frInitDataTables() {
                 "data": "summary",
                 "defaultContent": "",
                 "render": renderSummary,
+                "width": "70%",
             },
         ],
         "order": [
             // creation time descending
-            [1, "dsc"],
+            [2, "dsc"],
         ],
         "createdRow": function (row, fieldReport, _index) {
             const openLink = function (e) {

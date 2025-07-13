@@ -223,11 +223,12 @@ function frInitDataTables() {
                 "data": "summary",
                 "defaultContent": "",
                 "render": renderSummary,
+                "width": "70%",
             },
         ],
         "order": [
             // creation time descending
-            [1, "dsc"],
+            [2, "dsc"],
         ],
         "createdRow": function (row: HTMLElement, fieldReport: ims.FieldReport, _index: number) {
             const openLink = function(e: MouseEvent): void {

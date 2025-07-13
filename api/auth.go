@@ -17,6 +17,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authn"
@@ -260,8 +261,11 @@ func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Requ
 func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshAccessTokenResponse, *herr.HTTPError) {
 	var empty RefreshAccessTokenResponse
 	refreshCookie, err := req.Cookie(authz.RefreshTokenCookieName)
+	if errors.Is(err, http.ErrNoCookie) {
+		return empty, herr.Unauthorized("No refresh token cookie found", err).SetExpectedError().From("[Cookie]")
+	}
 	if err != nil {
-		return empty, herr.Unauthorized("Bad or no refresh token cookie found", err).From("[Cookie]")
+		return empty, herr.Unauthorized("Bad refresh token cookie found", err).From("[Cookie]")
 	}
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.AuthenticateRefreshToken(refreshCookie.Value)
 	if err != nil {

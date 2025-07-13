@@ -27,6 +27,7 @@ type HTTPError struct {
 	Code            int
 	ResponseMessage string
 	InternalErr     error
+	ExpectedError   bool
 }
 
 func (e *HTTPError) Error() string {
@@ -84,7 +85,13 @@ func (e *HTTPError) From(source string) *HTTPError {
 		InternalErr:     fmt.Errorf("%v: %w", source, e.InternalErr),
 		Code:            e.Code,
 		ResponseMessage: e.ResponseMessage,
+		ExpectedError:   e.ExpectedError,
 	}
+}
+
+func (e *HTTPError) SetExpectedError() *HTTPError {
+	e.ExpectedError = true
+	return e
 }
 
 func (e *HTTPError) Unwrap() error {
@@ -92,11 +99,13 @@ func (e *HTTPError) Unwrap() error {
 }
 
 func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
-	slog.Error("Writing error HTTP response",
-		"code", e.Code,
-		"message", e.ResponseMessage,
-		"internalError", e.InternalErr,
-	)
+	if !e.ExpectedError {
+		slog.Error("Writing error HTTP response",
+			"code", e.Code,
+			"message", e.ResponseMessage,
+			"internalError", e.InternalErr,
+		)
+	}
 	http.Error(w, e.ResponseMessage, e.Code)
 }
 

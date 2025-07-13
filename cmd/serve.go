@@ -177,7 +177,7 @@ func tuneMemoryLimit() {
 	if err != nil {
 		return
 	}
-	slog.Info("found cgroup memory.stat file", "contents", string(cgroupMemStat), "err", err)
+	slog.Debug("found cgroup memory.stat file", "contents", string(cgroupMemStat), "err", err)
 	const targetLine = "hierarchical_memory_limit "
 	for _, line := range strings.Split(string(cgroupMemStat), "\n") {
 		if strings.HasPrefix(line, targetLine) {
@@ -192,10 +192,11 @@ func tuneMemoryLimit() {
 	}
 	if memLimitBytes != 0 {
 		// reduce by 20%, to allow for any other memory overhead needed in the VM.
-		memLimitBytes = memLimitBytes / 5 * 4
-		debug.SetMemoryLimit(memLimitBytes)
+		newMemLimitBytes := memLimitBytes / 5 * 4
+		debug.SetMemoryLimit(newMemLimitBytes)
 		slog.Info("Set Go memory limit below the cgroup-permitted amount",
-			"GOMEMLIMIT", memLimitBytes,
+			"cgroup-memlimit", memLimitBytes,
+			"GOMEMLIMIT", newMemLimitBytes,
 		)
 		return
 	}

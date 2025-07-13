@@ -938,7 +938,6 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             document.body.removeChild(tmpLink);
             URL.revokeObjectURL(blobUrl);
         };
-        entryContainer.append(downloadButt);
 
         if (entry.attachment?.previewable) {
             const previewButt: HTMLButtonElement = document.createElement("button");
@@ -977,6 +976,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             };
             entryContainer.append(previewButt);
         }
+        entryContainer.append(downloadButt);
     }
 
     // Add a horizontal line after each entry

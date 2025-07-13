@@ -810,7 +810,6 @@ function reportEntryElement(entry) {
             document.body.removeChild(tmpLink);
             URL.revokeObjectURL(blobUrl);
         };
-        entryContainer.append(downloadButt);
         if (entry.attachment?.previewable) {
             const previewButt = document.createElement("button");
             previewButt.textContent = "Preview";
@@ -844,6 +843,7 @@ function reportEntryElement(entry) {
             };
             entryContainer.append(previewButt);
         }
+        entryContainer.append(downloadButt);
     }
     // Add a horizontal line after each entry
     const hr = document.createElement("hr");

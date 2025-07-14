@@ -102,29 +102,40 @@ function updateEventAccess(event, mode) {
     eventAccess.getElementsByClassName("access_mode")[0].textContent = mode;
     const entryContainer = eventAccess.getElementsByClassName("list-group")[0];
     entryContainer.replaceChildren();
+    let explainMsgs = [];
+    const indent = "    ";
     const accessEntries = (eventACL[mode] ?? []).toSorted((a, b) => a.expression.localeCompare(b.expression));
     for (const accessEntry of accessEntries) {
         const entryItem = _eventsEntryTemplate.cloneNode(true);
         entryItem.append(accessEntry.expression);
         entryItem.dataset["expression"] = accessEntry.expression;
         if (accessEntry.debug_info) {
-            let msg = `Rule "${accessEntry.validity}, ${accessEntry.expression}" currently matches`;
+            let msg = `${accessEntry.expression} (${accessEntry.validity})\n`;
             if (accessEntry.debug_info.matches_no_one) {
-                msg += " NO users";
+                msg += `${indent}NO users`;
             }
             else if (accessEntry.debug_info.matches_all_users) {
-                msg += " ALL authenticated users";
+                msg += `${indent}ALL authenticated users`;
             }
             else {
-                msg += ":\n  ";
-                msg += accessEntry.debug_info.matches_users?.join("\n  ");
+                msg += indent;
+                msg += accessEntry.debug_info.matches_users?.join(`\n${indent}`);
             }
-            entryItem.title = msg;
+            explainMsgs.push(msg);
         }
         const validityField = entryItem.getElementsByClassName("access_validity")[0];
         validityField.value = accessEntry.validity;
         entryContainer.append(entryItem);
     }
+    const explainButton = eventAccess.getElementsByClassName("explain_button")[0];
+    if (explainMsgs.length === 0) {
+        explainMsgs.push("No permissions");
+    }
+    explainButton.dataset["bsContent"] = explainMsgs.join("\n");
+    explainButton.dataset["bsTitle"] = `Current ${event} ${mode}`;
+    // dispose and re-create, since you can't update the content on an already-created Popover.
+    bootstrap.Popover.getInstance(explainButton)?.dispose();
+    new bootstrap.Popover(explainButton);
 }
 async function addEvent(sender) {
     const event = sender.value.trim();

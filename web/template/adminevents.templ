@@ -43,7 +43,11 @@ templ AdminEvents(deployment, versionName, versionRef string) {
   <div class="row" id="event_access_container">
     <div class="col-sm-12 py-1 event_access">
       <div class="card">
-        <label class="card-header">Access for <span class="event_name"/> (<span class="access_mode"/>):</label>
+        <span class="card-header">Access for <span class="event_name"/> (<span class="access_mode"/>):
+          <button type="button" class="explain_button badge btn btn-primary float-end"
+              data-bs-toggle="popover" data-bs-title="Popover title"
+              data-bs-content="" data-bs-placement="bottom">Explain</button>
+        </span>
         <ul class="list-group list-group-small list-group-flush card-body">
           <li class="list-group-item ps-3">
             <select class="access_validity" onchange="setValidity(this)">

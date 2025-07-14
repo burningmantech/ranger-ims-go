@@ -150,6 +150,8 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
     entryContainer.replaceChildren();
 
+    let explainMsgs: string[] = [];
+    const indent = "    ";
     const accessEntries = (eventACL[mode]??[]).toSorted((a, b) => a.expression.localeCompare(b.expression));
     for (const accessEntry of accessEntries) {
         const entryItem = _eventsEntryTemplate!.cloneNode(true) as HTMLElement;
@@ -158,16 +160,16 @@ function updateEventAccess(event: string, mode: AccessMode): void {
         entryItem.dataset["expression"] = accessEntry.expression;
 
         if (accessEntry.debug_info) {
-            let msg: string = `Rule "${accessEntry.validity}, ${accessEntry.expression}" currently matches`;
+            let msg: string = `${accessEntry.expression} (${accessEntry.validity})\n`;
             if (accessEntry.debug_info.matches_no_one) {
-                msg += " NO users";
+                msg += `${indent}NO users`;
             } else if (accessEntry.debug_info.matches_all_users) {
-                msg += " ALL authenticated users";
+                msg += `${indent}ALL authenticated users`;
             } else {
-                msg += ":\n  ";
-                msg += accessEntry.debug_info.matches_users?.join("\n  ");
+                msg += indent;
+                msg += accessEntry.debug_info.matches_users?.join(`\n${indent}`);
             }
-            entryItem.title = msg;
+            explainMsgs.push(msg);
         }
 
         const validityField = entryItem.getElementsByClassName("access_validity")[0] as HTMLSelectElement;
@@ -175,6 +177,17 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
         entryContainer.append(entryItem);
     }
+
+    const explainButton = eventAccess.getElementsByClassName("explain_button")[0] as HTMLButtonElement;
+    if (explainMsgs.length === 0) {
+        explainMsgs.push("No permissions");
+    }
+    explainButton.dataset["bsContent"] = explainMsgs.join("\n");
+    explainButton.dataset["bsTitle"] = `Current ${event} ${mode}`;
+
+    // dispose and re-create, since you can't update the content on an already-created Popover.
+    bootstrap.Popover.getInstance(explainButton)?.dispose();
+    new bootstrap.Popover(explainButton);
 }
 
 
@@ -348,4 +361,12 @@ async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {
     console.log(message);
     window.alert(message);
     return {err: err};
+}
+
+declare namespace bootstrap {
+    class Popover {
+        static getInstance(element: HTMLButtonElement): Popover;
+        constructor(element: HTMLElement);
+        dispose(): void;
+    }
 }

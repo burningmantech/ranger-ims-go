@@ -353,10 +353,6 @@ h1 {
   /*filter: alpha(opacity=50);*/
 }
 
-.popover-body {
+.white-space-pre-wrap {
   white-space: pre-wrap !important;
-}
-
-.popover {
-  --bs-popover-max-width: 80%;
 }

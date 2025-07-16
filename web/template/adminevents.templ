@@ -27,6 +27,21 @@ templ AdminEvents(deployment, versionName, versionRef string) {
 @Nav("")
 <h1 id="doc-title">Edit Events</h1>
 @LoadingOverlay()
+
+  <!-- "Explain permissions" modal -->
+  <div class="modal no-print" id="explainModal" tabindex="-1" aria-labelledby="explainModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <p class="modal-title fs-5" id="explainModalLabel">Current permissions</p>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+        </div>
+        <div class="modal-body white-space-pre-wrap text-smaller">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <p>For each event, you can configure permissions for individuals, positions, onduty positions, or teams. For example:</p>
   <ul>
     <li><strong>person:Tool</strong></li>
@@ -44,9 +59,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
     <div class="col-sm-12 py-1 event_access">
       <div class="card">
         <span class="card-header">Access for <span class="event_name"/> (<span class="access_mode"/>):
-          <button type="button" class="explain_button badge btn btn-primary float-end"
-              data-bs-toggle="popover" data-bs-title="Popover title"
-              data-bs-content="" data-bs-placement="bottom">Explain</button>
+          <button type="button" class="explain_button badge btn btn-primary float-end">Explain</button>
         </span>
         <ul class="list-group list-group-small list-group-flush card-body">
           <li class="list-group-item ps-3">

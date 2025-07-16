@@ -1550,7 +1550,7 @@ export interface DataTablesTable {
 // This is a minimal declaration of pieces of Bootstrap code on which we depend.
 // See this repo for the full declaration:
 // https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/bootstrap
-declare namespace bootstrap {
+export declare namespace bootstrap {
     class Modal {
         constructor(element: string | Element, options?: any);
         toggle(relatedTarget?: HTMLElement): void;

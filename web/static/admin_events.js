@@ -17,6 +17,7 @@
 //
 "use strict";
 import * as ims from "./ims.js";
+let explainModal = null;
 //
 // Initialize UI
 //
@@ -33,6 +34,7 @@ async function initAdminEventsPage() {
     window.removeAccess = removeAccess;
     await loadAccessControlList();
     drawAccess();
+    explainModal = ims.bsModal(document.getElementById("explainModal"));
     ims.hideLoadingOverlay();
     ims.enableEditing();
 }
@@ -128,14 +130,15 @@ function updateEventAccess(event, mode) {
         entryContainer.append(entryItem);
     }
     const explainButton = eventAccess.getElementsByClassName("explain_button")[0];
-    if (explainMsgs.length === 0) {
-        explainMsgs.push("No permissions");
-    }
-    explainButton.dataset["bsContent"] = explainMsgs.join("\n");
-    explainButton.dataset["bsTitle"] = `Current ${event} ${mode}`;
-    // dispose and re-create, since you can't update the content on an already-created Popover.
-    bootstrap.Popover.getInstance(explainButton)?.dispose();
-    new bootstrap.Popover(explainButton);
+    explainButton.addEventListener("click", (_e) => {
+        const modal = document.getElementById("explainModal");
+        modal.querySelector(".modal-title").textContent = `Current ${event} ${mode}`;
+        if (explainMsgs.length === 0) {
+            explainMsgs.push("No permissions");
+        }
+        modal.querySelector(".modal-body").textContent = explainMsgs.join("\n");
+        explainModal?.show();
+    });
 }
 async function addEvent(sender) {
     const event = sender.value.trim();

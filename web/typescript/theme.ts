@@ -102,4 +102,12 @@ function applyTheme(): void {
             }
         });
     }
+
+    // Switch to light mode for printing, then switch back afterward.
+    window.addEventListener("beforeprint", (_event: Event): void => {
+        setTheme("light");
+    });
+    window.addEventListener("afterprint", (_event: Event): void => {
+        setTheme(getPreferredTheme());
+    });
 }

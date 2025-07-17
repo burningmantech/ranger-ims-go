@@ -123,7 +123,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <label class="control-label input-group-text" for="started_datetime">Started</label>
           <span class="form-control form-control-static align-middle d-flex justify-content-between">
             <span id="started_datetime"></span>
-            <span id="override_started_button" class="show-pointer" title="Override Start Time">
+            <span id="override_started_button" class="show-pointer no-print" title="Override Start Time">
               <svg fill="currentColor" class="bi align-middle">
                 <use href="#pencil-square" />
               </svg>
@@ -153,7 +153,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
         <div class="card">
           <label class="control-label card-header">
           Rangers
-          <a href="https://ranger-clubhouse.burningman.org/reports/on-duty" target="_blank" class="link-body-emphasis float-end" title="On-Duty Report">
+          <a href="https://ranger-clubhouse.burningman.org/reports/on-duty" target="_blank" class="link-body-emphasis float-end no-print" title="On-Duty Report">
             On-Duty
             <svg fill="currentColor" class="bi">
               <use href="#box-arrow-up-right"></use>
@@ -186,7 +186,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       <div class="col-sm-6 py-2">
         <div class="card">
           <label class="control-label card-header">Incident Types
-            <a href="#" class="link-body-emphasis float-end" id="show-incident-type-info" title="Show Incident Type descriptions">
+            <a href="#" class="link-body-emphasis float-end no-print" id="show-incident-type-info" title="Show Incident Type descriptions">
               Info
               <svg fill="currentColor" class="bi">
                 <use href="#question-circle" />

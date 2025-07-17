@@ -127,7 +127,7 @@ templ Nav(eventName string) {
 
       <!-- Theme dropdown -->
       <ul class="navbar-nav">
-        <li class="nav-item dropdown" title="Color scheme">
+        <li class="nav-item dropdown no-print" title="Color scheme">
           <button class="btn btn-link nav-link py-2 px-0 px-lg-2 dropdown-toggle d-flex align-items-center"
                   id="bd-theme" type="button" aria-expanded="false" data-bs-toggle="dropdown"
                   data-bs-display="static" aria-label="Toggle theme (auto)">
@@ -161,12 +161,12 @@ templ Nav(eventName string) {
       </ul>
 
       <!-- Not logged in: offer to log in -->
-      <ul class="navbar-nav if-not-logged-in hidden">
+      <ul class="navbar-nav if-not-logged-in hidden no-print">
         <li id="nav_login"><a class="nav-link" href="/ims/auth/login">Log In</a></li>
       </ul>
 
       <!-- Logged in: show user menu -->
-      <ul class="navbar-nav if-logged-in hidden">
+      <ul class="navbar-nav if-logged-in hidden no-print">
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
              aria-expanded="false">

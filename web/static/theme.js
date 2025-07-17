@@ -91,4 +91,11 @@ function applyTheme() {
             }
         });
     }
+    // Switch to light mode for printing, then switch back afterward.
+    window.addEventListener("beforeprint", (_event) => {
+        setTheme("light");
+    });
+    window.addEventListener("afterprint", (_event) => {
+        setTheme(getPreferredTheme());
+    });
 }

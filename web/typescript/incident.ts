@@ -773,6 +773,9 @@ function drawIncidentTypeInfo(): void {
     infosUL.style.whiteSpace = "pre-wrap";
 
     for (const incidentType of allIncidentTypes) {
+        if (incidentType.hidden) {
+            continue;
+        }
         const li: HTMLLIElement = document.createElement("li");
         li.classList.add("list-group-item");
 

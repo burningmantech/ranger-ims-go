@@ -27,6 +27,7 @@ export let pathIds = {
 export let eventAccess = null;
 const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
+const svgNS = "http://www.w3.org/2000/svg";
 //
 // HTML encoding
 //
@@ -790,9 +791,7 @@ function reportEntryElement(entry) {
                 .replace("<field_report_number>", frNum)
                 .replace("<attachment_number>", entry.id.toString());
         }
-        const downloadButt = document.createElement("button");
-        downloadButt.textContent = "Download";
-        downloadButt.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
+        const downloadButt = createSvgTextButton("#download", "Download");
         downloadButt.onclick = async (e) => {
             e.preventDefault();
             const { resp, err } = await fetchJsonNoThrow(url, {});
@@ -811,9 +810,7 @@ function reportEntryElement(entry) {
             URL.revokeObjectURL(blobUrl);
         };
         if (entry.attachment?.previewable) {
-            const previewButt = document.createElement("button");
-            previewButt.textContent = "Preview";
-            previewButt.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
+            const previewButt = createSvgTextButton("#preview", "Preview");
             // We need to do a JavaScript fetch of the file, rather than simply
             // opening a new browser tab that GETs it, because we have to send
             // the Authorization header.
@@ -850,6 +847,20 @@ function reportEntryElement(entry) {
     hr.classList.add("m-1");
     entryContainer.append(hr);
     return entryContainer;
+}
+// Create a button that'll show an SVG icon and some text as its content.
+// The svgID must reference an SVG that exists in the DOM already.
+function createSvgTextButton(svgID, text) {
+    const button = document.createElement("button");
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.classList.add("bi");
+    svg.setAttributeNS(null, "fill", "currentColor");
+    const use = document.createElementNS(svgNS, "use");
+    use.setAttributeNS(null, "href", svgID);
+    svg.append(use);
+    button.append(svg, ` ${text}`);
+    button.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
+    return button;
 }
 export function drawReportEntries(entries) {
     const container = document.getElementById("report_entries");

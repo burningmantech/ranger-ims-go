@@ -35,6 +35,8 @@ export let eventAccess: AuthInfoEventAccess|null = null;
 const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
 
+const svgNS = "http://www.w3.org/2000/svg";
+
 //
 // HTML encoding
 //
@@ -915,11 +917,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
                 .replace("<attachment_number>", entry.id!.toString());
         }
 
-        const downloadButt: HTMLButtonElement = document.createElement("button");
-        downloadButt.textContent = "Download";
-        downloadButt.classList.add(
-            "btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print",
-        );
+        const downloadButt: HTMLButtonElement = createSvgTextButton("#download", "Download");
         downloadButt.onclick = async (e: MouseEvent): Promise<void> => {
             e.preventDefault();
             const {resp, err} = await fetchJsonNoThrow(url, {});
@@ -940,11 +938,8 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         };
 
         if (entry.attachment?.previewable) {
-            const previewButt: HTMLButtonElement = document.createElement("button");
-            previewButt.textContent = "Preview";
-            previewButt.classList.add(
-                "btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print",
-            );
+            const previewButt: HTMLButtonElement = createSvgTextButton("#preview", "Preview");
+
             // We need to do a JavaScript fetch of the file, rather than simply
             // opening a new browser tab that GETs it, because we have to send
             // the Authorization header.
@@ -986,6 +981,23 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
     entryContainer.append(hr);
 
     return entryContainer;
+}
+
+// Create a button that'll show an SVG icon and some text as its content.
+// The svgID must reference an SVG that exists in the DOM already.
+function createSvgTextButton(svgID: string, text: string): HTMLButtonElement {
+    const button: HTMLButtonElement = document.createElement("button");
+    const svg: SVGSVGElement = document.createElementNS(svgNS,"svg");
+    svg.classList.add("bi");
+    svg.setAttributeNS(null, "fill", "currentColor");
+    const use: SVGUseElement = document.createElementNS(svgNS, "use");
+    use.setAttributeNS(null,"href",  svgID);
+    svg.append(use);
+    button.append(svg, ` ${text}`);
+    button.classList.add(
+        "btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print",
+    );
+    return button;
 }
 
 export function drawReportEntries(entries: ReportEntry[]): void {

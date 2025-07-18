@@ -142,6 +142,7 @@ var safeMediaTypes = []string{
 	"image/gif",
 	"image/jpeg",
 	"image/png",
+	"image/webp",
 	"text/plain",
 	"video/mp4",
 	"video/x-msvideo",

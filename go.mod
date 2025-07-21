@@ -3,7 +3,7 @@ module github.com/burningmantech/ranger-ims-go
 go 1.24.5
 
 require (
-	github.com/a-h/templ v0.3.906
+	github.com/a-h/templ v0.3.920
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.84.0
 	github.com/aws/smithy-go v1.22.4

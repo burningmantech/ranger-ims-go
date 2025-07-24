@@ -35,6 +35,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -76,7 +77,7 @@ func runServerInternal(
 
 	configureLogger(imsCfg)
 
-	tuneMemoryLimit()
+	tuneMemoryLimit("/sys/fs/cgroup/memory/memory.stat")
 
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()
@@ -167,13 +168,13 @@ func runServerInternal(
 //	Go program is entirely within your control, and the Go program is the only
 //	program with access to some set of resources (i.e. some kind of memory reservation,
 //	like a container memory limit).
-func tuneMemoryLimit() {
+func tuneMemoryLimit(cgroupMemStatFile string) {
 	if os.Getenv("GOMEMLIMIT") != "" {
 		slog.Info("GOMEMLIMIT was set in the environment, so we won't override it", "GOMEMLIMIT", os.Getenv("GOMEMLIMIT"))
 		return
 	}
 	var memLimitBytes int64
-	cgroupMemStat, err := os.ReadFile("/sys/fs/cgroup/memory/memory.stat")
+	cgroupMemStat, err := os.ReadFile(filepath.Clean(cgroupMemStatFile))
 	if err != nil {
 		return
 	}

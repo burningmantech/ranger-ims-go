@@ -20,6 +20,11 @@ import (
 	"context"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"os"
+	"path/filepath"
+	"runtime/debug"
+	"strconv"
 	"testing"
 )
 
@@ -43,4 +48,35 @@ func TestRunServer(t *testing.T) {
 	}()
 	exitCode := runServerInternal(ctx, imsCfg, true, addrChan)
 	assert.Equal(t, 69, exitCode)
+}
+
+const someMemoryLimit int64 = 5555555555555
+
+// exampleMemoryStatFile contains a hierarchical_memory_limit value that will be
+// used by TestTuneMemoryLimit.
+var exampleMemoryStatFile = `active_file 0
+hierarchical_memory_limit ` + strconv.FormatInt(someMemoryLimit, 10) + `
+hierarchical_memsw_limit 9223372036854771712
+total_cache 24576`
+
+func TestTuneMemoryLimit(t *testing.T) {
+	t.Parallel()
+	initialMemLimit := getMemoryLimit()
+	defer debug.SetMemoryLimit(initialMemLimit)
+
+	tempFilePath := filepath.Join(t.TempDir(), "memory.stat")
+	err := os.WriteFile(tempFilePath, []byte(exampleMemoryStatFile), 0600)
+	require.NoError(t, err)
+	tuneMemoryLimit(tempFilePath)
+
+	newGoMemLimit := getMemoryLimit()
+	// this must match the calculation in tuneMemoryLimit
+	expected := someMemoryLimit / 5 * 4
+	assert.Equal(t, expected, newGoMemLimit)
+}
+
+// getMemoryLimit returns the runtime's current memory limit (a.k.a. GOMEMLIMIT), without
+// changing that memory limit.
+func getMemoryLimit() int64 {
+	return debug.SetMemoryLimit(-1)
 }

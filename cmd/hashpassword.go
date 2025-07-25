@@ -18,7 +18,7 @@ package cmd
 
 import (
 	"fmt"
-	imspassword "github.com/burningmantech/ranger-ims-go/lib/authn"
+	"github.com/burningmantech/ranger-ims-go/lib/argon2id"
 	"github.com/spf13/cobra"
 )
 
@@ -41,5 +41,5 @@ func init() {
 }
 
 func runHashPassword(cmd *cobra.Command, args []string) {
-	fmt.Println(imspassword.NewSaltedSha1(password)) //nolint:forbidigo
+	fmt.Println(argon2id.CreateHash(password, argon2id.ClubhouseParams)) //nolint:forbidigo
 }

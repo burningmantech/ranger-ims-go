@@ -67,7 +67,7 @@ var (
 // See RFC 9106 for recommended parameter choices:
 // https://www.rfc-editor.org/rfc/rfc9106.html#name-parameter-choice
 var DevelopmentParams = &Params{
-	MemoryKiB:   1 << 16, // 64 MiB
+	MemoryKiB:   64 * 1024, // 64 MiB
 	Iterations:  1,
 	Parallelism: uint8(runtime.NumCPU()),
 	SaltLength:  16,
@@ -79,7 +79,7 @@ var DevelopmentParams = &Params{
 // This is RFC 9106's first recommended option.
 // See https://www.rfc-editor.org/rfc/rfc9106.html#name-parameter-choice
 var FirstRecommendedParams = &Params{
-	MemoryKiB:   1 << 21, // 2 GiB
+	MemoryKiB:   2 * 1024 * 1024, // 2 GiB
 	Iterations:  1,
 	Parallelism: 4,
 	SaltLength:  16,
@@ -90,9 +90,28 @@ var FirstRecommendedParams = &Params{
 // This is RFC 9106's second recommended option.
 // See https://www.rfc-editor.org/rfc/rfc9106.html#name-parameter-choice
 var SecondRecommendedParams = &Params{
-	MemoryKiB:   1 << 16, // 64 MiB
+	MemoryKiB:   64 * 1024, // 64 MiB
 	Iterations:  3,
 	Parallelism: 4,
+	SaltLength:  16,
+	KeyLength:   32,
+}
+
+// PHPDefaultParams are the default parameters used by PHP via libargon2 and
+// PASSWORD_ARGON2ID, as of 2025-07-25.
+var PHPDefaultParams = &Params{
+	MemoryKiB:   64 * 1024, // 64 MiB
+	Iterations:  4,
+	Parallelism: 1,
+	SaltLength:  16,
+	KeyLength:   32,
+}
+
+// ClubhouseParams are the parameters used by Clubhouse, last updated 2025-07-25.
+var ClubhouseParams = &Params{
+	MemoryKiB:   8 * 1024, // 8 MiB
+	Iterations:  4,
+	Parallelism: 1,
 	SaltLength:  16,
 	KeyLength:   32,
 }

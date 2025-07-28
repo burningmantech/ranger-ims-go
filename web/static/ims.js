@@ -796,7 +796,7 @@ function reportEntryElement(entry) {
             e.preventDefault();
             const { resp, err } = await fetchJsonNoThrow(url, {});
             if (err != null || resp == null) {
-                setErrorMessage(`Failed to fetch attachment: ${err}`);
+                setErrorMessage(`Failed to fetch attachment, possibly due to IMS being unable to reach AWS: ${err}`);
                 return;
             }
             const blobUrl = window.URL.createObjectURL(await resp.blob());
@@ -818,7 +818,7 @@ function reportEntryElement(entry) {
                 e.preventDefault();
                 const { resp, err } = await fetchJsonNoThrow(url, {});
                 if (err != null || resp == null) {
-                    setErrorMessage(`Failed to fetch attachment: ${err}`);
+                    setErrorMessage(`Failed to fetch attachment, possibly due to IMS being unable to reach AWS: ${err}`);
                     return;
                 }
                 const blobUrl = window.URL.createObjectURL(await resp.blob());

@@ -29,7 +29,7 @@ run: build
 .PHONY: run/live
 run/live:
 	go tool air \
-		--build.cmd "make build" --build.bin "./${binary_name} serve --print-config=false" --build.delay "100" \
+		--build.cmd "make build" --build.bin "./${binary_name}" --build.args_bin "serve,--print-config=false" --build.delay "100" \
 		--build.include_ext "go,tpl,tmpl,templ,html,css,scss,js,ts,sql,jpeg,jpg,gif,png,bmp,svg,webp,ico,env" \
 		--build.exclude_file "web/template/*_templ.go,web/static/*.js,store/imsdb/*.go,directory/clubhousedb/*.go" \
 		--build.exclude_dir "playwright,ims-attachments" \

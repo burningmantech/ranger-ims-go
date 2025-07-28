@@ -1051,7 +1051,7 @@ async function attachFile() {
         body: formData
     });
     if (err != null) {
-        const message = `Failed to attach file: ${err}`;
+        const message = `Failed to attach file, possibly due to IMS being unable to reach AWS: ${err}`;
         ims.setErrorMessage(message);
         return;
     }

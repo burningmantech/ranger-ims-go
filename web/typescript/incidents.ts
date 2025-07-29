@@ -146,7 +146,7 @@ async function initIncidentsPage(): Promise<void> {
 let eventFieldReports: ims.FieldReportsByNumber|undefined = undefined;
 
 async function loadEventFieldReports(): Promise<{err: string|null}> {
-    const {json, err} = await ims.fetchJsonNoThrow<ims.FieldReport[]>(
+    const {json, err} = await ims.fetchNoThrow<ims.FieldReport[]>(
         ims.urlReplace(url_fieldReports + "?exclude_system_entries=true"), null,
     );
     if (err != null) {
@@ -214,7 +214,7 @@ async function initIncidentsTable(): Promise<void> {
             return;
         }
 
-        const {json, err} = await ims.fetchJsonNoThrow(
+        const {json, err} = await ims.fetchNoThrow(
             ims.urlReplace(url_incidentNumber).replace("<incident_number>", number.toString()),
             null,
         );
@@ -284,7 +284,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 await Promise.all([
                     tablePrereqs,
                     loadEventFieldReports(),
-                    ims.fetchJsonNoThrow<ims.Incident[]>(
+                    ims.fetchNoThrow<ims.Incident[]>(
                         ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null,
                     ).then(res => {
                         if (res.err != null || res.json == null) {

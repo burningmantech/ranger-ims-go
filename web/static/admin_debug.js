@@ -32,7 +32,7 @@ async function initAdminDebugPage() {
     window.performGC = performGC;
 }
 async function fetchBuildInfo() {
-    const { resp, err } = await ims.fetchJsonNoThrow(url_debugBuildInfo, {});
+    const { resp, err } = await ims.fetchNoThrow(url_debugBuildInfo, {});
     if (err != null || resp == null) {
         throw err;
     }
@@ -62,7 +62,7 @@ function substringBetween(s, start, end) {
     return s.substring(substrBeginInd, endInd);
 }
 async function fetchRuntimeMetrics() {
-    const { resp, err } = await ims.fetchJsonNoThrow(url_debugRuntimeMetrics, {});
+    const { resp, err } = await ims.fetchNoThrow(url_debugRuntimeMetrics, {});
     if (err != null || resp == null) {
         throw err;
     }
@@ -72,7 +72,7 @@ async function fetchRuntimeMetrics() {
     targetDiv.style.display = "";
 }
 async function performGC() {
-    const { resp, err } = await ims.fetchJsonNoThrow(url_debugGC, { body: JSON.stringify({}) });
+    const { resp, err } = await ims.fetchNoThrow(url_debugGC, { body: JSON.stringify({}) });
     if (err != null || resp == null) {
         throw err;
     }

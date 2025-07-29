@@ -108,7 +108,7 @@ export function compareReportEntries(a, b) {
 async function maybeRefreshAuth() {
     if (getAccessToken()) {
         if ((refreshTokenAfter() ?? 0) < new Date().getTime()) {
-            const { json, err } = await fetchJsonNoThrow(url_authRefresh, { body: JSON.stringify({}) });
+            const { json, err } = await fetchNoThrow(url_authRefresh, { body: JSON.stringify({}) });
             if (err != null || json == null) {
                 clearAccessToken();
             }
@@ -121,7 +121,7 @@ async function maybeRefreshAuth() {
     }
     return;
 }
-export async function fetchJsonNoThrow(url, init) {
+export async function fetchNoThrow(url, init) {
     if (url !== url_authRefresh) {
         await maybeRefreshAuth();
     }
@@ -153,7 +153,7 @@ export async function fetchJsonNoThrow(url, init) {
             // cause the server to consume all the memory on the system and require a manual
             // restart. Yuck.
             if (size > 20 * 1024 * 1024) {
-                return { resp: null, json: null, err: "Please keep data uploads small, " +
+                return { resp: null, text: null, json: null, err: "Please keep data uploads small, " +
                         "ideally under 10 MB" };
             }
             // don't JSONify, don't set a Content-Type (fetch does it automatically for FormData)
@@ -168,18 +168,23 @@ export async function fetchJsonNoThrow(url, init) {
     }
     let response = null;
     try {
+        let err = null;
         response = await fetch(url, init);
         if (!response.ok) {
-            return { resp: response, json: null, err: `${response.statusText} (${response.status})` };
+            err = `${response.statusText} (${response.status})`;
         }
         let json = null;
+        let text = null;
         if (response.headers.get("content-type") === "application/json") {
             json = await response.json();
         }
-        return { resp: response, json: json, err: null };
+        else if ((response.headers.get("content-type") ?? "").startsWith("text/plain")) {
+            text = await response.text();
+        }
+        return { resp: response, text: text, json: json, err: err };
     }
     catch (err) {
-        return { resp: response, json: null, err: err.message };
+        return { resp: response, text: null, json: null, err: err.message };
     }
 }
 //
@@ -296,7 +301,7 @@ export async function commonPageInit() {
     pathIds = idsFromPath();
     {
         const url = url_auth + (pathIds.eventID ? `?event_id=${pathIds.eventID}` : "");
-        const { json, resp, err } = await fetchJsonNoThrow(url, null);
+        const { json, resp, err } = await fetchNoThrow(url, null);
         if (err != null || json == null) {
             console.log(`Failed to fetch auth info: ${err}, ${resp?.status}`);
             setErrorMessage(`Failed to fetch auth info: ${err}, ${resp?.status}`);
@@ -310,7 +315,7 @@ export async function commonPageInit() {
     let eds = Promise.resolve(null);
     if (authInfo.authenticated) {
         eventAccess = authInfo.event_access?.[pathIds.eventID] ?? null;
-        eds = fetchJsonNoThrow(url_events, null).then(result => {
+        eds = fetchNoThrow(url_events, null).then(result => {
             if (result.err != null || result.json == null) {
                 console.log(`Failed to fetch events: ${result.err}`);
                 return null;
@@ -436,7 +441,7 @@ function stateSortKeyFromID(stateID) {
 }
 export let concentricStreetNameByID = undefined;
 export async function loadStreets(eventID) {
-    const { json, err } = await fetchJsonNoThrow(url_streets + "?event_id=" + eventID, null);
+    const { json, err } = await fetchNoThrow(url_streets + "?event_id=" + eventID, null);
     if (err != null) {
         const message = `Failed to load streets: ${err}`;
         console.error(message);
@@ -794,9 +799,9 @@ function reportEntryElement(entry) {
         const downloadButt = createSvgTextButton("#download", "Download");
         downloadButt.onclick = async (e) => {
             e.preventDefault();
-            const { resp, err } = await fetchJsonNoThrow(url, {});
+            const { resp, text, err } = await fetchNoThrow(url, {});
             if (err != null || resp == null) {
-                setErrorMessage(`Failed to fetch attachment, possibly due to IMS being unable to reach AWS: ${err}`);
+                setErrorMessage(`Failed to fetch attachment. ${text}`);
                 return;
             }
             const blobUrl = window.URL.createObjectURL(await resp.blob());
@@ -816,9 +821,9 @@ function reportEntryElement(entry) {
             // the Authorization header.
             previewButt.onclick = async (e) => {
                 e.preventDefault();
-                const { resp, err } = await fetchJsonNoThrow(url, {});
+                const { resp, text, err } = await fetchNoThrow(url, {});
                 if (err != null || resp == null) {
-                    setErrorMessage(`Failed to fetch attachment, possibly due to IMS being unable to reach AWS: ${err}`);
+                    setErrorMessage(`Failed to fetch attachment. ${text}`);
                     return;
                 }
                 const blobUrl = window.URL.createObjectURL(await resp.blob());
@@ -905,7 +910,7 @@ async function setStrikeIncidentEntry(incidentNumber, reportEntryId, strike) {
     const url = urlReplace(url_incident_reportEntry)
         .replace("<incident_number>", incidentNumber.toString())
         .replace("<report_entry_id>", reportEntryId.toString());
-    const { err } = await fetchJsonNoThrow(url, {
+    const { err } = await fetchNoThrow(url, {
         body: JSON.stringify({ "stricken": strike }),
     });
     if (err != null) {
@@ -919,7 +924,7 @@ async function setStrikeFieldReportEntry(fieldReportNumber, reportEntryId, strik
     const url = urlReplace(url_fieldReport_reportEntry)
         .replace("<field_report_number>", fieldReportNumber.toString())
         .replace("<report_entry_id>", reportEntryId.toString());
-    const { err } = await fetchJsonNoThrow(url, {
+    const { err } = await fetchNoThrow(url, {
         body: JSON.stringify({ "stricken": strike }),
     });
     if (err != null) {
@@ -1159,7 +1164,7 @@ export function clearAccessToken() {
 // Load incident types
 //
 export async function loadIncidentTypes() {
-    const { json, err } = await fetchJsonNoThrow(url_incidentTypes, null);
+    const { json, err } = await fetchNoThrow(url_incidentTypes, null);
     if (err != null || json == null) {
         const message = `Failed to load incident types: ${err}`;
         console.error(message);

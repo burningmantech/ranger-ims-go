@@ -37,7 +37,7 @@ async function initAdminStreetsPage() {
 }
 let streets = {};
 async function loadStreets() {
-    const { json, err } = await ims.fetchJsonNoThrow(url_streets, null);
+    const { json, err } = await ims.fetchNoThrow(url_streets, null);
     if (err != null) {
         const message = `Failed to load streets: ${err}`;
         console.error(message);
@@ -114,7 +114,7 @@ function removeStreet(_sender) {
     alert("Remove is unsupported for streets. Do this via SQL instead.");
 }
 async function sendStreets(edits) {
-    const { err } = await ims.fetchJsonNoThrow(url_streets, {
+    const { err } = await ims.fetchNoThrow(url_streets, {
         body: JSON.stringify(edits),
     });
     if (err != null) {

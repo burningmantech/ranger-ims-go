@@ -43,7 +43,7 @@ async function loadAndDrawIncidentTypes() {
 }
 let adminIncidentTypes = null;
 async function loadAllIncidentTypes() {
-    const { json, err } = await ims.fetchJsonNoThrow(url_incidentTypes, {
+    const { json, err } = await ims.fetchNoThrow(url_incidentTypes, {
         headers: { "Cache-Control": "no-cache" },
     });
     if (err != null || json == null) {
@@ -162,7 +162,7 @@ async function setIncidentTypeDescription(sender) {
     await loadAndDrawIncidentTypes();
 }
 async function sendIncidentTypes(edits) {
-    const { err } = await ims.fetchJsonNoThrow(url_incidentTypes, {
+    const { err } = await ims.fetchNoThrow(url_incidentTypes, {
         body: JSON.stringify(edits),
     });
     if (err == null) {

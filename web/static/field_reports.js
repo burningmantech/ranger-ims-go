@@ -146,7 +146,7 @@ function frInitDataTables() {
         // https://datatables.net/forums/discussion/47411/i-always-get-error-when-i-use-table-ajax-reload
         "ajax": function (_data, callback, _settings) {
             async function doAjax() {
-                const { json, err } = await ims.fetchJsonNoThrow(
+                const { json, err } = await ims.fetchNoThrow(
                 // don't use exclude_system_entries here, since the field reports
                 // per-user authorization can exclude field reports entirely from
                 // someone who created a field report but then didn't add an

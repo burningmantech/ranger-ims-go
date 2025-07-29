@@ -32,7 +32,7 @@ async function initLoginPage() {
 async function login() {
     const username = document.getElementById("username_input").value;
     const password = document.getElementById("password_input").value;
-    const { json, err } = await ims.fetchJsonNoThrow(url_auth, {
+    const { json, err } = await ims.fetchNoThrow(url_auth, {
         body: JSON.stringify({
             "identification": username,
             "password": password,

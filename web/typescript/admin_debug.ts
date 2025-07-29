@@ -44,7 +44,7 @@ async function initAdminDebugPage(): Promise<void> {
 }
 
 async function fetchBuildInfo(): Promise<void> {
-    const {resp, err} = await ims.fetchJsonNoThrow(url_debugBuildInfo, {});
+    const {resp, err} = await ims.fetchNoThrow(url_debugBuildInfo, {});
     if (err != null || resp == null) {
         throw err;
     }
@@ -77,7 +77,7 @@ function substringBetween(s: string, start: string, end: string): string {
 }
 
 async function fetchRuntimeMetrics(): Promise<void> {
-    const {resp, err} = await ims.fetchJsonNoThrow(url_debugRuntimeMetrics, {});
+    const {resp, err} = await ims.fetchNoThrow(url_debugRuntimeMetrics, {});
     if (err != null || resp == null) {
         throw err;
     }
@@ -88,7 +88,7 @@ async function fetchRuntimeMetrics(): Promise<void> {
 }
 
 async function performGC(): Promise<void> {
-    const {resp, err} = await ims.fetchJsonNoThrow(url_debugGC, {body: JSON.stringify({})});
+    const {resp, err} = await ims.fetchNoThrow(url_debugGC, {body: JSON.stringify({})});
     if (err != null || resp == null) {
         throw err;
     }

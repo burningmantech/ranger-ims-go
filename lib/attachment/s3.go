@@ -61,7 +61,7 @@ func (c *S3Client) UploadToS3(ctx context.Context, bucketName, objectName string
 		},
 	)
 	if err != nil {
-		return herr.InternalServerError("Failed to upload attachment to S3", err).From("[PutObject]")
+		return herr.InternalServerError("IMS failed to upload the file to S3. There may be an internet connectivity issue.", err).From("[PutObject]")
 	}
 	slog.Debug("Uploaded attachment to S3", "objectName", objectName, "duration", time.Since(start))
 	return nil
@@ -83,7 +83,7 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 
 			return nil, herr.NotFound("File does not exist", err).From("[GetObject]")
 		}
-		return nil, herr.InternalServerError("Failed to get attachment", err).From("[GetObject]")
+		return nil, herr.InternalServerError("IMS failed to pull the file from S3. There may be an internet connectivity issue.", err).From("[GetObject]")
 	}
 
 	// This reads the whole object in memory, which isn't ideal, but it lets us use the

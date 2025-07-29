@@ -42,7 +42,7 @@ async function initLoginPage(): Promise<void> {
 async function login(): Promise<void> {
     const username = (document.getElementById("username_input") as HTMLInputElement).value;
     const password = (document.getElementById("password_input") as HTMLInputElement).value;
-    const {json, err} = await ims.fetchJsonNoThrow<AuthResponse>(url_auth, {
+    const {json, err} = await ims.fetchNoThrow<AuthResponse>(url_auth, {
         body: JSON.stringify({
             "identification": username,
             "password": password,

@@ -92,7 +92,7 @@ async function initAdminActionLogsPage(): Promise<void> {
                     params.set("path", filterPath);
                 }
 
-                const {json, err} = await ims.fetchJsonNoThrow<ActionLog[]>(
+                const {json, err} = await ims.fetchNoThrow<ActionLog[]>(
                     `${url_actionlogs}?${params.toString()}`, null,
                 );
                 if (err != null || json == null) {
@@ -200,7 +200,7 @@ function renderPage(pagePath: string|null, type: string, _data: any): string|und
 }
 
 async function fetchActionLogs(): Promise<void> {
-    const {json, err} = await ims.fetchJsonNoThrow<ActionLog>(url_actionlogs, {});
+    const {json, err} = await ims.fetchNoThrow<ActionLog>(url_actionlogs, {});
     if (err != null) {
         throw err;
     }

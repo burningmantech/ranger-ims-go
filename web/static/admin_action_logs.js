@@ -72,7 +72,7 @@ async function initAdminActionLogsPage() {
                 if (filterPath) {
                     params.set("path", filterPath);
                 }
-                const { json, err } = await ims.fetchJsonNoThrow(`${url_actionlogs}?${params.toString()}`, null);
+                const { json, err } = await ims.fetchNoThrow(`${url_actionlogs}?${params.toString()}`, null);
                 if (err != null || json == null) {
                     ims.setErrorMessage(`Failed to load table: ${err}`);
                     return;
@@ -174,7 +174,7 @@ function renderPage(pagePath, type, _data) {
     return undefined;
 }
 async function fetchActionLogs() {
-    const { json, err } = await ims.fetchJsonNoThrow(url_actionlogs, {});
+    const { json, err } = await ims.fetchNoThrow(url_actionlogs, {});
     if (err != null) {
         throw err;
     }

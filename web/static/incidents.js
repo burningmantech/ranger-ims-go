@@ -115,7 +115,7 @@ async function initIncidentsPage() {
 // attached field reports.
 let eventFieldReports = undefined;
 async function loadEventFieldReports() {
-    const { json, err } = await ims.fetchJsonNoThrow(ims.urlReplace(url_fieldReports + "?exclude_system_entries=true"), null);
+    const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_fieldReports + "?exclude_system_entries=true"), null);
     if (err != null) {
         const message = `Failed to load event field reports: ${err}`;
         console.error(message);
@@ -169,7 +169,7 @@ async function initIncidentsTable() {
         if (event !== ims.pathIds.eventID) {
             return;
         }
-        const { json, err } = await ims.fetchJsonNoThrow(ims.urlReplace(url_incidentNumber).replace("<incident_number>", number.toString()), null);
+        const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_incidentNumber).replace("<incident_number>", number.toString()), null);
         if (err != null) {
             const message = `Failed to update Incident ${number}: ${err}`;
             console.error(message);
@@ -231,7 +231,7 @@ function initDataTables(tablePrereqs) {
                 await Promise.all([
                     tablePrereqs,
                     loadEventFieldReports(),
-                    ims.fetchJsonNoThrow(ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null).then(res => {
+                    ims.fetchNoThrow(ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null).then(res => {
                         if (res.err != null || res.json == null) {
                             ims.setErrorMessage(`Failed to load table: ${res.err}`);
                             return;

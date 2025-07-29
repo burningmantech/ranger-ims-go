@@ -48,10 +48,10 @@ let accessControlList = null;
 async function loadAccessControlList() {
     // we don't actually need the response from this API, but we want to
     // invalidate the local HTTP cache in the admin's browser
-    ims.fetchJsonNoThrow(url_events, {
+    ims.fetchNoThrow(url_events, {
         headers: { "Cache-Control": "no-cache" },
     });
-    const { json, err } = await ims.fetchJsonNoThrow(url_acl, null);
+    const { json, err } = await ims.fetchNoThrow(url_acl, null);
     if (err != null) {
         const message = `Failed to load access control list: ${err}`;
         console.error(message);
@@ -142,7 +142,7 @@ function updateEventAccess(event, mode) {
 }
 async function addEvent(sender) {
     const event = sender.value.trim();
-    const { err } = await ims.fetchJsonNoThrow(url_events, {
+    const { err } = await ims.fetchNoThrow(url_events, {
         body: JSON.stringify({
             "add": [event],
         }),
@@ -269,7 +269,7 @@ async function setValidity(sender) {
     sender.value = ""; // Clear input field
 }
 async function sendACL(edits) {
-    const { err } = await ims.fetchJsonNoThrow(url_acl, {
+    const { err } = await ims.fetchNoThrow(url_acl, {
         body: JSON.stringify(edits),
     });
     if (err == null) {

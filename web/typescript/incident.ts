@@ -289,7 +289,7 @@ async function loadIncident(): Promise<{err: string|null}> {
             "summary": "",
         };
     } else {
-        const {json, err} = await ims.fetchJsonNoThrow<ims.Incident>(
+        const {json, err} = await ims.fetchNoThrow<ims.Incident>(
             `${ims.urlReplace(url_incidents)}/${number}`, null);
         if (err != null) {
             ims.disableEditing();
@@ -355,7 +355,7 @@ interface Personnel {
 type PersonnelMap = Record<string, Personnel>;
 
 async function loadPersonnel(): Promise<{err: string|null}> {
-    const {json, err} = await ims.fetchJsonNoThrow<Personnel[]>(ims.urlReplace(url_personnel + "?event_id=<event_id>"), null);
+    const {json, err} = await ims.fetchNoThrow<Personnel[]>(ims.urlReplace(url_personnel + "?event_id=<event_id>"), null);
     if (err != null) {
         const message = `Failed to load personnel: ${err}`;
         console.error(message);
@@ -390,7 +390,7 @@ async function loadAllFieldReports(): Promise<{err: string|null}> {
         return {err: null};
     }
 
-    const {resp, json, err} = await ims.fetchJsonNoThrow<ims.FieldReport[]>(ims.urlReplace(url_fieldReports), null);
+    const {resp, json, err} = await ims.fetchNoThrow<ims.FieldReport[]>(ims.urlReplace(url_fieldReports), null);
     if (err != null) {
         if (resp != null && resp.status === 403) {
             // We're not allowed to look these up.
@@ -422,7 +422,7 @@ async function loadOneFieldReport(fieldReportNumber: number): Promise<{err: stri
         return {err: null};
     }
 
-    const {resp, json, err} = await ims.fetchJsonNoThrow<ims.FieldReport>(
+    const {resp, json, err} = await ims.fetchNoThrow<ims.FieldReport>(
         ims.urlReplace(url_fieldReport).replace("<field_report_number>", fieldReportNumber.toString()), null);
     if (err != null) {
         if (resp == null || resp.status !== 403) {
@@ -976,7 +976,7 @@ async function sendEdits(edits: ims.Incident): Promise<{err:string|null}> {
         url += `/${number}`;
     }
 
-    const {resp, err} = await ims.fetchJsonNoThrow(url, {
+    const {resp, err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify(edits),
     });
 
@@ -1258,7 +1258,7 @@ async function detachFieldReport(sender: HTMLElement): Promise<void> {
         `${ims.urlReplace(url_fieldReports)}/${frNumber}` +
         `?action=detach&incident=${ims.pathIds.incidentNumber}`
     );
-    const {err} = await ims.fetchJsonNoThrow(url, {
+    const {err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify({}),
     });
     if (err != null) {
@@ -1290,7 +1290,7 @@ async function attachFieldReport(): Promise<void> {
         `${ims.urlReplace(url_fieldReports)}/${fieldReportNumber}` +
         `?action=attach&incident=${ims.pathIds.incidentNumber}`
     );
-    const {err} = await ims.fetchJsonNoThrow(url, {
+    const {err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify({}),
     });
     if (err != null) {
@@ -1335,11 +1335,11 @@ async function attachFile(): Promise<void> {
 
     const attachURL = ims.urlReplace(url_incidentAttachments)
         .replace("<incident_number>", (ims.pathIds.incidentNumber??"").toString());
-    const {err} = await ims.fetchJsonNoThrow(attachURL, {
+    const {text, err} = await ims.fetchNoThrow(attachURL, {
         body: formData
     });
     if (err != null) {
-        const message = `Failed to attach file, possibly due to IMS being unable to reach AWS: ${err}`;
+        const message = `Failed to attach file. ${text}`;
         ims.setErrorMessage(message);
         return;
     }

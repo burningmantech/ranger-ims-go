@@ -166,7 +166,7 @@ async function loadFieldReport(): Promise<{err: string|null}> {
             "created": null,
         };
     } else {
-        const {json, err} = await ims.fetchJsonNoThrow<ims.FieldReport>(
+        const {json, err} = await ims.fetchNoThrow<ims.FieldReport>(
             `${ims.urlReplace(url_fieldReports)}/${number}`, null);
         if (err != null) {
             ims.disableEditing();
@@ -307,7 +307,7 @@ async function frSendEdits(edits: ims.FieldReport): Promise<{err:string|null}> {
         url += `/${number}`;
     }
 
-    const {resp, err} = await ims.fetchJsonNoThrow(url, {
+    const {resp, err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify(edits),
     });
     if (err != null) {
@@ -372,7 +372,7 @@ async function makeIncident(): Promise<void> {
     if (fieldReport.report_entries) {
         authors.push(fieldReport.report_entries[0]!.author??"null");
     }
-    const {resp, err} = await ims.fetchJsonNoThrow(incidentsURL, {
+    const {resp, err} = await ims.fetchNoThrow(incidentsURL, {
         body:JSON.stringify({
             "summary": fieldReport.summary,
             "ranger_handles": authors,
@@ -395,7 +395,7 @@ async function makeIncident(): Promise<void> {
     const attachToIncidentUrl =
         `${ims.urlReplace(url_fieldReports)}/${fieldReport.number}` +
         `?action=attach&incident=${fieldReport.incident}`;
-    const {err: attachErr} = await ims.fetchJsonNoThrow(attachToIncidentUrl, {
+    const {err: attachErr} = await ims.fetchNoThrow(attachToIncidentUrl, {
         body: JSON.stringify({}),
     });
     if (attachErr != null) {
@@ -433,11 +433,11 @@ async function attachFile(): Promise<void> {
 
     const attachURL = ims.urlReplace(url_fieldReportAttachments)
         .replace("<field_report_number>", (ims.pathIds.fieldReportNumber??"").toString());
-    const {err} = await ims.fetchJsonNoThrow(attachURL, {
+    const {text, err} = await ims.fetchNoThrow(attachURL, {
         body: formData
     });
     if (err != null) {
-        const message = `Failed to attach file, possibly due to IMS being unable to reach AWS: ${err}`;
+        const message = `Failed to attach file. ${text}`;
         ims.setErrorMessage(message);
         return;
     }

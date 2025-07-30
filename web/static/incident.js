@@ -800,6 +800,9 @@ async function sendEdits(edits) {
         // Update browser history to update URL
         drawIncidentTitle();
         window.history.pushState(null, document.title, `${ims.urlReplace(url_viewIncidents)}/${newNumber}`);
+        // Fetch auth info again with the newly updated URL, just to update
+        // the action log.
+        await ims.getAuthInfo();
     }
     await loadAndDisplayIncident();
     return { err: null };

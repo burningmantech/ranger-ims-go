@@ -343,6 +343,10 @@ async function frSendEdits(edits: ims.FieldReport): Promise<{err:string|null}> {
             null, document.title,
             `${ims.urlReplace(url_viewFieldReports)}/${newNumber}`
         );
+
+        // Fetch auth info again with the newly updated URL, just to update
+        // the action log.
+        await ims.getAuthInfo();
     }
 
     await loadAndDisplayFieldReport();

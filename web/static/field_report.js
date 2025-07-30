@@ -284,6 +284,9 @@ async function frSendEdits(edits) {
         // Update browser history to update URL
         drawTitle();
         window.history.pushState(null, document.title, `${ims.urlReplace(url_viewFieldReports)}/${newNumber}`);
+        // Fetch auth info again with the newly updated URL, just to update
+        // the action log.
+        await ims.getAuthInfo();
     }
     await loadAndDisplayFieldReport();
     return { err: null };

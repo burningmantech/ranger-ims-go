@@ -300,8 +300,7 @@ export async function commonPageInit() {
     let authInfo = null;
     pathIds = idsFromPath();
     {
-        const url = url_auth + (pathIds.eventID ? `?event_id=${pathIds.eventID}` : "");
-        const { json, resp, err } = await fetchNoThrow(url, null);
+        const { json, resp, err } = await getAuthInfo();
         if (err != null || json == null) {
             console.log(`Failed to fetch auth info: ${err}, ${resp?.status}`);
             setErrorMessage(`Failed to fetch auth info: ${err}, ${resp?.status}`);
@@ -326,6 +325,10 @@ export async function commonPageInit() {
     }
     renderCommonPageItems(authInfo);
     return { authInfo: authInfo, eventDatas: eds };
+}
+export async function getAuthInfo() {
+    const url = url_auth + (pathIds.eventID ? `?event_id=${pathIds.eventID}` : "");
+    return await fetchNoThrow(url, null);
 }
 export async function redirectToLogin() {
     // This clears the refresh cookie

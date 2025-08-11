@@ -128,8 +128,14 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			http.Redirect(w, r, "/ims/app/events/"+r.PathValue("eventName")+"/incidents", http.StatusFound)
 		},
 	)
+
+	// TODO(https://github.com/burningmantech/ranger-ims-go/issues/342): find a cleaner place for this
+	passwordResetURL := "https://ranger-clubhouse.burningman.org/reset-password" //nolint:gosec
+	if cfg.Core.Deployment == conf.DeploymentTypeStaging {
+		passwordResetURL = "https://ranger-clubhouse-staging.burningman.org/reset-password" //nolint:gosec
+	}
 	mux.Handle("GET /ims/auth/login",
-		AdaptTempl(template.Login(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Login(deployment, passwordResetURL, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
 	mux.Handle("GET /ims/auth/logout",
 		Adapt(

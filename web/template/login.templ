@@ -16,7 +16,7 @@
 
 package template
 
-templ Login(deployment, versionName, versionRef string) {
+templ Login(deployment, passwordResetURL, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Log In | IMS", "login.js", false)
@@ -53,7 +53,7 @@ templ Login(deployment, versionName, versionRef string) {
 
 <div class="d-flex justify-content-between mb-3">
   <button type="submit" class="btn btn-primary">Submit</button>
-  <a class="align-self-center" href="https://ranger-clubhouse.burningman.org/reset-password">Forgot your password?</a>
+  <a class="align-self-center" href={passwordResetURL} target="_blank">Forgot your password?</a>
 </div>
 
 </form>

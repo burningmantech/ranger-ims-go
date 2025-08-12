@@ -81,7 +81,10 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body">
-            <p class="mt-2 mb-2">These links include any filtered view on this Incidents table.<br />Middle- or control-click to open in new tabs.</p>
+            <p class="mt-2 mb-2">
+                Multi-search helps you query Incidents from many different Events.
+                The below links include any filtered view on you've applied to the current Incidents table.<br />
+                Middle- or control-click to open in new tabs.</p>
             <ul id="multisearch-events-list"></ul>
           </div>
         </div>
@@ -201,6 +204,11 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
       <div class="col-sm">
         <div id="search_container" class="form-group ms-auto">
           <div class="flex-input-container no-print">
+            <span id="search-icon" class="me-1 align-content-center" title="Click here for multi-search">
+              <svg fill="currentColor" class="bi">
+                <use href="#search" />
+              </svg>
+            </span>
             <label for="search_input" class="control-label hidden" aria-label="Search">
               Search
             </label>

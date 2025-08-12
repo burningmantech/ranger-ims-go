@@ -65,7 +65,7 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
             <ul>
               <li>Type an IMS number then press <code>⏎</code> to be redirected to that Incident</li>
               <li>Search by regular expression by enclosing a pattern with slashes, e.g. <code>/r.nger/</code> or <code>/\b(dog|cat)\b/</code></li>
-              <li>All searches are case insensitive</li>
+              <li>All searches are case-insensitive</li>
             </ul>
           </div>
         </div>
@@ -81,9 +81,8 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body">
-            <p class="mt-2 mb-0">Middle-click or control-click these links to open them in new tabs</p>
-            <ul id="multisearch-events-list">
-            </ul>
+            <p class="mt-2 mb-2">These links include any filtered view on this Incidents table.<br />Middle- or control-click to open in new tabs.</p>
+            <ul id="multisearch-events-list"></ul>
           </div>
         </div>
       </div>

@@ -97,6 +97,10 @@ async function initIncidentsPage(): Promise<void> {
 
     const helpModal = ims.bsModal(document.getElementById("helpModal")!);
 
+    const multisearchModal = ims.bsModal(document.getElementById("multisearchModal")!);
+
+    const eventDatas = await initResult.eventDatas;
+
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -120,6 +124,25 @@ async function initIncidentsPage(): Promise<void> {
         // n --> new incident
         if (e.key.toLowerCase() === "n") {
             document.getElementById("new_incident")!.click();
+        }
+        // m -> multi-search
+        if (e.key.toLowerCase() === "m") {
+            multisearchModal.toggle();
+
+            const list = document.getElementById("multisearch-events-list") as HTMLUListElement;
+            list.replaceChildren();
+
+            for (const eventData of (eventDatas??[]).reverse()) {
+                const hashParams = ims.windowFragmentParams();
+
+                const newLink = document.createElement("a");
+                newLink.textContent = eventData.name;
+                newLink.href = `${url_viewIncidents.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
+
+                const newLi = document.createElement("li");
+                newLi.append(newLink);
+                list.append(newLi);
+            }
         }
     });
 

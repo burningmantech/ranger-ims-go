@@ -99,7 +99,7 @@ async function initIncidentsPage(): Promise<void> {
 
     const multisearchModal = ims.bsModal(document.getElementById("multisearchModal")!);
 
-    const eventDatas = await initResult.eventDatas;
+    const eventDatas = ((await initResult.eventDatas)??[]).toReversed();
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -132,7 +132,7 @@ async function initIncidentsPage(): Promise<void> {
             const list = document.getElementById("multisearch-events-list") as HTMLUListElement;
             list.replaceChildren();
 
-            for (const eventData of (eventDatas??[]).reverse()) {
+            for (const eventData of eventDatas) {
                 const hashParams = ims.windowFragmentParams();
 
                 const newLink = document.createElement("a");

@@ -73,7 +73,7 @@ async function initIncidentsPage() {
     await initIncidentsTable();
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
     const multisearchModal = ims.bsModal(document.getElementById("multisearchModal"));
-    const eventDatas = await initResult.eventDatas;
+    const eventDatas = ((await initResult.eventDatas) ?? []).toReversed();
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
@@ -103,7 +103,7 @@ async function initIncidentsPage() {
             multisearchModal.toggle();
             const list = document.getElementById("multisearch-events-list");
             list.replaceChildren();
-            for (const eventData of (eventDatas ?? []).reverse()) {
+            for (const eventData of eventDatas) {
                 const hashParams = ims.windowFragmentParams();
                 const newLink = document.createElement("a");
                 newLink.textContent = eventData.name;

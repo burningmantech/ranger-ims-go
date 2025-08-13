@@ -1,0 +1,37 @@
+//
+// See the file COPYRIGHT for copyright information.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package template
+
+templ MultisearchModal() {
+<div class="modal no-print" id="multisearchModal" tabindex="-1" aria-labelledby="multisearchModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <p class="modal-title fs-5" id="multisearchModalLabel">Multi-search (alpha)</p>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+      </div>
+      <div class="modal-body">
+        <p class="mt-2 mb-2">
+            Multi-search helps you query items from several Events at once.
+            The below links include any filters or search query you've applied to the current page.<br />
+            Open these in new tabs by middle-clicking or control/command-clicking on them.</p>
+        <ul id="multisearch-events-list"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+}

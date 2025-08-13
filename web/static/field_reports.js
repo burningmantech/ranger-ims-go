@@ -45,6 +45,25 @@ async function initFieldReportsPage() {
     ims.disableEditing();
     initFieldReportsTable();
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
+    const multisearchModal = ims.bsModal(document.getElementById("multisearchModal"));
+    const eventDatas = ((await initResult.eventDatas) ?? []).toReversed();
+    const toggleMultisearchModal = function () {
+        multisearchModal.toggle();
+        const list = document.getElementById("multisearch-events-list");
+        list.replaceChildren();
+        for (const eventData of eventDatas) {
+            const hashParams = ims.windowFragmentParams();
+            const newLink = document.createElement("a");
+            newLink.textContent = eventData.name;
+            newLink.href = `${url_viewFieldReports.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
+            const newLi = document.createElement("li");
+            newLi.append(newLink);
+            list.append(newLi);
+        }
+    };
+    document.getElementById("search-icon").addEventListener("click", function (_e) {
+        toggleMultisearchModal();
+    });
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
@@ -69,7 +88,10 @@ async function initFieldReportsPage() {
         if (e.key.toLowerCase() === "n") {
             document.getElementById("new_field_report").click();
         }
-        // TODO: should there also be a shortcut to show the default filters?
+        // m -> multi-search
+        if (e.key.toLowerCase() === "m") {
+            toggleMultisearchModal();
+        }
     });
     document.getElementById("helpModal").addEventListener("keydown", function (e) {
         if (e.key === "?") {

@@ -72,24 +72,7 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
       </div>
     </div>
 
-    <!-- Multi-search modal -->
-    <div class="modal no-print" id="multisearchModal" tabindex="-1" aria-labelledby="multisearchModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <p class="modal-title fs-5" id="multisearchModalLabel">Multi-search (alpha)</p>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
-          </div>
-          <div class="modal-body">
-            <p class="mt-2 mb-2">
-                Multi-search helps you query Incidents from several Events at once.
-                The below links include any filters or search query you've applied to the current Incidents page.<br />
-                Middle- or control-click these to open them in new tabs.</p>
-            <ul id="multisearch-events-list"></ul>
-          </div>
-        </div>
-      </div>
-    </div>
+    @MultisearchModal()
 
     <p class="d-sm-none no-print">
       <a href="./field_reports/">

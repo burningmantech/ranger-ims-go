@@ -44,6 +44,7 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
             <ul>
               <li><code>n</code>: create (n)ew Field Report <br/></li>
               <li><code>/</code>: jump to search field <br/><br/></li>
+              <li><code>m</code>: (m)ulti-search <br/></li>
             </ul>
             <p class="mt-2 mb-0">In the search field</p>
             <ul>
@@ -55,6 +56,8 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
         </div>
       </div>
     </div>
+
+    @MultisearchModal()
 
     <p class="d-sm-none no-print">
       <a href="./incidents/">
@@ -129,6 +132,11 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
 
       <div id="search_container" class="form-group form-group-sm col-sm-5">
         <div class="flex-input-container no-print">
+          <span id="search-icon" class="me-1 align-content-center" title="Click here for multi-search">
+            <svg fill="currentColor" class="bi">
+              <use href="#search" />
+            </svg>
+          </span>
           <label for="search_input" class="control-label hidden" aria-label="Search">
             Search
           </label>

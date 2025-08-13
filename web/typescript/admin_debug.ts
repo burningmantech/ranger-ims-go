@@ -44,11 +44,11 @@ async function initAdminDebugPage(): Promise<void> {
 }
 
 async function fetchBuildInfo(): Promise<void> {
-    const {resp, err} = await ims.fetchNoThrow(url_debugBuildInfo, {});
-    if (err != null || resp == null) {
+    const {text, err} = await ims.fetchNoThrow(url_debugBuildInfo, {});
+    if (err != null || text == null) {
         throw err;
     }
-    const buildInfoText = await resp.text();
+    const buildInfoText = text;
     const targetPre = document.getElementById("build-info") as HTMLPreElement
     targetPre.textContent = buildInfoText;
 
@@ -77,23 +77,23 @@ function substringBetween(s: string, start: string, end: string): string {
 }
 
 async function fetchRuntimeMetrics(): Promise<void> {
-    const {resp, err} = await ims.fetchNoThrow(url_debugRuntimeMetrics, {});
-    if (err != null || resp == null) {
+    const {text, err} = await ims.fetchNoThrow(url_debugRuntimeMetrics, {});
+    if (err != null || text == null) {
         throw err;
     }
     const targetPre = document.getElementById("runtime-metrics") as HTMLPreElement
-    targetPre.textContent = await resp.text();
+    targetPre.textContent = text;
     const targetDiv = document.getElementById("runtime-metrics-div") as HTMLParagraphElement;
     targetDiv.style.display = "";
 }
 
 async function performGC(): Promise<void> {
-    const {resp, err} = await ims.fetchNoThrow(url_debugGC, {body: JSON.stringify({})});
-    if (err != null || resp == null) {
+    const {text, err} = await ims.fetchNoThrow(url_debugGC, {body: JSON.stringify({})});
+    if (err != null || text == null) {
         throw err;
     }
     const targetPre = document.getElementById("gc") as HTMLPreElement
-    targetPre.textContent = await resp.text();
+    targetPre.textContent = text;
     const targetDiv = document.getElementById("gc-div") as HTMLParagraphElement;
     targetDiv.style.display = "";
 }

@@ -32,11 +32,11 @@ async function initAdminDebugPage() {
     window.performGC = performGC;
 }
 async function fetchBuildInfo() {
-    const { resp, err } = await ims.fetchNoThrow(url_debugBuildInfo, {});
-    if (err != null || resp == null) {
+    const { text, err } = await ims.fetchNoThrow(url_debugBuildInfo, {});
+    if (err != null || text == null) {
         throw err;
     }
-    const buildInfoText = await resp.text();
+    const buildInfoText = text;
     const targetPre = document.getElementById("build-info");
     targetPre.textContent = buildInfoText;
     const ref = substringBetween(buildInfoText, "build\tvcs.revision=", "\n");
@@ -62,22 +62,22 @@ function substringBetween(s, start, end) {
     return s.substring(substrBeginInd, endInd);
 }
 async function fetchRuntimeMetrics() {
-    const { resp, err } = await ims.fetchNoThrow(url_debugRuntimeMetrics, {});
-    if (err != null || resp == null) {
+    const { text, err } = await ims.fetchNoThrow(url_debugRuntimeMetrics, {});
+    if (err != null || text == null) {
         throw err;
     }
     const targetPre = document.getElementById("runtime-metrics");
-    targetPre.textContent = await resp.text();
+    targetPre.textContent = text;
     const targetDiv = document.getElementById("runtime-metrics-div");
     targetDiv.style.display = "";
 }
 async function performGC() {
-    const { resp, err } = await ims.fetchNoThrow(url_debugGC, { body: JSON.stringify({}) });
-    if (err != null || resp == null) {
+    const { text, err } = await ims.fetchNoThrow(url_debugGC, { body: JSON.stringify({}) });
+    if (err != null || text == null) {
         throw err;
     }
     const targetPre = document.getElementById("gc");
-    targetPre.textContent = await resp.text();
+    targetPre.textContent = text;
     const targetDiv = document.getElementById("gc-div");
     targetDiv.style.display = "";
 }

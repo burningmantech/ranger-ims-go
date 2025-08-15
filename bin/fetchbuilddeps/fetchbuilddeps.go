@@ -46,19 +46,19 @@ func main() {
 	cmd := exec.Command("go", "env", "GOMOD")
 	goModPathBytes, err := cmd.CombinedOutput()
 	must(err)
-	repoRoot := filepath.Dir(strings.TrimSpace(string(goModPathBytes)))
-	if !pathExists(os.Stat(repoRoot)) {
-		must(fmt.Errorf("repo root %v does not exist", repoRoot))
-	}
+	repoRoot, err := os.OpenRoot(filepath.Dir(strings.TrimSpace(string(goModPathBytes))))
+	must(err)
 
-	staticExtDir := filepath.Join(repoRoot, "web", "static", "ext")
-	must(os.MkdirAll(staticExtDir, 0750))
-	root, err := os.OpenRoot(staticExtDir)
+	staticExtDir := filepath.Join("web", "static", "ext")
+	err = repoRoot.MkdirAll(staticExtDir, 0750)
+	must(err)
+
+	staticExtRoot, err := repoRoot.OpenRoot(staticExtDir)
 	must(err)
 
 	g, groupCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return existOrFetch(groupCtx, root,
+		return existOrFetch(groupCtx, staticExtRoot,
 			"bootstrap.min.css",
 			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css",
 			"sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr",
@@ -66,7 +66,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return existOrFetch(groupCtx, root,
+		return existOrFetch(groupCtx, staticExtRoot,
 			"bootstrap.bundle.min.js",
 			"https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js",
 			"sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q",
@@ -74,7 +74,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return existOrFetch(groupCtx, root,
+		return existOrFetch(groupCtx, staticExtRoot,
 			"jquery.min.js",
 			"https://code.jquery.com/jquery-3.7.1.min.js",
 			"sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=",
@@ -82,7 +82,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return existOrFetch(groupCtx, root,
+		return existOrFetch(groupCtx, staticExtRoot,
 			"dataTables.min.js",
 			"https://cdn.datatables.net/2.3.2/js/dataTables.min.js",
 			"sha384-RZEqG156bBQSxYY9lwjUz/nKVkqYj/QNK9dEjjyJ/EVTO7ndWwk6ZWEkvaKdRm/U",
@@ -90,7 +90,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return existOrFetch(groupCtx, root,
+		return existOrFetch(groupCtx, staticExtRoot,
 			"dataTables.bootstrap5.min.js",
 			"https://cdn.datatables.net/2.3.2/js/dataTables.bootstrap5.min.js",
 			"sha384-G85lmdZCo2WkHaZ8U1ZceHekzKcg37sFrs4St2+u/r2UtfvSDQmQrkMsEx4Cgv/W",
@@ -98,7 +98,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return existOrFetch(groupCtx, root,
+		return existOrFetch(groupCtx, staticExtRoot,
 			"dataTables.bootstrap5.min.css",
 			"https://cdn.datatables.net/2.3.2/css/dataTables.bootstrap5.min.css",
 			"sha384-e4/pU/7fdyaPKtXkqAgHNgoYAb2LNmChhpSuSp8o6saYtS2sP+JZsu8Wy/7mGV7w",

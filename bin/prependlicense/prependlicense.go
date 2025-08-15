@@ -97,14 +97,11 @@ func needsLicense(repo *os.Root, filename string) bool {
 
 func addLicense(repo *os.Root, filename string) {
 	// Read in the current version of the file.
-	f, err := repo.Open(filename)
+	contents, err := repo.ReadFile(filename)
 	must(err)
-	contents, err := io.ReadAll(f)
-	must(err)
-	must(f.Close())
 
-	// Re-open and truncate the file.
-	f, err = repo.Create(filename)
+	// Open and truncate the  file.
+	f, err := repo.Create(filename)
 	must(err)
 
 	// WriteResponse the header, then the original file contents.

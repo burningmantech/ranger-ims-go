@@ -178,7 +178,11 @@ export async function fetchNoThrow(url, init) {
         if (response.headers.get("content-type") === "application/json") {
             json = await response.json();
         }
-        else if ((response.headers.get("content-type") ?? "").startsWith("text/plain")) {
+        // TODO: clean this up post-2025 event. It broke attachment downloads for "text/plain" files
+        //  to await response.text() in those cases, because then `await response.blob()` would barf,
+        //  saying that the response body had already been read. I only really wanted to read the text
+        //  here when there was an error response anyway.
+        else if (response.status >= 400 && (response.headers.get("content-type") ?? "").startsWith("text/plain")) {
             text = await response.text();
         }
         return { resp: response, text: text, json: json, err: err };

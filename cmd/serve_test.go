@@ -38,15 +38,15 @@ func TestRunServer(t *testing.T) {
 	imsCfg.Store.Type = conf.DBStoreTypeFake
 
 	// * Start the server with a cancellable Context
-	// * Wait for the server to start listening (when addrChan responds)
+	// * Wait for the server to start listening (when startedChan responds)
 	// * Cancel the context, thus starting server shutdown
 	ctx, cancel := context.WithCancel(t.Context())
-	addrChan := make(chan string, 1)
+	startedChan := make(chan struct{}, 1)
 	go func() {
-		<-addrChan
+		<-startedChan
 		cancel()
 	}()
-	exitCode := runServerInternal(ctx, imsCfg, true, addrChan)
+	exitCode := runServerInternal(ctx, imsCfg, true, startedChan)
 	assert.Equal(t, 69, exitCode)
 }
 

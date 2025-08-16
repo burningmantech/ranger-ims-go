@@ -54,31 +54,54 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Launch the IMS server",
 	Long: "Launch the IMS server\n\n" +
-		"Configuration will be read from conf/imsd.toml, and can be overridden by environment variables.",
+		"Configuration will be read from .env, and can be overridden by environment variables.",
 	Run: runServer,
 }
 
 func runServer(cmd *cobra.Command, args []string) {
 	baseCfg := conf.DefaultIMS()
 	imsCfg := mustApplyEnvConfig(baseCfg, envFilename)
-	os.Exit(runServerInternal(context.Background(), imsCfg, printConfig, make(chan string, 1)))
+	// We don't actually use this chan outside tests, but it needs to be passed in
+	// as a dummy value.
+	started := make(chan struct{}, 1)
+	os.Exit(runServerInternal(context.Background(), imsCfg, printConfig, started))
 }
 
 // runServerInternal starts the IMS server and blocks until it is terminated.
 //
-// The supplied channel will be provided with the address of the server at the time when
-// the server is started and ready to accept connections.
+// The supplied channel will be written one time, at the point when
+// the server is started and ready to accept connections. That channel is
+// really only intended for testing usage.
 func runServerInternal(
 	ctx context.Context, unvalidatedCfg *conf.IMSConfig,
-	printConfig bool, listeningAddr chan<- string,
+	printConfig bool, started chan<- struct{},
 ) (exitCode int) {
+	server := mustStartServer(ctx, unvalidatedCfg, printConfig)
+	started <- struct{}{}
+
+	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	// The goroutine blocks here until the OS tells the process to shut down.
+	<-notifyCtx.Done()
+	stop()
+	slog.Error("Shutting down gracefully, press Ctrl+C again to force")
+
+	// Tell the server to shut down, giving it some time to do so gracefully.
+	// Don't parent this ctx on the notifyCtx, because the notifyCtx is already done.
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	err := server.Shutdown(timeoutCtx)
+	slog.Error("Server shut down", "err", err)
+	stop()
+	cancel()
+	return 69
+}
+
+// mustStartServer configures and starts the IMS server, returning once that server
+// is running and able to accept connections.
+func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printConfig bool) *http.Server {
 	must(unvalidatedCfg.Validate())
 	imsCfg := unvalidatedCfg
-
 	configureLogger(imsCfg)
-
 	tuneMemoryLimit("/sys/fs/cgroup/memory/memory.stat")
-
 	if printConfig {
 		cfgStr := imsCfg.PrintRedacted()
 		stderrPrintf("Here's the final redacted IMSConfig:\n\n%v\n\n", cfgStr)
@@ -100,8 +123,6 @@ func runServerInternal(
 	must(err)
 	imsDBQ := store.NewDBQ(imsDB, imsdb.New())
 	actionLogger := actionlog.NewLogger(ctx, imsDBQ, imsCfg.Core.ActionLogEnabled, false)
-
-	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
@@ -141,21 +162,7 @@ func runServerInternal(
 
 `)
 
-	listeningAddr <- addr
-	close(listeningAddr)
-	// The goroutine will block here until the NotifyContext is done
-	<-notifyCtx.Done()
-	stop()
-	slog.Error("Shutting down gracefully, press Ctrl+C again to force")
-
-	// Tell the server to shut down, giving it this much time to do so gracefully.
-	// Don't parent this ctx on the notifyCtx, because it's already done.
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	err = s.Shutdown(timeoutCtx)
-	slog.Error("Server shut down", "err", err)
-	stop()
-	cancel()
-	return 69
+	return s
 }
 
 // tuneMemoryLimit sets the Go memory limit to something reasonable, given the memory limit

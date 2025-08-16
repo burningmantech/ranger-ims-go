@@ -26,8 +26,9 @@ import (
 )
 
 // DefaultIMS is the base configuration used for the IMS server.
-// It gets overridden by values in conf/imsd.toml, then the result
-// of that gets overridden by environment variables.
+// It gets overridden by values in .env, if present, then the result
+// of that gets overridden by environment variables. See mustApplyEnvConfig
+// for all the environment variable names.
 func DefaultIMS() *IMSConfig {
 	return &IMSConfig{
 		Core: ConfigCore{

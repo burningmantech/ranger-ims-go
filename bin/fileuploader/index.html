@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <title>Message board uploader</title>
+</head>
+<body>
+<form action="/upload" method="post" enctype="multipart/form-data">
+    <p>Upload the PDF for the message boards</p>
+
+    <label for="upload-file">Name:</label>
+    <input id="upload-file" type="file" name="pdf-upload" accept="application/pdf" style="margin-bottom: 0.3rem;"><br />
+
+    <label for="secret">Secret:</label>
+    <input id="secret" name="secret" autocomplete="off" style="margin-bottom: 0.3rem;"><br />
+
+    <input type="submit" value="Submit">
+</form>
+</body>
+</html>

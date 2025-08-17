@@ -17,6 +17,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -140,6 +141,7 @@ func (action GetIncidentAttachment) getIncidentAttachment(
 var safeMediaTypes = []string{
 	"application/pdf",
 	"image/gif",
+	"image/heic",
 	"image/jpeg",
 	"image/png",
 	"image/webp",
@@ -488,6 +490,16 @@ func sniffFile(fi io.ReadSeeker) (contentType string, errHTTP *herr.HTTPError) {
 	// We'll detect the contentType and file extension, rather than trust any value from the client.
 	sniffedContentType := http.DetectContentType(head)
 
+	if sniffedContentType == "application/octet-stream" {
+		// Here's some hand-rolled handling for HEIC images, which don't yet have a standardized sniffing approach.
+		// HEIC images are popular though, because they're the default for photos from iPhones, so we want to give
+		// them a little bit better treatment than octet-stream.
+		// https://github.com/strukturag/libheif/issues/83#issuecomment-421427091
+		if len(head) > 12 && bytes.Equal(head[4:12], []byte("ftypheic")) {
+			sniffedContentType = "image/heic"
+		}
+	}
+
 	return sniffedContentType, nil
 }
 
@@ -503,6 +515,8 @@ func extensionByType(contentType string) string {
 	switch mediaType {
 	case "image/jpeg":
 		return ".jpg"
+	case "image/heic":
+		return ".heic"
 	case "text/html":
 		return ".html"
 	case "text/plain":

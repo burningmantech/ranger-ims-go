@@ -12,7 +12,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/launchdarkly/eventsource v1.10.0
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	golang.org/x/crypto v0.41.0
@@ -125,7 +125,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/afero v1.14.0 // indirect
 	github.com/spf13/cast v1.8.0 // indirect
-	github.com/spf13/pflag v1.0.7 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/sqlc-dev/sqlc v1.29.0 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/tdewolff/parse/v2 v2.8.1 // indirect

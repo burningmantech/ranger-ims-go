@@ -218,6 +218,7 @@ async function initIncidentsTable() {
         }
         ims.clearErrorMessage();
         incidentsTable.processing(false);
+        // maintain page location if user is not on page 1
         incidentsTable.draw("full-hold");
     };
 }

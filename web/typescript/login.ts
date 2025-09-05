@@ -21,6 +21,7 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         login: ()=>void;
+        toggleShowPassword: ()=>void;
     }
 }
 
@@ -32,11 +33,27 @@ initLoginPage();
 
 async function initLoginPage(): Promise<void> {
     await ims.commonPageInit();
+
+    window.login = login;
+    window.toggleShowPassword = toggleShowPassword;
+
     document.getElementById("login_form")!.addEventListener("submit", (e: SubmitEvent): void => {
         e.preventDefault();
         login();
     });
     document.getElementById("username_input")?.focus();
+}
+
+function toggleShowPassword(): void {
+    const showHideButt = document.getElementById("password_show_hide") as HTMLButtonElement;
+    const passwordInput = document.getElementById("password_input") as HTMLInputElement;
+    if (showHideButt.textContent === "Show") {
+        showHideButt.textContent = "Hide";
+        passwordInput.type = "text";
+    } else {
+        showHideButt.textContent = "Show";
+        passwordInput.type = "password";
+    }
 }
 
 async function login(): Promise<void> {

@@ -23,11 +23,25 @@ import * as ims from "./ims.js";
 initLoginPage();
 async function initLoginPage() {
     await ims.commonPageInit();
+    window.login = login;
+    window.toggleShowPassword = toggleShowPassword;
     document.getElementById("login_form").addEventListener("submit", (e) => {
         e.preventDefault();
         login();
     });
     document.getElementById("username_input")?.focus();
+}
+function toggleShowPassword() {
+    const showHideButt = document.getElementById("password_show_hide");
+    const passwordInput = document.getElementById("password_input");
+    if (showHideButt.textContent === "Show") {
+        showHideButt.textContent = "Hide";
+        passwordInput.type = "text";
+    }
+    else {
+        showHideButt.textContent = "Show";
+        passwordInput.type = "password";
+    }
 }
 async function login() {
     const username = document.getElementById("username_input").value;

@@ -276,7 +276,8 @@ async function initIncidentsTable(): Promise<void> {
         }
         ims.clearErrorMessage();
         incidentsTable!.processing(false);
-        incidentsTable!.draw();
+        // maintain page location if user is not on page 1
+        incidentsTable!.draw("full-hold");
     };
 }
 

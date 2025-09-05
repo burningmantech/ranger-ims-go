@@ -1557,7 +1557,7 @@ export type FetchRes<T> = {
 }
 
 interface DTAjax {
-    reload(): void;
+    reload(callback?: any, resetPaging?: boolean): void;
 }
 
 type DTData = Record<number, object>;
@@ -1568,7 +1568,7 @@ export interface DataTablesTable {
     data(): DTData;
     search: any;
     page: any;
-    draw(): unknown;
+    draw(paging?: boolean|"full-hold"|"full-reset"|"page"): unknown;
     ajax: DTAjax;
     processing(b: boolean): unknown;
 }

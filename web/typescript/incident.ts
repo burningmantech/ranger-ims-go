@@ -367,9 +367,12 @@ async function loadPersonnel(): Promise<{err: string|null}> {
         switch (record.status) {
             case "active":
             case "alpha":
+            case "inactive":
+            case "inactive extension":
             case "prospective":
                 _personnel[record.handle] = record;
                 break
+            case "auditor":
             default:
                 // Don't add this person to the personnel list.
                 break;

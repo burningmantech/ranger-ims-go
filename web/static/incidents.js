@@ -218,7 +218,7 @@ async function initIncidentsTable() {
         }
         ims.clearErrorMessage();
         incidentsTable.processing(false);
-        incidentsTable.draw();
+        incidentsTable.draw("full-hold");
     };
 }
 //

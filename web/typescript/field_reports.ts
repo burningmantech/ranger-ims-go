@@ -173,7 +173,9 @@ function initFieldReportsTable() {
         //  Field Reports for which they're not authorized, and those errors
         //  show up in the browser console. I'd like to find a way to avoid
         //  bringing those errors into the console constantly.
-        fieldReportsTable!.ajax.reload();
+
+        // maintain page location if user is not on page 1
+        fieldReportsTable!.ajax.reload(null, false);
         ims.clearErrorMessage();
     };
 }

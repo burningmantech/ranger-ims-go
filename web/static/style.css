@@ -65,6 +65,17 @@ h1, h2, h3, h4, h5, h6 {
   border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
 }
 
+.btn-xs {
+  font-size: var(--font-size-smaller);
+  --bs-btn-padding-y: 0.1rem;
+  --bs-btn-padding-x: 0.3rem;
+}
+
+.btn-xs {
+  font-size: var(--font-size-smaller);
+  border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+}
+
 .text-smaller {
   font-size: var(--font-size-smaller);
 }

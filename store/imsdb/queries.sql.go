@@ -110,8 +110,8 @@ func (q *Queries) AddActionLog(ctx context.Context, db DBTX, arg AddActionLogPar
 }
 
 const addEventAccess = `-- name: AddEventAccess :execlastid
-insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY)
-values (?, ?, ?, ?)
+insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY, EXPIRES)
+values (?, ?, ?, ?, ?)
 `
 
 type AddEventAccessParams struct {
@@ -119,6 +119,7 @@ type AddEventAccessParams struct {
 	Expression string
 	Mode       EventAccessMode
 	Validity   EventAccessValidity
+	Expires    sql.NullFloat64
 }
 
 func (q *Queries) AddEventAccess(ctx context.Context, db DBTX, arg AddEventAccessParams) (int64, error) {
@@ -127,6 +128,7 @@ func (q *Queries) AddEventAccess(ctx context.Context, db DBTX, arg AddEventAcces
 		arg.Expression,
 		arg.Mode,
 		arg.Validity,
+		arg.Expires,
 	)
 	if err != nil {
 		return 0, err
@@ -473,7 +475,7 @@ func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, db DBTX, a
 }
 
 const eventAccess = `-- name: EventAccess :many
-select ea.id, ea.event, ea.expression, ea.mode, ea.validity
+select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
 from EVENT_ACCESS ea
 where ea.EVENT = ?
 `
@@ -497,6 +499,7 @@ func (q *Queries) EventAccess(ctx context.Context, db DBTX, event int32) ([]Even
 			&i.EventAccess.Expression,
 			&i.EventAccess.Mode,
 			&i.EventAccess.Validity,
+			&i.EventAccess.Expires,
 		); err != nil {
 			return nil, err
 		}
@@ -512,7 +515,7 @@ func (q *Queries) EventAccess(ctx context.Context, db DBTX, event int32) ([]Even
 }
 
 const eventAccessAll = `-- name: EventAccessAll :many
-select ea.id, ea.event, ea.expression, ea.mode, ea.validity
+select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
 from EVENT_ACCESS ea
 `
 
@@ -535,6 +538,7 @@ func (q *Queries) EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAll
 			&i.EventAccess.Expression,
 			&i.EventAccess.Mode,
 			&i.EventAccess.Validity,
+			&i.EventAccess.Expires,
 		); err != nil {
 			return nil, err
 		}

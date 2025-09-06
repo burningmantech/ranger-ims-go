@@ -20,10 +20,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"slices"
 	"strings"
+	"time"
 )
 
 type Role string
@@ -178,6 +180,9 @@ func PersonMatches(
 	onsite bool,
 	onDutyPosition string,
 ) bool {
+	if ea.Expires.Valid && conv.FloatToTime(ea.Expires.Float64).Before(time.Now()) {
+		return false
+	}
 	matchExpr := false
 	if ea.Expression == "*" {
 		matchExpr = true

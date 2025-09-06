@@ -596,19 +596,13 @@ function drawStarted(): void {
     }
 
     const timeInput = document.getElementById("override_start_time") as HTMLInputElement;
-    const localTime =  localTimeHHMM(dateDate);
+    const localTime =  ims.localTimeHHMM(dateDate);
     if (timeInput.value !== localTime) {
         timeInput.value = localTime;
     }
 
     const tzInput = document.getElementById("override_start_tz") as HTMLSpanElement;
     tzInput.textContent = ims.localTzShortName(dateDate);
-}
-
-function localTimeHHMM(date: Date): string {
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
 }
 
 //
@@ -1062,26 +1056,15 @@ async function overrideStartDate(): Promise<void> {
     const tzValue = document.getElementById("override_start_tz")!.textContent??"";
 
     await ims.editFromElement(dateInput, "started", (_: string|null):string=> {
-        return newDateTimeVal(dateInput.value, timeInput.value, tzValue);
+        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzValue);
     });
-}
-
-function newDateTimeVal(dateInput: string, timeInput: string, localTz: string): string {
-    const val = `${dateInput.trim()} ${timeInput.trim()} ${localTz}`;
-    const date = new Date(val);
-    // Just do a check on the year to prevent obvious mistakes.
-    // This will break in year 2099. Feel free to update maximum year.
-    if (date.getFullYear() < 2000 || date.getFullYear() > 2099) {
-        throw new Error(`year seems incorrect: ${date.getFullYear()}`);
-    }
-    return date.toISOString();
 }
 
 async function overrideStartTime(): Promise<void> {
     const dateInput = document.getElementById("override_start_date") as HTMLInputElement;
     const timeInput = document.getElementById("override_start_time") as HTMLInputElement;
 
-    if (timeInput.value === localTimeHHMM(new Date(Date.parse(incident?.started??"")))) {
+    if (timeInput.value === ims.localTimeHHMM(new Date(Date.parse(incident?.started??"")))) {
         // nothing to do
         return;
     }
@@ -1089,7 +1072,7 @@ async function overrideStartTime(): Promise<void> {
     const tzValue = document.getElementById("override_start_tz")!.textContent??"";
 
     await ims.editFromElement(timeInput, "started", (_: string|null):string=> {
-        return newDateTimeVal(dateInput.value, timeInput.value, tzValue);
+        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzValue);
     });
 }
 

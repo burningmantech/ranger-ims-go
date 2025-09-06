@@ -18,9 +18,11 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -96,9 +98,20 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 		}
 		for _, accessRow := range accessRowByEventID[e.ID] {
 			access := accessRow
-			rule := imsjson.AccessRule{Expression: access.Expression, Validity: string(access.Validity)}
+			var expires time.Time
+			expired := false
+			if access.Expires.Valid {
+				expires = conv.FloatToTime(access.Expires.Float64)
+				expired = expires.Before(time.Now())
+			}
+			rule := imsjson.AccessRule{
+				Expression: access.Expression,
+				Validity:   string(access.Validity),
+				Expires:    expires,
+				Expired:    expired,
+			}
 
-			if access.Expression == "*" && access.Validity == imsdb.EventAccessValidityAlways {
+			if access.Expression == "*" && access.Validity == imsdb.EventAccessValidityAlways && !rule.Expired {
 				rule.DebugInfo.MatchesAllUsers = true
 			} else {
 				for _, person := range users {
@@ -223,12 +236,18 @@ func (action PostEventAccess) maybeSetAccess(
 		if err != nil {
 			return herr.InternalServerError("Failed to clear event access", err).From("[ClearEventAccessForExpression]")
 		}
+		var expires sql.NullFloat64
+		if !rule.Expires.IsZero() {
+			expires.Float64 = conv.TimeToFloat(rule.Expires)
+			expires.Valid = true
+		}
 		_, err = action.imsDBQ.AddEventAccess(ctx, txn,
 			imsdb.AddEventAccessParams{
 				Event:      event.ID,
 				Expression: rule.Expression,
 				Mode:       mode,
 				Validity:   imsdb.EventAccessValidity(rule.Validity),
+				Expires:    expires,
 			},
 		)
 		if err != nil {

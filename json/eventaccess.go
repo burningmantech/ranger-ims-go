@@ -16,11 +16,15 @@
 
 package json
 
+import "time"
+
 type EventsAccess map[string]EventAccess
 
 type AccessRule struct {
-	Expression string `json:"expression"`
-	Validity   string `json:"validity"`
+	Expression string    `json:"expression"`
+	Validity   string    `json:"validity"`
+	Expires    time.Time `json:"expires,omitzero"`
+	Expired    bool      `json:"expired,omitzero"`
 
 	DebugInfo struct {
 		MatchesUsers    []string `json:"matches_users,omitempty"`

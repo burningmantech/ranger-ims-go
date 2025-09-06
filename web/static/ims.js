@@ -235,6 +235,16 @@ function timeElement(date) {
     timeStampContainer.textContent = fullDateTime.format(date);
     return timeStampContainer;
 }
+export function newDateTimeVal(dateInput, timeInput, localTz) {
+    const val = `${dateInput.trim()} ${timeInput.trim()} ${localTz}`;
+    const date = new Date(val);
+    // Just do a check on the year to prevent obvious mistakes.
+    // This will break in year 2099. Feel free to update maximum year.
+    if (date.getFullYear() < 2000 || date.getFullYear() > 2099) {
+        throw new Error(`year seems incorrect: ${date.getFullYear()}`);
+    }
+    return date.toISOString();
+}
 // Disable an element
 function disable(elements) {
     for (const e of elements) {
@@ -656,6 +666,11 @@ export function localDateISO(d) {
     const month = (d.getMonth() + 1).toString().padStart(2, "0");
     const date = d.getDate().toString().padStart(2, "0");
     return `${year}-${month}-${date}`;
+}
+export function localTimeHHMM(date) {
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
 }
 export function renderDate(date, type, _incident) {
     const d = Date.parse(date);

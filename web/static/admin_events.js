@@ -29,6 +29,8 @@ async function initAdminEventsPage() {
         return;
     }
     window.setValidity = setValidity;
+    window.setExpires = setExpires;
+    window.showExpiresInput = showExpiresInput;
     window.addEvent = addEvent;
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
@@ -111,8 +113,15 @@ function updateEventAccess(event, mode) {
         const entryItem = _eventsEntryTemplate.cloneNode(true);
         entryItem.append(accessEntry.expression);
         entryItem.dataset["expression"] = accessEntry.expression;
+        entryItem.dataset["validity"] = accessEntry.validity;
+        entryItem.dataset["expires"] = accessEntry.expires ?? "";
+        entryItem.dataset["expired"] = accessEntry.expired ? "true" : "false";
         if (accessEntry.debug_info) {
-            let msg = `${accessEntry.expression} (${accessEntry.validity})\n`;
+            let expiredSuffix = "";
+            if (accessEntry.expired) {
+                expiredSuffix = " (Expired)";
+            }
+            let msg = `${accessEntry.expression} (${accessEntry.validity})${expiredSuffix}\n`;
             if (accessEntry.debug_info.matches_no_one) {
                 msg += `${indent}NO users`;
             }
@@ -127,6 +136,26 @@ function updateEventAccess(event, mode) {
         }
         const validityField = entryItem.getElementsByClassName("access_validity")[0];
         validityField.value = accessEntry.validity;
+        const expiresField = entryItem.getElementsByClassName("access_expires")[0];
+        const expiresButton = entryItem.getElementsByClassName("access_expires_button")[0];
+        if (accessEntry.expires) {
+            const d = new Date(accessEntry.expires);
+            expiresField.value = `${ims.localDateISO(d)}T${ims.localTimeHHMM(d)}`;
+            expiresField.classList.remove("hidden");
+            expiresButton.classList.add("hidden");
+        }
+        else {
+            expiresField.value = "";
+            expiresField.classList.add("hidden");
+            expiresButton.classList.remove("hidden");
+        }
+        const expiredText = entryItem.getElementsByClassName("access_expired_text")[0];
+        if (accessEntry.expired) {
+            expiredText.classList.remove("hidden");
+        }
+        else {
+            expiredText.classList.add("hidden");
+        }
         entryContainer.append(entryItem);
     }
     const explainButton = eventAccess.getElementsByClassName("explain_button")[0];
@@ -245,13 +274,16 @@ async function setValidity(sender) {
     const container = sender.closest(".event_access");
     const event = container.getElementsByClassName("event_name")[0].textContent;
     const mode = container.getElementsByClassName("access_mode")[0].textContent;
-    const expression = sender.closest("li").dataset["expression"].trim();
+    const accessRow = sender.closest("li");
+    const expression = accessRow.dataset["expression"].trim();
+    const expires = accessRow.dataset["expires"] || null;
     let acl = accessControlList[event][mode].slice();
     // remove other acls for this mode for the same expression
     acl = acl.filter((v) => { return v.expression !== expression; });
     const newVal = {
         "expression": expression,
         "validity": sender.value === "onsite" ? Validity.onsite : Validity.always,
+        "expires": expires,
     };
     acl.push(newVal);
     const edits = {};
@@ -267,6 +299,52 @@ async function setValidity(sender) {
         return;
     }
     sender.value = ""; // Clear input field
+}
+async function setExpires(sender) {
+    const container = sender.closest(".event_access");
+    const event = container.getElementsByClassName("event_name")[0].textContent;
+    const mode = container.getElementsByClassName("access_mode")[0].textContent;
+    const accessRow = sender.closest("li");
+    const expression = accessRow.dataset["expression"].trim();
+    const validity = accessRow.dataset["validity"].trim();
+    let acl = accessControlList[event][mode].slice();
+    // remove other acls for this mode for the same expression
+    acl = acl.filter((v) => { return v.expression !== expression; });
+    let expires = null;
+    if (sender.value) {
+        const dateAndTime = sender.value.replaceAll("T", " ");
+        const theDate = new Date(`${dateAndTime} ${ims.localTzShortName(new Date())}`);
+        expires = theDate.toISOString();
+        console.log(`Setting expiration to ${expires}`);
+    }
+    else {
+        console.log("Unsetting expiration");
+    }
+    const newVal = {
+        "expression": expression,
+        "validity": validity === "onsite" ? Validity.onsite : Validity.always,
+        "expires": expires,
+    };
+    acl.push(newVal);
+    const edits = {};
+    edits[event] = {};
+    edits[event][mode] = acl;
+    const { err } = await sendACL(edits);
+    await loadAccessControlList();
+    for (const mode of allAccessModes) {
+        updateEventAccess(event, mode);
+    }
+    if (err != null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    // sender.value = "";  // Clear input field
+}
+async function showExpiresInput(sender) {
+    const accessRow = sender.closest("li");
+    sender.classList.add("hidden");
+    const expiryField = accessRow.getElementsByClassName("access_expires")[0];
+    expiryField.classList.remove("hidden");
 }
 async function sendACL(edits) {
     const { err } = await ims.fetchNoThrow(url_acl, {

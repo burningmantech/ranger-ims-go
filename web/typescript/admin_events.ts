@@ -21,6 +21,8 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         setValidity: (el: HTMLSelectElement)=>Promise<void>;
+        setExpires: (el: HTMLInputElement) => Promise<void>;
+        showExpiresInput: (el: HTMLButtonElement) => Promise<void>;
         addAccess: (el: HTMLInputElement)=>Promise<void>;
         addEvent: (el: HTMLInputElement)=>Promise<void>;
         removeAccess: (el: HTMLButtonElement)=>Promise<void>;
@@ -43,6 +45,8 @@ async function initAdminEventsPage(): Promise<void> {
     }
 
     window.setValidity = setValidity;
+    window.setExpires = setExpires;
+    window.showExpiresInput = showExpiresInput;
     window.addEvent = addEvent;
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
@@ -64,6 +68,8 @@ enum Validity {
 interface Access {
     expression: string;
     validity: Validity;
+    expires?: string|null;
+    expired?: boolean|null;
     debug_info?: DebugInfo|null;
 }
 
@@ -163,9 +169,17 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
         entryItem.append(accessEntry.expression);
         entryItem.dataset["expression"] = accessEntry.expression;
+        entryItem.dataset["validity"] = accessEntry.validity;
+
+        entryItem.dataset["expires"] = accessEntry.expires??"";
+        entryItem.dataset["expired"] = accessEntry.expired ? "true" : "false";
 
         if (accessEntry.debug_info) {
-            let msg: string = `${accessEntry.expression} (${accessEntry.validity})\n`;
+            let expiredSuffix: string = "";
+            if (accessEntry.expired) {
+                expiredSuffix = " (Expired)"
+            }
+            let msg: string = `${accessEntry.expression} (${accessEntry.validity})${expiredSuffix}\n`;
             if (accessEntry.debug_info.matches_no_one) {
                 msg += `${indent}NO users`;
             } else if (accessEntry.debug_info.matches_all_users) {
@@ -179,6 +193,25 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
         const validityField = entryItem.getElementsByClassName("access_validity")[0] as HTMLSelectElement;
         validityField.value = accessEntry.validity;
+
+        const expiresField = entryItem.getElementsByClassName("access_expires")[0] as HTMLInputElement;
+        const expiresButton = entryItem.getElementsByClassName("access_expires_button")[0] as HTMLButtonElement;
+        if (accessEntry.expires) {
+            const d = new Date(accessEntry.expires);
+            expiresField.value = `${ims.localDateISO(d)}T${ims.localTimeHHMM(d)}`;
+            expiresField.classList.remove("hidden");
+            expiresButton.classList.add("hidden");
+        } else {
+            expiresField.value = "";
+            expiresField.classList.add("hidden");
+            expiresButton.classList.remove("hidden");
+        }
+        const expiredText = entryItem.getElementsByClassName("access_expired_text")[0] as HTMLSpanElement;
+        if (accessEntry.expired) {
+            expiredText.classList.remove("hidden");
+        } else {
+            expiredText.classList.add("hidden");
+        }
 
         entryContainer.append(entryItem);
     }
@@ -324,7 +357,10 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
     const event: string = container.getElementsByClassName("event_name")[0]!.textContent!;
     const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
-    const expression = sender.closest("li")!.dataset["expression"]!.trim();
+
+    const accessRow = sender.closest("li") as HTMLLIElement;
+    const expression = accessRow.dataset["expression"]!.trim();
+    const expires = accessRow.dataset["expires"]||null;
 
     let acl: Access[] = accessControlList![event]![mode]!.slice();
 
@@ -334,6 +370,7 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
     const newVal: Access = {
         "expression": expression,
         "validity": sender.value === "onsite" ? Validity.onsite : Validity.always,
+        "expires": expires,
     };
 
     acl.push(newVal);
@@ -354,6 +391,60 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
     sender.value = "";  // Clear input field
 }
 
+async function setExpires(sender: HTMLInputElement): Promise<void> {
+    const container: HTMLElement = sender.closest(".event_access")!;
+    const event: string = container.getElementsByClassName("event_name")[0]!.textContent!;
+    const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
+
+    const accessRow = sender.closest("li") as HTMLLIElement;
+    const expression = accessRow.dataset["expression"]!.trim();
+    const validity = accessRow.dataset["validity"]!.trim();
+
+    let acl: Access[] = accessControlList![event]![mode]!.slice();
+
+    // remove other acls for this mode for the same expression
+    acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
+
+    let expires: string|null = null;
+    if (sender.value) {
+        const dateAndTime = sender.value.replaceAll("T", " ");
+        const theDate = new Date(`${dateAndTime} ${ims.localTzShortName(new Date())}`);
+        expires = theDate.toISOString();
+        console.log(`Setting expiration to ${expires}`);
+    } else {
+        console.log("Unsetting expiration");
+    }
+
+    const newVal: Access = {
+        "expression": expression,
+        "validity": validity === "onsite" ? Validity.onsite : Validity.always,
+        "expires": expires,
+    };
+
+    acl.push(newVal);
+
+    const edits: EventsAccess = {};
+    edits[event] = {};
+    edits[event][mode] = acl;
+
+    const {err} = await sendACL(edits);
+    await loadAccessControlList();
+    for (const mode of allAccessModes) {
+        updateEventAccess(event, mode);
+    }
+    if (err != null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    // sender.value = "";  // Clear input field
+}
+
+async function showExpiresInput(sender: HTMLButtonElement): Promise<void> {
+    const accessRow = sender.closest("li") as HTMLLIElement;
+    sender.classList.add("hidden");
+    const expiryField = accessRow.getElementsByClassName("access_expires")[0] as HTMLInputElement;
+    expiryField.classList.remove("hidden");
+}
 
 async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {
     const {err} = await ims.fetchNoThrow(url_acl, {

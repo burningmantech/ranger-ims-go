@@ -67,9 +67,24 @@ templ AdminEvents(deployment, versionName, versionRef string) {
               <option value="always">Always</option>
               <option value="onsite">On-Site</option>
             </select>
-            <button class="badge btn btn-danger remove-badge float-end" onclick="removeAccess(this)">
+            <button class="badge btn btn-danger float-end ms-1" onclick="removeAccess(this)">
               X
             </button>
+            <input
+                class="access_expires hidden float-end"
+                type="datetime-local"
+                onblur="setExpires(this)"
+                title="Expiration time, in your browser's time zone"
+            />
+            <input
+                class="btn btn-xs btn-outline-secondary access_expires_button float-end"
+                type="button"
+                value="Set expiration"
+                onclick="showExpiresInput(this)"
+            />
+            <span class="access_expired_text float-end me-2 hidden">
+                <strong>Expired</strong>
+            </span>
           </li>
         </ul>
         <div class="card-footer">

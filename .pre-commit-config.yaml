@@ -2,7 +2,7 @@ ci:
   skip:
     - fetch-build-deps
     - golangci-lint-full
-    # - govulncheck
+    - govulncheck
     - prepend-license
     - go-fmt
     - go-mod-tidy
@@ -52,13 +52,12 @@ repos:
         language: system
         pass_filenames: false
 
-      # TODO: re-enable once there's a fix for https://github.com/moby/moby/security/advisories/GHSA-4vq8-7jfc-9cvp
-      # - id: govulncheck
-      #   name: govulncheck
-      #   entry: go tool govulncheck ./...
-      #   language: system
-      #   types_or: [ go, go-mod, go-sum ]
-      #   pass_filenames: false
+      - id: govulncheck
+        name: govulncheck
+        entry: go tool govulncheck ./...
+        language: system
+        types_or: [ go, go-mod, go-sum ]
+        pass_filenames: false
 
       - id: go-fmt
         name: go fmt

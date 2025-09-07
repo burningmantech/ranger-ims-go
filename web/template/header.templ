@@ -21,7 +21,9 @@ import "strings"
 templ Header(deployment string) {
 <header>
     if strings.ToLower(deployment) != "production" {
-        <div class="nonprod-warning text-center">Only add fake data here!<wbr /> This is {strings.ToLower(deployment)} IMS.</div>
+        <div class="nonprod-warning text-center" title="This environment is designed for testing or training, and permissions are generally open to all Rangers. Don't add anything to this IMS instance about real participants or pertaining to sensitive Ranger operational details.">
+        Only use fake data here!<wbr /> This is {strings.ToLower(deployment)}, not production.
+        </div>
     }
 </header>
 }

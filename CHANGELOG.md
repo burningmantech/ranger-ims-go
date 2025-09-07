@@ -17,16 +17,55 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 -->
 
-## 2025-06
+## 2025-09
+
+### Changed
+
+- Started including inactive Rangers in "add Rangers" options. This makes it possible to add a Ranger to an incident while they're on their first shift in years. https://github.com/burningmantech/ranger-ims-go/pull/382
 
 ### Added
 
-- Added link to #ranger-operations-center Slack channel from Incidents page in prod. https://github.com/burningmantech/ranger-ims-go/pull/296
+- Created access expirations, which allow permissions to expire at a provided time. https://github.com/burningmantech/ranger-ims-go/pull/389
+- Added a show/hide password button on the login screen. https://github.com/burningmantech/ranger-ims-go/pull/388
 
 ### Fixed
 
-- Restricted concurrent access to Argon2id code to stop AWS from killing the server. https://github.com/burningmantech/ranger-ims-go/issues/294 https://github.com/burningmantech/ranger-ims-go/pull/300 https://github.com/burningmantech/ranger-ims-go/pull/301
-- Fixed regular expression searching handling of literal " ". https://github.com/burningmantech/ranger-ims-go/pull/289
+- Stopped resetting pagination (to page 1) anytime an incident/field report SSE arrives. https://github.com/burningmantech/ranger-ims-go/pull/387
+- Disabled autocomplete on fields like "summary" for which autocomplete is annoying rather than useful. https://github.com/burningmantech/ranger-ims-go/pull/386
+
+## 2025-08
+
+### Changed
+
+- Upgraded to Go 1.25 and started using some new features (e.g. of os.Root).
+
+### Added
+
+- Created "multisearch", which makes it easier to query multiple events at once. https://github.com/burningmantech/ranger-ims-go/pull/351 https://github.com/burningmantech/ranger-ims-go/pull/352 https://github.com/burningmantech/ranger-ims-go/pull/354 https://github.com/burningmantech/ranger-ims-go/pull/356
+
+### Fixed
+
+- Started properly detecting HEIC image file attachments. https://github.com/burningmantech/ranger-ims-go/pull/367
+- Fixed handling of text/plain file attachments. https://github.com/burningmantech/ranger-ims-go/pull/364
+
+## 2025-07
+
+### Changed
+
+- Limited concurrent access to password validation code, since Argon2id (by design) uses a lot of memory, and we don't want IMS to grow too fast and get killed by Fargate. https://github.com/burningmantech/ranger-ims-go/pull/300 https://github.com/burningmantech/ranger-ims-go/pull/301
+
+### Added
+
+- Added a "password reset" link, which just redirects to Clubhouse prod/staging. https://github.com/burningmantech/ranger-ims-go/pull/337 https://github.com/burningmantech/ranger-ims-go/pull/344
+- Made modals on the event access page that show which Rangers have access via which rules. https://github.com/burningmantech/ranger-ims-go/pull/320 https://github.com/burningmantech/ranger-ims-go/pull/314
+- Started doing some tuning of the Go memory limit when IMS is running on AWS Fargate, to help ensure IMS stays below its allowed cgroup limit. https://github.com/burningmantech/ranger-ims-go/pull/310 https://github.com/burningmantech/ranger-ims-go/pull/309 https://github.com/burningmantech/ranger-ims-go/pull/308 https://github.com/burningmantech/ranger-ims-go/pull/307 https://github.com/burningmantech/ranger-ims-go/pull/306 https://github.com/burningmantech/ranger-ims-go/pull/305 https://github.com/burningmantech/ranger-ims-go/pull/304
+- Added a ROC chat Slack link to the Incidents page in production. https://github.com/burningmantech/ranger-ims-go/pull/296
+
+### Fixed
+
+- Improved print display a bit, by forcing the site into light mode for printing. https://github.com/burningmantech/ranger-ims-go/pull/322
+- Made regexp searches involving spaces work properly. https://github.com/burningmantech/ranger-ims-go/pull/289
+- Made changes to Cloudflare CDN caching instructions, mostly so that Cloudflare doesn't cache our JS excessively long.
 
 ## 2025-06
 
@@ -45,6 +84,7 @@ Each month below should look like the following, using the same ordering for the
 - Allowed permissions based on the current position for which a person is on-duty. https://github.com/burningmantech/ranger-ims-go/pull/258
 - Added Incident Type descriptions as a concept. Admins can set the descriptions, and users can view the descriptions via popup on the Incident page. https://github.com/burningmantech/ranger-ims-go/pull/241
 - Added admin debugging pages to the server.
+- Added link to #ranger-operations-center Slack channel from Incidents page in prod. https://github.com/burningmantech/ranger-ims-go/pull/296
 
 ### Removed
 
@@ -56,7 +96,10 @@ Each month below should look like the following, using the same ordering for the
 - Resolved DB contention problem with development in-process MySQL. https://github.com/burningmantech/ranger-ims-go/pull/282
 - Fixed remote address logging. https://github.com/burningmantech/ranger-ims-go/pull/276
 - Made keyboard shortcuts work in more cases. https://github.com/burningmantech/ranger-ims-go/pull/264
-- Stopped padding radial hour numbers, allowing for simpler data entry (e.g. highlght field, press "5" to select 5, rather than needing to press "0" then "5"). https://github.com/burningmantech/ranger-ims-go/pull/255
+- Stopped padding radial hour numbers, allowing for simpler data entry (e.g. highlight field, press "5" to select 5, rather than needing to press "0" then "5"). https://github.com/burningmantech/ranger-ims-go/pull/255
+- Restricted concurrent access to Argon2id code to stop AWS from killing the server. https://github.com/burningmantech/ranger-ims-go/issues/294 https://github.com/burningmantech/ranger-ims-go/pull/300 https://github.com/burningmantech/ranger-ims-go/pull/301
+- Fixed regular expression searching handling of literal " ". https://github.com/burningmantech/ranger-ims-go/pull/289
+- Corrected how we figure out a remote caller's IP address. https://github.com/burningmantech/ranger-ims-go/pull/276
 
 ## 2025-05
 

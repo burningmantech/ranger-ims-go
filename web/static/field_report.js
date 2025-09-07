@@ -231,12 +231,7 @@ function drawSummary() {
         summaryInput.placeholder = "";
         return;
     }
-    summaryInput.value = "";
-    const summarized = ims.summarizeIncidentOrFR(fieldReport);
-    if (summarized) {
-        // only replace the placeholder if it would be nonempty
-        summaryInput.placeholder = summarized;
-    }
+    summaryInput.value = ims.summarizeIncidentOrFR(fieldReport);
 }
 //
 // Editing

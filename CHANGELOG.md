@@ -22,6 +22,7 @@ Each month below should look like the following, using the same ordering for the
 ### Changed
 
 - Started including inactive Rangers in "add Rangers" options. This makes it possible to add a Ranger to an incident while they're on their first shift in years. https://github.com/burningmantech/ranger-ims-go/pull/382
+- Began populating summary values from the first report entry. Previously we just populated the placeholder. This makes it easier for a user to modify that value, rather than just start from scratch. https://github.com/burningmantech/ranger-ims-go/pull/397
 
 ### Added
 

@@ -499,12 +499,7 @@ function drawIncidentSummary() {
         summaryElement.placeholder = "";
         return;
     }
-    summaryElement.value = "";
-    const summarized = ims.summarizeIncidentOrFR(incident);
-    // only replace the placeholder if it would be nonempty
-    if (summarized) {
-        summaryElement.placeholder = summarized;
-    }
+    summaryElement.value = ims.summarizeIncidentOrFR(incident);
 }
 //
 // Populate Rangers list

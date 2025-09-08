@@ -66,7 +66,7 @@ func Header(deployment string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if strings.ToLower(deployment) != "production" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"nonprod-warning text-center\" title=\"This environment is designed for testing or training, and permissions are generally open to all Rangers. Don't add anything here about real participants or pertaining to sensitive Ranger operational details.\">Only use fake data here!<wbr> This is ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"nonprod-warning text-center\" title=\"This environment is designed for testing or training, and permissions are generally open to all Rangers. Don't add anything to this IMS instance about real participants or pertaining to sensitive Ranger operational details.\">Only use fake data here!<wbr> This is ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

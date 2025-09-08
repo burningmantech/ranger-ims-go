@@ -150,34 +150,39 @@ function initFieldReportsTable() {
         ims.enableEditing();
     }
 
-    ims.requestEventSourceLock();
+    // Wait until the table is initialized before starting to listen for updates.
+    // https://github.com/burningmantech/ranger-ims-go/issues/399
+    fieldReportsTable!.on("init", function (): void {
+        console.log("Table initialized. Requesting EventSource lock");
+        ims.requestEventSourceLock();
 
-    ims.newFieldReportChannel().onmessage = function (e: MessageEvent<ims.FieldReportBroadcast>): void {
-        if (e.data.update_all) {
-            console.log("Reloading the whole table to be cautious, as an SSE was missed");
-            fieldReportsTable!.ajax.reload();
+        ims.newFieldReportChannel().onmessage = function (e: MessageEvent<ims.FieldReportBroadcast>): void {
+            if (e.data.update_all) {
+                console.log("Reloading the whole table to be cautious, as an SSE was missed");
+                fieldReportsTable!.ajax.reload();
+                ims.clearErrorMessage();
+                return;
+            }
+
+            const number = e.data.field_report_number;
+            const event = e.data.event_name;
+            if (event !== ims.pathIds.eventID) {
+                return;
+            }
+            console.log("Got field report update: " + number);
+            // TODO(issue/1498): this reloads the entire Field Report table on any
+            //  update to any Field Report. That's not ideal. The thing of which
+            //  to be mindful when GETting a particular single Field Report is that
+            //  limited access users will receive errors when they try to access
+            //  Field Reports for which they're not authorized, and those errors
+            //  show up in the browser console. I'd like to find a way to avoid
+            //  bringing those errors into the console constantly.
+
+            // maintain page location if user is not on page 1
+            fieldReportsTable!.ajax.reload(null, false);
             ims.clearErrorMessage();
-            return;
-        }
-
-        const number = e.data.field_report_number;
-        const event = e.data.event_name;
-        if (event !== ims.pathIds.eventID) {
-            return;
-        }
-        console.log("Got field report update: " + number);
-        // TODO(issue/1498): this reloads the entire Field Report table on any
-        //  update to any Field Report. That's not ideal. The thing of which
-        //  to be mindful when GETting a particular single Field Report is that
-        //  limited access users will receive errors when they try to access
-        //  Field Reports for which they're not authorized, and those errors
-        //  show up in the browser console. I'd like to find a way to avoid
-        //  bringing those errors into the console constantly.
-
-        // maintain page location if user is not on page 1
-        fieldReportsTable!.ajax.reload(null, false);
-        ims.clearErrorMessage();
-    };
+        };
+    });
 }
 
 declare let DataTable: any;

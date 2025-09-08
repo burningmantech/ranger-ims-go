@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
 
@@ -69,7 +69,7 @@ jobs:
         run: go run bin/fetchbuilddeps/fetchbuilddeps.go
 
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -113,7 +113,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
 
@@ -258,7 +258,7 @@ jobs:
         run: gzip --uncompress --stdout docker_image.tgz | docker image load
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE }}

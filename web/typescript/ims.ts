@@ -1579,6 +1579,7 @@ interface DTAjax {
 type DTData = Record<number, object>;
 
 export interface DataTablesTable {
+    on(event: string, callback: (jqueryEvent: object, dtSettings: object, json: object) => void): unknown;
     row: any;
     rows: any;
     data(): DTData;

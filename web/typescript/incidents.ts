@@ -231,54 +231,59 @@ async function initIncidentsTable(): Promise<void> {
         ims.disableEditing();
     }
 
-    ims.requestEventSourceLock();
+    // Wait until the table is initialized before starting to listen for updates.
+    // https://github.com/burningmantech/ranger-ims-go/issues/399
+    incidentsTable!.on("init", function (): void {
+        console.log("Table initialized. Requesting EventSource lock");
+        ims.requestEventSourceLock();
 
-    ims.newIncidentChannel().onmessage = async function (e: MessageEvent<ims.IncidentBroadcast>): Promise<void> {
-        if (e.data.update_all) {
-            console.log("Reloading the whole table to be cautious, as an SSE was missed");
-            incidentsTable!.ajax.reload();
-            ims.clearErrorMessage();
-            return;
-        }
-
-        const number = e.data.incident_number!;
-        const event = e.data.event_name!;
-        if (event !== ims.pathIds.eventID) {
-            return;
-        }
-
-        const {json, err} = await ims.fetchNoThrow(
-            ims.urlReplace(url_incidentNumber).replace("<incident_number>", number.toString()),
-            null,
-        );
-        if (err != null) {
-            const message = `Failed to update Incident ${number}: ${err}`;
-            console.error(message);
-            ims.setErrorMessage(message);
-            return;
-        }
-        // Now update/create the relevant row. This is a change from pre-2025, in that
-        // we no longer reload all incidents here on any single incident update.
-        let done = false;
-        incidentsTable!.rows().every( function () {
-            // @ts-expect-error use of "this" for DataTables
-            const existingIncident = this.data();
-            if (existingIncident.number === number) {
-                console.log("Updating Incident " + number);
-                // @ts-expect-error use of "this" for DataTables
-                this.data(json);
-                done = true;
+        ims.newIncidentChannel().onmessage = async function (e: MessageEvent<ims.IncidentBroadcast>): Promise<void> {
+            if (e.data.update_all) {
+                console.log("Reloading the whole table to be cautious, as an SSE was missed");
+                incidentsTable!.ajax.reload();
+                ims.clearErrorMessage();
+                return;
             }
-        });
-        if (!done) {
-            console.log("Loading new Incident " + number);
-            incidentsTable!.row.add(json);
-        }
-        ims.clearErrorMessage();
-        incidentsTable!.processing(false);
-        // maintain page location if user is not on page 1
-        incidentsTable!.draw("full-hold");
-    };
+
+            const number = e.data.incident_number!;
+            const event = e.data.event_name!;
+            if (event !== ims.pathIds.eventID) {
+                return;
+            }
+
+            const {json, err} = await ims.fetchNoThrow(
+                ims.urlReplace(url_incidentNumber).replace("<incident_number>", number.toString()),
+                null,
+            );
+            if (err != null) {
+                const message = `Failed to update Incident ${number}: ${err}`;
+                console.error(message);
+                ims.setErrorMessage(message);
+                return;
+            }
+            // Now update/create the relevant row. This is a change from pre-2025, in that
+            // we no longer reload all incidents here on any single incident update.
+            let done = false;
+            incidentsTable!.rows().every(function () {
+                // @ts-expect-error use of "this" for DataTables
+                const existingIncident = this.data();
+                if (existingIncident.number === number) {
+                    console.log("Updating Incident " + number);
+                    // @ts-expect-error use of "this" for DataTables
+                    this.data(json);
+                    done = true;
+                }
+            });
+            if (!done) {
+                console.log("Loading new Incident " + number);
+                incidentsTable!.row.add(json);
+            }
+            ims.clearErrorMessage();
+            incidentsTable!.processing(false);
+            // maintain page location if user is not on page 1
+            incidentsTable!.draw("full-hold");
+        };
+    });
 }
 
 declare let DataTable: any;

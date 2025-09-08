@@ -98,16 +98,13 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 		}
 		for _, accessRow := range accessRowByEventID[e.ID] {
 			access := accessRow
-			var expires time.Time
-			expired := false
-			if access.Expires.Valid {
-				expires = conv.FloatToTime(access.Expires.Float64)
-				expired = expires.Before(time.Now())
-			}
+
+			expires := conv.NullFloatToTime(access.Expires)
+			expired := access.Expires.Valid && expires.Before(time.Now())
 			rule := imsjson.AccessRule{
 				Expression: access.Expression,
 				Validity:   string(access.Validity),
-				Expires:    expires,
+				Expires:    conv.NullFloatToTime(access.Expires),
 				Expired:    expired,
 			}
 

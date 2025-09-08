@@ -198,6 +198,7 @@ func incidentToJSON(
 		LastModified: lastModified,
 		State:        string(storedRow.Incident.State),
 		Started:      conv.FloatToTime(storedRow.Incident.Started),
+		Closed:       conv.NullFloatToTime(storedRow.Incident.Closed),
 		Priority:     storedRow.Incident.Priority,
 		Summary:      conv.SqlToString(storedRow.Incident.Summary),
 		Location: imsjson.Location{
@@ -414,6 +415,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		Priority:             storedIncident.Priority,
 		State:                storedIncident.State,
 		Started:              storedIncident.Started,
+		Closed:               storedIncident.Closed,
 		Summary:              storedIncident.Summary,
 		LocationName:         storedIncident.LocationName,
 		LocationConcentric:   storedIncident.LocationConcentric,
@@ -428,9 +430,14 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		update.Priority = newIncident.Priority
 		logs = append(logs, fmt.Sprintf("Changed priority: %v", update.Priority))
 	}
-	if imsdb.IncidentState(newIncident.State).Valid() {
-		update.State = imsdb.IncidentState(newIncident.State)
+	if newState := imsdb.IncidentState(newIncident.State); newState.Valid() {
+		update.State = newState
 		logs = append(logs, fmt.Sprintf("Changed state: %v", update.State))
+		if newState == imsdb.IncidentStateClosed {
+			update.Closed = conv.TimeToNullFloat(time.Now())
+		} else {
+			update.Closed = sql.NullFloat64{}
+		}
 	}
 	if !newIncident.Started.IsZero() {
 		update.Started = conv.TimeToFloat(newIncident.Started)

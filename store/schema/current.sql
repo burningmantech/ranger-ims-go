@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (20);
+insert into SCHEMA_INFO (VERSION) values (21);
 
 
 create table `EVENT` (
@@ -69,6 +69,7 @@ create table INCIDENT (
     -- STARTED is the time the INCIDENT began. This field is mutable, and its initial
     -- value will usually be the same as CREATED.
     STARTED  double not null,
+    CLOSED   double,
 
     SUMMARY varchar(1024),
     LOCATION_NAME          varchar(1024),

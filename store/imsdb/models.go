@@ -253,6 +253,7 @@ type Incident struct {
 	Priority             int8
 	State                IncidentState
 	Started              float64
+	Closed               sql.NullFloat64
 	Summary              sql.NullString
 	LocationName         sql.NullString
 	LocationConcentric   sql.NullString

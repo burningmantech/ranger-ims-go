@@ -51,6 +51,7 @@ update INCIDENT set
     PRIORITY = ?,
     STATE = ?,
     STARTED = ?,
+    CLOSED = ?,
     SUMMARY = ?,
     LOCATION_NAME = ?,
     LOCATION_CONCENTRIC = ?,

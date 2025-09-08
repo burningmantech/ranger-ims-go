@@ -120,6 +120,23 @@ func TimeToFloat(t time.Time) float64 {
 	return decimalPart + float64(t.Unix())
 }
 
+func NullFloatToTime(f sql.NullFloat64) time.Time {
+	if !f.Valid {
+		return time.Time{}
+	}
+	return FloatToTime(f.Float64)
+}
+
+func TimeToNullFloat(t time.Time) sql.NullFloat64 {
+	if t.IsZero() {
+		return sql.NullFloat64{}
+	}
+	return sql.NullFloat64{
+		Valid:   true,
+		Float64: TimeToFloat(t),
+	}
+}
+
 func EmptyToNil(s string) *string {
 	if s == "" {
 		return nil

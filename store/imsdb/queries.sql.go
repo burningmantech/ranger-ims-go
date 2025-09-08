@@ -765,7 +765,7 @@ func (q *Queries) FieldReports_ReportEntries(ctx context.Context, db DBTX, arg F
 
 const incident = `-- name: Incident :one
 select
-    i.event, i.number, i.created, i.priority, i.state, i.started, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -811,6 +811,7 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.Priority,
 		&i.Incident.State,
 		&i.Incident.Started,
+		&i.Incident.Closed,
 		&i.Incident.Summary,
 		&i.Incident.LocationName,
 		&i.Incident.LocationConcentric,
@@ -942,7 +943,7 @@ func (q *Queries) Incident_ReportEntries(ctx context.Context, db DBTX, arg Incid
 
 const incidents = `-- name: Incidents :many
 select
-    i.event, i.number, i.created, i.priority, i.state, i.started, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -992,6 +993,7 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.Priority,
 			&i.Incident.State,
 			&i.Incident.Started,
+			&i.Incident.Closed,
 			&i.Incident.Summary,
 			&i.Incident.LocationName,
 			&i.Incident.LocationConcentric,
@@ -1226,6 +1228,7 @@ update INCIDENT set
     PRIORITY = ?,
     STATE = ?,
     STARTED = ?,
+    CLOSED = ?,
     SUMMARY = ?,
     LOCATION_NAME = ?,
     LOCATION_CONCENTRIC = ?,
@@ -1241,6 +1244,7 @@ type UpdateIncidentParams struct {
 	Priority             int8
 	State                IncidentState
 	Started              float64
+	Closed               sql.NullFloat64
 	Summary              sql.NullString
 	LocationName         sql.NullString
 	LocationConcentric   sql.NullString
@@ -1256,6 +1260,7 @@ func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateInciden
 		arg.Priority,
 		arg.State,
 		arg.Started,
+		arg.Closed,
 		arg.Summary,
 		arg.LocationName,
 		arg.LocationConcentric,

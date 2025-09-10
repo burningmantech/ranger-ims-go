@@ -1033,11 +1033,11 @@ async function attachFile() {
     }
     const attachURL = ims.urlReplace(url_incidentAttachments)
         .replace("<incident_number>", (ims.pathIds.incidentNumber ?? "").toString());
-    const { text, err } = await ims.fetchNoThrow(attachURL, {
+    const { err } = await ims.fetchNoThrow(attachURL, {
         body: formData
     });
     if (err != null) {
-        const message = `Failed to attach file. ${text}`;
+        const message = `Failed to attach file: ${err}`;
         ims.setErrorMessage(message);
         return;
     }

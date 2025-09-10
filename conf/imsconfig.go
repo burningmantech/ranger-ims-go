@@ -41,7 +41,7 @@ func DefaultIMS() *IMSConfig {
 			RefreshTokenLifetime: 8 * time.Hour,
 			CacheControlShort:    20 * time.Minute,
 			CacheControlLong:     2 * time.Hour,
-			MaxRequestBytes:      100 << 20,
+			MaxRequestBytes:      20 * 1024 * 1024,
 			ActionLogEnabled:     true,
 		},
 		Store: DBStore{

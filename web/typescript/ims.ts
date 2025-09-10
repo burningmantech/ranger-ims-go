@@ -143,6 +143,8 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
         init = {};
     }
     init.headers = new Headers(init.headers);
+    // This is kind of a lie. Not all fetches in IMS expect to get JSON.
+    // Can/should this just be removed?
     init.headers.set("Accept", "application/json");
     const tok = getAccessToken();
     if (tok) {
@@ -162,15 +164,6 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
                     size += v.length;
                 }
             }
-            // Large file uploads are a problem, since the server locks up the Reactor thread
-            // until the file is done uploading. Also, a large enough upload (multi-gig) can
-            // cause the server to consume all the memory on the system and require a manual
-            // restart. Yuck.
-            if (size > 20 * 1024 * 1024) {
-                return {resp: null, text: null, json: null, err: "Please keep data uploads small, " +
-                        "ideally under 10 MB"};
-            }
-
             // don't JSONify, don't set a Content-Type (fetch does it automatically for FormData)
         } else {
             // otherwise assume body is supposed to be json
@@ -186,26 +179,18 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
         response = await fetch(url, init);
         if (!response.ok) {
             err = `${response.statusText} (${response.status})`;
+            if (response.headers.get("content-type") === "application/problem+json") {
+                let problem: Problem = await response.json();
+                err = `${problem.detail??""} (HTTP ${response.status})`;
+            }
         }
         let json: T|null = null;
-        let text: string|null = null;
         if (response.headers.get("content-type") === "application/json") {
             json = await response.json();
-        } else if (response.headers.get("content-type") === "application/problem+json") {
-            let problem: Problem = await response.json();
-            err = problem.detail??"No details provided";
-            console.log(new Date(problem.timestamp!));
         }
-        // TODO: clean this up post-2025 event. It broke attachment downloads for "text/plain" files
-        //  to await response.text() in those cases, because then `await response.blob()` would barf,
-        //  saying that the response body had already been read. I only really wanted to read the text
-        //  here when there was an error response anyway.
-        else if (response.status >= 400 && (response.headers.get("content-type")??"").startsWith("text/plain")) {
-            text = await response.text();
-        }
-        return {resp: response, text: text, json: json, err: err};
+        return {resp: response, json: json, err: err};
     } catch (err: any) {
-        return {resp: response, text: null, json: null, err: err.message};
+        return {resp: response, json: null, err: err.message};
     }
 }
 
@@ -953,9 +938,9 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         const downloadButt: HTMLButtonElement = createSvgTextButton("#download", "Download");
         downloadButt.onclick = async (e: MouseEvent): Promise<void> => {
             e.preventDefault();
-            const {resp, text, err} = await fetchNoThrow(url, {});
+            const {resp, err} = await fetchNoThrow(url, {});
             if (err != null || resp == null) {
-                setErrorMessage(`Failed to fetch attachment. ${text}`);
+                setErrorMessage(`Failed to fetch attachment. ${err}`);
                 return;
             }
             const blobUrl: string = window.URL.createObjectURL(await resp.blob());
@@ -978,9 +963,9 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             // the Authorization header.
             previewButt.onclick = async (e: MouseEvent): Promise<void> => {
                 e.preventDefault();
-                const {resp, text, err} = await fetchNoThrow(url, {});
+                const {resp, err} = await fetchNoThrow(url, {});
                 if (err != null || resp == null) {
-                    setErrorMessage(`Failed to fetch attachment. ${text}`);
+                    setErrorMessage(`Failed to fetch attachment. ${err}`);
                     return;
                 }
                 const blobUrl: string = window.URL.createObjectURL(await resp.blob());
@@ -1571,7 +1556,6 @@ interface EditMap {
 
 export type FetchRes<T> = {
     resp: Response|null;
-    text: string|null;
     json: T|null;
     err: string|null;
 }

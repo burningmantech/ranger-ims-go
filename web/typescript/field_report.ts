@@ -432,11 +432,11 @@ async function attachFile(): Promise<void> {
 
     const attachURL = ims.urlReplace(url_fieldReportAttachments)
         .replace("<field_report_number>", (ims.pathIds.fieldReportNumber??"").toString());
-    const {text, err} = await ims.fetchNoThrow(attachURL, {
+    const {err} = await ims.fetchNoThrow(attachURL, {
         body: formData
     });
     if (err != null) {
-        const message = `Failed to attach file. ${text}`;
+        const message = `Failed to attach file: ${err}`;
         ims.setErrorMessage(message);
         return;
     }

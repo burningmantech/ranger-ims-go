@@ -178,6 +178,11 @@ export async function fetchNoThrow(url, init) {
         if (response.headers.get("content-type") === "application/json") {
             json = await response.json();
         }
+        else if (response.headers.get("content-type") === "application/problem+json") {
+            let problem = await response.json();
+            err = problem.detail ?? "No details provided";
+            console.log(new Date(problem.timestamp));
+        }
         // TODO: clean this up post-2025 event. It broke attachment downloads for "text/plain" files
         //  to await response.text() in those cases, because then `await response.blob()` would barf,
         //  saying that the response body had already been read. I only really wanted to read the text

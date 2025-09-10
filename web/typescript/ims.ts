@@ -191,6 +191,10 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
         let text: string|null = null;
         if (response.headers.get("content-type") === "application/json") {
             json = await response.json();
+        } else if (response.headers.get("content-type") === "application/problem+json") {
+            let problem: Problem = await response.json();
+            err = problem.detail??"No details provided";
+            console.log(new Date(problem.timestamp!));
         }
         // TODO: clean this up post-2025 event. It broke attachment downloads for "text/plain" files
         //  to await response.text() in those cases, because then `await response.blob()` would barf,
@@ -1570,6 +1574,15 @@ export type FetchRes<T> = {
     text: string|null;
     json: T|null;
     err: string|null;
+}
+
+export interface Problem {
+    type?: string|null;
+    title?: string|null;
+    status?: number|null;
+    detail?: string|null;
+    instance?: string|null;
+    timestamp?: string|null;
 }
 
 interface DTAjax {

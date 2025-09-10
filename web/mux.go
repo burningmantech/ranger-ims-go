@@ -21,6 +21,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/web/template"
 	"log/slog"
 	"net/http"
@@ -205,7 +206,7 @@ func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, adapters .
 			err := comp.Render(req.Context(), w)
 			if err != nil {
 				slog.Error("Failed to render template", "error", err)
-				http.Error(w, "Failed to parse template", http.StatusInternalServerError)
+				herr.InternalServerError("Failed to parse template", err).From("[Render]").WriteResponse(w)
 				return
 			}
 		},

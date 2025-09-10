@@ -97,7 +97,7 @@ func (action EditIncidentTypes) ServeHTTP(w http.ResponseWriter, req *http.Reque
 	if newID != nil {
 		w.Header().Set("IMS-Incident-Type-ID", strconv.Itoa(int(*newID)))
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Success")
 }
 func (action EditIncidentTypes) editIncidentTypes(req *http.Request) (newTypeID *int32, errHTTP *herr.HTTPError) {
 	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)

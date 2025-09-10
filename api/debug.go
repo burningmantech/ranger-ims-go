@@ -62,7 +62,7 @@ func (action GetBuildInfo) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	serverTimeInfo := fmt.Sprintf("Server started at: %v\nUptime: %v\n\n", serverStartTime, time.Since(serverStartTime))
 	finalRespText := serverTimeInfo + bi.String()
 	w.Header().Set("Cache-Control", "no-cache")
-	http.Error(w, finalRespText, http.StatusOK)
+	herr.WriteOKResponse(w, finalRespText)
 }
 
 func (action GetBuildInfo) getBuildInfo(req *http.Request) (debug.BuildInfo, *herr.HTTPError) {
@@ -96,7 +96,7 @@ func (action GetRuntimeMetrics) ServeHTTP(w http.ResponseWriter, req *http.Reque
 		return
 	}
 	w.Header().Set("Cache-Control", "no-cache")
-	http.Error(w, metricsString, http.StatusOK)
+	herr.WriteOKResponse(w, metricsString)
 }
 
 func (action GetRuntimeMetrics) getRuntimeMetrics(req *http.Request) (string, *herr.HTTPError) {
@@ -174,7 +174,7 @@ func (action PerformGC) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[performGC]").WriteResponse(w)
 		return
 	}
-	http.Error(w, fmt.Sprintf("Performed GC at %v", time.Now().Truncate(time.Millisecond)), http.StatusOK)
+	herr.WriteOKResponse(w, fmt.Sprintf("Performed GC at %v", time.Now().Truncate(time.Millisecond)))
 }
 
 func (action PerformGC) performGC(req *http.Request) *herr.HTTPError {

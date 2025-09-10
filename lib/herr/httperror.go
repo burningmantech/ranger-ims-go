@@ -17,17 +17,25 @@
 package herr
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 )
+
+// ApplicationProblemMediaType is described by RFC 9457.
+// https://www.rfc-editor.org/rfc/rfc9457.html
+const ApplicationProblemMediaType = "application/problem+json"
 
 type HTTPError struct {
 	Code            int
 	ResponseMessage string
 	InternalErr     error
-	ExpectedError   bool
+	// ExpectedError indicates that this error should happen in normal operation.
+	// It's just used to tell IMS not to bother logging this error.
+	ExpectedError bool
 }
 
 func (e *HTTPError) Error() string {
@@ -106,7 +114,23 @@ func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
 			"internalError", e.InternalErr,
 		)
 	}
-	http.Error(w, e.ResponseMessage, e.Code)
+
+	p := Problem{
+		Status:    e.Code,
+		Detail:    e.ResponseMessage,
+		Timestamp: time.Now().UTC(),
+	}
+
+	// Write headers, write status, write body
+	w.Header().Set("Content-Type", ApplicationProblemMediaType)
+	w.WriteHeader(e.Code)
+
+	marshalled, err := json.Marshal(p)
+	if err != nil {
+		slog.Error("Failed to marshal problem response", "err", err)
+		marshalled = []byte(`{"detail":"Failed to marshal problem response"}`)
+	}
+	_, _ = w.Write(marshalled)
 }
 
 // AsHTTPError converts an error into an HTTPError. The intended use is for

@@ -17,11 +17,15 @@
 package herr
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"testing/synctest"
+	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -64,13 +68,34 @@ func TestSrcWrap(t *testing.T) {
 func TestAsHTTPError(t *testing.T) {
 	t.Parallel()
 	// take an HTTPError, convert it to error, then use AsHTTPError to recover it
-	errHTTP := Unauthorized("hi user", errors.New("some error"))
+	errHTTP := Unauthorized("hi user", errors.New("some error")).SetExpectedError()
 	err := error(errHTTP)
 	assert.Equal(t, errHTTP, AsHTTPError(err))
 
 	err = errors.New("some error")
 	errHTTP = AsHTTPError(err)
 	assert.Equal(t, New(500, "Unknown server error", err), errHTTP)
+}
+
+func TestWriteResponse(t *testing.T) {
+	t.Parallel()
+
+	// use synctest to get a consistent time.Now()
+	synctest.Test(t, func(t *testing.T) {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		errHTTP := Unauthorized("hi user", errors.New("some error"))
+		errHTTP.WriteResponse(rec)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+		problem := Problem{}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &problem))
+		assert.Equal(t, Problem{
+			Status:    http.StatusUnauthorized,
+			Detail:    "hi user",
+			Timestamp: time.Now().UTC(),
+		}, problem)
+	})
 }
 
 var errInternal = errors.New("something bad")

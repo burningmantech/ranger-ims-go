@@ -25,6 +25,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -404,13 +405,13 @@ func AddBasicHandlers(mux *http.ServeMux) *http.ServeMux {
 
 	mux.HandleFunc("GET /{$}",
 		func(w http.ResponseWriter, req *http.Request) {
-			http.Error(w, "IMS", http.StatusOK)
+			herr.WriteOKResponse(w, "IMS")
 		},
 	)
 
 	mux.HandleFunc("GET /ims/api/ping",
 		func(w http.ResponseWriter, req *http.Request) {
-			http.Error(w, "ack", http.StatusOK)
+			herr.WriteOKResponse(w, "ack")
 		},
 	)
 
@@ -522,7 +523,7 @@ func RecoverFromPanic() Adapter {
 				if err := recover(); err != nil {
 					slog.Error("Recovered from panic", "err", err)
 					debug.PrintStack()
-					http.Error(w, "The server malfunctioned", http.StatusInternalServerError)
+					herr.InternalServerError("The server malfunctioned", nil).WriteResponse(w)
 				}
 			}()
 			next.ServeHTTP(w, r)
@@ -559,7 +560,7 @@ func RequireAuthN(j authz.JWTer) Adapter {
 			header := r.Header.Get("Authorization")
 			claims, err := j.AuthenticateJWT(strings.TrimPrefix(header, "Bearer "))
 			if err != nil || claims == nil {
-				handleErr(w, r, http.StatusUnauthorized, "Invalid Authorization token", err)
+				herr.Unauthorized("Invalid Authorization token", err).WriteResponse(w)
 				return
 			}
 			jwtCtx := context.WithValue(r.Context(), JWTContextKey, JWTContext{

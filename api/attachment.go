@@ -285,7 +285,7 @@ func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	}
 	slog.Info("Saved Incident attachment")
 	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt(reID))
-	http.Error(w, "Saved Incident attachment", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Saved Incident attachment")
 }
 
 func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr.HTTPError) {
@@ -386,7 +386,7 @@ func (action AttachToFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Req
 	}
 	slog.Info("Saved Field Report attachment")
 	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt(reID))
-	http.Error(w, "Saved Field Report attachment", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Saved Field Report attachment")
 }
 func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32, *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)

@@ -156,7 +156,7 @@ func (action PostEventAccess) ServeHTTP(w http.ResponseWriter, req *http.Request
 		errHTTP.From("[postEventAccess]").WriteResponse(w)
 		return
 	}
-	http.Error(w, "Successfully set event access", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Successfully set event access")
 }
 
 func (action PostEventAccess) postEventAccess(req *http.Request) *herr.HTTPError {

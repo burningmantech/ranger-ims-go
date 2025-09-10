@@ -104,7 +104,7 @@ func (action EditStreets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[editStreets]").WriteResponse(w)
 		return
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Success")
 }
 
 func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {

@@ -81,13 +81,13 @@ func getEvent(req *http.Request, eventName string, imsDBQ *store.DBQ) (imsdb.Eve
 func mustWriteJSON(w http.ResponseWriter, req *http.Request, resp any) (success bool) {
 	marshalled, err := json.Marshal(resp)
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to marshal JSON", err)
+		herr.InternalServerError("Failed to marshal JSON", err).From("[Marshal]").WriteResponse(w)
 		return false
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(marshalled)
 	if err != nil {
-		handleErr(w, req, http.StatusInternalServerError, "Failed to write JSON", err)
+		herr.InternalServerError("Failed to write JSON", err).From("[Write]").WriteResponse(w)
 		return false
 	}
 	return true
@@ -132,11 +132,6 @@ func getGlobalPermissions(req *http.Request, imsDBQ *store.DBQ, userStore *direc
 		return empty, 0, herr.InternalServerError("Failed to compute permissions", err).From("[EventPermissions]")
 	}
 	return jwtCtx, globalPermissions, nil
-}
-
-func handleErr(w http.ResponseWriter, req *http.Request, statusCode int, errorForUser string, internalError error) {
-	slog.Error(errorForUser, "error", internalError, "statusCode", statusCode, "path", req.URL.Path)
-	http.Error(w, errorForUser, statusCode)
 }
 
 func rollback(txn *sql.Tx) {

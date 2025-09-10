@@ -42,7 +42,7 @@ func (action EditFieldReportReportEntry) ServeHTTP(w http.ResponseWriter, req *h
 		errHTTP.From("[editFieldReportEntry]").WriteResponse(w)
 		return
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Success")
 }
 
 func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request) *herr.HTTPError {
@@ -124,7 +124,7 @@ func (action EditIncidentReportEntry) ServeHTTP(w http.ResponseWriter, req *http
 		errHTTP.From("[editIncidentReportEntry]").WriteResponse(w)
 		return
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Success")
 }
 
 func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request) *herr.HTTPError {

@@ -151,7 +151,7 @@ func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[editEvents]").WriteResponse(w)
 		return
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Success")
 }
 func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
 	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)

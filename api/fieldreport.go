@@ -245,7 +245,7 @@ func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request
 		errHTTP.From("[editFieldReport]").WriteResponse(w)
 		return
 	}
-	http.Error(w, "Success", http.StatusNoContent)
+	herr.WriteNoContentResponse(w, "Success")
 }
 func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError {
 	event, jwt, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
@@ -446,7 +446,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	w.Header().Set("IMS-Field-Report-Number", strconv.Itoa(int(number)))
 	w.Header().Set("Location", location)
-	http.Error(w, http.StatusText(http.StatusCreated), http.StatusCreated)
+	herr.WriteCreatedResponse(w, http.StatusText(http.StatusCreated))
 }
 
 func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {

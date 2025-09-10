@@ -118,7 +118,7 @@ func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
 	p := Problem{
 		Status:    e.Code,
 		Detail:    e.ResponseMessage,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 
 	// Write headers, write status, write body

@@ -93,7 +93,7 @@ func TestWriteResponse(t *testing.T) {
 		assert.Equal(t, Problem{
 			Status:    http.StatusUnauthorized,
 			Detail:    "hi user",
-			Timestamp: time.Now(),
+			Timestamp: time.Now().UTC(),
 		}, problem)
 	})
 }

@@ -32,6 +32,7 @@ type AccessRule struct {
 		MatchesUsers    []string `json:"matches_users,omitempty"`
 		MatchesAllUsers bool     `json:"matches_all_users,omitempty"`
 		MatchesNoOne    bool     `json:"matches_no_one,omitempty"`
+		KnownTarget     bool     `json:"known_target"`
 	} `json:"debug_info"`
 }
 

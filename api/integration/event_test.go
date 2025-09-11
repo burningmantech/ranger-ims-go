@@ -61,6 +61,7 @@ func TestGetAndEditEvent(t *testing.T) {
 		Reporters: []imsjson.AccessRule{},
 	}
 	expectedAccessResult.Writers[0].DebugInfo.MatchesUsers = []string{userAdminHandle}
+	expectedAccessResult.Writers[0].DebugInfo.KnownTarget = true
 	accessResult, httpResp := apisAdmin.getAccess(ctx)
 	require.Equal(t, http.StatusOK, httpResp.StatusCode)
 	require.Equal(t, expectedAccessResult, accessResult[testEventName])

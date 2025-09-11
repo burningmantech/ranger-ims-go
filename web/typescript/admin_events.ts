@@ -51,6 +51,8 @@ async function initAdminEventsPage(): Promise<void> {
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
 
+    document.getElementById("browser_tz")!.textContent = ims.localTzLongName(new Date());
+
     await loadAccessControlList();
     drawAccess();
 
@@ -77,6 +79,7 @@ interface DebugInfo {
     matches_users?: string[]|null
     matches_all_users?: boolean|null
     matches_no_one?: boolean|null
+    known_target?: boolean|null
 }
 
 const allAccessModes = ["readers", "writers", "reporters"] as const;
@@ -211,6 +214,12 @@ function updateEventAccess(event: string, mode: AccessMode): void {
             expiredText.classList.remove("hidden");
         } else {
             expiredText.classList.add("hidden");
+        }
+        const unknownTargetText = entryItem.getElementsByClassName("unknown_target_text")[0] as HTMLSpanElement;
+        if (accessEntry.debug_info?.known_target !== true) {
+            unknownTargetText.classList.remove("hidden");
+        } else {
+            unknownTargetText.classList.add("hidden");
         }
 
         entryContainer.append(entryItem);

@@ -199,14 +199,13 @@ func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.Re
 		attachment.Previewable = safeContentType(re.AttachedFileMediaType.String) != octetStream
 	}
 	return imsjson.ReportEntry{
-		ID:            re.ID,
-		Created:       time.Unix(int64(re.Created), 0),
-		Author:        re.Author,
-		SystemEntry:   re.Generated,
-		Text:          re.Text,
-		Stricken:      ptr(re.Stricken),
-		HasAttachment: attachmentsEnabled && re.AttachedFile.String != "",
-		Attachment:    attachment,
+		ID:          re.ID,
+		Created:     time.Unix(int64(re.Created), 0),
+		Author:      re.Author,
+		SystemEntry: re.Generated,
+		Text:        re.Text,
+		Stricken:    ptr(re.Stricken),
+		Attachment:  attachment,
 	}
 }
 

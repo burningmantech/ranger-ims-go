@@ -24,7 +24,9 @@ type AccessRule struct {
 	Expression string    `json:"expression"`
 	Validity   string    `json:"validity"`
 	Expires    time.Time `json:"expires,omitzero"`
-	Expired    bool      `json:"expired,omitzero"`
+
+	// Expired is a read-only field, saying if the AccessRule's Expires time is in the past.
+	Expired bool `json:"expired,omitzero"`
 
 	DebugInfo struct {
 		MatchesUsers    []string `json:"matches_users,omitempty"`

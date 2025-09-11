@@ -118,11 +118,15 @@ function updateEventAccess(event, mode) {
         entryItem.dataset["expires"] = accessEntry.expires ?? "";
         entryItem.dataset["expired"] = accessEntry.expired ? "true" : "false";
         if (accessEntry.debug_info) {
+            let unknownSuffix = "";
+            if (accessEntry.debug_info?.known_target !== true) {
+                unknownSuffix = " (Unknown)";
+            }
             let expiredSuffix = "";
             if (accessEntry.expired) {
                 expiredSuffix = " (Expired)";
             }
-            let msg = `${accessEntry.expression} (${accessEntry.validity})${expiredSuffix}\n`;
+            let msg = `${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${expiredSuffix}\n`;
             if (accessEntry.debug_info.matches_no_one) {
                 msg += `${indent}NO users`;
             }

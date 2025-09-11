@@ -25,7 +25,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
-<h1 id="doc-title">Edit Events</h1>
+<h1 id="doc-title">Events and Permissions</h1>
 @LoadingOverlay()
 
   <!-- "Explain permissions" modal -->
@@ -51,10 +51,10 @@ templ AdminEvents(deployment, versionName, versionRef string) {
   </ul>
   <p>You can also choose when each permission is valid:</p>
   <ul>
-    <li><strong>Always</strong>: valid all year long</li>
-    <li><strong>On-Site</strong>: valid only when a matching Ranger is marked "on-site" in Clubhouse</li>
+    <li><strong>Always</strong> - valid all year long</li>
+    <li><strong>On-Site</strong> - valid only when a matching Ranger is marked "on-site" in Clubhouse</li>
   </ul>
-  <p>You can set an expiration team for each permission. Once this time passes, the permission will no longer grant access. Times are in your browser's time zone (<span id="browser_tz"></span>).</p>
+  <p>You can set an expiration team for each permission, after which the permission will stop granting access. Times are shown in your time zone (<span id="browser_tz"></span>).</p>
   <p>A permission with an invalid person, position, or team name will show "Unknown" in that row, to indicate that the admin likely made a typo.</p>
   <p>You can click the "Explain" button to see which Rangers currently match which permissions, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
   <div class="row" id="event_access_container">

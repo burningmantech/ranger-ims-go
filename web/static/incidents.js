@@ -470,11 +470,7 @@ function initSearchField() {
         searchInput.value = queryString;
         searchAndDraw();
     }
-    searchInput.addEventListener("keyup", function (e) {
-        // No action on Enter key
-        if (e.key === "Enter") {
-            return;
-        }
+    searchInput.addEventListener("input", function (_) {
         // Delay the search in case the user is still typing.
         // This reduces perceived lag, since searching can be
         // very slow, and it's super annoying for a user when

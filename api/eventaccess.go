@@ -89,6 +89,23 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch Users", err).From("[Users]")
 	}
+	positions, teams, err := action.userStore.GetPositionsAndTeams(ctx)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch Positions and Teams", err).From("[GetPositionsAndTeams]")
+	}
+
+	allHandles := make(map[string]bool)
+	for _, u := range users {
+		allHandles[u.Handle] = true
+	}
+	allPositions := make(map[string]bool)
+	for _, p := range positions {
+		allPositions[p] = true
+	}
+	allTeams := make(map[string]bool)
+	for _, t := range teams {
+		allTeams[t] = true
+	}
 
 	for _, e := range storedEvents {
 		ea := imsjson.EventAccess{
@@ -124,6 +141,7 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 					rule.DebugInfo.MatchesNoOne = true
 				}
 			}
+			rule.DebugInfo.KnownTarget = knownTarget(access.Expression, allHandles, allPositions, allTeams)
 			slices.SortFunc(rule.DebugInfo.MatchesUsers, func(a, b string) int {
 				return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
@@ -140,6 +158,26 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 		result[e.Name] = ea
 	}
 	return result, nil
+}
+
+// knownTarget says whether the target of this access expression matches a known user, position, or team.
+func knownTarget(expression string, allHandles, allPositions, allTeams map[string]bool) bool {
+	if expression == "*" {
+		return true
+	}
+	if strings.HasPrefix(expression, "person:") {
+		return allHandles[strings.TrimPrefix(expression, "person:")]
+	}
+	if strings.HasPrefix(expression, "position:") {
+		return allPositions[strings.TrimPrefix(expression, "position:")]
+	}
+	if strings.HasPrefix(expression, "onduty:") {
+		return allPositions[strings.TrimPrefix(expression, "onduty:")]
+	}
+	if strings.HasPrefix(expression, "team:") {
+		return allTeams[strings.TrimPrefix(expression, "team:")]
+	}
+	return false
 }
 
 type PostEventAccess struct {

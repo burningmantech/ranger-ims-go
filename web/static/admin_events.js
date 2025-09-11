@@ -34,6 +34,7 @@ async function initAdminEventsPage() {
     window.addEvent = addEvent;
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
+    document.getElementById("browser_tz").textContent = ims.localTzLongName(new Date());
     await loadAccessControlList();
     drawAccess();
     explainModal = ims.bsModal(document.getElementById("explainModal"));
@@ -155,6 +156,13 @@ function updateEventAccess(event, mode) {
         }
         else {
             expiredText.classList.add("hidden");
+        }
+        const unknownTargetText = entryItem.getElementsByClassName("unknown_target_text")[0];
+        if (accessEntry.debug_info?.known_target !== true) {
+            unknownTargetText.classList.remove("hidden");
+        }
+        else {
+            unknownTargetText.classList.add("hidden");
         }
         entryContainer.append(entryItem);
     }

@@ -650,6 +650,10 @@ export function localTzShortName(d) {
     const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d);
     return (parts.find(p => p.type === 'timeZoneName')?.value) ?? null;
 }
+export function localTzLongName(d) {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'long' }).formatToParts(d);
+    return (parts.find(p => p.type === 'timeZoneName')?.value) ?? null;
+}
 // localDateISO gives the YYYY-MM-DD format of the provided date in the user's timezone.
 export function localDateISO(d) {
     const year = d.getFullYear().toString().padStart(4, "0");

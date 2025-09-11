@@ -756,6 +756,12 @@ export function localTzShortName(d: Date): string|null {
     return (parts.find(p => p.type === 'timeZoneName')?.value)??null;
 }
 
+export function localTzLongName(d: Date): string|null {
+    const parts = new Intl.DateTimeFormat(
+        undefined, { timeZoneName: 'long' }).formatToParts(d);
+    return (parts.find(p => p.type === 'timeZoneName')?.value)??null;
+}
+
 // localDateISO gives the YYYY-MM-DD format of the provided date in the user's timezone.
 export function localDateISO(d: Date): string {
     const year = d.getFullYear().toString().padStart(4, "0");

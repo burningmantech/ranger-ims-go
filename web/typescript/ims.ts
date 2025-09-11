@@ -1495,7 +1495,6 @@ export interface ReportEntry {
     text?: string|null;
     system_entry?: boolean|null;
     stricken?: boolean|null;
-    has_attachment?: boolean|null;
     attachment?: Attachment|null;
 }
 

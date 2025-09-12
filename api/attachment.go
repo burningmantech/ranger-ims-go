@@ -17,7 +17,6 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -30,6 +29,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/format"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/gabriel-vasile/mimetype"
 	"io"
 	"log/slog"
 	"mime"
@@ -129,16 +129,16 @@ func (action GetIncidentAttachment) getIncidentAttachment(
 		return nil, "", errHTTP.From("[retrieveFile]")
 	}
 
-	contentType, errHTTP = sniffFile(file)
+	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
 		return nil, "", errHTTP.From("[sniffFile]")
 	}
-	contentType = safeContentType(contentType)
+	contentType = safeToPreviewContentType(mtype.String())
 
 	return file, contentType, nil
 }
 
-var safeMediaTypes = []string{
+var safeToPreviewMediaTypes = []string{
 	"application/pdf",
 	"image/gif",
 	"image/heic",
@@ -147,10 +147,11 @@ var safeMediaTypes = []string{
 	"image/webp",
 	"text/plain",
 	"video/mp4",
+	"video/quicktime",
 	"video/x-msvideo",
 }
 
-// safeContentType returns a safe form of contentType if possible, or octetStream otherwise.
+// safeToPreviewContentType returns a safe form of contentType if possible, or octetStream otherwise.
 //
 // This is important for the client side. For example, if we're serving an HTML document,
 // we want the client to think it's just text/plain, so that it doesn't attempt to render it.
@@ -158,18 +159,22 @@ var safeMediaTypes = []string{
 // previews these attachments in the same origin as IMS, which leaves us open to XSS attacks
 // for unsafe files. This function works conservatively by returning octetStream unless we
 // know the content type ought to be safe.
-func safeContentType(contentType string) string {
+func safeToPreviewContentType(contentType string) string {
 	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return octetStream
 	}
-	if slices.Contains(safeMediaTypes, mediaType) {
+	if slices.Contains(safeToPreviewMediaTypes, mediaType) {
 		return contentType
 	}
 	if strings.HasPrefix(mediaType, "text/") {
 		return mime.FormatMediaType("text/plain", params)
 	}
 	return mime.FormatMediaType(octetStream, nil)
+}
+
+func previewableContentType(contentType string) bool {
+	return safeToPreviewContentType(contentType) != octetStream
 }
 
 func retrieveFile(
@@ -268,11 +273,11 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(
 		return nil, "", errHTTP.From("[retrieveFile]")
 	}
 
-	contentType, errHTTP = sniffFile(file)
+	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
 		return nil, "", errHTTP.From("[sniffFile]")
 	}
-	contentType = safeContentType(contentType)
+	contentType = safeToPreviewContentType(mtype.String())
 
 	return file, contentType, nil
 }
@@ -314,13 +319,12 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	}
 	defer shut(fi)
 
-	sniffedContentType, errHTTP := sniffFile(fi)
+	mtype, errHTTP := sniffFile(fi)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[sniffFile]")
 	}
-	extension := extensionByType(sniffedContentType)
 
-	newFileName := fmt.Sprintf("event_%05d_incident_%05d_%v%v", event.ID, incidentNumber, rand.Text(), extension)
+	newFileName := fmt.Sprintf("event_%05d_incident_%05d_%v%v", event.ID, incidentNumber, rand.Text(), mtype.Extension())
 	slog.Info("User uploaded an incident attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,
@@ -328,8 +332,8 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		"originalName", fiHead.Filename,
 		"newFileName", newFileName,
 		"size", fiHead.Size,
-		"contentType", sniffedContentType,
-		"extension", extension,
+		"contentType", mtype.String(),
+		"extension", mtype.Extension(),
 	)
 
 	errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi)
@@ -338,10 +342,10 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	}
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
-		fiHead.Filename, format.HumanByteSize(fiHead.Size), sniffedContentType)
+		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
 	reID, errHTTP := addIncidentReportEntry(
 		ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber, jwtCtx.Claims.RangerHandle(),
-		reText, false, newFileName, fiHead.Filename, sniffedContentType,
+		reText, false, newFileName, fiHead.Filename, mtype.String(),
 	)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addIncidentReportEntry]")
@@ -426,13 +430,12 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	}
 	defer shut(fi)
 
-	sniffedContentType, errHTTP := sniffFile(fi)
+	mtype, errHTTP := sniffFile(fi)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[sniffFile]")
 	}
-	extension := extensionByType(sniffedContentType)
 
-	newFileName := fmt.Sprintf("event_%05d_fieldreport_%05d_%v%v", event.ID, fieldReportNumber, rand.Text(), extension)
+	newFileName := fmt.Sprintf("event_%05d_fieldreport_%05d_%v%v", event.ID, fieldReportNumber, rand.Text(), mtype.Extension())
 	slog.Info("User uploaded a Field Report attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,
@@ -440,8 +443,8 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		"originalName", fiHead.Filename,
 		"newFileName", newFileName,
 		"size", fiHead.Size,
-		"contentType", sniffedContentType,
-		"extension", extension,
+		"contentType", mtype.String(),
+		"extension", mtype.Extension(),
 	)
 
 	errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi)
@@ -450,11 +453,11 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	}
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type: %v",
-		fiHead.Filename, format.HumanByteSize(fiHead.Size), sniffedContentType)
+		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
 	reID, errHTTP := addFRReportEntry(
 		ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
 		jwtCtx.Claims.RangerHandle(), reText, false,
-		newFileName, fiHead.Filename, sniffedContentType,
+		newFileName, fiHead.Filename, mtype.String(),
 	)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addFRReportEntry]")
@@ -467,67 +470,15 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	return reID, nil
 }
 
-func sniffFile(fi io.ReadSeeker) (contentType string, errHTTP *herr.HTTPError) {
-	// This must be >= http.sniffLen (it's a private field, so we can't read it directly)
-	const sniffLen = 512
-	head := make([]byte, sniffLen)
-
-	n, err := fi.Read(head)
+func sniffFile(fi io.ReadSeeker) (*mimetype.MIME, *herr.HTTPError) {
+	mtype, err := mimetype.DetectReader(fi)
 	if err != nil {
-		// It's fine if the file is less than sniffLen bytes long.
-		// We just need to shorten the byte slice afterward to the actual file length.
-		if errors.Is(err, io.EOF) {
-			head = head[:n]
-		} else {
-			return "", herr.InternalServerError("Failed to detect content type", err).From("[ReadAt]")
-		}
+		return mtype, herr.InternalServerError("Failed to detect content type", err).From("[DetectReader]")
 	}
+	slog.Info("found mime type details", "mime", mtype.String(), "ext", mtype.Extension())
 	_, err = fi.Seek(0, io.SeekStart)
 	if err != nil {
-		return "", herr.InternalServerError("Failed to detect content type", err).From("[Seek]")
+		return mtype, herr.InternalServerError("Failed to detect content type", err).From("[Seek]")
 	}
-
-	// We'll detect the contentType and file extension, rather than trust any value from the client.
-	sniffedContentType := http.DetectContentType(head)
-
-	if sniffedContentType == "application/octet-stream" {
-		// Here's some hand-rolled handling for HEIC images, which don't yet have a standardized sniffing approach.
-		// HEIC images are popular though, because they're the default for photos from iPhones, so we want to give
-		// them a little bit better treatment than octet-stream.
-		// https://github.com/strukturag/libheif/issues/83#issuecomment-421427091
-		if len(head) > 12 && bytes.Equal(head[4:12], []byte("ftypheic")) {
-			sniffedContentType = "image/heic"
-		}
-	}
-
-	return sniffedContentType, nil
-}
-
-func extensionByType(contentType string) string {
-	mediaType, _, _ := mime.ParseMediaType(contentType)
-	if mediaType == "" {
-		return ""
-	}
-
-	// We mostly rely on mime.ExtensionsByType, but just picking the first element of that list
-	// often gives a weird extension. e.g. image/jpeg --> ".jpe". Hence, we special-case some
-	// common MIME types below.
-	switch mediaType {
-	case "image/jpeg":
-		return ".jpg"
-	case "image/heic":
-		return ".heic"
-	case "text/html":
-		return ".html"
-	case "text/plain":
-		return ".txt"
-	case "video/mp4":
-		return ".mp4"
-	default:
-		extensions, _ := mime.ExtensionsByType(contentType)
-		if len(extensions) > 0 {
-			return extensions[0]
-		}
-	}
-	return ""
+	return mtype, nil
 }

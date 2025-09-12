@@ -29,22 +29,6 @@ import (
 	"testing"
 )
 
-func TestExtensionByType(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, ".bmp", extensionByType("image/bmp"))
-	assert.Equal(t, ".csv", extensionByType("text/csv"))
-	assert.Equal(t, ".gif", extensionByType("image/gif"))
-	assert.Equal(t, ".html", extensionByType("text/html"))
-	assert.Equal(t, ".jpg", extensionByType("image/jpeg"))
-	assert.Equal(t, ".mp4", extensionByType("video/mp4"))
-	assert.Equal(t, ".pdf", extensionByType("application/pdf"))
-	assert.Equal(t, ".png", extensionByType("image/png"))
-	assert.Equal(t, ".txt", extensionByType("text/plain"))
-	assert.Equal(t, ".zip", extensionByType("application/zip"))
-
-	assert.Empty(t, extensionByType("notta/mime"))
-}
-
 func TestSaveAndRetrieveS3File(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

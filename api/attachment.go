@@ -144,6 +144,7 @@ var safeToPreviewMediaTypes = []string{
 	"image/heic",
 	"image/jpeg",
 	"image/png",
+	"image/tiff",
 	"image/webp",
 	"text/plain",
 	"video/mp4",

@@ -25,6 +25,9 @@ import (
 	"time"
 )
 
+// mib is the number of bytes in 1 MiB.
+const mib = 1 << 20
+
 // DefaultIMS is the base configuration used for the IMS server.
 // It gets overridden by values in .env, if present, then the result
 // of that gets overridden by environment variables. See mustApplyEnvConfig
@@ -41,7 +44,7 @@ func DefaultIMS() *IMSConfig {
 			RefreshTokenLifetime: 8 * time.Hour,
 			CacheControlShort:    20 * time.Minute,
 			CacheControlLong:     2 * time.Hour,
-			MaxRequestBytes:      20 * 1024 * 1024,
+			MaxRequestBytes:      100 * mib,
 			ActionLogEnabled:     true,
 		},
 		Store: DBStore{

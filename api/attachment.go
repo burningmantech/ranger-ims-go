@@ -147,7 +147,6 @@ var safeToPreviewMediaTypes = []string{
 	"image/webp",
 	"text/plain",
 	"video/mp4",
-	"video/quicktime",
 	"video/x-msvideo",
 }
 
@@ -166,6 +165,12 @@ func safeToPreviewContentType(contentType string) string {
 	}
 	if slices.Contains(safeToPreviewMediaTypes, mediaType) {
 		return contentType
+	}
+	// Any Chromium browser won't play videos with video/quicktime media type (https://crbug.com/40714674),
+	// but it will play those same videos if you use video/mp4 as the media type. This is technically incorrect,
+	// but it works for Chromium browsers, and is also not a problem for Firefox or Safari.
+	if mediaType == "video/quicktime" {
+		return mime.FormatMediaType("video/mp4", nil)
 	}
 	if strings.HasPrefix(mediaType, "text/") {
 		return mime.FormatMediaType("text/plain", params)

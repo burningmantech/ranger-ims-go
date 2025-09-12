@@ -196,7 +196,7 @@ func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.Re
 	var attachment imsjson.Attachment
 	if attachmentsEnabled && re.AttachedFileOriginalName.Valid {
 		attachment.Name = re.AttachedFileOriginalName.String
-		attachment.Previewable = safeContentType(re.AttachedFileMediaType.String) != octetStream
+		attachment.Previewable = previewableContentType(re.AttachedFileMediaType.String)
 	}
 	return imsjson.ReportEntry{
 		ID:          re.ID,

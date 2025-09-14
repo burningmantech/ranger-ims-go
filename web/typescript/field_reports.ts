@@ -286,10 +286,7 @@ function frInitDataTables() {
                 }
                 // Left click while holding modifier key or middle click: open in a new tab
                 if (isMiddleClick || (isLeftClick && holdingModifier)) {
-                    window.open(
-                        `${ims.urlReplace(url_viewFieldReports)}/${fieldReport.number}`,
-                        "Field_Report:" + fieldReport.number,
-                    );
+                    window.open(`${ims.urlReplace(url_viewFieldReports)}/${fieldReport.number}`);
                     return;
                 }
             }

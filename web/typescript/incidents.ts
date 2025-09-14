@@ -436,10 +436,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 }
                 // Left click while holding modifier key or middle click: open in a new tab
                 if (isMiddleClick || (isLeftClick && holdingModifier)) {
-                    window.open(
-                        `${ims.urlReplace(url_viewIncidents)}/${incident.number}`,
-                        "Incident:" + ims.pathIds.eventID + "#" + incident.number,
-                    );
+                    window.open(`${ims.urlReplace(url_viewIncidents)}/${incident.number}`);
                     return;
                 }
             }
@@ -843,7 +840,6 @@ function replaceWindowState(): void {
     if (_showRows != null && _showRows !== defaultRows) {
         newParams.push(["rows", _showRows.toString()]);
     }
-
     const newURL = `${ims.urlReplace(url_viewIncidents)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);
 }

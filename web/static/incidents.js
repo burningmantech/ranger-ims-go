@@ -369,7 +369,7 @@ function initDataTables(tablePrereqs) {
                 }
                 // Left click while holding modifier key or middle click: open in a new tab
                 if (isMiddleClick || (isLeftClick && holdingModifier)) {
-                    window.open(`${ims.urlReplace(url_viewIncidents)}/${incident.number}`, "Incident:" + ims.pathIds.eventID + "#" + incident.number);
+                    window.open(`${ims.urlReplace(url_viewIncidents)}/${incident.number}`);
                     return;
                 }
             };

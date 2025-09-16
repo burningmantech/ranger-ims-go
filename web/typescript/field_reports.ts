@@ -194,6 +194,12 @@ declare let DataTable: any;
 function frInitDataTables() {
     DataTable.ext.errMode = "none";
     fieldReportsTable = new DataTable("#field_reports_table", {
+        // Save table state to SessionStorage (-1). This tells DataTables to save state
+        // on any update to the sorting/filtering, and to load that table state again
+        // when the browsing context comes back to this page.
+        "stateSave": true,
+        "stateDuration": -1,
+
         "deferRender": true,
         "paging": true,
         "lengthChange": false,

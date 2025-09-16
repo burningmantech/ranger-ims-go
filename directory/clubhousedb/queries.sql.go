@@ -93,6 +93,9 @@ type PersonsRow struct {
 // Filter persons to those with statuses that may be of interest to IMS.
 // These Persons results are used to determine who may log into IMS, and also
 // to determine who shows up in the Incident page's "Add Ranger" section.
+//
+// This intentionally excludes statuses like bonked, echelon, deceased, resigned, and retired,
+// as those persons should not be able to log into IMS nor be granted any permissions in IMS.
 func (q *Queries) Persons(ctx context.Context, db DBTX) ([]PersonsRow, error) {
 	rows, err := db.QueryContext(ctx, persons)
 	if err != nil {

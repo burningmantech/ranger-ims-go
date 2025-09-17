@@ -16,14 +16,17 @@ that occur in Black Rock City.
     go run bin/fetchbuilddeps/fetchbuilddeps.go
    ```
 
-## Run IMS locally with in-process volatile DBs
+## Run IMS locally with docker compose
 
-As a super quick development approach for playing with IMS, follow the "getting started" steps above,
-then run the following to build and run IMS. This doesn't require Docker, nor any external DB.
+The fastest way to get a local IMS server up-and-running is to use Docker Compose. This
+requires only that you install Docker in advance (you don't even need Go!). This approach
+uses a live code-reloading mechanism, so any changes to the source code will cause the
+server to rebuild and relaunch.
+
+There's good documentation in `docker-compose.dev.yml` that's worth a read.
 
 ```shell
-go run bin/build/build.go
-./ranger-ims-go serve
+docker compose -f docker-compose.dev.yml up
 ```
 
 ## Run IMS locally with MariaDB

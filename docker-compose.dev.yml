@@ -1,0 +1,89 @@
+# This docker-compose brings up a local live-reloading IMS server, IMS DB, and Clubhouse DB.
+#
+# `docker compose -f docker-compose.dev.yml up`
+#
+# Here's some helpful information:
+#
+# 1. The server will rebuild and restart on any code update, thanks to air.
+# 2. When the compose stack is first brought up, the IMS and Clubhouse databases
+#    will be created, DDLed to the latest schema, then seeded  with data for
+#    local development. Search for "docker-entrypoint-initdb.d" below for more info.
+# 3. If you ever want to delete one of those databases and start fresh, then you just
+#    need to delete ./.docker/mysql/data-clubhouse/ or ./.docker/mysql/data-ims/, and
+#    the stack will re-create and re-seed the databases when you next `docker compose up`.
+
+services:
+
+  ims-go:
+    # See https://github.com/air-verse/air
+    image: cosmtrek/air
+    container_name: "ranger-ims-go"
+
+    # Map the repo into a directory in the container.
+    working_dir: /src
+    volumes:
+      - ./:/src/
+
+    # IMS server configuration starts with
+    # 1. DefaultIMS in imsconfig.go, which is overridden by
+    # 2. ./.env file, if present, which is overridden by
+    # 3. The environment values here.
+    environment:
+      IMS_HOSTNAME: "0.0.0.0"
+      IMS_DB_HOST_NAME: "ims-db"
+      IMS_DB_PORT: "${IMS_DB_PORT:-3306}"
+      IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
+      IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
+      IMS_DMS_HOSTNAME: "ranger-clubhouse-db:3306"
+      IMS_DMS_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
+      IMS_DMS_USERNAME: "${IMS_DMS_USERNAME:-clubhouseuser}"
+      IMS_DMS_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
+    ports:
+      - "127.0.0.1:${IMS_PORT:-8080}:8080"
+    depends_on:
+      ims-db:
+        condition: service_healthy
+      clubhouse-db:
+        condition: service_healthy
+
+  ims-db:
+    image: "mariadb:10.5.27"
+    container_name: "ranger-ims-db"
+    environment:
+      MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"
+      MARIADB_USER: "${IMS_DB_USER_NAME:-ims}"
+      MARIADB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    ports:
+      - "${IMS_DB_PORT:-3306}"
+    volumes:
+      - ./.docker/mysql/data-ims/:/var/lib/mysql
+      - ./store/schema/current.sql:/docker-entrypoint-initdb.d/1.schema.sql
+      - ./store/fakeimsdb/seed.sql:/docker-entrypoint-initdb.d/2.seed.sql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  # Be aware that this database isn't seeded with any data, so while the IMS server
+  # will successfully start up, there won't be any users with whom to log in.
+  clubhouse-db:
+    image: "mariadb:10.5.27"
+    container_name: "ranger-clubhouse-db"
+    environment:
+      MARIADB_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
+      MARIADB_USER: "${IMS_DMS_USERNAME:-clubhouseuser}"
+      MARIADB_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    ports:
+      - "3306"
+    volumes:
+      - ./.docker/mysql/data-clubhouse/:/var/lib/mysql
+      - ./directory/schema/current.sql:/docker-entrypoint-initdb.d/1.schema.sql
+      - ./directory/fakeclubhousedb/seed.sql:/docker-entrypoint-initdb.d/2.seed.sql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10

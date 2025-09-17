@@ -11,8 +11,10 @@ alter table `person`
 insert into `person`
 (`id`,      `callsign`,     `email`,                        `password`,                     `status`,   `on_site`)
 values
-(6000,   "AdminTestRanger", "admintestranger@example.com",  concat(":", sha1(")'(")),       "active",   true),
-(6001,   "AliceTestRanger", "alicetestranger@example.com",  concat(":", sha1("password")),  "active",   true)
+-- password is )'(
+(6000,   "AdminTestRanger", "admintestranger@example.com",  "$argon2id$v=19$m=1,t=1,p=1$51uXrZoFRb6O4Tw4TsAJVQ$SedDwp+hPpIJc42QcnFJy6EOtE+b5kyYFpnuRHl/5qs",       "active",   true),
+-- password is password
+(6001,   "AliceTestRanger", "alicetestranger@example.com",  "$argon2id$v=19$m=1,t=1,p=1$eg9U8hLotCSmyCph1BQroA$KFfy0uDDpP+cXPnkSQRXt3z0Shd7M39tsrwJZuDrOdU",  "active",   true)
 ;
 
 insert into `position`

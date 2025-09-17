@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"golang.org/x/sync/errgroup"
 	"io/fs"
@@ -31,7 +32,10 @@ import (
 	"time"
 )
 
+var outputApp = flag.String("output-app", "ranger-ims-go", "Output app name")
+
 func main() {
+	flag.Parse()
 	start := time.Now()
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
@@ -70,8 +74,9 @@ func main() {
 	})
 	must(eg.Wait())
 
-	mustRunInDir(exec.CommandContext(ctx, "go", "build"), repo.Name())
-	log.Printf("All done in %v. You can now run ./ranger-ims-go", time.Since(start))
+	// #nosec G204
+	mustRunInDir(exec.CommandContext(ctx, "go", "build", "-o", *outputApp), repo.Name())
+	log.Printf("All done in %v. You can now run ./%v", time.Since(start), *outputApp)
 }
 
 func addTSGeneratedHeader(repo *os.Root, filename string) {

@@ -34,8 +34,8 @@ func TestRunServer(t *testing.T) {
 
 	// This will have the server pick a random port
 	imsCfg.Core.Port = 0
-	imsCfg.Directory.Directory = conf.DirectoryTypeFake
-	imsCfg.Store.Type = conf.DBStoreTypeFake
+	imsCfg.Directory.Directory = conf.DirectoryTypeNoOp
+	imsCfg.Store.Type = conf.DBStoreTypeNoOp
 
 	// * Start the server with a cancellable Context
 	// * Wait for the server to start listening (when startedChan responds)

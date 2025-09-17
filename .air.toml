@@ -4,8 +4,8 @@ tmp_dir = "air_tmp"
 
 [build]
   args_bin = ["serve","--print-config=false"]
-  bin = "./ranger-ims-go"
-  cmd = "go run bin/build/build.go"
+  bin = "./compose.ranger-ims-go"
+  cmd = "go run bin/build/build.go -output-app=compose.ranger-ims-go"
   delay = 100
   exclude_dir = ["playwright", "ims-attachments"]
   exclude_file = ["web/template/*_templ.go", "web/static/*.js", "store/imsdb/*.go", "directory/clubhousedb/*.go"]

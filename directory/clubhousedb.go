@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
-	"github.com/burningmantech/ranger-ims-go/directory/fakeclubhousedb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
 	"time"
@@ -36,11 +35,8 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	var chDBCfg conf.ClubhouseDB
 	var err error
 	switch directoryCfg.Directory {
-	case conf.DirectoryTypeFake:
-		chDBCfg, err = startFakeDB(ctx, directoryCfg.FakeDB)
-		if err != nil {
-			return nil, fmt.Errorf("[startFakeDB]: %w", err)
-		}
+	case conf.DirectoryTypeNoOp:
+		return sql.Open("noop", "")
 	case conf.DirectoryTypeClubhouseDB:
 		fallthrough
 	default:
@@ -70,18 +66,6 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 		return nil, fmt.Errorf("[PingContext]: %w", pingErr)
 	}
 	slog.Info("Connected to Clubhouse MariaDB")
-
-	if directoryCfg.Directory == conf.DirectoryTypeFake {
-		_, err = db.ExecContext(ctx, CurrentSchema)
-		if err != nil {
-			return nil, fmt.Errorf("[db.ExecContext]: %w", err)
-		}
-		_, err = db.ExecContext(ctx, fakeclubhousedb.SeedData())
-		if err != nil {
-			return nil, fmt.Errorf("[db.ExecContext]: %w", err)
-		}
-		slog.Info("Seeded volatile fake Clubhouse DB")
-	}
 
 	return db, nil
 }
@@ -125,18 +109,4 @@ func (l DBQ) PersonsOnDuty(ctx context.Context, db chqueries.DBTX) ([]chqueries.
 
 func (l DBQ) Teams(ctx context.Context, db chqueries.DBTX) ([]chqueries.TeamsRow, error) {
 	return l.q.Teams(ctx, db)
-}
-
-func startFakeDB(ctx context.Context, mariaCfg conf.ClubhouseDB) (conf.ClubhouseDB, error) {
-	addr, err := fakeclubhousedb.Start(ctx,
-		mariaCfg.Database, mariaCfg.Hostname,
-		mariaCfg.Username, mariaCfg.Password,
-	)
-	if err != nil {
-		return mariaCfg, fmt.Errorf("[fakedb.Start]: %w", err)
-	}
-	mariaCfg.Hostname = addr
-
-	slog.Info("Started volatile fake DB", "config", mariaCfg)
-	return mariaCfg, nil
 }

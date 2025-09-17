@@ -19,6 +19,7 @@ package integration_test
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -30,6 +31,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/testcontainers/testcontainers-go"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http/httptest"
 	"net/url"
@@ -42,8 +44,10 @@ var clubhouseDBTestSeed string
 
 // mainTestInternal contains fields to be used only within main_test.go.
 var mainTestInternal struct {
-	dbCtr        testcontainers.Container
-	dbCtrCleanup func()
+	dbCtr                 testcontainers.Container
+	dbCtrCleanup          func()
+	clubhouseDbCtr        testcontainers.Container
+	clubhouseDbCtrCleanup func()
 }
 
 // shared contains fields that may be used by any test in the integration package.
@@ -78,8 +82,9 @@ func TestMain(m *testing.M) {
 	must(err)
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Recovered from panic")
+			log.Printf("Recovered from panic: %v", r)
 			shutdown(ctx, tempDir)
+			os.Exit(1)
 		}
 	}()
 	setup(ctx, tempDir)
@@ -106,33 +111,70 @@ func setup(ctx context.Context, tempDir string) {
 	shared.cfg.Store.MariaDB.Database = "ims-" + rand.NonCryptoText()
 	shared.cfg.Store.MariaDB.Username = "rangers-" + rand.NonCryptoText()
 	shared.cfg.Store.MariaDB.Password = "password-" + rand.NonCryptoText()
-	shared.cfg.Directory.Directory = conf.DirectoryTypeFake
+	shared.cfg.Directory.Directory = conf.DirectoryTypeClubhouseDB
+	shared.cfg.Directory.ClubhouseDB.Database = "clubhouse-" + rand.NonCryptoText()
+	shared.cfg.Directory.ClubhouseDB.Username = "rangers-" + rand.NonCryptoText()
+	shared.cfg.Directory.ClubhouseDB.Password = "password-" + rand.NonCryptoText()
 	must(shared.cfg.Validate())
 	shared.es = api.NewEventSourcerer()
-	clubhouseDB, err := directory.MariaDB(ctx, shared.cfg.Directory)
-	must(err)
-	_, err = clubhouseDB.ExecContext(ctx, clubhouseDBTestSeed)
-	must(err)
-	clubhouseDBQ := directory.NewDBQ(
-		clubhouseDB,
-		chqueries.New(),
-		shared.cfg.Directory.InMemoryCacheTTL,
-	)
-	shared.userStore = directory.NewUserStore(clubhouseDBQ, shared.cfg.Directory.InMemoryCacheTTL)
-	ctr, cleanup, dbHostPort, err := testctr.MariaDBContainer(
-		ctx,
-		shared.cfg.Store.MariaDB.Database,
-		shared.cfg.Store.MariaDB.Username,
-		shared.cfg.Store.MariaDB.Password,
-	)
-	must(err)
-	mainTestInternal.dbCtr = ctr
-	mainTestInternal.dbCtrCleanup = cleanup
-	shared.cfg.Store.MariaDB.HostPort = dbHostPort
 
-	db, err := store.SqlDB(ctx, shared.cfg.Store, true)
-	must(err)
-	shared.imsDBQ = store.NewDBQ(db, imsdb.New())
+	// Do IMS and Clubhouse DB setup in parallel, since the container startup takes a few seconds each
+	g := errgroup.Group{}
+	g.Go(func() error {
+		chCtr, chCleanup, chDbHostPort, err := testctr.MariaDBContainer(
+			ctx,
+			shared.cfg.Directory.ClubhouseDB.Database,
+			shared.cfg.Directory.ClubhouseDB.Username,
+			shared.cfg.Directory.ClubhouseDB.Password,
+		)
+		if err != nil {
+			return err
+		}
+		mainTestInternal.clubhouseDbCtr = chCtr
+		mainTestInternal.clubhouseDbCtrCleanup = chCleanup
+		shared.cfg.Directory.ClubhouseDB.Hostname = fmt.Sprintf(":%d", chDbHostPort)
+		clubhouseDB, err := directory.MariaDB(ctx, shared.cfg.Directory)
+		if err != nil {
+			return err
+		}
+		_, err = clubhouseDB.ExecContext(ctx, directory.CurrentSchema)
+		if err != nil {
+			return err
+		}
+		_, err = clubhouseDB.ExecContext(ctx, clubhouseDBTestSeed)
+		if err != nil {
+			return err
+		}
+		clubhouseDBQ := directory.NewDBQ(
+			clubhouseDB,
+			chqueries.New(),
+			shared.cfg.Directory.InMemoryCacheTTL,
+		)
+		shared.userStore = directory.NewUserStore(clubhouseDBQ, shared.cfg.Directory.InMemoryCacheTTL)
+		return nil
+	})
+	g.Go(func() error {
+		ctr, cleanup, dbHostPort, err := testctr.MariaDBContainer(
+			ctx,
+			shared.cfg.Store.MariaDB.Database,
+			shared.cfg.Store.MariaDB.Username,
+			shared.cfg.Store.MariaDB.Password,
+		)
+		if err != nil {
+			return err
+		}
+		mainTestInternal.dbCtr = ctr
+		mainTestInternal.dbCtrCleanup = cleanup
+		shared.cfg.Store.MariaDB.HostPort = dbHostPort
+		db, err := store.SqlDB(ctx, shared.cfg.Store, true)
+		if err != nil {
+			return err
+		}
+		shared.imsDBQ = store.NewDBQ(db, imsdb.New())
+		return nil
+	})
+	must(g.Wait())
+
 	shared.actionLogger = actionlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ActionLogEnabled, true)
 	shared.testServer = httptest.NewServer(
 		api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger),
@@ -157,5 +199,8 @@ func shutdown(ctx context.Context, tempDir string) {
 	}
 	if mainTestInternal.dbCtrCleanup != nil {
 		mainTestInternal.dbCtrCleanup()
+	}
+	if mainTestInternal.clubhouseDbCtrCleanup != nil {
+		mainTestInternal.clubhouseDbCtrCleanup()
 	}
 }

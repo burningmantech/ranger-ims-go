@@ -29,6 +29,7 @@ go.work.sum
 
 # compiled program
 ranger-ims-go
+compose.ranger-ims-go
 
 node_modules
 

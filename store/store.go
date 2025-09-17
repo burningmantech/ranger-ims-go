@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
-	"github.com/burningmantech/ranger-ims-go/store/fakeimsdb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
 )
@@ -38,11 +37,8 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 	var mariaCfg conf.DBStoreMaria
 	var err error
 	switch dbStoreCfg.Type {
-	case conf.DBStoreTypeFake:
-		mariaCfg, err = startFakeDB(ctx, dbStoreCfg.Fake)
-		if err != nil {
-			return nil, fmt.Errorf("[startFakeDB]: %w", err)
-		}
+	case conf.DBStoreTypeNoOp:
+		return sql.Open("noop", "")
 	case conf.DBStoreTypeMaria:
 		fallthrough
 	default:
@@ -64,14 +60,6 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 	}
 
 	slog.Info("Connected to IMS database")
-
-	if dbStoreCfg.Type == conf.DBStoreTypeFake {
-		_, err = db.ExecContext(ctx, fakeimsdb.SeedData())
-		if err != nil {
-			return nil, fmt.Errorf("[db.ExecContext]: %w", err)
-		}
-		slog.Info("Seeded volatile fake DB")
-	}
 
 	return db, nil
 }
@@ -99,19 +87,4 @@ func openDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (*sql.DB, error) {
 		return nil, fmt.Errorf("[db.PingContext]: %w", pingErr)
 	}
 	return db, nil
-}
-
-func startFakeDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (conf.DBStoreMaria, error) {
-	port, err := fakeimsdb.Start(ctx,
-		mariaCfg.Database,
-		mariaCfg.HostName, mariaCfg.HostPort,
-		mariaCfg.Username, mariaCfg.Password,
-	)
-	if err != nil {
-		return mariaCfg, fmt.Errorf("[fakedb.Start]: %w", err)
-	}
-	mariaCfg.HostPort = int32(port)
-
-	slog.Info("Started volatile fake DB", "config", mariaCfg)
-	return mariaCfg, nil
 }

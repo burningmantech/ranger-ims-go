@@ -17,7 +17,7 @@ services:
   ims-go:
     # See https://github.com/air-verse/air
     image: cosmtrek/air
-    container_name: "ranger-ims-go"
+    container_name: "ranger-ims-go-air"
 
     # Map the repo into a directory in the container.
     working_dir: /src

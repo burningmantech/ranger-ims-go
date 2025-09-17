@@ -48,7 +48,7 @@ func DefaultIMS() *IMSConfig {
 			ActionLogEnabled:     true,
 		},
 		Store: DBStore{
-			Type: DBStoreTypeFake,
+			Type: DBStoreTypeNoOp,
 			MariaDB: DBStoreMaria{
 				HostName: "localhost",
 				HostPort: 3306,
@@ -57,33 +57,12 @@ func DefaultIMS() *IMSConfig {
 				// hits the DB with too many parallel requests.
 				MaxOpenConns: 20,
 			},
-			Fake: DBStoreMaria{
-				HostName: "localhost",
-				// HostPort can be left as 0 for automatic port selection on startup
-				HostPort: 0,
-				Database: "ims-db",
-				Username: "ims-db-user",
-				Password: rand.Text(),
-				// This needs to be 1 for the fake DB because of
-				// https://github.com/dolthub/go-mysql-server/issues/1306
-				MaxOpenConns: 1,
-			},
 		},
 		Directory: Directory{
-			Directory: DirectoryTypeFake,
+			Directory: DirectoryTypeNoOp,
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",
-			},
-			FakeDB: ClubhouseDB{
-				// port can be left as 0 for automatic port selection on startup
-				Hostname: "localhost:0",
-				Database: "clubhouse-db",
-				Username: "clubhouse-db-user",
-				Password: rand.Text(),
-				// This needs to be 1 for the fake DB because of
-				// https://github.com/dolthub/go-mysql-server/issues/1306
-				MaxOpenConns: 1,
 			},
 			InMemoryCacheTTL: 5 * time.Minute,
 		},
@@ -101,9 +80,6 @@ func (c *IMSConfig) Validate() error {
 	errs = append(errs, c.Store.Type.Validate())
 	if c.Store.Type != DBStoreTypeMaria {
 		c.Store.MariaDB = DBStoreMaria{}
-	}
-	if c.Store.Type != DBStoreTypeFake {
-		c.Store.Fake = DBStoreMaria{}
 	}
 
 	// User directory
@@ -178,7 +154,6 @@ type DBStoreType string
 const (
 	DirectoryTypeClubhouseDB DirectoryType        = "clubhousedb"
 	DirectoryTypeNoOp        DirectoryType        = "noop"
-	DirectoryTypeFake        DirectoryType        = "fake"
 	AttachmentsStoreLocal    AttachmentsStoreType = "local"
 	AttachmentsStoreS3       AttachmentsStoreType = "s3"
 	AttachmentsStoreNone     AttachmentsStoreType = "none"
@@ -188,12 +163,11 @@ const (
 	DeploymentTypeProduction DeploymentType       = "production"
 	DBStoreTypeMaria         DBStoreType          = "mariadb"
 	DBStoreTypeNoOp          DBStoreType          = "noop"
-	DBStoreTypeFake          DBStoreType          = "fake"
 )
 
 func (d DBStoreType) Validate() error {
 	switch d {
-	case DBStoreTypeMaria, DBStoreTypeNoOp, DBStoreTypeFake:
+	case DBStoreTypeMaria, DBStoreTypeNoOp:
 		return nil
 	default:
 		return fmt.Errorf("unknown DB store type %v", d)
@@ -202,7 +176,7 @@ func (d DBStoreType) Validate() error {
 
 func (d DirectoryType) Validate() error {
 	switch d {
-	case DirectoryTypeClubhouseDB, DirectoryTypeNoOp, DirectoryTypeFake:
+	case DirectoryTypeClubhouseDB, DirectoryTypeNoOp:
 		return nil
 	default:
 		return fmt.Errorf("unknown directory type %v", d)
@@ -261,7 +235,6 @@ type ConfigCore struct {
 type DBStore struct {
 	Type    DBStoreType
 	MariaDB DBStoreMaria
-	Fake    DBStoreMaria
 }
 
 type DBStoreMaria struct {
@@ -276,7 +249,6 @@ type DBStoreMaria struct {
 type Directory struct {
 	Directory        DirectoryType
 	ClubhouseDB      ClubhouseDB
-	FakeDB           ClubhouseDB
 	InMemoryCacheTTL time.Duration
 }
 

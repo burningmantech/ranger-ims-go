@@ -91,7 +91,7 @@ func TestValidateNonDevDeployment(t *testing.T) {
 	// non-dev deployment requires ClubhouseDB
 	cfg = conf.DefaultIMS()
 	cfg.Core.Deployment = conf.DeploymentTypeProduction
-	cfg.Directory.Directory = conf.DirectoryTypeFake
+	cfg.Directory.Directory = conf.DirectoryTypeNoOp
 	require.Error(t, cfg.Validate())
 
 	// non-dev deployment requires MariaDB store

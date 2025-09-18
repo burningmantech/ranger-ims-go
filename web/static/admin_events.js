@@ -324,8 +324,7 @@ async function setExpires(sender) {
     acl = acl.filter((v) => { return v.expression !== expression; });
     let expires = null;
     if (sender.value) {
-        const dateAndTime = sender.value.replaceAll("T", " ");
-        const theDate = new Date(`${dateAndTime} ${ims.localTzShortName(new Date())}`);
+        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date())}`);
         expires = theDate.toISOString();
         console.log(`Setting expiration to ${expires}`);
     }

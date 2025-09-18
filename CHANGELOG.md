@@ -23,16 +23,27 @@ Each month below should look like the following, using the same ordering for the
 
 - Started including inactive Rangers in "add Rangers" options. This makes it possible to add a Ranger to an incident while they're on their first shift in years. https://github.com/burningmantech/ranger-ims-go/pull/382
 - Began populating summary values from the first report entry. Previously we just populated the placeholder. This makes it easier for a user to modify that value, rather than just start from scratch. https://github.com/burningmantech/ranger-ims-go/pull/397
+- For local development, switched from an in-process MySQL clone into using Docker Compose with full MariaDB containers. https://github.com/burningmantech/ranger-ims-go/pull/428 https://github.com/burningmantech/ranger-ims-go/pull/431
+- Started using an external library to detect file attachment file types. This gives the right type much more reliably, allowing for better previewing. https://github.com/burningmantech/ranger-ims-go/pull/415
+- Switched to RFC 9457-style errors in all APIs. This allows for cleaner error handling and better message display to users. https://github.com/burningmantech/ranger-ims-go/pull/408 https://github.com/burningmantech/ranger-ims-go/pull/409
 
 ### Added
 
 - Created access expirations, which allow permissions to expire at a provided time. https://github.com/burningmantech/ranger-ims-go/pull/389
 - Added a show/hide password button on the login screen. https://github.com/burningmantech/ranger-ims-go/pull/388
+- Started saving and restoring Incidents table state, so that navigating to an Incident and back doesn't reset the table filters/pagination. https://github.com/burningmantech/ranger-ims-go/pull/424
+- Added support for previewing Quicktime file attachments, with special casing for Chromium browsers. https://github.com/burningmantech/ranger-ims-go/pull/417
+- Began indicating on Admin Events page when a permission references an unknown person, position, or team. https://github.com/burningmantech/ranger-ims-go/pull/411
+- Added an Incident "closed" time to the data model and API, and backfilled those in the database. https://github.com/burningmantech/ranger-ims-go/pull/401
 
 ### Fixed
 
 - Stopped resetting pagination (to page 1) anytime an incident/field report SSE arrives. https://github.com/burningmantech/ranger-ims-go/pull/387
 - Disabled autocomplete on fields like "summary" for which autocomplete is annoying rather than useful. https://github.com/burningmantech/ranger-ims-go/pull/386
+- Resolved a bug in which "override start time" and "permission expiration times" would fail to set in Safari desktop and mobile. https://github.com/burningmantech/ranger-ims-go/pull/431
+- Made it so that ctrl/cmd+clicking any Incidents table row always opens in a new tab. This is basically what we were doing before, but it was glitchy sometimes. https://github.com/burningmantech/ranger-ims-go/pull/420
+- Fixed an issue where clearing a search box wouldn't always reset the view. https://github.com/burningmantech/ranger-ims-go/pull/414
+- Resolved a race condition that sometimes led to each Incident being shown twice in the Incidents table. https://github.com/burningmantech/ranger-ims-go/pull/400
 
 ## 2025-08
 

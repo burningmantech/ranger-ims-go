@@ -30,8 +30,9 @@ services:
     # 3. The environment values here.
     environment:
       IMS_HOSTNAME: "0.0.0.0"
+      IMS_PORT: "8080"
       IMS_DB_HOST_NAME: "ims-db"
-      IMS_DB_PORT: "${IMS_DB_PORT:-3306}"
+      IMS_DB_PORT: "3306"
       IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
       IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
       IMS_DMS_HOSTNAME: "ranger-clubhouse-db:3306"
@@ -39,7 +40,8 @@ services:
       IMS_DMS_USERNAME: "${IMS_DMS_USERNAME:-clubhouseuser}"
       IMS_DMS_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
     ports:
-      - "127.0.0.1:${IMS_PORT:-8080}:8080"
+      # Override IMS_HOST_PORT to set the port mapping on the host.
+      - "127.0.0.1:${IMS_HOST_PORT:-8080}:8080"
     depends_on:
       ims-db:
         condition: service_healthy
@@ -55,7 +57,7 @@ services:
       MARIADB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
       MARIADB_RANDOM_ROOT_PASSWORD: "yes"
     ports:
-      - "${IMS_DB_PORT:-3306}"
+      - "3306"
     volumes:
       - ./.docker/mysql/data-ims/:/var/lib/mysql
       - ./store/schema/current.sql:/docker-entrypoint-initdb.d/1.schema.sql

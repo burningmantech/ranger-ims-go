@@ -215,15 +215,15 @@ function updateEventAccess(event: string, mode: AccessMode): void {
         }
         const expiredText = entryItem.getElementsByClassName("access_expired_text")[0] as HTMLSpanElement;
         if (accessEntry.expired) {
-            expiredText.classList.remove("hidden");
+            expiredText.textContent = "Expired";
         } else {
-            expiredText.classList.add("hidden");
+            expiredText.textContent = "";
         }
         const unknownTargetText = entryItem.getElementsByClassName("unknown_target_text")[0] as HTMLSpanElement;
         if (accessEntry.debug_info?.known_target !== true) {
-            unknownTargetText.classList.remove("hidden");
+            unknownTargetText.textContent = "Unknown";
         } else {
-            unknownTargetText.classList.add("hidden");
+            unknownTargetText.textContent = "";
         }
 
         entryContainer.append(entryItem);
@@ -420,7 +420,7 @@ async function setExpires(sender: HTMLInputElement): Promise<void> {
 
     let expires: string|null = null;
     if (sender.value) {
-        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date())}`);
+        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date(sender.value))}`);
         expires = theDate.toISOString();
         console.log(`Setting expiration to ${expires}`);
     } else {

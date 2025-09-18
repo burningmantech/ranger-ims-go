@@ -75,6 +75,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             <input
                 class="access_expires hidden float-end"
                 type="datetime-local"
+                aria-label="Expiration time"
                 onblur="setExpires(this)"
                 title="Expiration time, in your browser's time zone"
             />
@@ -84,12 +85,8 @@ templ AdminEvents(deployment, versionName, versionRef string) {
                 value="Set expiration"
                 onclick="showExpiresInput(this)"
             />
-            <span class="access_expired_text float-end me-2 hidden">
-                <strong>Expired</strong>
-            </span>
-            <span class="unknown_target_text float-end me-2 hidden">
-                <strong>Unknown</strong>
-            </span>
+            <span class="access_expired_text fw-bold float-end me-2" aria-label="Expiration info"></span>
+            <span class="unknown_target_text fw-bold float-end me-2" aria-label="Unknown info"></span>
           </li>
         </ul>
         <div class="card-footer">

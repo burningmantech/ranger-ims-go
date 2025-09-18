@@ -154,6 +154,18 @@ test("admin_events", async ({ browser }) => {
     await expect(writers).toBeVisible();
     await expect(writers.getByText("person:SomeGuy")).toBeVisible();
     await expect(writers.locator("select")).toHaveValue("onsite");
+    await expect(writers).not.toContainText("Expired");
+    await expect(writers).toContainText("Unknown");
+
+    await writers.getByRole("button", { name: "Set expiration" }).click();
+    const expirationTime = writers.getByRole("textbox", {name: "Expiration time"});
+    await expect(expirationTime).toBeVisible();
+    await expirationTime.fill("2025-05-05T05:55");
+    // focus anywhere else, so that the expirationTime oninput fires
+    await writers.getByRole("textbox", { name: "person:Tool" }).focus();
+    await expect(writers).toContainText("Expired");
+    await expect(writers).toContainText("Unknown");
+
   }).toPass();
 
   await page2.close();
@@ -248,14 +260,14 @@ test("incidents", async ({ page, browser }) => {
     // override start time
     {
       await incidentPage.getByTitle("Override Start Time").click();
-      await incidentPage.getByRole("textbox", { name: "Start Date" }).pressSequentially("01/27/2025");
+      await incidentPage.getByRole("textbox", { name: "Start Date" }).fill("2025-01-27");
       await incidentPage.getByRole("textbox", { name: "Start Date" }).blur();
       await incidentPage.getByRole("textbox", { name: "Start Time" }).focus();
       await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025");
-      await incidentPage.getByRole("textbox", { name: "Start Time" }).pressSequentially("12:34");
+      await incidentPage.getByRole("textbox", { name: "Start Time" }).pressSequentially("09:34");
       await incidentPage.getByRole("textbox", { name: "Start Time" }).blur();
       await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
-      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 12:34");
+      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 09:34");
       // Close the modal
       await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
     }

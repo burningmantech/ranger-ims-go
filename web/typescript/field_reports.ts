@@ -169,7 +169,7 @@ function initFieldReportsTable() {
             if (event !== ims.pathIds.eventID) {
                 return;
             }
-            console.log("Got field report update: " + number);
+            console.log(`Got field report update: ${number}`);
             // TODO(issue/1498): this reloads the entire Field Report table on any
             //  update to any Field Report. That's not ideal. The thing of which
             //  to be mindful when GETting a particular single Field Report is that
@@ -177,8 +177,6 @@ function initFieldReportsTable() {
             //  Field Reports for which they're not authorized, and those errors
             //  show up in the browser console. I'd like to find a way to avoid
             //  bringing those errors into the console constantly.
-
-            // maintain page location if user is not on page 1
             fieldReportsTable!.ajax.reload(null, false);
             ims.clearErrorMessage();
         };

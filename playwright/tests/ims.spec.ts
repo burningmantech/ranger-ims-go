@@ -245,22 +245,20 @@ test("incidents", async ({ page, browser }) => {
       await addRanger(incidentPage, "TheMan");
     }
 
-    // TODO: figure out what goes wrong in WebKit
-    // // override start time
-    // {
-    //   await incidentPage.getByTitle("Override Start Time").click();
-    //   // await incidentPage.getByRole("textbox", { name: "Start Date" }).clear();
-    //   await incidentPage.getByRole("textbox", { name: "Start Date" }).pressSequentially("01272025");
-    //   await incidentPage.getByRole("textbox", { name: "Start Date" }).blur();
-    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).focus();
-    //   await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025");
-    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).pressSequentially("12:34");
-    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).blur();
-    //   await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
-    //   await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 12:34");
-    //   // Close the modal
-    //   await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
-    // }
+    // override start time
+    {
+      await incidentPage.getByTitle("Override Start Time").click();
+      await incidentPage.getByRole("textbox", { name: "Start Date" }).pressSequentially("01/27/2025");
+      await incidentPage.getByRole("textbox", { name: "Start Date" }).blur();
+      await incidentPage.getByRole("textbox", { name: "Start Time" }).focus();
+      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025");
+      await incidentPage.getByRole("textbox", { name: "Start Time" }).pressSequentially("12:34");
+      await incidentPage.getByRole("textbox", { name: "Start Time" }).blur();
+      await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
+      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 12:34");
+      // Close the modal
+      await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
+    }
 
     // add location details
     {

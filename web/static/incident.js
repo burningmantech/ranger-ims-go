@@ -476,6 +476,7 @@ function drawStarted() {
     }
     const tzInput = document.getElementById("override_start_tz");
     tzInput.textContent = ims.localTzShortName(dateDate);
+    tzInput.dataset["tzOffset"] = ims.localTzOffset(dateDate) ?? undefined;
 }
 //
 // Populate incident priority
@@ -821,9 +822,9 @@ async function overrideStartDate() {
         return;
     }
     const timeInput = document.getElementById("override_start_time");
-    const tzValue = document.getElementById("override_start_tz").textContent ?? "";
+    const tzOffset = document.getElementById("override_start_tz").dataset["tzOffset"] ?? "Z";
     await ims.editFromElement(dateInput, "started", (_) => {
-        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzValue);
+        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzOffset);
     });
 }
 async function overrideStartTime() {
@@ -833,9 +834,9 @@ async function overrideStartTime() {
         // nothing to do
         return;
     }
-    const tzValue = document.getElementById("override_start_tz").textContent ?? "";
+    const tzOffset = document.getElementById("override_start_tz").dataset["tzOffset"] ?? "Z";
     await ims.editFromElement(timeInput, "started", (_) => {
-        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzValue);
+        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzOffset);
     });
 }
 async function editIncidentSummary() {

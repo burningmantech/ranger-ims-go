@@ -603,6 +603,7 @@ function drawStarted(): void {
 
     const tzInput = document.getElementById("override_start_tz") as HTMLSpanElement;
     tzInput.textContent = ims.localTzShortName(dateDate);
+    tzInput.dataset["tzOffset"] = ims.localTzOffset(dateDate)??undefined;
 }
 
 //
@@ -1048,10 +1049,10 @@ async function overrideStartDate(): Promise<void> {
 
     const timeInput = document.getElementById("override_start_time") as HTMLInputElement;
 
-    const tzValue = document.getElementById("override_start_tz")!.textContent??"";
+    const tzOffset = document.getElementById("override_start_tz")!.dataset["tzOffset"]??"Z";
 
     await ims.editFromElement(dateInput, "started", (_: string|null):string=> {
-        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzValue);
+        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzOffset);
     });
 }
 
@@ -1064,10 +1065,10 @@ async function overrideStartTime(): Promise<void> {
         return;
     }
 
-    const tzValue = document.getElementById("override_start_tz")!.textContent??"";
+    const tzOffset = document.getElementById("override_start_tz")!.dataset["tzOffset"]??"Z";
 
     await ims.editFromElement(timeInput, "started", (_: string|null):string=> {
-        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzValue);
+        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzOffset);
     });
 }
 

@@ -420,8 +420,7 @@ async function setExpires(sender: HTMLInputElement): Promise<void> {
 
     let expires: string|null = null;
     if (sender.value) {
-        const dateAndTime = sender.value.replaceAll("T", " ");
-        const theDate = new Date(`${dateAndTime} ${ims.localTzShortName(new Date())}`);
+        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date())}`);
         expires = theDate.toISOString();
         console.log(`Setting expiration to ${expires}`);
     } else {

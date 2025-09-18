@@ -225,8 +225,8 @@ function timeElement(date) {
     timeStampContainer.textContent = fullDateTime.format(date);
     return timeStampContainer;
 }
-export function newDateTimeVal(dateInput, timeInput, localTz) {
-    const val = `${dateInput.trim()} ${timeInput.trim()} ${localTz}`;
+export function newDateTimeVal(dateInput, timeInput, tzOffset) {
+    const val = `${dateInput.trim()}T${timeInput.trim()}${tzOffset}`;
     const date = new Date(val);
     // Just do a check on the year to prevent obvious mistakes.
     // This will break in year 2099. Feel free to update maximum year.
@@ -646,6 +646,10 @@ export const fullDateTime = new Intl.DateTimeFormat(undefined, {
     timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
+export function localTzOffset(d) {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'longOffset' }).formatToParts(d);
+    return (parts.find(p => p.type === 'timeZoneName')?.value.replace("GMT", "")) ?? null;
+}
 export function localTzShortName(d) {
     const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d);
     return (parts.find(p => p.type === 'timeZoneName')?.value) ?? null;

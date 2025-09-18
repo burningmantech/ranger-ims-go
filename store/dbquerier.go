@@ -47,20 +47,6 @@ func logQuery(queryName string, start time.Time, err error) {
 	)
 }
 
-// TODO: possibly do this sort of caching
-//  where DBQ has a "eventsCache *cache.InMemory[[]imsdb.EventsRow]" field
-// func (l DBQ) Events(ctx context.Context, db imsdb.DBTX) ([]imsdb.EventsRow, error) {
-//	rows, err := l.eventsCache.Get(ctx)
-//	return orNil(rows), err
-//}
-//
-// func orNil[S ~*[]E, E any](sl S) []E {
-//	if sl == nil {
-//		return nil
-//	}
-//	return *sl
-//}
-
 // Force DBQ to implement the imsdb.Querier interface.
 var _ imsdb.Querier = (*DBQ)(nil)
 

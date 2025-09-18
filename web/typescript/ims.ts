@@ -248,8 +248,8 @@ function timeElement(date: Date): HTMLTimeElement {
     return timeStampContainer;
 }
 
-export function newDateTimeVal(dateInput: string, timeInput: string, localTz: string): string {
-    const val = `${dateInput.trim()} ${timeInput.trim()} ${localTz}`;
+export function newDateTimeVal(dateInput: string, timeInput: string, tzOffset: string): string {
+    const val = `${dateInput.trim()}T${timeInput.trim()}${tzOffset}`;
     const date = new Date(val);
     // Just do a check on the year to prevent obvious mistakes.
     // This will break in year 2099. Feel free to update maximum year.
@@ -749,6 +749,12 @@ export const fullDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefin
     timeZoneName: "short",
     // timeZone not specified; will use user's timezone
 });
+
+export function localTzOffset(d: Date): string|null {
+    const parts = new Intl.DateTimeFormat(
+        undefined, { timeZoneName: 'longOffset' }).formatToParts(d);
+    return (parts.find(p => p.type === 'timeZoneName')?.value.replace("GMT", ""))??null;
+}
 
 export function localTzShortName(d: Date): string|null {
     const parts = new Intl.DateTimeFormat(

@@ -173,25 +173,28 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
             }
         }
     }
-    let response: Response|null = null;
+    let response: Response;
     try {
-        let err: string|null = null;
         response = await fetch(url, init);
-        if (!response.ok) {
-            err = `${response.statusText} (${response.status})`;
-            if (response.headers.get("content-type") === "application/problem+json") {
-                let problem: Problem = await response.json();
-                err = `${problem.detail??""} (HTTP ${response.status})`;
-            }
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            return {resp: null, json: null, err: err.message};
         }
-        let json: T|null = null;
-        if (response.headers.get("content-type") === "application/json") {
-            json = await response.json();
-        }
-        return {resp: response, json: json, err: err};
-    } catch (err: any) {
-        return {resp: response, json: null, err: err.message};
+        throw err;
     }
+    let err: string|null = null;
+    if (!response.ok) {
+        err = `${response.statusText} (${response.status})`;
+        if (response.headers.get("content-type") === "application/problem+json") {
+            let problem: Problem = await response.json();
+            err = `${problem.detail??""} (HTTP ${response.status})`;
+        }
+    }
+    let json: T|null = null;
+    if (response.headers.get("content-type") === "application/json") {
+        json = await response.json();
+    }
+    return {resp: response, json: json, err: err};
 }
 
 

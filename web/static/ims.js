@@ -160,26 +160,29 @@ export async function fetchNoThrow(url, init) {
             }
         }
     }
-    let response = null;
+    let response;
     try {
-        let err = null;
         response = await fetch(url, init);
-        if (!response.ok) {
-            err = `${response.statusText} (${response.status})`;
-            if (response.headers.get("content-type") === "application/problem+json") {
-                let problem = await response.json();
-                err = `${problem.detail ?? ""} (HTTP ${response.status})`;
-            }
-        }
-        let json = null;
-        if (response.headers.get("content-type") === "application/json") {
-            json = await response.json();
-        }
-        return { resp: response, json: json, err: err };
     }
     catch (err) {
-        return { resp: response, json: null, err: err.message };
+        if (err instanceof Error) {
+            return { resp: null, json: null, err: err.message };
+        }
+        throw err;
     }
+    let err = null;
+    if (!response.ok) {
+        err = `${response.statusText} (${response.status})`;
+        if (response.headers.get("content-type") === "application/problem+json") {
+            let problem = await response.json();
+            err = `${problem.detail ?? ""} (HTTP ${response.status})`;
+        }
+    }
+    let json = null;
+    if (response.headers.get("content-type") === "application/json") {
+        json = await response.json();
+    }
+    return { resp: response, json: json, err: err };
 }
 //
 // Generic string formatting

@@ -357,7 +357,7 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		return 0, errHTTP.From("[addIncidentReportEntry]")
 	}
 
-	action.es.notifyIncidentUpdate(event.Name, incidentNumber)
+	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)
 	return reID, nil
 }
 
@@ -469,9 +469,9 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		return 0, errHTTP.From("[addFRReportEntry]")
 	}
 
-	action.es.notifyFieldReportUpdate(event.Name, fieldReportNumber)
+	action.es.notifyFieldReportUpdateV2(event.ID, fieldReportNumber)
 	if fieldReport.IncidentNumber.Valid {
-		action.es.notifyIncidentUpdate(event.Name, fieldReport.IncidentNumber.Int32)
+		action.es.notifyIncidentUpdateV2(event.ID, fieldReport.IncidentNumber.Int32)
 	}
 	return reID, nil
 }

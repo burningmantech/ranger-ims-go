@@ -31,6 +31,8 @@ declare global {
         removeIncidentType: (el: HTMLElement)=>Promise<void>;
         detachFieldReport: (el: HTMLElement)=>Promise<void>;
         attachFieldReport: ()=>Promise<void>;
+        unlinkIncident: (el: HTMLElement)=>Promise<void>;
+        linkIncident: ()=>Promise<void>;
         addRanger: ()=>Promise<void>;
         addIncidentType: ()=>Promise<void>;
         attachFile: ()=>Promise<void>;
@@ -49,6 +51,8 @@ let incident: ims.Incident|null = null;
 
 let allIncidentTypes: ims.IncidentType[] = [];
 
+let allEvents: ims.EventData[]|null = null;
+
 //
 // Initialize UI
 //
@@ -63,7 +67,7 @@ async function initIncidentPage(): Promise<void> {
     }
     if (!ims.eventAccess!.readIncidents) {
         ims.setErrorMessage(
-            `You're not currently authorized to view Incidents in Event "${ims.pathIds.eventID}".`
+            `You're not currently authorized to view Incidents in Event "${ims.pathIds.eventName}".`
         );
         ims.hideLoadingOverlay();
         return;
@@ -80,6 +84,8 @@ async function initIncidentPage(): Promise<void> {
     window.removeIncidentType = removeIncidentType;
     window.detachFieldReport = detachFieldReport;
     window.attachFieldReport = attachFieldReport;
+    window.unlinkIncident = unlinkIncident;
+    window.linkIncident = linkIncident;
     window.addRanger = addRanger;
     window.addIncidentType = addIncidentType;
     window.attachFile = attachFile;
@@ -92,7 +98,7 @@ async function initIncidentPage(): Promise<void> {
 
     // load everything from the APIs concurrently
     await Promise.all([
-        await ims.loadStreets(ims.pathIds.eventID),
+        await ims.loadStreets(ims.pathIds.eventName),
         await loadIncident(),
         await loadPersonnel(),
         await ims.loadIncidentTypes().then(
@@ -102,6 +108,8 @@ async function initIncidentPage(): Promise<void> {
         ),
         await loadAllFieldReports(),
     ]);
+
+    allEvents = await initResult.eventDatas;
 
     addLocationAddressOptions();
     ims.disableEditing();
@@ -133,10 +141,10 @@ async function initIncidentPage(): Promise<void> {
 
     ims.newIncidentChannel().onmessage = async function (e: MessageEvent<ims.IncidentBroadcast>): Promise<void> {
         const number = e.data.incident_number;
-        const event = e.data.event_name;
+        const eventId = e.data.event_id;
         const updateAll = e.data.update_all??false;
 
-        if (updateAll || (event === ims.pathIds.eventID && number === ims.pathIds.incidentNumber)) {
+        if (updateAll || (eventId === ims.pathIds.eventId && number === ims.pathIds.incidentNumber)) {
             console.log("Got incident update: " + number);
             await loadAndDisplayIncident();
             await loadAllFieldReports();
@@ -154,8 +162,8 @@ async function initIncidentPage(): Promise<void> {
         }
 
         const number = e.data.field_report_number;
-        const event = e.data.event_name;
-        if (event === ims.pathIds.eventID) {
+        const eventId = e.data.event_id;
+        if (eventId === ims.pathIds.eventId) {
             console.log("Got field report update: " + number);
             await loadOneFieldReport(number!);
             renderFieldReportData();
@@ -334,6 +342,7 @@ function renderFieldReportData(): void {
     drawFieldReportsToAttach();
     drawMergedReportEntries();
     drawAttachedFieldReports();
+    drawLinkedIncidents();
 }
 
 
@@ -544,7 +553,7 @@ function addLocationAddressOptions(): void {
 //
 
 function drawIncidentTitle(): void {
-    const eventSuffix = ims.pathIds.eventID != null ? ` | ${ims.pathIds.eventID}` : "";
+    const eventSuffix = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
     document.title = `${ims.incidentAsString(incident!)}${eventSuffix}`;
 }
 
@@ -893,6 +902,55 @@ function drawAttachedFieldReports() {
         item.classList.remove("hidden");
         item.append(link);
         item.dataset["frNumber"] = report.number!.toString();
+
+        container.append(item);
+    }
+}
+
+let _linkedIncidentsItem: HTMLElement|null = null;
+
+function drawLinkedIncidents(): void {
+    if (_linkedIncidentsItem == null) {
+        const elements = document.getElementById("linked_incidents")!
+            .getElementsByClassName("list-group-item");
+        if (elements.length === 0) {
+            console.error("found no linkedIncidents");
+            return;
+        }
+        _linkedIncidentsItem = elements[0] as HTMLElement;
+    }
+
+    const linkedIncidents = incident!.linked_incidents??[];
+    linkedIncidents.sort(function (a: ims.LinkedIncident, b: ims.LinkedIncident): number {
+        if ((b.event_name??"") === (a.event_name??"")) {
+            return (a.number || 0) - (b.number || 0);
+        }
+        return (a.event_name??"").localeCompare(b.event_name??"");
+    });
+
+    const container = document.getElementById("linked_incidents")!;
+    container.replaceChildren();
+
+    for (const linked of linkedIncidents) {
+        const link: HTMLAnchorElement = document.createElement("a");
+
+        link.href = url_viewIncidentNumber
+            .replace("<event_id>", linked.event_name??"")
+            .replace("<number>", linked.number?.toString()??"");
+
+        let summary: string = ""
+        if (linked.summary) {
+            summary = `: ${linked.summary}`;
+        }
+
+        link.innerText = `IMS ${linked.event_name??""} #${linked.number}${summary}`;
+
+        const item = _linkedIncidentsItem.cloneNode(true) as HTMLElement;
+        item.classList.remove("hidden");
+        item.append(link);
+        item.dataset["eventId"] = linked.event_id?.toString();
+        item.dataset["eventName"] = linked.event_name?.toString();
+        item.dataset["incidentNumber"] = linked.number?.toString();
 
         container.append(item);
     }
@@ -1291,6 +1349,87 @@ async function attachFieldReport(): Promise<void> {
     await loadAllFieldReports();
     renderFieldReportData();
     ims.controlHasSuccess(select, 1000);
+}
+
+async function unlinkIncident(sender: HTMLElement): Promise<void> {
+    const parent = sender.parentElement as HTMLElement;
+    const linkedEventId = ims.parseInt10(parent.dataset["eventId"]);
+    const linkedIncidentNumber = ims.parseInt10(parent.dataset["incidentNumber"]);
+    await sendEdits({
+        "linked_incidents": (incident!.linked_incidents??[]).filter(
+            function(t: ims.LinkedIncident): boolean {
+                return ! (t.event_id === linkedEventId && t.number === linkedIncidentNumber);
+            }
+        ),
+    });
+}
+
+async function linkIncident(): Promise<void> {
+    if (ims.pathIds.incidentNumber == null) {
+        // Incident doesn't exist yet. Create it first.
+        const {err} = await sendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
+
+    const input = document.getElementById("linked_incident_add") as HTMLInputElement;
+    const currentEventId = (allEvents??[]).find(value => value.name === ims.pathIds.eventName)!.id;
+
+    let inputStr: string = input.value.trim();
+    // Assume the current event unless another is specified
+    let eventID: number|null = currentEventId;
+    if (inputStr.indexOf("#") === 0) {
+        inputStr = inputStr.substring(1);
+    }
+    if (inputStr.indexOf("#") > 0) {
+        const splits = inputStr.split("#", 2);
+        const eventName = (splits[0]??"").trim();
+        if (!eventName) {
+            ims.controlHasError(input);
+            ims.setErrorMessage(`Invalid format for linked incident. Got '${inputStr}'`);
+            input.value = "";
+            input.disabled = false;
+            return;
+        }
+        eventID = (allEvents??[]).find(value => value.name === eventName)?.id||null;
+        if (!eventID) {
+            ims.controlHasError(input);
+            ims.setErrorMessage(`There is no Event for name '${eventName}' or you're not authorized to access it`);
+            input.value = "";
+            input.disabled = false;
+            return;
+        }
+        inputStr = (splits[1]??"").trim();
+    }
+    const linkedIncident: ims.LinkedIncident = {
+        event_id: eventID,
+        number: ims.parseInt10(inputStr),
+    };
+
+    if (linkedIncident.event_id === currentEventId && linkedIncident.number === incident?.number) {
+        ims.controlHasError(input);
+        ims.setErrorMessage("Can't link an incident to itself");
+        input.value = "";
+        input.disabled = false;
+        return;
+    }
+
+    const currentLinkedIncidents: ims.LinkedIncident[] = (incident!.linked_incidents??[]).slice();
+    currentLinkedIncidents.push(linkedIncident!);
+
+    input.disabled = true;
+    const {err} = await sendEdits({"linked_incidents": currentLinkedIncidents});
+    if (err != null) {
+        ims.controlHasError(input);
+        input.value = "";
+        input.disabled = false;
+        return;
+    }
+    input.value = "";
+    input.disabled = false;
+    ims.controlHasSuccess(input, 1000);
+    input.focus();
 }
 
 

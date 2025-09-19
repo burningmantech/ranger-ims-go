@@ -30,7 +30,7 @@ async function initFieldReportPage() {
     }
     const canReadFieldReports = ims.eventAccess.readIncidents || ims.eventAccess.writeFieldReports;
     if (!canReadFieldReports) {
-        ims.setErrorMessage(`You're not currently authorized to view Field Reports in Event "${ims.pathIds.eventID}".`);
+        ims.setErrorMessage(`You're not currently authorized to view Field Reports in Event "${ims.pathIds.eventName}".`);
         ims.hideLoadingOverlay();
         return;
     }
@@ -62,9 +62,9 @@ async function initFieldReportPage() {
     ims.requestEventSourceLock();
     ims.newFieldReportChannel().onmessage = async function (e) {
         const number = e.data.field_report_number;
-        const event = e.data.event_name;
+        const eventId = e.data.event_id;
         const updateAll = e.data.update_all;
-        if (updateAll || (event === ims.pathIds.eventID && number === ims.pathIds.fieldReportNumber)) {
+        if (updateAll || (eventId === ims.pathIds.eventName && number === ims.pathIds.fieldReportNumber)) {
             console.log(`Got field report update. number = ${number}, update_all = ${updateAll}`);
             await loadAndDisplayFieldReport();
         }
@@ -178,7 +178,7 @@ async function loadAndDisplayFieldReport() {
 // Populate page title
 //
 function drawTitle() {
-    const eventSuffix = ims.pathIds.eventID != null ? ` | ${ims.pathIds.eventID}` : "";
+    const eventSuffix = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
     document.title = `${ims.fieldReportAsString(fieldReport)}${eventSuffix}`;
 }
 //

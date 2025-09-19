@@ -884,6 +884,64 @@ func (q *Queries) IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRo
 	return items, nil
 }
 
+const incident_LinkedIncidents = `-- name: Incident_LinkedIncidents :many
+select
+    ili.EVENT_2 as LINKED_EVENT,
+    e.NAME as LINKED_EVENT_NAME,
+    ili.INCIDENT_NUMBER_2 as LINKED_INCIDENT,
+    i2.SUMMARY as LINKED_INCIDENT_SUMMARY
+from
+    INCIDENT__LINKED_INCIDENT ili
+    join ` + "`" + `EVENT` + "`" + ` e
+        on e.ID = ili.EVENT_2
+    join INCIDENT i2
+        on i2.EVENT = ili.EVENT_2
+            and i2.NUMBER = ili.INCIDENT_NUMBER_2
+where
+    ili.EVENT_1 = ?
+    and ili.INCIDENT_NUMBER_1 = ?
+`
+
+type Incident_LinkedIncidentsParams struct {
+	Event1          int32
+	IncidentNumber1 int32
+}
+
+type Incident_LinkedIncidentsRow struct {
+	LinkedEvent           int32
+	LinkedEventName       string
+	LinkedIncident        int32
+	LinkedIncidentSummary sql.NullString
+}
+
+func (q *Queries) Incident_LinkedIncidents(ctx context.Context, db DBTX, arg Incident_LinkedIncidentsParams) ([]Incident_LinkedIncidentsRow, error) {
+	rows, err := db.QueryContext(ctx, incident_LinkedIncidents, arg.Event1, arg.IncidentNumber1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Incident_LinkedIncidentsRow
+	for rows.Next() {
+		var i Incident_LinkedIncidentsRow
+		if err := rows.Scan(
+			&i.LinkedEvent,
+			&i.LinkedEventName,
+			&i.LinkedIncident,
+			&i.LinkedIncidentSummary,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const incident_ReportEntries = `-- name: Incident_ReportEntries :many
 select
     ire.INCIDENT_NUMBER,
@@ -1074,6 +1132,30 @@ func (q *Queries) Incidents_ReportEntries(ctx context.Context, db DBTX, arg Inci
 	return items, nil
 }
 
+const linkIncidents = `-- name: LinkIncidents :exec
+insert into INCIDENT__LINKED_INCIDENT
+    (EVENT_1, INCIDENT_NUMBER_1, EVENT_2, INCIDENT_NUMBER_2)
+values
+    (?, ?, ?, ?)
+`
+
+type LinkIncidentsParams struct {
+	Event1          int32
+	IncidentNumber1 int32
+	Event2          int32
+	IncidentNumber2 int32
+}
+
+func (q *Queries) LinkIncidents(ctx context.Context, db DBTX, arg LinkIncidentsParams) error {
+	_, err := db.ExecContext(ctx, linkIncidents,
+		arg.Event1,
+		arg.IncidentNumber1,
+		arg.Event2,
+		arg.IncidentNumber2,
+	)
+	return err
+}
+
 const nextFieldReportNumber = `-- name: NextFieldReportNumber :one
 select NUMBER + 1 as NEXT_ID
 from FIELD_REPORT
@@ -1195,6 +1277,32 @@ func (q *Queries) SetIncidentReportEntryStricken(ctx context.Context, db DBTX, a
 		arg.Event,
 		arg.IncidentNumber,
 		arg.ReportEntry,
+	)
+	return err
+}
+
+const unlinkIncidents = `-- name: UnlinkIncidents :exec
+delete from INCIDENT__LINKED_INCIDENT
+where
+    EVENT_1 = ?
+    and INCIDENT_NUMBER_1 = ?
+    and EVENT_2 = ?
+    and INCIDENT_NUMBER_2 = ?
+`
+
+type UnlinkIncidentsParams struct {
+	Event1          int32
+	IncidentNumber1 int32
+	Event2          int32
+	IncidentNumber2 int32
+}
+
+func (q *Queries) UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncidentsParams) error {
+	_, err := db.ExecContext(ctx, unlinkIncidents,
+		arg.Event1,
+		arg.IncidentNumber1,
+		arg.Event2,
+		arg.IncidentNumber2,
 	)
 	return err
 }

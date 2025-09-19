@@ -18,7 +18,6 @@ package api
 
 import (
 	"cmp"
-	"context"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -65,14 +64,14 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to get events", err).From("[Events]")
 	}
-	permissionsByEvent, errHTTP := action.permissionsByEvent(req.Context(), jwt)
+	permsByEvent, errHTTP := permissionsByEvent(req.Context(), jwt, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return empty, errHTTP.From("[permissionsByEvent]")
 	}
 
 	var authorizedEvents []imsdb.EventsRow
 	for _, eve := range allEvents {
-		if permissionsByEvent[eve.Event.ID]&authz.EventReadEventName != 0 {
+		if permsByEvent[eve.Event.ID]&authz.EventReadEventName != 0 {
 			authorizedEvents = append(authorizedEvents, eve)
 		}
 	}
@@ -89,50 +88,6 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 	})
 
 	return resp, nil
-}
-
-func (action GetEvents) permissionsByEvent(ctx context.Context, jwtCtx JWTContext) (
-	map[int32]authz.EventPermissionMask, *herr.HTTPError,
-) {
-	accessRows, err := action.imsDBQ.EventAccessAll(ctx, action.imsDBQ)
-	if err != nil {
-		return nil, herr.InternalServerError("Failed to fetch event access", err).From("[EventAccessAll]")
-	}
-	accessRowByEventID := make(map[int32][]imsdb.EventAccess)
-	for _, ar := range accessRows {
-		accessRowByEventID[ar.EventAccess.Event] = append(accessRowByEventID[ar.EventAccess.Event], ar.EventAccess)
-	}
-
-	allPositions, allTeams, err := action.userStore.GetPositionsAndTeams(ctx)
-	if err != nil {
-		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[GetPositionsAndTeams]")
-	}
-	userPosIDs := jwtCtx.Claims.RangerPositions()
-	userPosNames := make([]string, 0, len(userPosIDs))
-	for _, userPosID := range userPosIDs {
-		userPosNames = append(userPosNames, allPositions[userPosID])
-	}
-	userTeamIDs := jwtCtx.Claims.RangerTeams()
-	userTeamNames := make([]string, 0, len(userTeamIDs))
-	for _, userTeamID := range userTeamIDs {
-		userTeamNames = append(userTeamNames, allTeams[userTeamID])
-	}
-	onDutyPosition := ""
-	onDutyPositionID := jwtCtx.Claims.RangerOnDutyPosition()
-	if onDutyPositionID != nil {
-		onDutyPosition = allPositions[*onDutyPositionID]
-	}
-
-	permissionsByEvent, _ := authz.ManyEventPermissions(
-		accessRowByEventID,
-		action.imsAdmins,
-		jwtCtx.Claims.RangerHandle(),
-		jwtCtx.Claims.RangerOnSite(),
-		userPosNames,
-		userTeamNames,
-		onDutyPosition,
-	)
-	return permissionsByEvent, nil
 }
 
 type EditEvents struct {

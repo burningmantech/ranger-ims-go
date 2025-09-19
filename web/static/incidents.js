@@ -166,7 +166,7 @@ async function initIncidentsTable() {
             visibleIncidentTypes = value.types.filter(it => !it.hidden);
             visibleIncidentTypeIds = visibleIncidentTypes.map(it => it.id).filter(id => id != null);
         }),
-        ims.loadStreets(ims.pathIds.eventID),
+        ims.loadStreets(ims.pathIds.eventName),
     ]).then(_ => { });
     initDataTables(tablePrereqs);
     initTableButtons();
@@ -192,8 +192,8 @@ async function initIncidentsTable() {
                 return;
             }
             const number = e.data.incident_number;
-            const event = e.data.event_name;
-            if (event !== ims.pathIds.eventID) {
+            const eventId = e.data.event_id;
+            if (eventId !== ims.pathIds.eventId) {
                 return;
             }
             const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_incidentNumber).replace("<incident_number>", number.toString()), null);

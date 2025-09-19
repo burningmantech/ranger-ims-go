@@ -21,11 +21,13 @@
 //
 
 export let pathIds: {
-    eventID: string|null,
+    eventName: string|null,
+    eventId: number|null,
     incidentNumber: number|null,
     fieldReportNumber: number|null,
 } = {
-    eventID: null,
+    eventName: null,
+    eventId: null,
     incidentNumber: null,
     fieldReportNumber: null,
 };
@@ -43,7 +45,12 @@ const svgNS = "http://www.w3.org/2000/svg";
 
 export const integerRegExp: RegExp = /^\d+$/;
 
-function idsFromPath(): {eventID: string|null, incidentNumber: number|null, fieldReportNumber: number|null} {
+function idsFromPath(): {
+    eventName: string|null,
+    eventId: number|null,
+    incidentNumber:number|null,
+    fieldReportNumber: number|null,
+} {
     const splits = window.location.pathname.split("/");
 
     // e.g. given splits of [dog, cat, emu] and s = "cat",
@@ -62,7 +69,8 @@ function idsFromPath(): {eventID: string|null, incidentNumber: number|null, fiel
         return splits[index+1]??null;
     }
     return {
-        eventID: tokenAfter("events"),
+        eventName: tokenAfter("events"),
+        eventId: null,
         incidentNumber: parseInt10(tokenAfter("incidents")),
         fieldReportNumber: parseInt10(tokenAfter("field_reports")),
     };
@@ -72,7 +80,7 @@ function idsFromPath(): {eventID: string|null, incidentNumber: number|null, fiel
 // URL substitution
 //
 export function urlReplace(url: string): string {
-    const event = pathIds.eventID;
+    const event: string|null = pathIds.eventName;
     if (event) {
         url = url.replace("<event_id>", event);
     }
@@ -359,7 +367,8 @@ export async function commonPageInit(): Promise<PageInitResult> {
     }
     let eds: Promise<EventData[]|null> = Promise.resolve(null);
     if (authInfo.authenticated) {
-        eventAccess = authInfo.event_access?.[pathIds.eventID!]??null;
+        eventAccess = authInfo.event_access?.[pathIds.eventName!]??null;
+        pathIds.eventId = eventAccess?.event_id??null;
         eds = fetchNoThrow<EventData[]>(url_events, null).then(
             result => {
                 if (result.err != null || result.json == null) {
@@ -376,7 +385,7 @@ export async function commonPageInit(): Promise<PageInitResult> {
 }
 
 export async function getAuthInfo(): Promise<FetchRes<AuthInfo>> {
-    const url = url_auth + (pathIds.eventID ? `?event_id=${pathIds.eventID}` : "");
+    const url = url_auth + (pathIds.eventName ? `?event_id=${pathIds.eventName}` : "");
     return await fetchNoThrow<AuthInfo>(url, null);
 }
 
@@ -406,7 +415,7 @@ function renderCommonPageItems(authInfo: AuthInfo): void {
     }
 
     // Set the active event in the navbar, show "Incidents" and "Field Report" buttons
-    const event = pathIds.eventID;
+    const event: string|null = pathIds.eventName;
     if (event != null) {
         const eventLabel = document.getElementById("nav-event-id")!;
         eventLabel.textContent = event;
@@ -1465,6 +1474,13 @@ interface EventLocation {
     description?: string|null;
 }
 
+export type LinkedIncident = {
+    event_name?: string|null;
+    event_id?: number|null;
+    number?: number|null;
+    summary?: string|null;
+}
+
 export type Incident = {
     number?: number|null;
     event?: string|null;
@@ -1479,6 +1495,7 @@ export type Incident = {
     location?: EventLocation|null;
     report_entries?: ReportEntry[]|null;
     field_reports?: number[]|null;
+    linked_incidents?: LinkedIncident[]|null;
 }
 
 export type FieldReport = {
@@ -1534,6 +1551,7 @@ export type AuthenticatedAuthInfo = {
 export type AuthInfo = UnauthenticatedAuthInfo | AuthenticatedAuthInfo;
 
 export type AuthInfoEventAccess = {
+    event_id: number;
     readIncidents: boolean,
     writeIncidents: boolean,
     writeFieldReports: boolean,
@@ -1550,7 +1568,7 @@ interface BroadcastChannelTyped<T> extends EventTarget {
 
 export type IncidentBroadcast = {
     // fields from SSE
-    event_name?: string|null;
+    event_id?: number|null;
     incident_number?: number|null;
     // additional fields for use in BroadcastChannel
     update_all?: boolean;
@@ -1558,7 +1576,7 @@ export type IncidentBroadcast = {
 
 export type FieldReportBroadcast = {
     // fields from SSE
-    event_name?: string|null;
+    event_id?: number|null;
     field_report_number?: number|null;
     // additional fields for use in BroadcastChannel
     update_all?: boolean

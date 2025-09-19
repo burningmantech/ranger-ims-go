@@ -20,7 +20,8 @@
 // Globals
 //
 export let pathIds = {
-    eventID: null,
+    eventName: null,
+    eventId: null,
     incidentNumber: null,
     fieldReportNumber: null,
 };
@@ -50,7 +51,8 @@ function idsFromPath() {
         return splits[index + 1] ?? null;
     }
     return {
-        eventID: tokenAfter("events"),
+        eventName: tokenAfter("events"),
+        eventId: null,
         incidentNumber: parseInt10(tokenAfter("incidents")),
         fieldReportNumber: parseInt10(tokenAfter("field_reports")),
     };
@@ -59,7 +61,7 @@ function idsFromPath() {
 // URL substitution
 //
 export function urlReplace(url) {
-    const event = pathIds.eventID;
+    const event = pathIds.eventName;
     if (event) {
         url = url.replace("<event_id>", event);
     }
@@ -320,7 +322,8 @@ export async function commonPageInit() {
     }
     let eds = Promise.resolve(null);
     if (authInfo.authenticated) {
-        eventAccess = authInfo.event_access?.[pathIds.eventID] ?? null;
+        eventAccess = authInfo.event_access?.[pathIds.eventName] ?? null;
+        pathIds.eventId = eventAccess?.event_id ?? null;
         eds = fetchNoThrow(url_events, null).then(result => {
             if (result.err != null || result.json == null) {
                 console.log(`Failed to fetch events: ${result.err}`);
@@ -334,7 +337,7 @@ export async function commonPageInit() {
     return { authInfo: authInfo, eventDatas: eds };
 }
 export async function getAuthInfo() {
-    const url = url_auth + (pathIds.eventID ? `?event_id=${pathIds.eventID}` : "");
+    const url = url_auth + (pathIds.eventName ? `?event_id=${pathIds.eventName}` : "");
     return await fetchNoThrow(url, null);
 }
 export async function redirectToLogin() {
@@ -361,7 +364,7 @@ function renderCommonPageItems(authInfo) {
         hide(".if-admin");
     }
     // Set the active event in the navbar, show "Incidents" and "Field Report" buttons
-    const event = pathIds.eventID;
+    const event = pathIds.eventName;
     if (event != null) {
         const eventLabel = document.getElementById("nav-event-id");
         eventLabel.textContent = event;

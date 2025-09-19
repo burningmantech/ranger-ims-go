@@ -40,19 +40,27 @@ const (
 )
 
 type Incident struct {
-	Event           string        `json:"event"`
-	EventID         int32         `json:"event_id"`
-	Number          int32         `json:"number"`
-	Created         time.Time     `json:"created,omitzero"`
-	LastModified    time.Time     `json:"last_modified,omitzero"`
-	State           string        `json:"state"`
-	Started         time.Time     `json:"started,omitzero"`
-	Closed          time.Time     `json:"closed,omitzero"`
-	Priority        int8          `json:"priority"`
-	Summary         *string       `json:"summary"`
-	Location        Location      `json:"location"`
-	IncidentTypeIDs *[]int32      `json:"incident_type_ids"`
-	FieldReports    *[]int32      `json:"field_reports"`
-	RangerHandles   *[]string     `json:"ranger_handles"`
-	ReportEntries   []ReportEntry `json:"report_entries"`
+	Event           string            `json:"event"`
+	EventID         int32             `json:"event_id"`
+	Number          int32             `json:"number"`
+	Created         time.Time         `json:"created,omitzero"`
+	LastModified    time.Time         `json:"last_modified,omitzero"`
+	State           string            `json:"state"`
+	Started         time.Time         `json:"started,omitzero"`
+	Closed          time.Time         `json:"closed,omitzero"`
+	Priority        int8              `json:"priority"`
+	Summary         *string           `json:"summary"`
+	Location        Location          `json:"location"`
+	IncidentTypeIDs *[]int32          `json:"incident_type_ids"`
+	FieldReports    *[]int32          `json:"field_reports"`
+	RangerHandles   *[]string         `json:"ranger_handles"`
+	LinkedIncidents *[]LinkedIncident `json:"linked_incidents,omitzero"`
+	ReportEntries   []ReportEntry     `json:"report_entries"`
+}
+
+type LinkedIncident struct {
+	EventName string `json:"event_name"`
+	EventID   int32  `json:"event_id"`
+	Number    int32  `json:"number"`
+	Summary   string `json:"summary,omitempty"`
 }

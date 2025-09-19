@@ -116,6 +116,24 @@ where
 group by
     i.NUMBER;
 
+-- name: Incident_LinkedIncidents :many
+select
+    ili.EVENT_2 as LINKED_EVENT,
+    e.NAME as LINKED_EVENT_NAME,
+    ili.INCIDENT_NUMBER_2 as LINKED_INCIDENT,
+    i2.SUMMARY as LINKED_INCIDENT_SUMMARY
+from
+    INCIDENT__LINKED_INCIDENT ili
+    join `EVENT` e
+        on e.ID = ili.EVENT_2
+    join INCIDENT i2
+        on i2.EVENT = ili.EVENT_2
+            and i2.NUMBER = ili.INCIDENT_NUMBER_2
+where
+    ili.EVENT_1 = ?
+    and ili.INCIDENT_NUMBER_1 = ?
+;
+
 -- name: Incidents_ReportEntries :many
 select
     ire.INCIDENT_NUMBER,
@@ -290,6 +308,22 @@ where
     EVENT = ?
     and INCIDENT_NUMBER = ?
     and RANGER_HANDLE = ?
+;
+
+-- name: LinkIncidents :exec
+insert into INCIDENT__LINKED_INCIDENT
+    (EVENT_1, INCIDENT_NUMBER_1, EVENT_2, INCIDENT_NUMBER_2)
+values
+    (?, ?, ?, ?)
+;
+
+-- name: UnlinkIncidents :exec
+delete from INCIDENT__LINKED_INCIDENT
+where
+    EVENT_1 = ?
+    and INCIDENT_NUMBER_1 = ?
+    and EVENT_2 = ?
+    and INCIDENT_NUMBER_2 = ?
 ;
 
 -- name: AttachIncidentTypeToIncident :exec

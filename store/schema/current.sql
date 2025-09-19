@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (21);
+insert into SCHEMA_INFO (VERSION) values (22);
 
 
 create table `EVENT` (
@@ -105,6 +105,17 @@ create table INCIDENT__RANGER (
 create index `INCIDENT__RANGER_EVENT_INCIDENT_NUMBER_index`
     on `INCIDENT__RANGER` (`EVENT`, INCIDENT_NUMBER);
 
+create table INCIDENT__LINKED_INCIDENT (
+    EVENT_1             integer not null,
+    INCIDENT_NUMBER_1   integer not null,
+    EVENT_2             integer not null,
+    INCIDENT_NUMBER_2   integer not null,
+
+    foreign key (EVENT_1, INCIDENT_NUMBER_1) references INCIDENT(`EVENT`, NUMBER),
+    foreign key (EVENT_2, INCIDENT_NUMBER_2) references INCIDENT(`EVENT`, NUMBER),
+
+    primary key (EVENT_1, INCIDENT_NUMBER_1, EVENT_2, INCIDENT_NUMBER_2)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table INCIDENT__INCIDENT_TYPE (
     `EVENT`         integer not null,

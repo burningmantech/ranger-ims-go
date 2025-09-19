@@ -45,6 +45,7 @@ func sampleIncident1(eventName string) imsjson.Incident {
 			{Text: "This is some report text lol"},
 			{Text: ""},
 		},
+		LinkedIncidents: &[]imsjson.LinkedIncident{},
 	}
 }
 
@@ -268,6 +269,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		IncidentTypeIDs: &[]int32{},
 		FieldReports:    &[]int32{},
 		RangerHandles:   &[]string{},
+		LinkedIncidents: &[]imsjson.LinkedIncident{},
 	}
 	requireEqualIncident(t, expected, retrievedIncidentAfterUpdate)
 }
@@ -313,6 +315,88 @@ func TestCreateAndAttachFileToIncident(t *testing.T) {
 	require.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
 }
 
+func TestCreateAndLinkIncidents(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	// Use the admin JWT to create a new event,
+	// then give the normal user Writer role on that event
+	eventName := rand.NonCryptoText()
+	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Use normal user to create two new Incidents
+	incidentReq1 := sampleIncident1(eventName)
+	num1 := apisNonAdmin.newIncidentSuccess(ctx, incidentReq1)
+	incidentReq1.Number = num1
+	incidentReq2 := sampleIncident1(eventName)
+	num2 := apisNonAdmin.newIncidentSuccess(ctx, incidentReq2)
+	incidentReq2.Number = num2
+
+	// Link one incident to the other
+	retrievedNewIncident1, resp := apisNonAdmin.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	eventID := retrievedNewIncident1.EventID
+	retrievedNewIncident2, resp := apisNonAdmin.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	*retrievedNewIncident1.LinkedIncidents = append(*retrievedNewIncident1.LinkedIncidents, imsjson.LinkedIncident{
+		EventID: eventID,
+		Number:  num2,
+	})
+	resp = apisNonAdmin.updateIncident(ctx, eventName, num1, retrievedNewIncident1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Now each incident is linked to the other
+	{
+		retrievedNewIncident1, resp = apisNonAdmin.getIncident(ctx, eventName, num1)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.Len(t, *retrievedNewIncident1.LinkedIncidents, 1)
+		linkedIncident := (*retrievedNewIncident1.LinkedIncidents)[0]
+		require.Equal(t, eventID, linkedIncident.EventID)
+		require.Equal(t, num2, linkedIncident.Number)
+		require.Equal(t, eventName, linkedIncident.EventName)
+		require.Equal(t, *retrievedNewIncident2.Summary, linkedIncident.Summary)
+	}
+	{
+		retrievedNewIncident2, resp = apisNonAdmin.getIncident(ctx, eventName, num2)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.Len(t, *retrievedNewIncident2.LinkedIncidents, 1)
+		linkedIncident := (*retrievedNewIncident2.LinkedIncidents)[0]
+		require.Equal(t, eventID, linkedIncident.EventID)
+		require.Equal(t, num1, linkedIncident.Number)
+		require.Equal(t, eventName, linkedIncident.EventName)
+		require.Equal(t, *retrievedNewIncident1.Summary, linkedIncident.Summary)
+	}
+
+	retrievedNewIncident2.LinkedIncidents = &[]imsjson.LinkedIncident{}
+	resp = apisNonAdmin.updateIncident(ctx, eventName, num2, retrievedNewIncident2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	{
+		retrievedNewIncident1, resp = apisNonAdmin.getIncident(ctx, eventName, num1)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.Empty(t, *retrievedNewIncident1.LinkedIncidents)
+	}
+	{
+		retrievedNewIncident2, resp = apisNonAdmin.getIncident(ctx, eventName, num2)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.Empty(t, *retrievedNewIncident2.LinkedIncidents)
+	}
+}
+
 // requireEqualIncident is a hacky way of checking two incident responses are the same.
 // It does not consider ReportEntries.
 func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
@@ -342,6 +426,7 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	require.Equal(t, before.IncidentTypeIDs, after.IncidentTypeIDs)
 	require.Equal(t, before.RangerHandles, after.RangerHandles)
 	require.Equal(t, before.FieldReports, after.FieldReports)
+	require.Equal(t, before.LinkedIncidents, after.LinkedIncidents)
 	// these will always be different. Check them separately of this function
 	// require.Equal(t, before.ReportEntries, after.ReportEntries)
 }

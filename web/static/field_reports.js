@@ -36,7 +36,7 @@ async function initFieldReportsPage() {
         return;
     }
     if (!ims.eventAccess.readIncidents && !ims.eventAccess.writeFieldReports) {
-        ims.setErrorMessage(`You're not currently authorized to view Field Reports in Event "${ims.pathIds.eventID}".`);
+        ims.setErrorMessage(`You're not currently authorized to view Field Reports in Event "${ims.pathIds.eventName}".`);
         ims.hideLoadingOverlay();
         return;
     }
@@ -128,8 +128,8 @@ function initFieldReportsTable() {
                 return;
             }
             const number = e.data.field_report_number;
-            const event = e.data.event_name;
-            if (event !== ims.pathIds.eventID) {
+            const eventId = e.data.event_id;
+            if (eventId !== ims.pathIds.eventId) {
                 return;
             }
             console.log(`Got field report update: ${number}`);

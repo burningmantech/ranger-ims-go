@@ -276,6 +276,7 @@ func (action PostEventAccess) maybeSetAccess(
 			expires.Float64 = conv.TimeToFloat(rule.Expires)
 			expires.Valid = true
 		}
+
 		_, err = action.imsDBQ.AddEventAccess(ctx, txn,
 			imsdb.AddEventAccessParams{
 				Event:      event.ID,

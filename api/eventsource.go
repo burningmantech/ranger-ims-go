@@ -27,9 +27,8 @@ import (
 const EventSourceChannel = "imsevents"
 
 type IMSEventData struct {
-	// EventName an IMS Event Name, e.g. "2025"
-	EventName string `json:"event_name,omitzero"`
-	Comment   string `json:"comment,omitzero"`
+	EventID int32  `json:"event_id,omitzero"`
+	Comment string `json:"comment,omitzero"`
 
 	// Exactly one of IncidentNumber, FieldReportNumber, or InitialEvent must be set,
 	// as this indicates the type of IMS SSE.
@@ -100,27 +99,27 @@ func (es *EventSourcerer) Replay(channel, id string) chan eventsource.Event {
 	return out
 }
 
-func (es *EventSourcerer) notifyFieldReportUpdate(eventName string, frNumber int32) {
+func (es *EventSourcerer) notifyFieldReportUpdateV2(eventID int32, frNumber int32) {
 	if frNumber == 0 {
 		return
 	}
 	es.Server.Publish([]string{EventSourceChannel}, IMSEvent{
 		EventID: es.IdCounter.Add(1),
 		EventData: IMSEventData{
-			EventName:         eventName,
+			EventID:           eventID,
 			FieldReportNumber: frNumber,
 		},
 	})
 }
 
-func (es *EventSourcerer) notifyIncidentUpdate(eventName string, incidentNumber int32) {
+func (es *EventSourcerer) notifyIncidentUpdateV2(eventID int32, incidentNumber int32) {
 	if incidentNumber == 0 {
 		return
 	}
 	es.Server.Publish([]string{EventSourceChannel}, IMSEvent{
 		EventID: es.IdCounter.Add(1),
 		EventData: IMSEventData{
-			EventName:      eventName,
+			EventID:        eventID,
 			IncidentNumber: incidentNumber,
 		},
 	})

@@ -106,7 +106,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
 	}
 
-	defer action.eventSource.notifyFieldReportUpdate(event.Name, fieldReportNumber)
+	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, fieldReportNumber)
 
 	return nil
 }
@@ -188,7 +188,7 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
 	}
 
-	defer action.eventSource.notifyIncidentUpdate(event.Name, incidentNumber)
+	defer action.eventSource.notifyIncidentUpdateV2(event.ID, incidentNumber)
 	return nil
 }
 

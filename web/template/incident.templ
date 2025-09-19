@@ -288,10 +288,10 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       </div>
     </div>
 
-    <!-- Attached field reports -->
+    <!-- Attached field reports, linked incidents -->
 
     <div class="row py-2">
-      <div class="col-sm-12">
+      <div class="col-sm-6">
         <div class="card">
           <label class="control-label card-header">Attached Field Reports</label>
           <ul id="attached_field_reports" class="list-group list-group-small card-body list-group-flush">
@@ -311,6 +311,29 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             >
               <option value=""/>
             </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <div class="card">
+          <label class="control-label card-header">Linked Incidents</label>
+          <ul id="linked_incidents" class="list-group list-group-small card-body list-group-flush">
+            <li class="list-group-item ps-3 hidden">
+              <button class="badge btn btn-danger remove-badge float-end"
+                      onclick="unlinkIncident(this)">
+                  X
+              </button>
+            </li>
+          </ul>
+          <div id="linked_incident_add_container" class="flex-input-container card-footer no-print">
+            <label class="control-label" for="linked_incident_add">Link IMS #:</label>
+            <input
+                    id="linked_incident_add"
+                    class="form-control form-control-sm"
+                    onchange="linkIncident()"
+                    placeholder="123 or 2015#123"
+                    type="text"
+            />
           </div>
         </div>
       </div>

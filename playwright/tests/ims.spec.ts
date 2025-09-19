@@ -203,12 +203,12 @@ test("incidents", async ({ page, browser }) => {
     await incidentPage.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
     await incidentPage.getByRole("button", {name: "New"}).click();
 
-    await expect(incidentPage.getByLabel("IMS #")).toHaveText("(new)");
+    await expect(incidentPage.getByLabel("IMS #", {exact: true})).toHaveText("(new)");
     const incidentSummary = randomName("summary");
     await incidentPage.getByLabel("Summary").fill(incidentSummary);
     await incidentPage.getByLabel("Summary").press("Tab");
     // wait for the new incident to be persisted
-    await expect(incidentPage.getByLabel("IMS #")).toHaveText(/^\d+$/);
+    await expect(incidentPage.getByLabel("IMS #", {exact: true})).toHaveText(/^\d+$/);
 
     // check that the BroadcastChannel update to the first page worked
     await expect(incidentsPage.getByText(incidentSummary)).toBeVisible();
@@ -264,10 +264,10 @@ test("incidents", async ({ page, browser }) => {
       await incidentPage.getByRole("textbox", { name: "Start Date" }).blur();
       await incidentPage.getByRole("textbox", { name: "Start Time" }).focus();
       await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025");
-      await incidentPage.getByRole("textbox", { name: "Start Time" }).pressSequentially("09:34");
-      await incidentPage.getByRole("textbox", { name: "Start Time" }).blur();
+      await incidentPage.getByRole("textbox", { name: "Start Time" }).clear();
+      await incidentPage.getByRole("textbox", { name: "Start Time" }).fill("21:34");
       await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
-      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 09:34");
+      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 21:34");
       // Close the modal
       await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
     }
@@ -307,6 +307,16 @@ test("incidents", async ({ page, browser }) => {
       await incidentPage.getByRole("button", {name: "Unstrike"}).click();
       await incidentPage.getByLabel("Show history and stricken").uncheck();
       await expect(incidentPage.getByText(reportEntry)).toBeVisible();
+    }
+
+    // link the incident to another incident
+    {
+      if (i > 0) {
+        await incidentPage.getByLabel("Link IMS #").fill("1");
+        await incidentPage.getByLabel("Link IMS #").press("Enter");
+        const linkedIncident = incidentPage.getByText(`IMS ${eventName} #1: `);
+        await expect(linkedIncident).toBeVisible();
+      }
     }
 
     // try searching for the incident by its report text

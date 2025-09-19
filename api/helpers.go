@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -132,6 +133,50 @@ func getGlobalPermissions(req *http.Request, imsDBQ *store.DBQ, userStore *direc
 		return empty, 0, herr.InternalServerError("Failed to compute permissions", err).From("[EventPermissions]")
 	}
 	return jwtCtx, globalPermissions, nil
+}
+
+func permissionsByEvent(ctx context.Context, jwtCtx JWTContext, imsDBQ *store.DBQ, userStore *directory.UserStore, imsAdmins []string) (
+	map[int32]authz.EventPermissionMask, *herr.HTTPError,
+) {
+	accessRows, err := imsDBQ.EventAccessAll(ctx, imsDBQ)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch event access", err).From("[EventAccessAll]")
+	}
+	accessRowByEventID := make(map[int32][]imsdb.EventAccess)
+	for _, ar := range accessRows {
+		accessRowByEventID[ar.EventAccess.Event] = append(accessRowByEventID[ar.EventAccess.Event], ar.EventAccess)
+	}
+
+	allPositions, allTeams, err := userStore.GetPositionsAndTeams(ctx)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[GetPositionsAndTeams]")
+	}
+	userPosIDs := jwtCtx.Claims.RangerPositions()
+	userPosNames := make([]string, 0, len(userPosIDs))
+	for _, userPosID := range userPosIDs {
+		userPosNames = append(userPosNames, allPositions[userPosID])
+	}
+	userTeamIDs := jwtCtx.Claims.RangerTeams()
+	userTeamNames := make([]string, 0, len(userTeamIDs))
+	for _, userTeamID := range userTeamIDs {
+		userTeamNames = append(userTeamNames, allTeams[userTeamID])
+	}
+	onDutyPosition := ""
+	onDutyPositionID := jwtCtx.Claims.RangerOnDutyPosition()
+	if onDutyPositionID != nil {
+		onDutyPosition = allPositions[*onDutyPositionID]
+	}
+
+	permissionsByEvent, _ := authz.ManyEventPermissions(
+		accessRowByEventID,
+		imsAdmins,
+		jwtCtx.Claims.RangerHandle(),
+		jwtCtx.Claims.RangerOnSite(),
+		userPosNames,
+		userTeamNames,
+		onDutyPosition,
+	)
+	return permissionsByEvent, nil
 }
 
 func rollback(txn *sql.Tx) {

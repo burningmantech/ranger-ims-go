@@ -216,7 +216,7 @@ async function initIncidentsTable(): Promise<void> {
                 visibleIncidentTypeIds=visibleIncidentTypes.map(it=>it.id).filter(id=>id != null);
             },
         ),
-        ims.loadStreets(ims.pathIds.eventID),
+        ims.loadStreets(ims.pathIds.eventName),
     ]).then(_=>{});
 
     initDataTables(tablePrereqs);
@@ -246,8 +246,8 @@ async function initIncidentsTable(): Promise<void> {
             }
 
             const number = e.data.incident_number!;
-            const event = e.data.event_name!;
-            if (event !== ims.pathIds.eventID) {
+            const eventId = e.data.event_id;
+            if (eventId !== ims.pathIds.eventId) {
                 return;
             }
 

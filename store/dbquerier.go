@@ -336,3 +336,24 @@ func (l DBQ) ActionLogs(ctx context.Context, db imsdb.DBTX, arg imsdb.ActionLogs
 	logQuery("ActionLog", start, err)
 	return rows, err
 }
+
+func (l DBQ) LinkIncidents(ctx context.Context, db imsdb.DBTX, arg imsdb.LinkIncidentsParams) error {
+	start := time.Now()
+	err := l.q.LinkIncidents(ctx, db, arg)
+	logQuery("LinkIncidents", start, err)
+	return err
+}
+
+func (l DBQ) UnlinkIncidents(ctx context.Context, db imsdb.DBTX, arg imsdb.UnlinkIncidentsParams) error {
+	start := time.Now()
+	err := l.q.UnlinkIncidents(ctx, db, arg)
+	logQuery("UnlinkIncidents", start, err)
+	return err
+}
+
+func (l DBQ) Incident_LinkedIncidents(ctx context.Context, db imsdb.DBTX, arg imsdb.Incident_LinkedIncidentsParams) ([]imsdb.Incident_LinkedIncidentsRow, error) {
+	start := time.Now()
+	rows, err := l.q.Incident_LinkedIncidents(ctx, db, arg)
+	logQuery("Incident_LinkedIncidents", start, err)
+	return rows, err
+}

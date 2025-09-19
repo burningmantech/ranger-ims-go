@@ -137,12 +137,15 @@ func TestGetAuthWithEvent(t *testing.T) {
 
 	authResp, resp := apisAdmin.getAuth(ctx, eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	eventID := authResp.EventAccess[eventName].EventID
+	require.NotZero(t, eventID)
 	require.Equal(t, api.GetAuthResponse{
 		Authenticated: true,
 		User:          userAdminHandle,
 		Admin:         true,
 		EventAccess: map[string]api.AccessForEvent{
 			eventName: {
+				EventID:           eventID,
 				ReadIncidents:     true,
 				WriteIncidents:    false,
 				WriteFieldReports: false,

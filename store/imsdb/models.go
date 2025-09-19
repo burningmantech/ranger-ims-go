@@ -268,6 +268,13 @@ type IncidentIncidentType struct {
 	IncidentType   int32
 }
 
+type IncidentLinkedIncident struct {
+	Event1          int32
+	IncidentNumber1 int32
+	Event2          int32
+	IncidentNumber2 int32
+}
+
 type IncidentRanger struct {
 	ID             int32
 	Event          int32

@@ -38,9 +38,11 @@ type Querier interface {
 	Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error)
 	IncidentType(ctx context.Context, db DBTX, id int32) (IncidentTypeRow, error)
 	IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRow, error)
+	Incident_LinkedIncidents(ctx context.Context, db DBTX, arg Incident_LinkedIncidentsParams) ([]Incident_LinkedIncidentsRow, error)
 	Incident_ReportEntries(ctx context.Context, db DBTX, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
 	Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error)
 	Incidents_ReportEntries(ctx context.Context, db DBTX, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error)
+	LinkIncidents(ctx context.Context, db DBTX, arg LinkIncidentsParams) error
 	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
 	NextFieldReportNumber(ctx context.Context, db DBTX, event int32) (int32, error)
 	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
@@ -55,6 +57,7 @@ type Querier interface {
 	// the reportEntryID in question, and that's important for authorization purposes.
 	//
 	SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error
+	UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncidentsParams) error
 	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error
 	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error
 	UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error

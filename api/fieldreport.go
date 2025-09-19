@@ -348,7 +348,7 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
-	defer action.eventSource.notifyFieldReportUpdate(event.Name, storedFR.Number)
+	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, storedFR.Number)
 	return nil
 }
 
@@ -393,9 +393,9 @@ func (action EditFieldReport) handleLinkToIncident(
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
-	defer action.eventSource.notifyFieldReportUpdate(event.Name, fieldReportNumber)
-	defer action.eventSource.notifyIncidentUpdate(event.Name, previousIncident.Int32)
-	defer action.eventSource.notifyIncidentUpdate(event.Name, newIncident.Int32)
+	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, fieldReportNumber)
+	defer action.eventSource.notifyIncidentUpdateV2(event.ID, previousIncident.Int32)
+	defer action.eventSource.notifyIncidentUpdateV2(event.ID, newIncident.Int32)
 	slog.Info("Attached Field Report to newIncident",
 		"event", event.ID,
 		"newIncident", newIncident.Int32,
@@ -519,7 +519,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 	}
 
 	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, fr.Number)
-	defer action.eventSource.notifyFieldReportUpdate(event.Name, fr.Number)
+	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, fr.Number)
 	return fr.Number, loc, nil
 }
 

@@ -162,10 +162,11 @@ type GetAuthResponse struct {
 }
 
 type AccessForEvent struct {
-	ReadIncidents     bool `json:"readIncidents"`
-	WriteIncidents    bool `json:"writeIncidents"`
-	WriteFieldReports bool `json:"writeFieldReports"`
-	AttachFiles       bool `json:"attachFiles"`
+	EventID           int32 `json:"event_id"`
+	ReadIncidents     bool  `json:"readIncidents"`
+	WriteIncidents    bool  `json:"writeIncidents"`
+	WriteFieldReports bool  `json:"writeFieldReports"`
+	AttachFiles       bool  `json:"attachFiles"`
 }
 
 func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -228,6 +229,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 
 		resp.EventAccess = map[string]AccessForEvent{
 			eventName: {
+				EventID:           event.ID,
 				ReadIncidents:     eventPermissions[event.ID]&authz.EventReadIncidents != 0,
 				WriteIncidents:    eventPermissions[event.ID]&authz.EventWriteIncidents != 0,
 				WriteFieldReports: eventPermissions[event.ID]&(authz.EventWriteOwnFieldReports|authz.EventWriteAllFieldReports) != 0,

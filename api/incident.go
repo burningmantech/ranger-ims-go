@@ -421,6 +421,15 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	storedIncident := storedIncidentRow.Incident
 
+	allEvents, err := imsDBQ.Events(ctx, imsDBQ)
+	if err != nil {
+		return herr.InternalServerError("Failed to fetch events", err).From("[Events]")
+	}
+	eventNameById := make(map[int32]string)
+	for _, event := range allEvents {
+		eventNameById[event.Event.ID] = event.Event.Name
+	}
+
 	// Look up the incident types before starting the transaction, to avoid DB connection contention.
 	var allIncidentTypes []imsdb.IncidentTypesRow
 	if newIncident.IncidentTypeIDs != nil {
@@ -653,7 +662,8 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		updatedLinkedIncidents = append(updatedLinkedIncidents, sub...)
 
 		if len(add) > 0 {
-			logs = append(logs, fmt.Sprintf("Incident linked: %v", add))
+			names := namesForLinkedIncidents(add, eventNameById)
+			logs = append(logs, fmt.Sprintf("Incident linked: %v", names))
 			for _, otherIncident := range add {
 				err = imsDBQ.LinkIncidents(ctx, txn,
 					imsdb.LinkIncidentsParams{
@@ -679,10 +689,20 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 				if err != nil {
 					return herr.InternalServerError("Failed to link Incident", err).From("[LinkIncidents]")
 				}
+				_, errHTTP := addIncidentReportEntry(
+					ctx, imsDBQ, txn, otherIncident.EventID, otherIncident.Number,
+					author, fmt.Sprintf("Incident linked: %v #%v", eventNameById[newIncident.EventID],
+						newIncident.Number,
+					), true, "", "", "",
+				)
+				if errHTTP != nil {
+					return errHTTP.From("[addIncidentReportEntry]")
+				}
 			}
 		}
 		if len(sub) > 0 {
-			logs = append(logs, fmt.Sprintf("Incident unlinked: %v", sub))
+			names := namesForLinkedIncidents(sub, eventNameById)
+			logs = append(logs, fmt.Sprintf("Incident unlinked: %v", names))
 			for _, otherIncident := range sub {
 				err = imsDBQ.UnlinkIncidents(ctx, txn,
 					imsdb.UnlinkIncidentsParams{
@@ -705,6 +725,15 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 				)
 				if err != nil {
 					return herr.InternalServerError("Failed to unlink Incident", err).From("[UnlinkIncidents]")
+				}
+				_, errHTTP := addIncidentReportEntry(
+					ctx, imsDBQ, txn, otherIncident.EventID, otherIncident.Number,
+					author, fmt.Sprintf("Incident unlinked: %v #%v", eventNameById[newIncident.EventID],
+						newIncident.Number,
+					), true, "", "", "",
+				)
+				if errHTTP != nil {
+					return errHTTP.From("[addIncidentReportEntry]")
 				}
 			}
 		}
@@ -749,6 +778,14 @@ func namesForIncidentTypes(rows []imsdb.IncidentTypesRow, typeIDs []int32) strin
 		if slices.Contains(typeIDs, row.IncidentType.ID) {
 			names = append(names, row.IncidentType.Name)
 		}
+	}
+	return strings.Join(names, ", ")
+}
+
+func namesForLinkedIncidents(linked []imsjson.LinkedIncident, eventNamesById map[int32]string) string {
+	var names []string
+	for _, link := range linked {
+		names = append(names, fmt.Sprintf("%v #%v", eventNamesById[link.EventID], link.Number))
 	}
 	return strings.Join(names, ", ")
 }

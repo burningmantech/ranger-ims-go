@@ -204,6 +204,12 @@ async function initIncidentPage() {
     }
     addDateTimeInputListeners(document.getElementById("override_start_date"), overrideStartDate);
     addDateTimeInputListeners(document.getElementById("override_start_time"), overrideStartTime);
+    window.addEventListener("beforeprint", (_event) => {
+        drawIncidentTitle("for_print_to_pdf");
+    });
+    window.addEventListener("afterprint", (_event) => {
+        drawIncidentTitle("for_display");
+    });
 }
 //
 // Load incident
@@ -386,7 +392,7 @@ function loadAttachedFieldReports() {
 // Draw all fields
 //
 function drawIncidentFields() {
-    drawIncidentTitle();
+    drawIncidentTitle("for_display");
     drawIncidentNumber();
     drawState();
     drawStarted();
@@ -436,9 +442,26 @@ function addLocationAddressOptions() {
 //
 // Populate page title
 //
-function drawIncidentTitle() {
-    const eventSuffix = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
-    document.title = `${ims.incidentAsString(incident)}${eventSuffix}`;
+function drawIncidentTitle(mode) {
+    let newTitle = "";
+    if (mode === "for_print_to_pdf" && incident?.number) {
+        const fsSafeDescription = ims.summarizeIncidentOrFR(incident)
+            .replaceAll("#", "-")
+            .replaceAll("\n", "-")
+            .replaceAll(" ", "-")
+            .replaceAll(":", "-")
+            .replaceAll(";", "-")
+            .replaceAll("!", "-")
+            .replaceAll("$", "")
+            .replace(/^-+/, "")
+            .replace(/-+$/, "");
+        newTitle = `IMS-${ims.pathIds.eventName}-${incident.number}_${fsSafeDescription}`;
+    }
+    else {
+        const eventSuffix = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
+        newTitle = `${ims.incidentAsString(incident)}${eventSuffix}`;
+    }
+    document.title = newTitle;
 }
 //
 // Populate incident number
@@ -836,7 +859,7 @@ async function sendEdits(edits) {
         // Store the new number in our incident object
         ims.pathIds.incidentNumber = incident.number = newNumber;
         // Update browser history to update URL
-        drawIncidentTitle();
+        drawIncidentTitle("for_display");
         window.history.pushState(null, document.title, `${ims.urlReplace(url_viewIncidents)}/${newNumber}`);
         // Fetch auth info again with the newly updated URL, just to update
         // the action log.

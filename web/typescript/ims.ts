@@ -607,7 +607,7 @@ export function incidentAsString(incident: Incident): string {
     if (incident.number == null) {
         return `New Incident`;
     }
-    return `#${incident.number}: ${summarizeIncidentOrFR(incident)}`;
+    return `#${incident.number} ${summarizeIncidentOrFR(incident)}`;
 }
 
 

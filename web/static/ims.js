@@ -522,7 +522,7 @@ export function incidentAsString(incident) {
     if (incident.number == null) {
         return `New Incident`;
     }
-    return `#${incident.number}: ${summarizeIncidentOrFR(incident)}`;
+    return `#${incident.number} ${summarizeIncidentOrFR(incident)}`;
 }
 // Render field report as a string
 export function fieldReportAsString(report) {

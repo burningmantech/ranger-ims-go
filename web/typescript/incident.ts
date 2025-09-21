@@ -272,6 +272,13 @@ async function initIncidentPage(): Promise<void> {
         document.getElementById("override_start_time")!,
         overrideStartTime,
     )
+
+    window.addEventListener("beforeprint", (_event: Event): void => {
+        drawIncidentTitle("for_print_to_pdf");
+    });
+    window.addEventListener("afterprint", (_event: Event): void => {
+        drawIncidentTitle("for_display");
+    });
 }
 
 
@@ -493,7 +500,7 @@ function loadAttachedFieldReports() {
 //
 
 function drawIncidentFields() {
-    drawIncidentTitle();
+    drawIncidentTitle("for_display");
     drawIncidentNumber();
     drawState();
     drawStarted();
@@ -552,9 +559,25 @@ function addLocationAddressOptions(): void {
 // Populate page title
 //
 
-function drawIncidentTitle(): void {
-    const eventSuffix = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
-    document.title = `${ims.incidentAsString(incident!)}${eventSuffix}`;
+function drawIncidentTitle(mode: "for_display"|"for_print_to_pdf"): void {
+    let newTitle: string = "";
+    if (mode === "for_print_to_pdf" && incident?.number) {
+        const fsSafeDescription: string = ims.summarizeIncidentOrFR(incident)
+            .replaceAll("#", "-")
+            .replaceAll("\n", "-")
+            .replaceAll(" ", "-")
+            .replaceAll(":", "-")
+            .replaceAll(";", "-")
+            .replaceAll("!", "-")
+            .replaceAll("$", "")
+            .replace(/^-+/, "")
+            .replace(/-+$/, "");
+        newTitle = `IMS-${ims.pathIds.eventName}-${incident.number}_${fsSafeDescription}`
+    } else {
+        const eventSuffix: string = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
+        newTitle = `${ims.incidentAsString(incident!)}${eventSuffix}`;
+    }
+    document.title = newTitle;
 }
 
 
@@ -1063,7 +1086,7 @@ async function sendEdits(edits: ims.Incident): Promise<{err:string|null}> {
         ims.pathIds.incidentNumber = incident!.number = newNumber;
 
         // Update browser history to update URL
-        drawIncidentTitle();
+        drawIncidentTitle("for_display");
         window.history.pushState(
             null, document.title, `${ims.urlReplace(url_viewIncidents)}/${newNumber}`
         );

@@ -197,7 +197,14 @@ function frInitDataTables() {
         // when the browsing context comes back to this page.
         "stateSave": true,
         "stateDuration": -1,
-
+        "stateLoadParams": function(_settings: any, _data: any): boolean|void {
+            // We only want to restore the table state if the user got here using back or forward buttons.
+            // If the user arrived via reload or navigation through the site, we want to start fresh.
+            const navType = window.performance.getEntries()[0];
+            if (navType instanceof PerformanceNavigationTiming && navType?.type !== "back_forward") {
+                return false;
+            }
+        },
         "deferRender": true,
         "paging": true,
         "lengthChange": false,

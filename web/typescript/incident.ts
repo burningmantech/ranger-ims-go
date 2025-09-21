@@ -1373,50 +1373,66 @@ async function linkIncident(): Promise<void> {
         }
     }
 
-    const input = document.getElementById("linked_incident_add") as HTMLInputElement;
     const currentEventId = (allEvents??[]).find(value => value.name === ims.pathIds.eventName)!.id;
+    const currentLinkedIncidents: ims.LinkedIncident[] = (incident!.linked_incidents??[]).slice();
+    let wouldMakeAChange: boolean = false;
 
-    let inputStr: string = input.value.trim();
-    // Assume the current event unless another is specified
-    let eventID: number|null = currentEventId;
-    if (inputStr.indexOf("#") === 0) {
-        inputStr = inputStr.substring(1);
-    }
-    if (inputStr.indexOf("#") > 0) {
-        const splits = inputStr.split("#", 2);
-        const eventName = (splits[0]??"").trim();
-        if (!eventName) {
-            ims.controlHasError(input);
-            ims.setErrorMessage(`Invalid format for linked incident. Got '${inputStr}'`);
-            input.value = "";
-            input.disabled = false;
-            return;
-        }
-        eventID = (allEvents??[]).find(value => value.name === eventName)?.id||null;
-        if (!eventID) {
-            ims.controlHasError(input);
-            ims.setErrorMessage(`There is no Event for name '${eventName}' or you're not authorized to access it`);
-            input.value = "";
-            input.disabled = false;
-            return;
-        }
-        inputStr = (splits[1]??"").trim();
-    }
-    const linkedIncident: ims.LinkedIncident = {
-        event_id: eventID,
-        number: ims.parseInt10(inputStr),
-    };
+    // This field contains a comma-separated list of incidents to which to link the current incident.
+    const input = document.getElementById("linked_incident_add") as HTMLInputElement;
 
-    if (linkedIncident.event_id === currentEventId && linkedIncident.number === incident?.number) {
+    for (let eventAndIncident of input.value.trim().split(",")) {
+        // Assume the current event unless another is specified
+        let eventID: number|null = currentEventId;
+        let incidentNumber: number|null = null;
+
+        eventAndIncident = eventAndIncident.trim();
+        // Remove any "#" prefix, since "#123" means the same as "123" (current event, IMS #123).
+        if (eventAndIncident.indexOf("#") === 0) {
+            eventAndIncident = eventAndIncident.substring(1);
+        }
+
+        if (eventAndIncident.indexOf("#") === -1) {
+            incidentNumber = ims.parseInt10(eventAndIncident.trim());
+        }
+        if (eventAndIncident.indexOf("#") > 0) {
+            let eventAndIncidentPair: string[] = eventAndIncident.split("#", 2);
+            const eventName: string = (eventAndIncidentPair[0]??"").trim();
+            if (!eventName) {
+                ims.controlHasError(input);
+                ims.setErrorMessage(`Invalid format for linked incident. Got '${eventAndIncident}'`);
+                input.value = "";
+                input.disabled = false;
+                return;
+            }
+            eventID = (allEvents??[]).find(value => value.name === eventName)?.id||null;
+            if (!eventID) {
+                ims.controlHasError(input);
+                ims.setErrorMessage(`There is no Event for name '${eventName}' or you're not may not be authorized to access it`);
+                input.value = "";
+                input.disabled = false;
+                return;
+            }
+            incidentNumber = ims.parseInt10((eventAndIncidentPair[1]??"").trim());
+        }
+        const linkedIncident: ims.LinkedIncident = {
+            event_id: eventID,
+            number: incidentNumber,
+        };
+
+        const selfLink: boolean = linkedIncident.event_id === currentEventId && linkedIncident.number === incident?.number;
+        if (!selfLink) {
+            currentLinkedIncidents.push(linkedIncident!);
+            wouldMakeAChange = true;
+        }
+    }
+
+    if (!wouldMakeAChange) {
         ims.controlHasError(input);
-        ims.setErrorMessage("Can't link an incident to itself");
+        ims.setErrorMessage("No valid other incidents were provided for linking");
         input.value = "";
         input.disabled = false;
         return;
     }
-
-    const currentLinkedIncidents: ims.LinkedIncident[] = (incident!.linked_incidents??[]).slice();
-    currentLinkedIncidents.push(linkedIncident!);
 
     input.disabled = true;
     const {err} = await sendEdits({"linked_incidents": currentLinkedIncidents});

@@ -14,7 +14,7 @@ require (
 	github.com/launchdarkly/eventsource v1.10.0
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.38.0
+	github.com/testcontainers/testcontainers-go v0.39.0
 	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
 )

@@ -474,6 +474,21 @@ func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, db DBTX, a
 	return err
 }
 
+const event = `-- name: Event :one
+select e.id, e.name from EVENT e where ID = ?
+`
+
+type EventRow struct {
+	Event Event
+}
+
+func (q *Queries) Event(ctx context.Context, db DBTX, id int32) (EventRow, error) {
+	row := db.QueryRowContext(ctx, event, id)
+	var i EventRow
+	err := row.Scan(&i.Event.ID, &i.Event.Name)
+	return i, err
+}
+
 const eventAccess = `-- name: EventAccess :many
 select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
 from EVENT_ACCESS ea

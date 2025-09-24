@@ -50,6 +50,13 @@ func logQuery(queryName string, start time.Time, err error) {
 // Force DBQ to implement the imsdb.Querier interface.
 var _ imsdb.Querier = (*DBQ)(nil)
 
+func (l DBQ) Event(ctx context.Context, db imsdb.DBTX, id int32) (imsdb.EventRow, error) {
+	start := time.Now()
+	event, err := l.q.Event(ctx, db, id)
+	logQuery("Event", start, err)
+	return event, err
+}
+
 func (l DBQ) AddEventAccess(ctx context.Context, db imsdb.DBTX, arg imsdb.AddEventAccessParams) (int64, error) {
 	start := time.Now()
 	id, err := l.q.AddEventAccess(ctx, db, arg)

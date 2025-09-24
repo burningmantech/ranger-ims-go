@@ -120,11 +120,11 @@ func (a ApiHelper) editStreets(ctx context.Context, req imsjson.EventsStreets) *
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/streets").String())
 }
 
-func (a ApiHelper) getStreets(ctx context.Context, eventName string) (imsjson.EventsStreets, *http.Response) {
+func (a ApiHelper) getStreets(ctx context.Context, eventID int32) (imsjson.EventsStreets, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/streets").String()
-	if eventName != "" {
-		path += "?event_id=" + eventName
+	if eventID != 0 {
+		path += fmt.Sprintf("?event_id=%d", eventID)
 	}
 	bod, resp := a.imsGet(ctx, path, &imsjson.EventsStreets{})
 	return *bod.(*imsjson.EventsStreets), resp

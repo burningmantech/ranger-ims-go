@@ -16,7 +16,8 @@
 
 package json
 
-type EventsStreets map[string]EventStreets
+// EventsStreets maps Event ID to all streets for that event.
+type EventsStreets map[int32]EventStreets
 
 // EventStreets is a mapping from Street ID to Street Name.
 type EventStreets map[string]string

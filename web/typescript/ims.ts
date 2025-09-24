@@ -522,7 +522,7 @@ function stateSortKeyFromID(stateID: string): number|undefined {
 
 export let concentricStreetNameByID: Streets|undefined = undefined;
 
-export async function loadStreets(eventID: string|null): Promise<{err:string|null}> {
+export async function loadStreets(eventID: number|null): Promise<{err:string|null}> {
     const {json, err} = await fetchNoThrow<EventsStreets>(url_streets + "?event_id=" + eventID, null);
     if (err != null) {
         const message = `Failed to load streets: ${err}`;
@@ -1462,8 +1462,8 @@ export type PageInitResult = {
 
 export type Streets = Record<string, string>;
 export interface EventsStreets {
-    // key is event name
-    [index: string]: Streets,
+    // key is event ID
+    [index: number]: Streets,
 }
 
 interface EventLocation {

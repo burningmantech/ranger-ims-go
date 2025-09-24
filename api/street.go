@@ -21,6 +21,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -61,32 +62,29 @@ func (action GetStreets) getStreets(req *http.Request) (imsjson.EventsStreets, *
 	if err != nil {
 		return nil, herr.BadRequest("Failed to parse form", err)
 	}
-	eventName := req.Form.Get("event_id")
-	var events []imsdb.Event
-	if eventName != "" {
-		event, errHTTP := eventFromFormValue(req, action.imsDBQ)
-		if errHTTP != nil {
-			return nil, errHTTP.From("[eventFromFormValue]")
-		}
-		events = append(events, imsdb.Event{ID: event.ID, Name: event.Name})
+	// ignore parsing error, just treat that as ID of zero
+	eventID, _ := conv.ParseInt32(req.Form.Get("event_id"))
+	var events []int32
+	if eventID != 0 {
+		events = append(events, eventID)
 	} else {
 		eventRows, err := action.imsDBQ.Events(ctx, action.imsDBQ)
 		if err != nil {
 			return nil, herr.InternalServerError("Failed to fetch Events", err).From("[Events]")
 		}
 		for _, er := range eventRows {
-			events = append(events, er.Event)
+			events = append(events, er.Event.ID)
 		}
 	}
 
 	for _, event := range events {
-		streets, err := action.imsDBQ.ConcentricStreets(ctx, action.imsDBQ, event.ID)
+		streets, err := action.imsDBQ.ConcentricStreets(ctx, action.imsDBQ, event)
 		if err != nil {
 			return nil, herr.InternalServerError("Failed to fetch Streets", err).From("[ConcentricStreets]")
 		}
-		resp[event.Name] = make(imsjson.EventStreets)
+		resp[event] = make(imsjson.EventStreets)
 		for _, street := range streets {
-			resp[event.Name][street.ConcentricStreet.ID] = street.ConcentricStreet.Name
+			resp[event][street.ConcentricStreet.ID] = street.ConcentricStreet.Name
 		}
 	}
 	return resp, nil
@@ -120,12 +118,8 @@ func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 	if errHTTP != nil {
 		return errHTTP.From("[readBodyAs]")
 	}
-	for eventName, newEventStreets := range eventsStreets {
-		event, errHTTP := getEvent(req, eventName, action.imsDBQ)
-		if errHTTP != nil {
-			return errHTTP.From("[getEvent]")
-		}
-		currentStreets, err := action.imsDBQ.ConcentricStreets(req.Context(), action.imsDBQ, event.ID)
+	for eventID, newEventStreets := range eventsStreets {
+		currentStreets, err := action.imsDBQ.ConcentricStreets(req.Context(), action.imsDBQ, eventID)
 		if err != nil {
 			return herr.InternalServerError("Failed to fetch Streets", err).From("[ConcentricStreets]")
 		}
@@ -137,7 +131,7 @@ func (action EditStreets) editStreets(req *http.Request) *herr.HTTPError {
 			if !currentStreetIDs[streetID] {
 				err = action.imsDBQ.CreateConcentricStreet(ctx, action.imsDBQ,
 					imsdb.CreateConcentricStreetParams{
-						Event: event.ID,
+						Event: eventID,
 						ID:    streetID,
 						Name:  streetName,
 					},

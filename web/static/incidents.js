@@ -166,7 +166,7 @@ async function initIncidentsTable() {
             visibleIncidentTypes = value.types.filter(it => !it.hidden);
             visibleIncidentTypeIds = visibleIncidentTypes.map(it => it.id).filter(id => id != null);
         }),
-        ims.loadStreets(ims.pathIds.eventName),
+        ims.loadStreets(ims.pathIds.eventId),
     ]).then(_ => { });
     initDataTables(tablePrereqs);
     initTableButtons();

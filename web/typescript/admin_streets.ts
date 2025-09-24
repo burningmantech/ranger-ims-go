@@ -41,6 +41,8 @@ async function initAdminStreetsPage(): Promise<void> {
     window.addStreet = addStreet;
     window.removeStreet = removeStreet;
 
+    events = await initResult.eventDatas ?? [];
+
     const {err} = await loadStreets();
     if (err == null) {
         drawStreets();
@@ -48,6 +50,7 @@ async function initAdminStreetsPage(): Promise<void> {
     ims.hideLoadingOverlay();
 }
 
+let events: ims.EventData[] = [];
 let streets: ims.EventsStreets = {};
 
 async function loadStreets(): Promise<{err:string|null}> {
@@ -75,31 +78,46 @@ function drawStreets(): void {
 
     container.replaceChildren();
 
-    for (const eventName in streets!) {
+    for (const eventIDStr in streets!) {
+        const eventID = ims.parseInt10(eventIDStr);
+        if (eventID == null) {
+            alert("error parsing eventID");
+            return;
+        }
+
         const eventStreets = _streetsTemplate.cloneNode(true) as HTMLDivElement;
 
         // Add an id to the element for future reference
-        eventStreets.id = `event_streets_${eventName}`;
+        eventStreets.id = `event_streets_${eventID.toString()}`;
 
         // Add to container
         container.append(eventStreets);
 
-        updateEventStreets(eventName);
+        updateEventStreets(eventID);
     }
 }
 
 
-function updateEventStreets(event: string) {
-    const eventStreets = streets[event];
+function updateEventStreets(eventID: number) {
+    const eventStreets = streets[eventID];
 
     if (eventStreets == null) {
         return;
     }
 
-    const eventStreetsElement: HTMLElement = document.getElementById("event_streets_" + event)!;
+    const eventStreetsElement: HTMLElement = document.getElementById("event_streets_" + eventID.toString())!;
+
+    let eventName: string = "";
+    for (const e of events) {
+        if (e.id === eventID) {
+            eventName = e.name;
+            break;
+        }
+    }
 
     // Set displayed event name
-    eventStreetsElement.getElementsByClassName("event_name")[0]!.textContent = event;
+    eventStreetsElement.getElementsByClassName("event_name")[0]!.textContent = eventName;
+    (eventStreetsElement.getElementsByClassName("event_name")[0]! as HTMLElement).dataset["eventId"] = eventID.toString();
 
     const entryContainer: Element = eventStreetsElement.getElementsByClassName("list-group")[0]!;
 
@@ -119,7 +137,12 @@ function updateEventStreets(event: string) {
 
 async function addStreet(sender: HTMLInputElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_streets")!;
-    const event = container.getElementsByClassName("event_name")[0]!.textContent!;
+    const eventNameContainer = container.getElementsByClassName("event_name")[0]! as HTMLElement;
+    const eventID = ims.parseInt10(eventNameContainer.dataset["eventId"]);
+    if (eventID == null) {
+        alert("Found no event ID");
+        return;
+    }
 
     const expression = sender.value.trim();
     const splitInd = expression.indexOf(":");
@@ -132,12 +155,12 @@ async function addStreet(sender: HTMLInputElement): Promise<void> {
     const name = expression.substring(splitInd+1).trim();
 
     const edits: ims.EventsStreets = {};
-    edits[event] = {};
-    edits[event][id] = name;
+    edits[eventID] = {};
+    edits[eventID][id] = name;
 
     const {err} = await sendStreets(edits);
     await loadStreets();
-    updateEventStreets(event);
+    updateEventStreets(eventID);
     if (err != null) {
         ims.controlHasError(sender);
         return;

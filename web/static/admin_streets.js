@@ -29,12 +29,14 @@ async function initAdminStreetsPage() {
     }
     window.addStreet = addStreet;
     window.removeStreet = removeStreet;
+    events = await initResult.eventDatas ?? [];
     const { err } = await loadStreets();
     if (err == null) {
         drawStreets();
     }
     ims.hideLoadingOverlay();
 }
+let events = [];
 let streets = {};
 async function loadStreets() {
     const { json, err } = await ims.fetchNoThrow(url_streets, null);
@@ -56,23 +58,36 @@ function drawStreets() {
         _streetsEntryTemplate = _streetsTemplate.querySelector("ul").querySelector("li");
     }
     container.replaceChildren();
-    for (const eventName in streets) {
+    for (const eventIDStr in streets) {
+        const eventID = ims.parseInt10(eventIDStr);
+        if (eventID == null) {
+            alert("error parsing eventID");
+            return;
+        }
         const eventStreets = _streetsTemplate.cloneNode(true);
         // Add an id to the element for future reference
-        eventStreets.id = `event_streets_${eventName}`;
+        eventStreets.id = `event_streets_${eventID.toString()}`;
         // Add to container
         container.append(eventStreets);
-        updateEventStreets(eventName);
+        updateEventStreets(eventID);
     }
 }
-function updateEventStreets(event) {
-    const eventStreets = streets[event];
+function updateEventStreets(eventID) {
+    const eventStreets = streets[eventID];
     if (eventStreets == null) {
         return;
     }
-    const eventStreetsElement = document.getElementById("event_streets_" + event);
+    const eventStreetsElement = document.getElementById("event_streets_" + eventID.toString());
+    let eventName = "";
+    for (const e of events) {
+        if (e.id === eventID) {
+            eventName = e.name;
+            break;
+        }
+    }
     // Set displayed event name
-    eventStreetsElement.getElementsByClassName("event_name")[0].textContent = event;
+    eventStreetsElement.getElementsByClassName("event_name")[0].textContent = eventName;
+    eventStreetsElement.getElementsByClassName("event_name")[0].dataset["eventId"] = eventID.toString();
     const entryContainer = eventStreetsElement.getElementsByClassName("list-group")[0];
     entryContainer.replaceChildren();
     for (const streetID in eventStreets) {
@@ -85,7 +100,12 @@ function updateEventStreets(event) {
 }
 async function addStreet(sender) {
     const container = sender.closest(".event_streets");
-    const event = container.getElementsByClassName("event_name")[0].textContent;
+    const eventNameContainer = container.getElementsByClassName("event_name")[0];
+    const eventID = ims.parseInt10(eventNameContainer.dataset["eventId"]);
+    if (eventID == null) {
+        alert("Found no event ID");
+        return;
+    }
     const expression = sender.value.trim();
     const splitInd = expression.indexOf(":");
     if (splitInd === -1) {
@@ -96,11 +116,11 @@ async function addStreet(sender) {
     const id = expression.substring(0, splitInd);
     const name = expression.substring(splitInd + 1).trim();
     const edits = {};
-    edits[event] = {};
-    edits[event][id] = name;
+    edits[eventID] = {};
+    edits[eventID][id] = name;
     const { err } = await sendStreets(edits);
     await loadStreets();
-    updateEventStreets(event);
+    updateEventStreets(eventID);
     if (err != null) {
         ims.controlHasError(sender);
         return;

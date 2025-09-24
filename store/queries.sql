@@ -4,6 +4,9 @@ select sqlc.embed(e) from EVENT e where e.NAME = ?;
 -- name: SchemaVersion :one
 select VERSION from SCHEMA_INFO;
 
+-- name: Event :one
+select sqlc.embed(e) from EVENT e where ID = ?;
+
 -- name: Events :many
 select sqlc.embed(e) from EVENT e;
 

@@ -71,7 +71,7 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 
 	var authorizedEvents []imsdb.EventsRow
 	for _, eve := range allEvents {
-		if permsByEvent[eve.Event.ID]&authz.EventReadEventName != 0 {
+		if permsByEvent[eve.Event.ID]&authz.EventReadEventName != 0 || globalPermissions&authz.GlobalAdministrateEvents != 0 {
 			authorizedEvents = append(authorizedEvents, eve)
 		}
 	}

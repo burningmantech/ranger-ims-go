@@ -35,10 +35,21 @@ func TestCreateStreets(t *testing.T) {
 	resp := apis.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+	events, resp := apis.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	var event imsjson.Event
+	for _, e := range events {
+		if e.Name == eventName {
+			event = e
+			break
+		}
+	}
+	require.NotZero(t, event.ID)
 
 	// Set some streets on that event
 	createStreets := imsjson.EventsStreets{
-		eventName: imsjson.EventStreets{
+		event.ID: imsjson.EventStreets{
 			"1": "Esplanade",
 			"5": "Emu St",
 		},
@@ -50,7 +61,7 @@ func TestCreateStreets(t *testing.T) {
 	// Try add one more, and try to modify one of those streets (the update won't work,
 	// as that's not currently supported).
 	editStreets := imsjson.EventsStreets{
-		eventName: imsjson.EventStreets{
+		event.ID: imsjson.EventStreets{
 			"1": "A Street",
 			"2": "Cat St",
 		},
@@ -60,7 +71,7 @@ func TestCreateStreets(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	expected := imsjson.EventsStreets{
-		eventName: imsjson.EventStreets{
+		event.ID: imsjson.EventStreets{
 			"1": "Esplanade",
 			"2": "Cat St",
 			"5": "Emu St",
@@ -68,15 +79,15 @@ func TestCreateStreets(t *testing.T) {
 	}
 
 	// Get the streets from the API, make sure they match what we sent
-	resultStreets, resp := apis.getStreets(ctx, eventName)
+	resultStreets, resp := apis.getStreets(ctx, event.ID)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, expected, resultStreets)
 
-	// Get the streets again from the API, without specifying the event name.
+	// Get the streets again from the API, without specifying the event ID.
 	// We'll get back streets for every event.
-	resultStreets, resp = apis.getStreets(ctx, "")
+	resultStreets, resp = apis.getStreets(ctx, 0)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, expected[eventName], resultStreets[eventName])
+	require.Equal(t, expected[event.ID], resultStreets[event.ID])
 }

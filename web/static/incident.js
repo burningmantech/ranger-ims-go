@@ -60,7 +60,7 @@ async function initIncidentPage() {
     window.overrideStartTime = overrideStartTime;
     // load everything from the APIs concurrently
     await Promise.all([
-        await ims.loadStreets(ims.pathIds.eventName),
+        await ims.loadStreets(ims.pathIds.eventId),
         await loadIncident(),
         await loadPersonnel(),
         await ims.loadIncidentTypes().then(value => {

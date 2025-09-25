@@ -1087,7 +1087,7 @@ async function unlinkIncident(sender) {
         }),
     });
 }
-async function linkIncident() {
+async function linkIncident(input) {
     if (ims.pathIds.incidentNumber == null) {
         // Incident doesn't exist yet. Create it first.
         const { err } = await sendEdits({});
@@ -1098,8 +1098,6 @@ async function linkIncident() {
     const currentEventId = (allEvents ?? []).find(value => value.name === ims.pathIds.eventName).id;
     const currentLinkedIncidents = (incident.linked_incidents ?? []).slice();
     let wouldMakeAChange = false;
-    // This field contains a comma-separated list of incidents to which to link the current incident.
-    const input = document.getElementById("linked_incident_add");
     for (let eventAndIncident of input.value.trim().split(",")) {
         // Assume the current event unless another is specified
         let eventID = currentEventId;

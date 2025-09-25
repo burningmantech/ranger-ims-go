@@ -30,12 +30,29 @@ templ Root(deployment, versionName, versionRef string) {
 <p class="mt-3 if-logged-in hidden">
   <a id="current-year-link" href="/ims/app/events/2025/incidents">Jump to the 2025 event</a> or select another event from the dropdown above.
 </p>
-<p class="mt-3 if-logged-in hidden">
-  <a href="https://github.com/burningmantech/ranger-ims-go/wiki/What's-New-in-IMS">See what's new in IMS for 2025.</a>
-</p>
-<p class="if-logged-in hidden">
-  On a shared machine? <strong>Please log out</strong> when you're done.
-</p>
+<div class="mt-3 mb-3 if-logged-in hidden">
+  <h5>Session Preferences (beta)</h5>
+  <div class="py-1">
+    <div class="input-group mb-1 flex-nowrap">
+      <label
+        class="control-label input-group-text"
+        for="preferred_state"
+        title="The default filter view for the Incidents table"
+      >State filter</label>
+      <select
+        id="preferred_state"
+        class="form-control form-select form-select-sm"
+        onchange="setPreferredState(this)"
+        style="max-width: 150px;"
+      >
+        <option value="none" selected>Use Default</option>
+        <option value="all">All Incidents</option>
+        <option value="open">Open Incidents</option>
+        <option value="active">Active Incidents</option>
+      </select>
+    </div>
+  </div>
+</div>
 
 <div class="btn-group mb-3" role="group">
   <a

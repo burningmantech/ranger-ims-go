@@ -126,7 +126,7 @@ async function addStreet(sender) {
         return;
     }
     else {
-        ims.controlHasSuccess(sender, 1000);
+        ims.controlHasSuccess(sender);
     }
     sender.value = "";
 }

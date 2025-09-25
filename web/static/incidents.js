@@ -22,7 +22,7 @@ let incidentsTable = null;
 const _searchDelayMs = 250;
 let _searchDelayTimer = undefined;
 let _showState = null;
-const defaultState = "open";
+const defaultState = ims.getIncidentsPreferredState() ?? "open";
 let _showModifiedAfter = null;
 let _showDaysBack = null;
 const defaultDaysBack = "all";
@@ -454,7 +454,19 @@ function initTableButtons() {
         setCheckedTypes(validTypes, includeBlanks, includeOthers);
     }
     showCheckedTypes(false);
-    showState(fragmentParams.get("state") ?? defaultState, false);
+    // For state, we look first at the default,
+    // then override with preferred,
+    // then override with fragment value
+    let state = defaultState;
+    const preferredState = ims.getIncidentsPreferredState();
+    if (preferredState) {
+        state = preferredState;
+    }
+    const stateStr = fragmentParams.get("state");
+    if (ims.isValidIncidentsTableState(stateStr)) {
+        state = stateStr;
+    }
+    showState(state, false);
     showDays(fragmentParams.get("days") ?? defaultDaysBack, false);
     showRows(fragmentParams.get("rows") ?? defaultRows, false);
 }

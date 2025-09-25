@@ -187,7 +187,7 @@ async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
         ims.controlHasError(sender);
         return;
     }
-    ims.controlHasSuccess(sender, 1000);
+    ims.controlHasSuccess(sender);
     await loadAndDrawIncidentTypes();
 }
 
@@ -204,7 +204,7 @@ async function setIncidentTypeDescription(sender: HTMLTextAreaElement): Promise<
         ims.controlHasError(sender);
         return;
     }
-    ims.controlHasSuccess(sender, 1000);
+    ims.controlHasSuccess(sender);
     await loadAndDrawIncidentTypes();
 }
 

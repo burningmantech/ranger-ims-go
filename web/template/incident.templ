@@ -330,8 +330,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             <input
                     id="linked_incident_add"
                     class="form-control form-control-sm"
-                    onchange="linkIncident()"
-                    placeholder="123 or 2015#123 or 2015#123,2016#234"
+                    onchange="linkIncident(this)"
+                    placeholder="1 or 2015#2 or 3,4,5"
                     type="text"
             />
           </div>

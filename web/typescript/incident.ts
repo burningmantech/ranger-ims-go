@@ -32,7 +32,7 @@ declare global {
         detachFieldReport: (el: HTMLElement)=>Promise<void>;
         attachFieldReport: ()=>Promise<void>;
         unlinkIncident: (el: HTMLElement)=>Promise<void>;
-        linkIncident: ()=>Promise<void>;
+        linkIncident: (el: HTMLInputElement)=>Promise<void>;
         addRanger: ()=>Promise<void>;
         addIncidentType: ()=>Promise<void>;
         attachFile: ()=>Promise<void>;
@@ -1387,7 +1387,7 @@ async function unlinkIncident(sender: HTMLElement): Promise<void> {
     });
 }
 
-async function linkIncident(): Promise<void> {
+async function linkIncident(input: HTMLInputElement): Promise<void> {
     if (ims.pathIds.incidentNumber == null) {
         // Incident doesn't exist yet. Create it first.
         const {err} = await sendEdits({});
@@ -1399,9 +1399,6 @@ async function linkIncident(): Promise<void> {
     const currentEventId = (allEvents??[]).find(value => value.name === ims.pathIds.eventName)!.id;
     const currentLinkedIncidents: ims.LinkedIncident[] = (incident!.linked_incidents??[]).slice();
     let wouldMakeAChange: boolean = false;
-
-    // This field contains a comma-separated list of incidents to which to link the current incident.
-    const input = document.getElementById("linked_incident_add") as HTMLInputElement;
 
     for (let eventAndIncident of input.value.trim().split(",")) {
         // Assume the current event unless another is specified

@@ -1265,7 +1265,7 @@ async function addRanger(): Promise<void> {
     }
     addRanger.value = "";
     addRanger.disabled = false;
-    ims.controlHasSuccess(addRanger, 1000);
+    ims.controlHasSuccess(addRanger);
     addRanger.focus();
 }
 
@@ -1312,7 +1312,7 @@ async function addIncidentType(): Promise<void> {
     }
     addType.value = "";
     addType.disabled = false;
-    ims.controlHasSuccess(addType, 1000);
+    ims.controlHasSuccess(addType);
     addType.focus();
 }
 
@@ -1371,7 +1371,7 @@ async function attachFieldReport(): Promise<void> {
     }
     await loadAllFieldReports();
     renderFieldReportData();
-    ims.controlHasSuccess(select, 1000);
+    ims.controlHasSuccess(select);
 }
 
 async function unlinkIncident(sender: HTMLElement): Promise<void> {
@@ -1467,7 +1467,7 @@ async function linkIncident(): Promise<void> {
     }
     input.value = "";
     input.disabled = false;
-    ims.controlHasSuccess(input, 1000);
+    ims.controlHasSuccess(input);
     input.focus();
 }
 

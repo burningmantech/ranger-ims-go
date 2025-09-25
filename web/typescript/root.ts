@@ -18,6 +18,12 @@
 
 import * as ims from "./ims.ts";
 
+declare global {
+    interface Window {
+        setPreferredState: (el: HTMLSelectElement) => Promise<void>;
+    }
+}
+
 //
 // Initialize UI
 //
@@ -29,8 +35,13 @@ async function initRootPage(): Promise<void> {
     if (params.get("logout") != null) {
         // this clears the refresh cookie
         await fetch(url_logout);
-        ims.clearAccessToken();
+        ims.clearLocalStorage();
         window.history.replaceState(null, "", url_app);
+    }
+    const preferredState = ims.getIncidentsPreferredState();
+    if (preferredState) {
+        const stateSelect = document.getElementById("preferred_state") as HTMLSelectElement;
+        stateSelect.value = preferredState;
     }
     const result = await ims.commonPageInit();
     if (result.authInfo.authenticated) {
@@ -38,4 +49,15 @@ async function initRootPage(): Promise<void> {
     } else {
         document.getElementById("login-button")?.focus();
     }
+
+    window.setPreferredState = setPreferredState;
+}
+
+async function setPreferredState(el: HTMLSelectElement): Promise<void> {
+    if (ims.isValidIncidentsTableState(el.value)) {
+        ims.setIncidentsPreferredState(el.value);
+    } else {
+        ims.setIncidentsPreferredState(null);
+    }
+    ims.controlHasSuccess(el);
 }

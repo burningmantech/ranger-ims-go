@@ -142,7 +142,7 @@ async function setIncidentTypeName(sender) {
         ims.controlHasError(sender);
         return;
     }
-    ims.controlHasSuccess(sender, 1000);
+    ims.controlHasSuccess(sender);
     await loadAndDrawIncidentTypes();
 }
 async function setIncidentTypeDescription(sender) {
@@ -158,7 +158,7 @@ async function setIncidentTypeDescription(sender) {
         ims.controlHasError(sender);
         return;
     }
-    ims.controlHasSuccess(sender, 1000);
+    ims.controlHasSuccess(sender);
     await loadAndDrawIncidentTypes();
 }
 async function sendIncidentTypes(edits) {

@@ -987,7 +987,7 @@ async function addRanger() {
     }
     addRanger.value = "";
     addRanger.disabled = false;
-    ims.controlHasSuccess(addRanger, 1000);
+    ims.controlHasSuccess(addRanger);
     addRanger.focus();
 }
 async function addIncidentType() {
@@ -1027,7 +1027,7 @@ async function addIncidentType() {
     }
     addType.value = "";
     addType.disabled = false;
-    ims.controlHasSuccess(addType, 1000);
+    ims.controlHasSuccess(addType);
     addType.focus();
 }
 async function detachFieldReport(sender) {
@@ -1075,7 +1075,7 @@ async function attachFieldReport() {
     }
     await loadAllFieldReports();
     renderFieldReportData();
-    ims.controlHasSuccess(select, 1000);
+    ims.controlHasSuccess(select);
 }
 async function unlinkIncident(sender) {
     const parent = sender.parentElement;
@@ -1159,7 +1159,7 @@ async function linkIncident() {
     }
     input.value = "";
     input.disabled = false;
-    ims.controlHasSuccess(input, 1000);
+    ims.controlHasSuccess(input);
     input.focus();
 }
 // The success callback for a report entry strike call.

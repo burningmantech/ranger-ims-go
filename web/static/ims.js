@@ -28,6 +28,7 @@ export let pathIds = {
 export let eventAccess = null;
 const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
+const incidentsPreferredStateKey = "incidents_preferred_state";
 const svgNS = "http://www.w3.org/2000/svg";
 //
 // HTML encoding
@@ -112,7 +113,7 @@ async function maybeRefreshAuth() {
         if ((refreshTokenAfter() ?? 0) < new Date().getTime()) {
             const { json, err } = await fetchNoThrow(url_authRefresh, { body: JSON.stringify({}) });
             if (err != null || json == null) {
-                clearAccessToken();
+                clearLocalStorage();
             }
             else {
                 setAccessToken(json.token);
@@ -287,14 +288,12 @@ export function controlHasError(element) {
     element.classList.add("is-invalid");
 }
 // Add a success indication to a control
-export function controlHasSuccess(element, clearTimeout) {
+export function controlHasSuccess(element, clearTimeout = 1000) {
     element.classList.remove("is-invalid");
     element.classList.add("is-valid");
-    if (clearTimeout != null) {
-        setTimeout(() => {
-            controlClear(element);
-        }, clearTimeout);
-    }
+    setTimeout(() => {
+        controlClear(element);
+    }, clearTimeout);
 }
 // Clear error/success indication from a control
 function controlClear(element) {
@@ -343,7 +342,7 @@ export async function getAuthInfo() {
 export async function redirectToLogin() {
     // This clears the refresh cookie
     await fetch(url_logout);
-    clearAccessToken();
+    clearLocalStorage();
     console.log("Logged out. Redirecting to login page");
     window.location.replace(`${url_login}?o=${encodeURIComponent(window.location.pathname)}`);
 }
@@ -1038,7 +1037,7 @@ export async function editFromElement(element, jsonKey, transform) {
         controlHasError(element);
     }
     else {
-        controlHasSuccess(element, 1000);
+        controlHasSuccess(element);
     }
 }
 //
@@ -1182,9 +1181,32 @@ export function setRefreshTokenBy(timeUnixMS) {
 export function refreshTokenAfter() {
     return parseInt10(localStorage.getItem(accessTokenRefreshAfterKey));
 }
-export function clearAccessToken() {
+export const incidentTableStates = ["all", "open", "active"];
+export function isValidIncidentsTableState(value) {
+    if (value) {
+        return incidentTableStates.includes(value);
+    }
+    return false;
+}
+export function setIncidentsPreferredState(state) {
+    if (state) {
+        localStorage.setItem(incidentsPreferredStateKey, state);
+    }
+    else {
+        localStorage.removeItem(incidentsPreferredStateKey);
+    }
+}
+export function getIncidentsPreferredState() {
+    const pref = localStorage.getItem(incidentsPreferredStateKey);
+    if (isValidIncidentsTableState(pref)) {
+        return pref;
+    }
+    return null;
+}
+export function clearLocalStorage() {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
+    localStorage.removeItem(incidentsPreferredStateKey);
 }
 //
 // Load incident types

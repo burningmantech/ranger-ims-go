@@ -20,7 +20,7 @@ import * as ims from "./ims.ts";
 
 declare global {
     interface Window {
-        showState: (stateToShow: string, replaceState: boolean)=>void;
+        showState: (stateToShow: ims.IncidentsTableState, replaceState: boolean)=>void;
         showDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
         showRows: (rowsToShow: number | string, replaceState: boolean)=>void;
         toggleCheckAllTypes: ()=>void;
@@ -33,8 +33,8 @@ let incidentsTable: ims.DataTablesTable|null = null;
 const _searchDelayMs = 250;
 let _searchDelayTimer: number|undefined = undefined;
 
-let _showState: string|null = null;
-const defaultState = "open";
+let _showState: ims.IncidentsTableState|null = null;
+const defaultState: ims.IncidentsTableState = ims.getIncidentsPreferredState() ?? "open";
 
 let _showModifiedAfter: Date|null = null;
 let _showDaysBack: number|string|null = null;
@@ -528,7 +528,21 @@ function initTableButtons(): void {
         setCheckedTypes(validTypes, includeBlanks, includeOthers);
     }
     showCheckedTypes(false);
-    showState(fragmentParams.get("state")??defaultState, false);
+
+    // For state, we look first at the default,
+    // then override with preferred,
+    // then override with fragment value
+    let state: ims.IncidentsTableState = defaultState;
+    const preferredState = ims.getIncidentsPreferredState();
+    if (preferredState) {
+        state = preferredState;
+    }
+    const stateStr = fragmentParams.get("state");
+    if (ims.isValidIncidentsTableState(stateStr)) {
+        state = stateStr;
+    }
+    showState(state, false);
+
     showDays(fragmentParams.get("days")??defaultDaysBack, false);
     showRows(fragmentParams.get("rows")??defaultRows, false);
 }
@@ -662,7 +676,7 @@ function initSearch(): void {
 // Show state button handling
 //
 
-function showState(stateToShow: string, replaceState: boolean) {
+function showState(stateToShow: ims.IncidentsTableState, replaceState: boolean) {
     const item = document.getElementById("show_state_" + stateToShow) as HTMLLIElement;
 
     // Get title from selected item

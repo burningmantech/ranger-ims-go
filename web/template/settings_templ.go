@@ -38,7 +38,7 @@ package template
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Root(deployment, versionName, versionRef string) templ.Component {
+func Settings(deployment, versionName, versionRef string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -63,7 +63,7 @@ func Root(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head("Home | IMS", "root.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Settings", "settings.js", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -79,7 +79,7 @@ func Root(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Incident Management System</h1><p class=\"mt-3 if-logged-in hidden\"><a id=\"current-year-link\" href=\"/ims/app/events/2025/incidents\">Jump to the 2025 event</a> or select another event from the dropdown above.</p><p class=\"mt-3 if-logged-in hidden\">Try the new <a href=\"/ims/app/settings\">Settings page</a>, available in the user dropdown in the top right.</p><div class=\"btn-group mb-3\" role=\"group\"><a id=\"login-button\" href=\"/ims/auth/login\" role=\"button\" class=\"btn btn-md btn-default btn-primary if-not-logged-in hidden\">Log In</a></div><div class=\"btn-group mb-3\" role=\"group\"><a href=\"/ims/auth/logout\" role=\"button\" class=\"btn btn-md btn-default btn-danger if-logged-in hidden\">Log Out</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Settings</h1><h5>Incidents Table Preferred Filters</h5><div class=\"py-1\"><div class=\"input-group mb-1 flex-nowrap\"><label class=\"control-label input-group-text\" for=\"preferred_state\" title=\"The default filter view for the Incidents table\">State</label> <select id=\"preferred_state\" class=\"form-control form-select form-select-sm\" onchange=\"setPreferredState(this)\" style=\"max-width: 150px;\"><option value=\"none\" selected>Use Default</option> <option value=\"all\">All Incidents</option> <option value=\"open\">Open Incidents</option> <option value=\"active\">Active Incidents</option></select></div></div><p class=\"mt-3\">These settings exist only in the browser, and they will be reset on logout.<br>Got any other ideas for settings that should go here? Email the Tech Cadre!</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

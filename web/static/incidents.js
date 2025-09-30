@@ -74,7 +74,9 @@ async function initIncidentsPage() {
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
     const multisearchModal = ims.bsModal(document.getElementById("multisearchModal"));
     const eventDatas = ((await initResult.eventDatas) ?? []).toReversed();
-    const toggleMultisearchModal = function () {
+    window.toggleMultisearchModal = function (e) {
+        // Don't follow a href
+        e?.preventDefault();
         multisearchModal.toggle();
         const list = document.getElementById("multisearch-events-list");
         list.replaceChildren();
@@ -88,9 +90,6 @@ async function initIncidentsPage() {
             list.append(newLi);
         }
     };
-    document.getElementById("search-icon").addEventListener("click", function (_e) {
-        toggleMultisearchModal();
-    });
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
@@ -117,7 +116,7 @@ async function initIncidentsPage() {
         }
         // m -> multi-search
         if (e.key.toLowerCase() === "m") {
-            toggleMultisearchModal();
+            window.toggleMultisearchModal();
         }
     });
     document.getElementById("helpModal").addEventListener("keydown", function (e) {

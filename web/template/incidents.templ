@@ -187,11 +187,12 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
       <div class="col-sm">
         <div id="search_container" class="form-group ms-auto">
           <div class="flex-input-container no-print">
-            <span id="search-icon" class="me-1 align-content-center" title="Click here for multi-search">
+            <a href="#" id="search-icon" class="me-1 align-content-center link-body-emphasis"
+                title="Click here for multi-search" onclick="toggleMultisearchModal(); return false;">
               <svg fill="currentColor" class="bi">
                 <use href="#search" />
               </svg>
-            </span>
+            </a>
             <label for="search_input" class="control-label hidden" aria-label="Search">
               Search
             </label>

@@ -24,6 +24,7 @@ declare global {
         showDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
         showRows: (rowsToShow: number | string, replaceState: boolean)=>void;
         toggleCheckAllTypes: ()=>void;
+        toggleMultisearchModal: (e?: MouseEvent)=>void;
     }
 }
 
@@ -101,7 +102,10 @@ async function initIncidentsPage(): Promise<void> {
 
     const eventDatas = ((await initResult.eventDatas)??[]).toReversed();
 
-    const toggleMultisearchModal = function (): void {
+    window.toggleMultisearchModal = function (e?: MouseEvent): void {
+        // Don't follow a href
+        e?.preventDefault();
+
         multisearchModal.toggle();
 
         const list = document.getElementById("multisearch-events-list") as HTMLUListElement;
@@ -119,12 +123,6 @@ async function initIncidentsPage(): Promise<void> {
             list.append(newLi);
         }
     }
-
-    document.getElementById("search-icon")!.addEventListener("click",
-        function (_e: MouseEvent) {
-            toggleMultisearchModal();
-        },
-    );
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -152,7 +150,7 @@ async function initIncidentsPage(): Promise<void> {
         }
         // m -> multi-search
         if (e.key.toLowerCase() === "m") {
-            toggleMultisearchModal();
+            window.toggleMultisearchModal();
         }
     });
 

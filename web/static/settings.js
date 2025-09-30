@@ -20,20 +20,26 @@ import * as ims from "./ims.js";
 //
 // Initialize UI
 //
-initRootPage();
-async function initRootPage() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("logout") != null) {
-        // this clears the refresh cookie
-        await fetch(url_logout);
-        ims.clearLocalStorage();
-        window.history.replaceState(null, "", url_app);
+initSettingsPage();
+async function initSettingsPage() {
+    const initResult = await ims.commonPageInit();
+    if (!initResult.authInfo.authenticated) {
+        await ims.redirectToLogin();
+        return;
     }
-    const result = await ims.commonPageInit();
-    if (result.authInfo.authenticated) {
-        document.getElementById("current-year-link")?.focus();
+    const preferredState = ims.getIncidentsPreferredState();
+    if (preferredState) {
+        const stateSelect = document.getElementById("preferred_state");
+        stateSelect.value = preferredState;
+    }
+    window.setPreferredState = setPreferredState;
+}
+async function setPreferredState(el) {
+    if (ims.isValidIncidentsTableState(el.value)) {
+        ims.setIncidentsPreferredState(el.value);
     }
     else {
-        document.getElementById("login-button")?.focus();
+        ims.setIncidentsPreferredState(null);
     }
+    ims.controlHasSuccess(el);
 }

@@ -132,11 +132,12 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
 
       <div id="search_container" class="form-group form-group-sm col-sm-5">
         <div class="flex-input-container no-print">
-          <span id="search-icon" class="me-1 align-content-center" title="Click here for multi-search">
+          <a href="#" id="search-icon" class="me-1 align-content-center link-body-emphasis"
+              title="Click here for multi-search" onclick="toggleMultisearchModal(); return false;">
             <svg fill="currentColor" class="bi">
               <use href="#search" />
             </svg>
-          </span>
+          </a>
           <label for="search_input" class="control-label hidden" aria-label="Search">
             Search
           </label>

@@ -26,6 +26,7 @@ declare global {
         reportEntryEdited: ()=>void;
         submitReportEntry: ()=>Promise<void>;
         attachFile: ()=>Promise<void>;
+        updateIncident: (el: HTMLInputElement) => void;
     }
 }
 
@@ -58,6 +59,7 @@ async function initFieldReportPage(): Promise<void> {
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
     window.attachFile = attachFile;
+    window.updateIncident = updateIncident;
 
     await loadAndDisplayFieldReport();
 
@@ -211,6 +213,34 @@ async function loadAndDisplayFieldReport(): Promise<void> {
     }
 }
 
+async function updateIncident(el: HTMLInputElement): Promise<void> {
+    if (!ims.eventAccess?.writeIncidents) {
+        el.value = "";
+        ims.controlHasError(el);
+        return;
+    }
+    const incidentNumber = ims.parseInt10(el.value);
+    if (!incidentNumber || !fieldReport || !fieldReport!.number) {
+        el.value = "";
+        ims.controlHasError(el);
+        return;
+    }
+    const url = (
+        `${ims.urlReplace(url_fieldReports)}/${fieldReport.number}` +
+        `?action=attach&incident=${incidentNumber}`
+    );
+    const {err} = await ims.fetchNoThrow(url, {
+        body: JSON.stringify({}),
+    });
+    if (err != null) {
+        ims.setErrorMessage(err);
+        el.value = "";
+        ims.controlHasError(el);
+        return;
+    }
+    ims.controlHasSuccess(el);
+    await loadAndDisplayFieldReport();
+}
 
 //
 // Populate page title
@@ -239,9 +269,11 @@ function drawNumber(): void {
 //
 
 function drawIncident(): void {
-    document.getElementById("incident_number")!.textContent = "Please include in Summary";
+    const incNum = document.getElementById("incident_number")! as HTMLInputElement;
+    incNum.value = "";
     // New Field Report. There can be no Incident
     if (fieldReport!.number == null) {
+        incNum.placeholder = "(new FR)";
         return;
     }
     // If there's an attached Incident, then show a link to it
@@ -252,16 +284,19 @@ function drawIncident(): void {
         link.href = incidentURL;
         link.text = incident.toString();
 
-        const incidentField = document.getElementById("incident_number")!;
-        incidentField.textContent = "";
-        incidentField.append(link);
+        incNum.value = incident.toString();
+        incNum.append(link);
     }
+    incNum.placeholder = "(none)";
     // If there's no attached Incident, show a button for making
     // a new Incident
     if (incident == null && ims.eventAccess?.writeIncidents) {
         document.getElementById("create_incident")!.classList.remove("hidden");
     } else {
         document.getElementById("create_incident")!.classList.add("hidden");
+    }
+    if (ims.eventAccess?.writeIncidents) {
+        incNum.readOnly = false;
     }
 }
 

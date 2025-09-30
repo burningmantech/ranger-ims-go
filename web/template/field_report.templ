@@ -59,14 +59,21 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
         <span id="field_report_number" aria-label="FR #" class="form-control form-control-static"/>
       </div>
     </div>
-    <div class="col-sm-8">
+    <div class="col-sm-4">
       <div class="py-1 input-group">
         <label
-                for="incident_number"
+                for="incident_number" id="incident_number_label"
                 class="control-label input-group-text"
                 title="This is the IMS Incident to which this Field Report is attached."
         >IMS #</label>
-        <span id="incident_number" class="form-control form-control-static"/>
+        <input
+            id="incident_number" type="text" class="form-control input-sm"
+            onchange="updateIncident(this);" readonly
+        />
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="py-1">
         <button
                 id="create_incident"
                 class="py-1 btn btn-sm btn-warning hidden"

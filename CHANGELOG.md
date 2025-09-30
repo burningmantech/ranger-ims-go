@@ -26,15 +26,18 @@ Each month below should look like the following, using the same ordering for the
 - For local development, switched from an in-process MySQL clone into using Docker Compose with full MariaDB containers. https://github.com/burningmantech/ranger-ims-go/pull/428 https://github.com/burningmantech/ranger-ims-go/pull/431
 - Started using an external library to detect file attachment file types. This gives the right type much more reliably, allowing for better previewing. https://github.com/burningmantech/ranger-ims-go/pull/415
 - Switched to RFC 9457-style errors in all APIs. This allows for cleaner error handling and better message display to users. https://github.com/burningmantech/ranger-ims-go/pull/408 https://github.com/burningmantech/ranger-ims-go/pull/409
+- Improved suggested filename when printing to PDF. https://github.com/burningmantech/ranger-ims-go/issues/416
 
 ### Added
 
+- Introduced Incident "linking". This is a way to create bidirectional connections between Incidents from the Incident page. https://github.com/burningmantech/ranger-ims-go/issues/435
 - Created access expirations, which allow permissions to expire at a provided time. https://github.com/burningmantech/ranger-ims-go/pull/389
 - Added a show/hide password button on the login screen. https://github.com/burningmantech/ranger-ims-go/pull/388
-- Started saving and restoring Incidents table state, so that navigating to an Incident and back doesn't reset the table filters/pagination. https://github.com/burningmantech/ranger-ims-go/pull/424
+- Started saving and restoring Incidents table state, so that navigating to an Incident and back doesn't reset the table filters/pagination. https://github.com/burningmantech/ranger-ims-go/pull/424 https://github.com/burningmantech/ranger-ims-go/pull/440
 - Added support for previewing Quicktime file attachments, with special casing for Chromium browsers. https://github.com/burningmantech/ranger-ims-go/pull/417
 - Began indicating on Admin Events page when a permission references an unknown person, position, or team. https://github.com/burningmantech/ranger-ims-go/pull/411
 - Added an Incident "closed" time to the data model and API, and backfilled those in the database. https://github.com/burningmantech/ranger-ims-go/pull/401
+- Added a way to pick a preferred Incidents table state filter, such that the preference persists through the IMS session. https://github.com/burningmantech/ranger-ims-go/pull/445 https://github.com/burningmantech/ranger-ims-go/pull/450
 
 ### Fixed
 

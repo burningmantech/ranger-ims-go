@@ -27,6 +27,7 @@ async function initRootPage() {
         // this clears the refresh cookie
         await fetch(url_logout);
         ims.clearLocalStorage();
+        ims.clearSessionStorage();
         window.history.replaceState(null, "", url_app);
     }
     const result = await ims.commonPageInit();

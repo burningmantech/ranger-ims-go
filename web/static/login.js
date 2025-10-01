@@ -56,6 +56,8 @@ async function login() {
         ims.unhide(".if-authentication-failed");
         return;
     }
+    ims.clearLocalStorage();
+    ims.clearSessionStorage();
     ims.setAccessToken(json.token);
     ims.setRefreshTokenBy(json.expires_unix_ms);
     const redirect = new URLSearchParams(window.location.search).get("o");

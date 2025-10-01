@@ -134,6 +134,7 @@ async function maybeRefreshAuth(): Promise<void> {
             const {json, err} = await fetchNoThrow<AuthRefreshResponse>(url_authRefresh, {body: JSON.stringify({})});
             if (err != null || json == null) {
                 clearLocalStorage();
+                clearSessionStorage();
             } else {
                 setAccessToken(json.token);
                 setRefreshTokenBy(json.expires_unix_ms);
@@ -1403,6 +1404,10 @@ export function clearLocalStorage(): void {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
+}
+
+export function clearSessionStorage(): void {
+    sessionStorage.clear();
 }
 
 

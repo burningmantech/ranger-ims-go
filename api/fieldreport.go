@@ -28,6 +28,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"github.com/go-sql-driver/mysql"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -387,7 +388,13 @@ func (action EditFieldReport) handleLinkToIncident(
 		},
 	)
 	if err != nil {
-		return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
+		var mysqlErr *mysql.MySQLError
+		const mySQLErNoReferencedRow2 = 1452
+		if errors.As(err, &mysqlErr) && mysqlErr.Number == mySQLErNoReferencedRow2 {
+			return herr.NotFound("No such Incident", err).From("[AttachFieldReportToIncident]")
+		} else {
+			return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
+		}
 	}
 	_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, actor, entryText, true, "", "", "")
 	if errHTTP != nil {

@@ -114,6 +114,7 @@ async function maybeRefreshAuth() {
             const { json, err } = await fetchNoThrow(url_authRefresh, { body: JSON.stringify({}) });
             if (err != null || json == null) {
                 clearLocalStorage();
+                clearSessionStorage();
             }
             else {
                 setAccessToken(json.token);
@@ -1207,6 +1208,9 @@ export function clearLocalStorage() {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
+}
+export function clearSessionStorage() {
+    sessionStorage.clear();
 }
 //
 // Load incident types

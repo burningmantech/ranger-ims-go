@@ -214,27 +214,36 @@ async function loadAndDisplayFieldReport(): Promise<void> {
 }
 
 async function updateIncident(el: HTMLInputElement): Promise<void> {
+    // Only incident writers are allowed to attach/detach FRs from Incidents.
     if (!ims.eventAccess?.writeIncidents) {
-        el.value = "";
         ims.controlHasError(el);
+        await loadAndDisplayFieldReport();
         return;
     }
-    const incidentNumber = ims.parseInt10(el.value);
-    if (!incidentNumber || !fieldReport || !fieldReport!.number) {
-        el.value = "";
-        ims.controlHasError(el);
-        return;
+    let url: string|null = null;
+    if (fieldReport?.incident && el.value === "") {
+        // The FR is attached to an incident and the user wants to detach it.
+        url = (
+            `${ims.urlReplace(url_fieldReports)}/${fieldReport.number}` +
+            `?action=detach&incident=${fieldReport.incident}`
+        );
+    } else {
+        // The user wants to attach the FR to an incident.
+        const incidentNumber = ims.parseInt10(el.value);
+        if (incidentNumber == null || !fieldReport || !fieldReport?.number) {
+            ims.controlHasError(el);
+            return;
+        }
+        url = (
+            `${ims.urlReplace(url_fieldReports)}/${fieldReport.number}` +
+            `?action=attach&incident=${incidentNumber}`
+        );
     }
-    const url = (
-        `${ims.urlReplace(url_fieldReports)}/${fieldReport.number}` +
-        `?action=attach&incident=${incidentNumber}`
-    );
     const {err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify({}),
     });
     if (err != null) {
         ims.setErrorMessage(err);
-        el.value = "";
         ims.controlHasError(el);
         return;
     }

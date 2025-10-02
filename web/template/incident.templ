@@ -98,8 +98,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
     <div class="row py-1">
       <div class="col-sm-2 py-1">
         <div class="input-group flex-nowrap">
-          <label class="control-label input-group-text">IMS #</label>
-          <span id="incident_number" aria-label="IMS #" class="form-control form-control-static"/>
+          <label for="incident_number" class="control-label input-group-text">IMS #</label>
+          <input id="incident_number" type="text" class="form-control form-control-static" readonly/>
         </div>
       </div>
       <div class="col-sm-4 py-1">
@@ -121,13 +121,11 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       <div class="col-sm-6 py-1">
         <div class="input-group">
           <label class="control-label input-group-text" for="started_datetime">Started</label>
-          <span class="form-control form-control-static align-middle d-flex justify-content-between">
-            <span id="started_datetime"></span>
-            <span id="override_started_button" class="show-pointer no-print" title="Override Start Time">
-              <svg fill="currentColor" class="bi align-middle">
-                <use href="#pencil-square" />
-              </svg>
-            </span>
+          <input id="started_datetime" type="text" class="form-control form-control-static" readonly />
+          <span id="override_started_button" class="input-group-text show-pointer no-print" title="Override Start Time">
+            <svg fill="currentColor" class="bi align-middle">
+              <use href="#pencil-square" />
+            </svg>
           </span>
         </div>
       </div>

@@ -590,7 +590,7 @@ function drawIncidentNumber(): void {
     if (number == null) {
         number = "(new)";
     }
-    document.getElementById("incident_number")!.textContent = number.toString();
+    (document.getElementById("incident_number") as HTMLInputElement).value = number.toString();
 }
 
 
@@ -617,8 +617,8 @@ function drawStarted(): void {
     }
     const dateNum: number = Date.parse(date);
     const dateDate: Date = new Date(dateNum);
-    const startedElement: HTMLElement = document.getElementById("started_datetime")!;
-    startedElement.textContent = `${ims.longDate.format(dateNum)}, ${ims.shortTimeTZ.format(dateNum)}`;
+    const startedElement = document.getElementById("started_datetime") as HTMLInputElement;
+    startedElement.value = `${ims.longDate.format(dateNum)}, ${ims.shortTimeTZ.format(dateNum)}`;
     startedElement.title = ims.fullDateTime.format(dateNum);
 
     const dateInput = document.getElementById("override_start_date") as HTMLInputElement;

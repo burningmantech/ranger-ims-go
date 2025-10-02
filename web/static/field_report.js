@@ -224,7 +224,7 @@ function drawNumber() {
     if (number == null) {
         number = "(new)";
     }
-    document.getElementById("field_report_number").textContent = number.toString();
+    document.getElementById("field_report_number").value = number.toString();
 }
 //
 // Populate incident number or show "create incident" button
@@ -232,6 +232,7 @@ function drawNumber() {
 function drawIncident() {
     const incNum = document.getElementById("incident_number");
     incNum.value = "";
+    const incNumLink = document.getElementById("incident_number_link");
     // New Field Report. There can be no Incident
     if (fieldReport.number == null) {
         incNum.placeholder = "(new FR)";
@@ -241,11 +242,8 @@ function drawIncident() {
     const incident = fieldReport.incident;
     if (incident != null) {
         const incidentURL = ims.urlReplace(url_viewIncidentNumber).replace("<number>", incident.toString());
-        const link = document.createElement("a");
-        link.href = incidentURL;
-        link.text = incident.toString();
         incNum.value = incident.toString();
-        incNum.append(link);
+        incNumLink.href = incidentURL;
     }
     incNum.placeholder = "(none)";
     // If there's no attached Incident, show a button for making
@@ -258,6 +256,7 @@ function drawIncident() {
     }
     if (ims.eventAccess?.writeIncidents) {
         incNum.readOnly = false;
+        incNum.classList.remove("form-control-static");
     }
 }
 //

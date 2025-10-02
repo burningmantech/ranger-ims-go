@@ -471,7 +471,7 @@ function drawIncidentNumber() {
     if (number == null) {
         number = "(new)";
     }
-    document.getElementById("incident_number").textContent = number.toString();
+    document.getElementById("incident_number").value = number.toString();
 }
 //
 // Populate incident state
@@ -490,7 +490,7 @@ function drawStarted() {
     const dateNum = Date.parse(date);
     const dateDate = new Date(dateNum);
     const startedElement = document.getElementById("started_datetime");
-    startedElement.textContent = `${ims.longDate.format(dateNum)}, ${ims.shortTimeTZ.format(dateNum)}`;
+    startedElement.value = `${ims.longDate.format(dateNum)}, ${ims.shortTimeTZ.format(dateNum)}`;
     startedElement.title = ims.fullDateTime.format(dateNum);
     const dateInput = document.getElementById("override_start_date");
     const newDateISO = ims.localDateISO(dateDate);

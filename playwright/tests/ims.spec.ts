@@ -203,12 +203,12 @@ test("incidents", async ({ page, browser }) => {
     await incidentPage.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
     await incidentPage.getByRole("button", {name: "New"}).click();
 
-    await expect(incidentPage.getByLabel("IMS #", {exact: true})).toHaveText("(new)");
+    await expect(incidentPage.getByLabel("IMS #", {exact: true})).toHaveValue("(new)");
     const incidentSummary = randomName("summary");
     await incidentPage.getByLabel("Summary").fill(incidentSummary);
     await incidentPage.getByLabel("Summary").press("Tab");
     // wait for the new incident to be persisted
-    await expect(incidentPage.getByLabel("IMS #", {exact: true})).toHaveText(/^\d+$/);
+    await expect(incidentPage.getByLabel("IMS #", {exact: true})).toHaveValue(/^\d+$/);
 
     // check that the BroadcastChannel update to the first page worked
     await expect(incidentsPage.getByText(incidentSummary)).toBeVisible();
@@ -263,11 +263,13 @@ test("incidents", async ({ page, browser }) => {
       await incidentPage.getByRole("textbox", { name: "Start Date" }).fill("2025-01-27");
       await incidentPage.getByRole("textbox", { name: "Start Date" }).blur();
       await incidentPage.getByRole("textbox", { name: "Start Time" }).focus();
-      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025");
+      // We want to look for a substring in the value, and that requires a regex.
+      await expect(incidentPage.locator("#started_datetime")).toHaveValue(/Mon, Jan 27, 2025/);
       await incidentPage.getByRole("textbox", { name: "Start Time" }).clear();
       await incidentPage.getByRole("textbox", { name: "Start Time" }).fill("21:34");
       await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
-      await expect(incidentPage.locator("#started_datetime")).toContainText("Mon, Jan 27, 2025, 21:34");
+      // We want to look for a substring in the value, and that requires a regex.
+      await expect(incidentPage.locator("#started_datetime")).toHaveValue(/Mon, Jan 27, 2025, 21:34/);
       // Close the modal
       await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
     }
@@ -378,12 +380,12 @@ test("field_reports", async ({ page, browser }) => {
     await frPage.goto(`http://localhost:8080/ims/app/events/${eventName}/field_reports`);
     await frPage.getByRole("button", {name: "New"}).click();
 
-    await expect(frPage.getByLabel("FR #")).toHaveText("(new)");
+    await expect(frPage.getByLabel("FR #")).toHaveValue("(new)");
     const frSummary = randomName("summary");
     await frPage.getByLabel("Summary").fill(frSummary);
     await frPage.getByLabel("Summary").press("Tab");
     // wait for the new incident to be persisted
-    await expect(frPage.getByLabel("FR #")).toHaveText(/^\d+$/);
+    await expect(frPage.getByLabel("FR #")).toHaveValue(/^\d+$/);
 
     // check that the BroadcastChannel update to the first page worked
     await expect(tablePage.getByText(frSummary)).toBeVisible();

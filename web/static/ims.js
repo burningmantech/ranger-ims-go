@@ -1028,10 +1028,6 @@ export async function editFromElement(element, jsonKey, transform) {
         current = next;
     }
     current[lastKey] = value ?? "null";
-    // Location must include type
-    if (edits["location"] != null && typeof edits["location"] !== "string") {
-        edits["location"]["type"] = "garett"; // UI only supports one type
-    }
     // Send request to server
     const { err } = await sendEditsFunc(edits);
     if (err != null) {

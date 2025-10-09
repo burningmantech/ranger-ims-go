@@ -214,7 +214,7 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
 //
 
 // Pad a string representing an integer to two digits.
-export function padTwo(value: number|null|undefined): string {
+export function padTwo(value: number|string|null|undefined): string {
     if (value == null) {
         return "?";
     }
@@ -1167,7 +1167,11 @@ export function toggleShowHistory(): void {
     }
 }
 
-export async function editFromElement(element: HTMLInputElement|HTMLSelectElement, jsonKey: string, transform?: (v: string)=>string|null): Promise<void> {
+export async function editFromElement(
+    element: HTMLInputElement|HTMLSelectElement,
+    jsonKey: string,
+    transform?: (v: string)=>string|null): Promise<void>
+{
     let value: string|null = element.value;
 
     if (transform != null) {
@@ -1194,12 +1198,6 @@ export async function editFromElement(element: HTMLInputElement|HTMLSelectElemen
         current = next;
     }
     current[lastKey] = value??"null";
-
-    // Location must include type
-
-    if (edits["location"] != null && typeof edits["location"] !== "string") {
-        edits["location"]["type"] = "garett";  // UI only supports one type
-    }
 
     // Send request to server
 
@@ -1499,8 +1497,8 @@ export interface EventsStreets {
 
 interface EventLocation {
     name?: string|null;
-    radial_hour?: number|null;
-    radial_minute?: number|null;
+    radial_hour?: string|null;
+    radial_minute?: string|null;
     concentric?: string|null;
     description?: string|null;
 }

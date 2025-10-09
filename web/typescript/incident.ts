@@ -846,7 +846,7 @@ function drawLocationAddressRadialHour() {
 function drawLocationAddressRadialMinute() {
     let minute: string|null = null;
     if (incident!.location?.radial_minute != null) {
-        minute = ims.normalizeMinute(incident!.location.radial_minute);
+        minute = ims.normalizeMinute(ims.parseInt10(incident!.location.radial_minute)!);
     }
     ims.selectOptionWithValue(
         document.getElementById("incident_location_address_radial_minute") as HTMLSelectElement,

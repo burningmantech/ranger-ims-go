@@ -1,34 +1,34 @@
 services:
 
-  app:
-    build: .
+  ims-go:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: "ranger-ims-go:${IMAGE_TAG:-latest}"
-    container_name: "ranger-ims-go"
     environment:
-      IMS_DB_HOST_NAME: "ranger-ims-database"
+      IMS_DB_HOST_NAME: "ims-db"
       IMS_DB_PORT: "${IMS_DB_PORT:-3306}"
       IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
       IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
-      IMS_DMS_HOSTNAME: "ranger-clubhouse-database:3306"
+      IMS_DMS_HOSTNAME: "clubhouse-db:3306"
       IMS_DMS_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
       IMS_DMS_USERNAME: "${IMS_DMS_USERNAME:-clubhouseuser}"
       IMS_DMS_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
     ports:
       - "${IMS_PORT:-8080}:80"
     depends_on:
-      database:
+      ims-db:
         condition: service_healthy
-      clubhouse-database:
+      clubhouse-db:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "/opt/ims/bin/ims", "healthcheck", "--server_url", "http://app:80" ]
+      test: [ "CMD", "/opt/ims/bin/ims", "healthcheck", "--server_url", "http://ims-go:80" ]
       interval: 1s
       timeout: 3s
       retries: 30
 
-  database:
+  ims-db:
     image: "mariadb:10.5.27"
-    container_name: "ranger-ims-database"
     environment:
       MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"
       MARIADB_USER: "${IMS_DB_USER_NAME:-ims}"
@@ -46,9 +46,8 @@ services:
 
   # Be aware that this database isn't seeded with any data, so while the IMS server
   # will successfully start up, there won't be any users with whom to log in.
-  clubhouse-database:
+  clubhouse-db:
     image: "mariadb:10.5.27"
-    container_name: "ranger-clubhouse-database"
     environment:
       MARIADB_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
       MARIADB_USER: "${IMS_DMS_USERNAME:-clubhouseuser}"

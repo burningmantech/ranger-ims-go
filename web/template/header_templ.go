@@ -66,20 +66,20 @@ func Header(deployment string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if strings.ToLower(deployment) != "production" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"nonprod-warning text-center\" title=\"This environment is designed for testing or training, and permissions are generally open to all Rangers. Don't add anything to this IMS instance about real participants or pertaining to sensitive Ranger operational details.\">Only use fake data here!<wbr> This is ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"nonprod-warning text-center\" title=\"This environment is designed for testing or training, and permissions are generally open to all Rangers. Don't add anything to this IMS instance about real participants or pertaining to sensitive Ranger operational details.\">This is a ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(strings.ToLower(deployment))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/template/header.templ`, Line: 25, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/template/header.templ`, Line: 25, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, ", not production.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " server. <wbr>Use fake data only!</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

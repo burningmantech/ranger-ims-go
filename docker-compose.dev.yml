@@ -15,9 +15,20 @@
 services:
 
   ims-go:
-    # See https://github.com/air-verse/air
-    image: cosmtrek/air
-    container_name: "ranger-ims-go-air"
+    # This uses a Go hot-reload program: https://github.com/air-verse/air
+    # If you want to rebuild this image (e.g. because you're updating
+    # the go version in go.mod), then run the following:
+    #  docker compose -f docker-compose.dev.yml build --no-cache
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM golang:alpine
+        RUN apk add --no-cache git
+        RUN go install github.com/air-verse/air@latest
+        WORKDIR /src
+        ENTRYPOINT ["air"]
+    image: "ims-go-air"
+    container_name: "ranger-ims-go"
 
     # Map the repo into a directory in the container.
     working_dir: /src

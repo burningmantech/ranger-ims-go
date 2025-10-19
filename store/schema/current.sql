@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (22);
+insert into SCHEMA_INFO (VERSION) values (23);
 
 
 create table `EVENT` (
@@ -212,3 +212,15 @@ create table `ACTION_LOG` (
 
     primary key (`ID`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table `DESTINATION` (
+    `EVENT`             integer not null,
+    `TYPE`              enum('camp', 'art', 'other') not null,
+    `NUMBER`            integer not null,
+    `NAME`              varchar(1024) not null,
+    `LOCATION_STRING`   varchar(1024) not null,
+    `EXTERNAL_DATA`     json,
+
+    primary key (`EVENT`, `TYPE`, `NUMBER`),
+    foreign key `DEST_EVENT` (`EVENT`) references `EVENT`(ID)
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;

@@ -364,3 +364,24 @@ func (l DBQ) Incident_LinkedIncidents(ctx context.Context, db imsdb.DBTX, arg im
 	logQuery("Incident_LinkedIncidents", start, err)
 	return rows, err
 }
+
+func (l DBQ) Destinations(ctx context.Context, db imsdb.DBTX, event int32) ([]imsdb.DestinationsRow, error) {
+	start := time.Now()
+	rows, err := l.q.Destinations(ctx, db, event)
+	logQuery("Destinations", start, err)
+	return rows, err
+}
+
+func (l DBQ) CreateDestination(ctx context.Context, db imsdb.DBTX, arg imsdb.CreateDestinationParams) error {
+	start := time.Now()
+	err := l.q.CreateDestination(ctx, db, arg)
+	logQuery("CreateDestination", start, err)
+	return err
+}
+
+func (l DBQ) RemoveDestinations(ctx context.Context, db imsdb.DBTX, arg imsdb.RemoveDestinationsParams) error {
+	start := time.Now()
+	err := l.q.RemoveDestinations(ctx, db, arg)
+	logQuery("RemoveDestinations", start, err)
+	return err
+}

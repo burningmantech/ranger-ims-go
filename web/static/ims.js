@@ -141,7 +141,7 @@ export async function fetchNoThrow(url, init) {
         init.headers.set("Authorization", "Bearer " + tok);
     }
     if (init.body != null) {
-        init.method = "POST";
+        init.method = init.method || "POST";
         if (init.body.constructor.name === "FormData") {
             let size = 0;
             const fd = init.body;

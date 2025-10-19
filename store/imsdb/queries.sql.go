@@ -8,6 +8,7 @@ package imsdb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 )
 
 const actionLogs = `-- name: ActionLogs :many
@@ -305,6 +306,34 @@ func (q *Queries) CreateConcentricStreet(ctx context.Context, db DBTX, arg Creat
 	return err
 }
 
+const createDestination = `-- name: CreateDestination :exec
+insert into DESTINATION
+    (EVENT, NUMBER, TYPE, NAME, LOCATION_STRING, EXTERNAL_DATA)
+values
+    (?,?,?,?,?,?)
+`
+
+type CreateDestinationParams struct {
+	Event          int32
+	Number         int32
+	Type           DestinationType
+	Name           string
+	LocationString string
+	ExternalData   json.RawMessage
+}
+
+func (q *Queries) CreateDestination(ctx context.Context, db DBTX, arg CreateDestinationParams) error {
+	_, err := db.ExecContext(ctx, createDestination,
+		arg.Event,
+		arg.Number,
+		arg.Type,
+		arg.Name,
+		arg.LocationString,
+		arg.ExternalData,
+	)
+	return err
+}
+
 const createEvent = `-- name: CreateEvent :execlastid
 insert into EVENT (NAME) values (?)
 `
@@ -434,6 +463,49 @@ func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateRepo
 		return 0, err
 	}
 	return result.LastInsertId()
+}
+
+const destinations = `-- name: Destinations :many
+select
+    d.event, d.type, d.number, d.name, d.location_string, d.external_data
+from
+    DESTINATION d
+where
+    EVENT = ?
+`
+
+type DestinationsRow struct {
+	Destination Destination
+}
+
+func (q *Queries) Destinations(ctx context.Context, db DBTX, event int32) ([]DestinationsRow, error) {
+	rows, err := db.QueryContext(ctx, destinations, event)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DestinationsRow
+	for rows.Next() {
+		var i DestinationsRow
+		if err := rows.Scan(
+			&i.Destination.Event,
+			&i.Destination.Type,
+			&i.Destination.Number,
+			&i.Destination.Name,
+			&i.Destination.LocationString,
+			&i.Destination.ExternalData,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const detachIncidentTypeFromIncident = `-- name: DetachIncidentTypeFromIncident :exec
@@ -1220,6 +1292,23 @@ func (q *Queries) QueryEventID(ctx context.Context, db DBTX, name string) (Query
 	var i QueryEventIDRow
 	err := row.Scan(&i.Event.ID, &i.Event.Name)
 	return i, err
+}
+
+const removeDestinations = `-- name: RemoveDestinations :exec
+delete from
+    DESTINATION
+where EVENT = ?
+    and TYPE = ?
+`
+
+type RemoveDestinationsParams struct {
+	Event int32
+	Type  DestinationType
+}
+
+func (q *Queries) RemoveDestinations(ctx context.Context, db DBTX, arg RemoveDestinationsParams) error {
+	_, err := db.ExecContext(ctx, removeDestinations, arg.Event, arg.Type)
+	return err
 }
 
 const schemaVersion = `-- name: SchemaVersion :one

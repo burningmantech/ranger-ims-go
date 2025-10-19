@@ -162,7 +162,7 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
         init.headers.set("Authorization", "Bearer " + tok);
     }
     if (init.body != null) {
-        init.method = "POST";
+        init.method = init.method || "POST";
 
         if (init.body.constructor.name === "FormData") {
             let size = 0;
@@ -1565,6 +1565,40 @@ export interface IncidentType {
     hidden?: boolean|null;
     description?: string|null;
 }
+
+type DestinationType = "art"|"camp"|"other";
+
+export type Destination = {
+    event_id?: number|null;
+    name?: string|null;
+    location_string?: string|null;
+    type?: DestinationType|null;
+    external_data?: object|null;
+}
+
+export type Destinations = Partial<Record<DestinationType, Destination[]|null|undefined>>;
+
+export type BMArt = {
+    name: string;
+    location_string: string|null;
+
+    // other possible fields can be found here:
+    // https://api.burningman.org/docs#operation/get_art
+}
+
+export type BMCamp = {
+    name: string;
+    location_string: string|null;
+
+    // other possible fields can be found here:
+    // https://api.burningman.org/docs#operation/get_camp
+}
+
+export type Other = {
+    name: string;
+    location_string: string|null;
+}
+
 
 export type UnauthenticatedAuthInfo = {
     authenticated: false,

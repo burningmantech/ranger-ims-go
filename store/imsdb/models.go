@@ -7,8 +7,70 @@ package imsdb
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 )
+
+type DestinationType string
+
+const (
+	DestinationTypeCamp  DestinationType = "camp"
+	DestinationTypeArt   DestinationType = "art"
+	DestinationTypeOther DestinationType = "other"
+)
+
+func (e *DestinationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DestinationType(s)
+	case string:
+		*e = DestinationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DestinationType: %T", src)
+	}
+	return nil
+}
+
+type NullDestinationType struct {
+	DestinationType DestinationType
+	Valid           bool // Valid is true if DestinationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDestinationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.DestinationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DestinationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDestinationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DestinationType), nil
+}
+
+func (e DestinationType) Valid() bool {
+	switch e {
+	case DestinationTypeCamp,
+		DestinationTypeArt,
+		DestinationTypeOther:
+		return true
+	}
+	return false
+}
+
+func AllDestinationTypeValues() []DestinationType {
+	return []DestinationType{
+		DestinationTypeCamp,
+		DestinationTypeArt,
+		DestinationTypeOther,
+	}
+}
 
 type EventAccessMode string
 
@@ -216,6 +278,15 @@ type ConcentricStreet struct {
 	Event int32
 	ID    string
 	Name  string
+}
+
+type Destination struct {
+	Event          int32
+	Type           DestinationType
+	Number         int32
+	Name           string
+	LocationString string
+	ExternalData   json.RawMessage
 }
 
 type Event struct {

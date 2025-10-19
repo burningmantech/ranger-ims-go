@@ -377,3 +377,26 @@ where
     al.CREATED_AT > sqlc.arg(min_time)
     and al.CREATED_AT < sqlc.arg(max_time)
 ;
+
+-- name: CreateDestination :exec
+insert into DESTINATION
+    (EVENT, NUMBER, TYPE, NAME, LOCATION_STRING, EXTERNAL_DATA)
+values
+    (?,?,?,?,?,?)
+;
+
+-- name: RemoveDestinations :exec
+delete from
+    DESTINATION
+where EVENT = ?
+    and TYPE = ?
+;
+
+-- name: Destinations :many
+select
+    sqlc.embed(d)
+from
+    DESTINATION d
+where
+    EVENT = ?
+;

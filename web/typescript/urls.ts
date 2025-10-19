@@ -45,6 +45,7 @@ const url_fieldReport_reportEntries = "/ims/api/events/<event_id>/field_reports/
 const url_fieldReport_reportEntry = "/ims/api/events/<event_id>/field_reports/<field_report_number>/report_entries/<report_entry_id>";
 const url_fieldReportAttachments = "/ims/api/events/<event_id>/field_reports/<field_report_number>/attachments";
 const url_fieldReportAttachmentNumber = "/ims/api/events/<event_id>/field_reports/<field_report_number>/attachments/<attachment_number>";
+const url_destinations = "/ims/api/events/<event_id>/destinations";
 const url_eventSource = "/ims/api/eventsource";
 const url_debugBuildInfo = "/ims/api/debug/buildinfo";
 const url_debugRuntimeMetrics = "/ims/api/debug/runtimemetrics";

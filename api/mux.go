@@ -275,6 +275,26 @@ func AddToMux(
 		),
 	)
 
+	mux.Handle("GET /ims/api/events/{eventName}/destinations",
+		Adapt(
+			GetDestinations{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/destinations",
+		Adapt(
+			UpdateDestinations{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
 	mux.Handle("GET /ims/api/events",
 		Adapt(
 			GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},

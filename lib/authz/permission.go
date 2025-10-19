@@ -64,6 +64,7 @@ const (
 	EventWriteAllFieldReports
 	EventWriteOwnFieldReports
 	EventReadEventName
+	EventReadDestinations
 )
 
 const (
@@ -76,18 +77,19 @@ const (
 	GlobalAdministrateEvents
 	GlobalAdministrateStreets
 	GlobalAdministrateIncidentTypes
+	GlobalAdministrateDestinations
 	GlobalAdministrateDebugging
 )
 
 var RolesToGlobalPerms = map[Role]GlobalPermissionMask{
 	AnyAuthenticatedUser: GlobalListEvents | GlobalReadIncidentTypes | GlobalReadPersonnel | GlobalReadStreets,
-	Administrator:        GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministrateDebugging,
+	Administrator:        GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministrateDestinations | GlobalAdministrateDebugging,
 }
 
 var RolesToEventPerms = map[Role]EventPermissionMask{
-	EventReporter: EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports,
-	EventReader:   EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports,
-	EventWriter:   EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports,
+	EventReporter: EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
+	EventReader:   EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadDestinations,
+	EventWriter:   EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
 }
 
 func EventPermissions(

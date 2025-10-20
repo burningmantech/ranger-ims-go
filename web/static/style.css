@@ -367,3 +367,7 @@ h1 {
 .white-space-pre-wrap {
   white-space: pre-wrap !important;
 }
+
+.mw-4rem {
+  min-width: 4rem !important;
+}

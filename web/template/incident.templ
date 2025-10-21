@@ -19,7 +19,7 @@ package template
 templ Incident(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Incident Details | " + eventName, "incident.js", false)
+@Head("Incident Details | " + eventName, "incident.js", true)
 
 <body>
 <div class="container-fluid">
@@ -238,34 +238,16 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 </div>
               </div>
               <div class="input-group row align-items-center">
-                <span class="col-sm-2 col-form-label control-label">Address:</span>
-                <div id="incident_address" class="col-sm-10">
-                  <select
-                          id="incident_location_address_radial_hour"
-                          class="form-control form-select auto-width"
-                          aria-label="Incident location address radial hour"
-                          onchange="editLocationAddressRadialHour()"
-                  >
-                    <option value=""/>
-                  </select>
-                  {":"}
-                  <select
-                          id="incident_location_address_radial_minute"
-                          class="form-control form-control-sm form-select form-select-sm  auto-width"
-                          aria-label="Incident location address radial minute"
-                          onchange="editLocationAddressRadialMinute()"
-                  >
-                    <option value=""/>
-                  </select>
-                  {"@"}
-                  <select
-                          id="incident_location_address_concentric"
-                          class="form-control form-select form-select-sm auto-width"
-                          aria-label="Incident location address concentric street"
-                          onchange="editLocationAddressConcentric()"
-                  >
-                    <option value=""/>
-                  </select>
+                <label for="incident_location_address"
+                       class="col-sm-2 col-form-label control-label">Address:</label>
+                <div class="col-sm-10">
+                  <input
+                          id="incident_location_address" class="form-control form-control-sm"
+                          type="text" inputmode="latin-prose" autocomplete="off"
+                          placeholder="Address of location"
+                          aria-label="Location address"
+                          onchange="editLocationAddress();"
+                  />
                 </div>
               </div>
               <div class="input-group row align-items-center">

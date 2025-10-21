@@ -279,8 +279,7 @@ test("incidents", async ({ page, browser }) => {
       await incidentPage.getByLabel("Location name").click();
       await incidentPage.getByLabel("Location name").fill("Somewhere");
       await incidentPage.getByLabel("Location name").press("Tab");
-      await incidentPage.getByLabel("Incident location address radial hour").selectOption("3");
-      await incidentPage.getByLabel("Incident location address radial minute").selectOption("15");
+      await incidentPage.getByLabel("Location address").fill("4:20 & F");
       await incidentPage.getByLabel("Additional location description").click();
       await incidentPage.getByLabel("Additional location description").fill("other there");
       await incidentPage.getByLabel("Additional location description").press("Tab");

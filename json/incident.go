@@ -27,6 +27,7 @@ type Location struct {
 	// to distinguish empty from unset.
 
 	Name         *string `json:"name,omitempty"`
+	Address      *string `json:"address,omitempty"`
 	Concentric   *string `json:"concentric,omitempty"`
 	RadialHour   *string `json:"radial_hour,omitempty"`
 	RadialMinute *string `json:"radial_minute,omitempty"`

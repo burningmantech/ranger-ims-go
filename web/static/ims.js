@@ -465,7 +465,7 @@ export async function loadStreets(eventID) {
     return { err: null };
 }
 // Look up a concentric street's name given its ID.
-function concentricStreetFromID(streetID) {
+export function concentricStreetFromID(streetID) {
     if (streetID == null || typeof concentricStreetNameByID === "undefined") {
         return "";
     }
@@ -559,14 +559,11 @@ export function reportTextFromIncident(incidentOrFR, eventFieldReports) {
 // Return a short description for a given location.
 function safeShortDescribeLocation(location) {
     const locName = DataTable.render.text().display(location.name ?? "");
-    let locAddr = "";
-    if (location.radial_hour || location.radial_minute || location.concentric) {
-        const hour = (location.radial_hour ?? "?").toString();
-        const minute = padTwo(location.radial_minute);
-        const street = concentricStreetFromID(location.concentric);
-        locAddr = DataTable.render.text().display(`(${hour}:${minute}@${street})`);
+    let locAddr = DataTable.render.text().display(location.address);
+    if (locAddr) {
+        locAddr = `(${locAddr})`;
     }
-    return [locName, locAddr].join("<wbr />");
+    return [locName, locAddr].join(" <wbr />");
 }
 //
 // DataTables rendering

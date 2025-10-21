@@ -61,27 +61,30 @@ func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *her
 	if err != nil {
 		return nil, herr.BadRequest("Failed to parse form", err)
 	}
-	includeExternalData := !strings.EqualFold(req.Form.Get("exclude_external_data"), "true")
+	excludeExternalData := strings.EqualFold(req.Form.Get("exclude_external_data"), "true")
 
-	// TODO: it'd be faster to not load the external_data column if the client doesn't want it
-	destinations, err := action.imsDBQ.Destinations(ctx, action.imsDBQ, event.ID)
+	destinations, err := action.imsDBQ.Destinations(ctx, action.imsDBQ,
+		imsdb.DestinationsParams{
+			Event:               event.ID,
+			ExcludeExternalData: excludeExternalData,
+		},
+	)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch Destinations", err).From("[Destinations]")
 	}
 
-	for _, row := range destinations {
-		rowDest := row.Destination
-		ed := make(map[string]any)
-		err := json.Unmarshal(rowDest.ExternalData, &ed)
-		if err != nil {
-			return nil, herr.InternalServerError("Failed to unmarshal destination", err).From("[Unmarshal]")
-		}
+	for _, rowDest := range destinations {
 		dType := string(rowDest.Type)
 		apiDest := imsjson.Destination{
 			Name:           rowDest.Name,
 			LocationString: rowDest.LocationString,
 		}
-		if includeExternalData {
+		if !excludeExternalData {
+			ed := make(map[string]any)
+			err := json.Unmarshal(rowDest.ExternalData.([]byte), &ed)
+			if err != nil {
+				return nil, herr.InternalServerError("Failed to unmarshal destination", err).From("[Unmarshal]")
+			}
 			apiDest.ExternalData = ed
 		}
 		resp[dType] = append(resp[dType], apiDest)

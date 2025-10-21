@@ -644,7 +644,7 @@ function drawDestinationsList() {
     datalist.append(document.createElement("option"));
     for (const d of destinations.art ?? []) {
         const option = document.createElement("option");
-        option.value = `${d.name} - Art - ${d.location_string}`;
+        option.value = `${d.name} (Art) (${d.location_string})`;
         option.dataset["name"] = d.name ?? "";
         option.dataset["address"] = d.location_string ?? "";
         option.dataset["type"] = "Art";
@@ -652,7 +652,7 @@ function drawDestinationsList() {
     }
     for (const d of destinations.camp ?? []) {
         const option = document.createElement("option");
-        option.value = `${d.name} - ${d.location_string}`;
+        option.value = `${d.name} (${d.location_string})`;
         option.dataset["name"] = d.name ?? "";
         option.dataset["address"] = d.location_string ?? "";
         option.dataset["type"] = "Camp";
@@ -660,7 +660,7 @@ function drawDestinationsList() {
     }
     for (const d of destinations.other ?? []) {
         const option = document.createElement("option");
-        option.value = `${d.name} - ${d.location_string}`;
+        option.value = `${d.name} (${d.location_string})`;
         option.dataset["name"] = d.name ?? "";
         option.dataset["address"] = d.location_string ?? "";
         option.dataset["type"] = "Other";

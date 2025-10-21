@@ -467,19 +467,34 @@ func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateRepo
 
 const destinations = `-- name: Destinations :many
 select
-    d.event, d.type, d.number, d.name, d.location_string, d.external_data
+    EVENT,
+    TYPE,
+    NUMBER,
+    NAME,
+    LOCATION_STRING,
+    if(?, '', EXTERNAL_DATA) as EXTERNAL_DATA
 from
     DESTINATION d
 where
     EVENT = ?
 `
 
-type DestinationsRow struct {
-	Destination Destination
+type DestinationsParams struct {
+	ExcludeExternalData interface{}
+	Event               int32
 }
 
-func (q *Queries) Destinations(ctx context.Context, db DBTX, event int32) ([]DestinationsRow, error) {
-	rows, err := db.QueryContext(ctx, destinations, event)
+type DestinationsRow struct {
+	Event          int32
+	Type           DestinationType
+	Number         int32
+	Name           string
+	LocationString string
+	ExternalData   interface{}
+}
+
+func (q *Queries) Destinations(ctx context.Context, db DBTX, arg DestinationsParams) ([]DestinationsRow, error) {
+	rows, err := db.QueryContext(ctx, destinations, arg.ExcludeExternalData, arg.Event)
 	if err != nil {
 		return nil, err
 	}
@@ -488,12 +503,12 @@ func (q *Queries) Destinations(ctx context.Context, db DBTX, event int32) ([]Des
 	for rows.Next() {
 		var i DestinationsRow
 		if err := rows.Scan(
-			&i.Destination.Event,
-			&i.Destination.Type,
-			&i.Destination.Number,
-			&i.Destination.Name,
-			&i.Destination.LocationString,
-			&i.Destination.ExternalData,
+			&i.Event,
+			&i.Type,
+			&i.Number,
+			&i.Name,
+			&i.LocationString,
+			&i.ExternalData,
 		); err != nil {
 			return nil, err
 		}

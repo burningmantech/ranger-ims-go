@@ -27,7 +27,7 @@ type Querier interface {
 	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
 	CreateIncidentType(ctx context.Context, db DBTX, arg CreateIncidentTypeParams) (int64, error)
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
-	Destinations(ctx context.Context, db DBTX, event int32) ([]DestinationsRow, error)
+	Destinations(ctx context.Context, db DBTX, arg DestinationsParams) ([]DestinationsRow, error)
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
 	Event(ctx context.Context, db DBTX, id int32) (EventRow, error)

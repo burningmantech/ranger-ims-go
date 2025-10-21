@@ -365,9 +365,9 @@ func (l DBQ) Incident_LinkedIncidents(ctx context.Context, db imsdb.DBTX, arg im
 	return rows, err
 }
 
-func (l DBQ) Destinations(ctx context.Context, db imsdb.DBTX, event int32) ([]imsdb.DestinationsRow, error) {
+func (l DBQ) Destinations(ctx context.Context, db imsdb.DBTX, arg imsdb.DestinationsParams) ([]imsdb.DestinationsRow, error) {
 	start := time.Now()
-	rows, err := l.q.Destinations(ctx, db, event)
+	rows, err := l.q.Destinations(ctx, db, arg)
 	logQuery("Destinations", start, err)
 	return rows, err
 }

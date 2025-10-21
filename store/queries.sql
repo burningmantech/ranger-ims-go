@@ -395,7 +395,12 @@ where EVENT = ?
 
 -- name: Destinations :many
 select
-    sqlc.embed(d)
+    EVENT,
+    TYPE,
+    NUMBER,
+    NAME,
+    LOCATION_STRING,
+    if(sqlc.arg(exclude_external_data), '', EXTERNAL_DATA) as EXTERNAL_DATA
 from
     DESTINATION d
 where

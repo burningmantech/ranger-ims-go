@@ -234,9 +234,11 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                           id="incident_location_name" class="form-control form-control-sm"
                           type="text" inputmode="latin-prose" autocomplete="off"
                           placeholder="Name of location"
+                          list="destinations-list"
                           aria-label="Location name"
                           onchange="editLocationName()"
                   />
+                  <datalist id="destinations-list"></datalist>
                 </div>
               </div>
               <div class="input-group row align-items-center">

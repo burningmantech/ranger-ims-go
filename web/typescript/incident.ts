@@ -54,6 +54,8 @@ let allIncidentTypes: ims.IncidentType[] = [];
 
 let allEvents: ims.EventData[]|null = null;
 
+let destinations: ims.Destination[] = [];
+
 //
 // Initialize UI
 //
@@ -108,6 +110,7 @@ async function initIncidentPage(): Promise<void> {
                 allIncidentTypes = value.types;
             },
         ),
+        await loadDestinations(),
         await loadAllFieldReports(),
     ]);
 
@@ -122,6 +125,7 @@ async function initIncidentPage(): Promise<void> {
     drawRangersToAdd();
     drawIncidentTypesToAdd();
     drawIncidentTypeInfo();
+    drawDestinationsList();
     renderFieldReportData();
 
     ims.hideLoadingOverlay();
@@ -794,6 +798,42 @@ function drawLocationName() {
     }
 }
 
+async function loadDestinations(): Promise<void> {
+    destinations = [];
+    const {json, err} = await ims.fetchNoThrow<ims.Destinations>(
+       `${ims.urlReplace(url_destinations)}?exclude_external_data=true`,
+        null,
+    );
+    if (err != null || json == null) {
+        const message = `Failed to load destinations: ${err}`;
+        console.error(message);
+        ims.setErrorMessage(message);
+        return;
+    }
+    for (const art of json.art??[]) {
+        destinations.push(art);
+    }
+    for (const camp of json.camp??[]) {
+        destinations.push(camp);
+    }
+    for (const other of json.other??[]) {
+        destinations.push(other);
+    }
+}
+
+function drawDestinationsList(): void {
+    const datalist = document.getElementById("destinations-list") as HTMLDataListElement;
+    datalist.replaceChildren();
+    datalist.append(document.createElement("option"));
+
+    for (const d of destinations) {
+        const option: HTMLOptionElement = document.createElement("option");
+        option.value = d.name!;
+        option.dataset["address"] = d.location_string??"";
+        datalist.append(option);
+    }
+}
+
 function drawLocationAddress() {
     const locAddr = document.getElementById("incident_location_address") as HTMLInputElement;
     if (!incident || !incident.location) {
@@ -1097,8 +1137,29 @@ async function editIncidentSummary(): Promise<void> {
 
 
 async function editLocationName(): Promise<void> {
-    const locationInput = document.getElementById("incident_location_name") as HTMLInputElement;
-    await ims.editFromElement(locationInput, "location.name");
+    const locNameInput = document.getElementById("incident_location_name") as HTMLInputElement;
+    const destination = document.querySelector(`option[value='${CSS.escape(locNameInput.value)}']`) as HTMLOptionElement|null;
+    if (destination) {
+        return await setLocationFromDestination(locNameInput, destination);
+    }
+    await ims.editFromElement(locNameInput, "location.name");
+}
+
+async function setLocationFromDestination(locNameInput: HTMLInputElement, knownLoc: HTMLOptionElement): Promise<void> {
+    const locAddressInput = document.getElementById("incident_location_address") as HTMLInputElement;
+    const edits: ims.Incident = {
+        location: {
+            name: locNameInput.value,
+            address: knownLoc.dataset["address"]??"",
+        },
+    }
+    const {err} = await sendEdits!(edits);
+    if (err != null) {
+        ims.controlHasError(locNameInput);
+    } else {
+        ims.controlHasSuccess(locNameInput);
+        ims.controlHasSuccess(locAddressInput);
+    }
 }
 
 async function editLocationAddress(): Promise<void> {

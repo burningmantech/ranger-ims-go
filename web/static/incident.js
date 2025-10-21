@@ -21,6 +21,7 @@ const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 let incident = null;
 let allIncidentTypes = [];
 let allEvents = null;
+let destinations = [];
 //
 // Initialize UI
 //
@@ -67,6 +68,7 @@ async function initIncidentPage() {
         await ims.loadIncidentTypes().then(value => {
             allIncidentTypes = value.types;
         }),
+        await loadDestinations(),
         await loadAllFieldReports(),
     ]);
     allEvents = await initResult.eventDatas;
@@ -79,6 +81,7 @@ async function initIncidentPage() {
     drawRangersToAdd();
     drawIncidentTypesToAdd();
     drawIncidentTypeInfo();
+    drawDestinationsList();
     renderFieldReportData();
     ims.hideLoadingOverlay();
     // for a new incident, jump to summary field
@@ -625,6 +628,36 @@ function drawLocationName() {
         locName.value = incident.location.name;
     }
 }
+async function loadDestinations() {
+    destinations = [];
+    const { json, err } = await ims.fetchNoThrow(`${ims.urlReplace(url_destinations)}?exclude_external_data=true`, null);
+    if (err != null || json == null) {
+        const message = `Failed to load destinations: ${err}`;
+        console.error(message);
+        ims.setErrorMessage(message);
+        return;
+    }
+    for (const art of json.art ?? []) {
+        destinations.push(art);
+    }
+    for (const camp of json.camp ?? []) {
+        destinations.push(camp);
+    }
+    for (const other of json.other ?? []) {
+        destinations.push(other);
+    }
+}
+function drawDestinationsList() {
+    const datalist = document.getElementById("destinations-list");
+    datalist.replaceChildren();
+    datalist.append(document.createElement("option"));
+    for (const d of destinations) {
+        const option = document.createElement("option");
+        option.value = d.name;
+        option.dataset["address"] = d.location_string ?? "";
+        datalist.append(option);
+    }
+}
 function drawLocationAddress() {
     const locAddr = document.getElementById("incident_location_address");
     if (!incident || !incident.location) {
@@ -866,8 +899,29 @@ async function editIncidentSummary() {
     await ims.editFromElement(summaryInput, "summary");
 }
 async function editLocationName() {
-    const locationInput = document.getElementById("incident_location_name");
-    await ims.editFromElement(locationInput, "location.name");
+    const locNameInput = document.getElementById("incident_location_name");
+    const destination = document.querySelector(`option[value='${CSS.escape(locNameInput.value)}']`);
+    if (destination) {
+        return await setLocationFromDestination(locNameInput, destination);
+    }
+    await ims.editFromElement(locNameInput, "location.name");
+}
+async function setLocationFromDestination(locNameInput, knownLoc) {
+    const locAddressInput = document.getElementById("incident_location_address");
+    const edits = {
+        location: {
+            name: locNameInput.value,
+            address: knownLoc.dataset["address"] ?? "",
+        },
+    };
+    const { err } = await sendEdits(edits);
+    if (err != null) {
+        ims.controlHasError(locNameInput);
+    }
+    else {
+        ims.controlHasSuccess(locNameInput);
+        ims.controlHasSuccess(locAddressInput);
+    }
 }
 async function editLocationAddress() {
     const input = document.getElementById("incident_location_address");

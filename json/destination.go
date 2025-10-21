@@ -17,8 +17,6 @@
 package json
 
 type Destination struct {
-	EventID        int32  `json:"event_id"`
-	Type           string `json:"type"`
 	Name           string `json:"name"`
 	LocationString string `json:"location_string"`
 	ExternalData   any    `json:"external_data,omitempty"`

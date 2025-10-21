@@ -327,6 +327,7 @@ type Incident struct {
 	Closed               sql.NullFloat64
 	Summary              sql.NullString
 	LocationName         sql.NullString
+	LocationAddress      sql.NullString
 	LocationConcentric   sql.NullString
 	LocationRadialHour   sql.NullInt16
 	LocationRadialMinute sql.NullInt16

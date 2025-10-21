@@ -34,6 +34,7 @@ func sampleIncident1(eventName string) imsjson.Incident {
 		Summary:  ptr("my summary!"),
 		Location: imsjson.Location{
 			Name:         ptr("Zeroth Camp"),
+			Address:      ptr("10:05 & W"),
 			RadialHour:   ptr("10"),
 			RadialMinute: ptr("5"),
 			Description:  ptr("unknown"),
@@ -242,6 +243,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		Summary:  ptr(""),
 		Location: imsjson.Location{
 			Name:         ptr(""),
+			Address:      ptr(""),
 			Concentric:   ptr(""),
 			RadialHour:   ptr(""),
 			RadialMinute: ptr(""),

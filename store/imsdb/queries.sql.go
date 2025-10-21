@@ -852,7 +852,7 @@ func (q *Queries) FieldReports_ReportEntries(ctx context.Context, db DBTX, arg F
 
 const incident = `-- name: Incident :one
 select
-    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_address, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -901,6 +901,7 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.Closed,
 		&i.Incident.Summary,
 		&i.Incident.LocationName,
+		&i.Incident.LocationAddress,
 		&i.Incident.LocationConcentric,
 		&i.Incident.LocationRadialHour,
 		&i.Incident.LocationRadialMinute,
@@ -1088,7 +1089,7 @@ func (q *Queries) Incident_ReportEntries(ctx context.Context, db DBTX, arg Incid
 
 const incidents = `-- name: Incidents :many
 select
-    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_address, i.location_concentric, i.location_radial_hour, i.location_radial_minute, i.location_description,
     (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -1141,6 +1142,7 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.Closed,
 			&i.Incident.Summary,
 			&i.Incident.LocationName,
+			&i.Incident.LocationAddress,
 			&i.Incident.LocationConcentric,
 			&i.Incident.LocationRadialHour,
 			&i.Incident.LocationRadialMinute,
@@ -1443,6 +1445,7 @@ update INCIDENT set
     CLOSED = ?,
     SUMMARY = ?,
     LOCATION_NAME = ?,
+    LOCATION_ADDRESS = ?,
     LOCATION_CONCENTRIC = ?,
     LOCATION_RADIAL_HOUR = ?,
     LOCATION_RADIAL_MINUTE = ?,
@@ -1459,6 +1462,7 @@ type UpdateIncidentParams struct {
 	Closed               sql.NullFloat64
 	Summary              sql.NullString
 	LocationName         sql.NullString
+	LocationAddress      sql.NullString
 	LocationConcentric   sql.NullString
 	LocationRadialHour   sql.NullInt16
 	LocationRadialMinute sql.NullInt16
@@ -1475,6 +1479,7 @@ func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateInciden
 		arg.Closed,
 		arg.Summary,
 		arg.LocationName,
+		arg.LocationAddress,
 		arg.LocationConcentric,
 		arg.LocationRadialHour,
 		arg.LocationRadialMinute,

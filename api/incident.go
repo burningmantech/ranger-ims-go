@@ -238,6 +238,7 @@ func incidentToJSON(
 		Summary:      conv.SqlToString(storedRow.Incident.Summary),
 		Location: imsjson.Location{
 			Name:         conv.SqlToString(storedRow.Incident.LocationName),
+			Address:      conv.SqlToString(storedRow.Incident.LocationAddress),
 			Concentric:   conv.SqlToString(storedRow.Incident.LocationConcentric),
 			RadialHour:   conv.FormatSqlInt16(storedRow.Incident.LocationRadialHour),
 			RadialMinute: conv.FormatSqlInt16(storedRow.Incident.LocationRadialMinute),
@@ -471,6 +472,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		Closed:               storedIncident.Closed,
 		Summary:              storedIncident.Summary,
 		LocationName:         storedIncident.LocationName,
+		LocationAddress:      storedIncident.LocationAddress,
 		LocationConcentric:   storedIncident.LocationConcentric,
 		LocationRadialHour:   storedIncident.LocationRadialHour,
 		LocationRadialMinute: storedIncident.LocationRadialMinute,
@@ -503,6 +505,10 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	if newIncident.Location.Name != nil {
 		update.LocationName = conv.StringToSql(newIncident.Location.Name, 0)
 		logs = append(logs, fmt.Sprintf("Changed location name: %v", update.LocationName.String))
+	}
+	if newIncident.Location.Address != nil {
+		update.LocationAddress = conv.StringToSql(newIncident.Location.Address, 0)
+		logs = append(logs, fmt.Sprintf("Changed location address: %v", update.LocationAddress.String))
 	}
 	if newIncident.Location.Concentric != nil {
 		update.LocationConcentric = conv.StringToSql(newIncident.Location.Concentric, 0)

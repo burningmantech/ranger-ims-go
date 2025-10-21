@@ -23,6 +23,7 @@ declare global {
         editState: ()=>Promise<void>;
         editIncidentSummary: ()=>Promise<void>;
         editLocationName: ()=>Promise<void>;
+        editLocationAddress: ()=>Promise<void>;
         editLocationAddressRadialHour: ()=>Promise<void>;
         editLocationAddressRadialMinute: ()=>Promise<void>;
         editLocationAddressConcentric: ()=>Promise<void>;
@@ -76,6 +77,7 @@ async function initIncidentPage(): Promise<void> {
     window.editState = editState;
     window.editIncidentSummary = editIncidentSummary;
     window.editLocationName = editLocationName;
+    window.editLocationAddress = editLocationAddress;
     window.editLocationAddressRadialHour = editLocationAddressRadialHour;
     window.editLocationAddressRadialMinute = editLocationAddressRadialMinute;
     window.editLocationAddressConcentric = editLocationAddressConcentric;
@@ -111,7 +113,6 @@ async function initIncidentPage(): Promise<void> {
 
     allEvents = await initResult.eventDatas;
 
-    addLocationAddressOptions();
     ims.disableEditing();
     displayIncident();
     if (incident == null) {
@@ -509,49 +510,12 @@ function drawIncidentFields() {
     drawRangers();
     drawIncidentTypes();
     drawLocationName();
-    drawLocationAddressRadialHour();
-    drawLocationAddressRadialMinute();
-    drawLocationAddressConcentric();
+    drawLocationAddress();
     drawLocationDescription();
     ims.toggleShowHistory();
     drawMergedReportEntries();
 
     document.getElementById("report_entry_add")!.addEventListener("input", ims.reportEntryEdited);
-}
-
-
-//
-// Add option elements to location address select elements
-//
-
-function addLocationAddressOptions(): void {
-    const hours: number[] = ims.range(1, 13);
-    const hourElement: HTMLElement = document.getElementById("incident_location_address_radial_hour")!;
-    for (const hour of hours) {
-        const hourStr: string = hour.toString();
-        const newOption: HTMLOptionElement = document.createElement("option");
-        newOption.value = hourStr;
-        newOption.textContent = hourStr;
-        hourElement.append(newOption);
-    }
-
-    const minutes: number[] = ims.range(0, 12, 5);
-    const minuteElement: HTMLElement = document.getElementById("incident_location_address_radial_minute")!;
-    for (const minute of minutes) {
-        const minuteStr = ims.padTwo(minute);
-        const newOption: HTMLOptionElement = document.createElement("option");
-        newOption.value = minuteStr;
-        newOption.textContent = minuteStr;
-        minuteElement.append(newOption);
-    }
-
-    const concentricElement: HTMLElement = document.getElementById("incident_location_address_concentric")!;
-    for (const id in ims.concentricStreetNameByID!) {
-        const newOption: HTMLOptionElement = document.createElement("option");
-        newOption.value = id;
-        newOption.textContent = ims.concentricStreetNameByID[id]??"null";
-        concentricElement.append(newOption);
-    }
 }
 
 
@@ -830,42 +794,14 @@ function drawLocationName() {
     }
 }
 
-
-function drawLocationAddressRadialHour() {
-    let hour: string|null = null;
-    if (incident!.location?.radial_hour != null) {
-        hour = incident!.location.radial_hour.toString();
+function drawLocationAddress() {
+    const locAddr = document.getElementById("incident_location_address") as HTMLInputElement;
+    if (!incident || !incident.location) {
+        locAddr.value = "";
+        return;
     }
-    ims.selectOptionWithValue(
-        document.getElementById("incident_location_address_radial_hour") as HTMLSelectElement,
-        hour,
-    );
+    locAddr.value = incident.location.address??"";
 }
-
-
-function drawLocationAddressRadialMinute() {
-    let minute: string|null = null;
-    if (incident!.location?.radial_minute != null) {
-        minute = ims.normalizeMinute(ims.parseInt10(incident!.location.radial_minute)!);
-    }
-    ims.selectOptionWithValue(
-        document.getElementById("incident_location_address_radial_minute") as HTMLSelectElement,
-        minute,
-    );
-}
-
-
-function drawLocationAddressConcentric() {
-    let concentric = null;
-    if (incident!.location?.concentric) {
-        concentric = incident!.location.concentric;
-    }
-    ims.selectOptionWithValue(
-        document.getElementById("incident_location_address_concentric") as HTMLSelectElement,
-        concentric,
-    );
-}
-
 
 function drawLocationDescription() {
     if (incident!.location?.description) {
@@ -1165,6 +1101,10 @@ async function editLocationName(): Promise<void> {
     await ims.editFromElement(locationInput, "location.name");
 }
 
+async function editLocationAddress(): Promise<void> {
+    const input = document.getElementById("incident_location_address") as HTMLInputElement;
+    await ims.editFromElement(input, "location.address");
+}
 
 function transformAddressInteger(value: string): string|null {
     return ims.parseInt10(value)?.toString()??null;

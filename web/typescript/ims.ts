@@ -536,7 +536,7 @@ export async function loadStreets(eventID: number|null): Promise<{err:string|nul
 }
 
 // Look up a concentric street's name given its ID.
-function concentricStreetFromID(streetID: string|null|undefined): string {
+export function concentricStreetFromID(streetID: string|null|undefined): string {
     if (streetID == null || typeof concentricStreetNameByID === "undefined") {
         return "";
     }
@@ -657,16 +657,11 @@ export function reportTextFromIncident(incidentOrFR: Incident|FieldReport, event
 // Return a short description for a given location.
 function safeShortDescribeLocation(location: EventLocation): string {
     const locName: string = DataTable.render.text().display(location.name??"");
-    let locAddr: string = "";
-    if (location.radial_hour || location.radial_minute || location.concentric) {
-        const hour = (location.radial_hour??"?").toString();
-        const minute = padTwo(location.radial_minute);
-        const street = concentricStreetFromID(location.concentric);
-        locAddr = DataTable.render.text().display(
-            `(${hour}:${minute}@${street})`
-        );
+    let locAddr: string = DataTable.render.text().display(location.address);
+    if (locAddr) {
+        locAddr = `(${locAddr})`;
     }
-    return [locName, locAddr].join("<wbr />");
+    return [locName, locAddr].join(" <wbr />");
 }
 
 
@@ -1497,9 +1492,7 @@ export interface EventsStreets {
 
 interface EventLocation {
     name?: string|null;
-    radial_hour?: string|null;
-    radial_minute?: string|null;
-    concentric?: string|null;
+    address?: string|null;
     description?: string|null;
 }
 

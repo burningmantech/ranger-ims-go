@@ -172,6 +172,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     id="ranger_add"
                     aria-label="Add Ranger Handle"
                     list="ranger_handles"
+                    autocomplete="off"
                     class="form-control form-control-sm auto-width"
                     onchange="addRanger()"
             />
@@ -205,6 +206,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     id="incident_type_add"
                     aria-label="Add Incident Type"
                     list="incident_types"
+                    autocomplete="off"
                     class="form-control form-control-sm auto-width"
                     onchange="addIncidentType()"
             />
@@ -311,7 +313,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     id="linked_incident_add"
                     class="form-control form-control-sm"
                     onchange="linkIncident(this)"
-                    placeholder="1 or 2015#2 or 3,4,5"
+                    autocomplete="off"
+                    placeholder="1 or 3,4,5 or 2015#2"
                     type="text"
             />
           </div>

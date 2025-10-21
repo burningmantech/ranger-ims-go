@@ -54,7 +54,7 @@ let allIncidentTypes: ims.IncidentType[] = [];
 
 let allEvents: ims.EventData[]|null = null;
 
-let destinations: ims.Destination[] = [];
+let destinations: ims.Destinations = {};
 
 //
 // Initialize UI
@@ -799,7 +799,6 @@ function drawLocationName() {
 }
 
 async function loadDestinations(): Promise<void> {
-    destinations = [];
     const {json, err} = await ims.fetchNoThrow<ims.Destinations>(
        `${ims.urlReplace(url_destinations)}?exclude_external_data=true`,
         null,
@@ -810,15 +809,7 @@ async function loadDestinations(): Promise<void> {
         ims.setErrorMessage(message);
         return;
     }
-    for (const art of json.art??[]) {
-        destinations.push(art);
-    }
-    for (const camp of json.camp??[]) {
-        destinations.push(camp);
-    }
-    for (const other of json.other??[]) {
-        destinations.push(other);
-    }
+    destinations = json;
 }
 
 function drawDestinationsList(): void {
@@ -826,10 +817,28 @@ function drawDestinationsList(): void {
     datalist.replaceChildren();
     datalist.append(document.createElement("option"));
 
-    for (const d of destinations) {
+    for (const d of destinations.art??[]) {
         const option: HTMLOptionElement = document.createElement("option");
-        option.value = d.name!;
+        option.value = `${d.name} - Art - ${d.location_string}`;
+        option.dataset["name"] = d.name??"";
         option.dataset["address"] = d.location_string??"";
+        option.dataset["type"] = "Art";
+        datalist.append(option);
+    }
+    for (const d of destinations.camp??[]) {
+        const option: HTMLOptionElement = document.createElement("option");
+        option.value = `${d.name} - ${d.location_string}`;
+        option.dataset["name"] = d.name??"";
+        option.dataset["address"] = d.location_string??"";
+        option.dataset["type"] = "Camp";
+        datalist.append(option);
+    }
+    for (const d of destinations.other??[]) {
+        const option: HTMLOptionElement = document.createElement("option");
+        option.value = `${d.name} - ${d.location_string}`;
+        option.dataset["name"] = d.name??"";
+        option.dataset["address"] = d.location_string??"";
+        option.dataset["type"] = "Other";
         datalist.append(option);
     }
 }
@@ -1147,10 +1156,11 @@ async function editLocationName(): Promise<void> {
 
 async function setLocationFromDestination(locNameInput: HTMLInputElement, knownLoc: HTMLOptionElement): Promise<void> {
     const locAddressInput = document.getElementById("incident_location_address") as HTMLInputElement;
+    const nameSuffix: string = knownLoc.dataset["type"] === "Art" ? ` (${knownLoc.dataset["type"]})` : "";
     const edits: ims.Incident = {
         location: {
-            name: locNameInput.value,
-            address: knownLoc.dataset["address"]??"",
+            name: ((knownLoc.dataset["name"]??"") + nameSuffix).trim(),
+            address: (knownLoc.dataset["address"]??"").trim(),
         },
     }
     const {err} = await sendEdits!(edits);

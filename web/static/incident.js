@@ -21,7 +21,7 @@ const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 let incident = null;
 let allIncidentTypes = [];
 let allEvents = null;
-let destinations = [];
+let destinations = {};
 //
 // Initialize UI
 //
@@ -629,7 +629,6 @@ function drawLocationName() {
     }
 }
 async function loadDestinations() {
-    destinations = [];
     const { json, err } = await ims.fetchNoThrow(`${ims.urlReplace(url_destinations)}?exclude_external_data=true`, null);
     if (err != null || json == null) {
         const message = `Failed to load destinations: ${err}`;
@@ -637,24 +636,34 @@ async function loadDestinations() {
         ims.setErrorMessage(message);
         return;
     }
-    for (const art of json.art ?? []) {
-        destinations.push(art);
-    }
-    for (const camp of json.camp ?? []) {
-        destinations.push(camp);
-    }
-    for (const other of json.other ?? []) {
-        destinations.push(other);
-    }
+    destinations = json;
 }
 function drawDestinationsList() {
     const datalist = document.getElementById("destinations-list");
     datalist.replaceChildren();
     datalist.append(document.createElement("option"));
-    for (const d of destinations) {
+    for (const d of destinations.art ?? []) {
         const option = document.createElement("option");
-        option.value = d.name;
+        option.value = `${d.name} - Art - ${d.location_string}`;
+        option.dataset["name"] = d.name ?? "";
         option.dataset["address"] = d.location_string ?? "";
+        option.dataset["type"] = "Art";
+        datalist.append(option);
+    }
+    for (const d of destinations.camp ?? []) {
+        const option = document.createElement("option");
+        option.value = `${d.name} - ${d.location_string}`;
+        option.dataset["name"] = d.name ?? "";
+        option.dataset["address"] = d.location_string ?? "";
+        option.dataset["type"] = "Camp";
+        datalist.append(option);
+    }
+    for (const d of destinations.other ?? []) {
+        const option = document.createElement("option");
+        option.value = `${d.name} - ${d.location_string}`;
+        option.dataset["name"] = d.name ?? "";
+        option.dataset["address"] = d.location_string ?? "";
+        option.dataset["type"] = "Other";
         datalist.append(option);
     }
 }
@@ -908,10 +917,11 @@ async function editLocationName() {
 }
 async function setLocationFromDestination(locNameInput, knownLoc) {
     const locAddressInput = document.getElementById("incident_location_address");
+    const nameSuffix = knownLoc.dataset["type"] === "Art" ? ` (${knownLoc.dataset["type"]})` : "";
     const edits = {
         location: {
-            name: locNameInput.value,
-            address: knownLoc.dataset["address"] ?? "",
+            name: ((knownLoc.dataset["name"] ?? "") + nameSuffix).trim(),
+            address: (knownLoc.dataset["address"] ?? "").trim(),
         },
     };
     const { err } = await sendEdits(edits);

@@ -26,6 +26,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -56,28 +57,34 @@ func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *her
 	if eventPermissions&authz.EventReadDestinations == 0 {
 		return nil, herr.Forbidden("The requestor does not have EventReadDestinations permission", nil)
 	}
+	err := req.ParseForm()
+	if err != nil {
+		return nil, herr.BadRequest("Failed to parse form", err)
+	}
+	includeExternalData := !strings.EqualFold(req.Form.Get("exclude_external_data"), "true")
 
+	// TODO: it'd be faster to not load the external_data column if the client doesn't want it
 	destinations, err := action.imsDBQ.Destinations(ctx, action.imsDBQ, event.ID)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch Destinations", err).From("[Destinations]")
 	}
 
-	for _, dRow := range destinations {
-		d := dRow.Destination
+	for _, row := range destinations {
+		rowDest := row.Destination
 		ed := make(map[string]any)
-		err := json.Unmarshal(d.ExternalData, &ed)
+		err := json.Unmarshal(rowDest.ExternalData, &ed)
 		if err != nil {
 			return nil, herr.InternalServerError("Failed to unmarshal destination", err).From("[Unmarshal]")
 		}
-		resp[string(d.Type)] = append(resp[string(d.Type)],
-			imsjson.Destination{
-				EventID:        d.Event,
-				Type:           string(d.Type),
-				Name:           d.Name,
-				LocationString: d.LocationString,
-				ExternalData:   ed,
-			},
-		)
+		dType := string(rowDest.Type)
+		apiDest := imsjson.Destination{
+			Name:           rowDest.Name,
+			LocationString: rowDest.LocationString,
+		}
+		if includeExternalData {
+			apiDest.ExternalData = ed
+		}
+		resp[dType] = append(resp[dType], apiDest)
 	}
 
 	return resp, nil
@@ -139,7 +146,7 @@ func (action UpdateDestinations) run(req *http.Request) *herr.HTTPError {
 				imsdb.CreateDestinationParams{
 					Event:          event.ID,
 					Number:         int32(i),
-					Type:           imsdb.DestinationType(d.Type),
+					Type:           imsdb.DestinationType(dType),
 					Name:           d.Name,
 					LocationString: d.LocationString,
 					ExternalData:   marshal,

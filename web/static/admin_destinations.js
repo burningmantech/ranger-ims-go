@@ -34,57 +34,52 @@ async function initAdminDestinationsPage() {
         await submit();
     });
 }
-function parseDestinations() {
-    const destinations = {};
+function parseDestinations(artDataEl, campDataEl, otherDataEl) {
+    const destinations = {
+        art: [],
+        camp: [],
+        other: [],
+    };
     {
-        const artDataEl = document.getElementById("art-data");
         const artExtDatas = JSON.parse(artDataEl.value);
-        const arts = [];
         for (const ed of artExtDatas) {
-            arts.push({
+            destinations.art.push({
                 name: ed.name,
-                type: "art",
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
-        destinations.art = arts;
     }
     {
-        const campDataEl = document.getElementById("camp-data");
         const campExtDatas = JSON.parse(campDataEl.value);
-        const camps = [];
         for (const ed of campExtDatas) {
-            camps.push({
+            destinations.camp.push({
                 name: ed.name,
-                type: "camp",
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
-        destinations.camp = camps;
     }
     {
-        const otherDataEl = document.getElementById("other-data");
         const otherExtDatas = JSON.parse(otherDataEl.value);
-        const others = [];
         for (const ed of otherExtDatas) {
-            others.push({
+            destinations.other.push({
                 name: ed.name,
-                type: "other",
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
-        destinations.other = others;
     }
     return destinations;
 }
 async function submit() {
     ims.clearErrorMessage();
+    const artDataEl = document.getElementById("art-data");
+    const campDataEl = document.getElementById("camp-data");
+    const otherDataEl = document.getElementById("other-data");
     let destinations = null;
     try {
-        destinations = parseDestinations();
+        destinations = parseDestinations(artDataEl, campDataEl, otherDataEl);
     }
     catch (e) {
         console.log(e);
@@ -99,7 +94,14 @@ async function submit() {
         const message = `Failed to create destination: ${err}`;
         console.log(message);
         ims.setErrorMessage(message);
+        ims.controlHasError(artDataEl);
+        ims.controlHasError(campDataEl);
+        ims.controlHasError(otherDataEl);
+        return;
     }
+    ims.controlHasSuccess(artDataEl);
+    ims.controlHasSuccess(campDataEl);
+    ims.controlHasSuccess(otherDataEl);
 }
 async function loadDestinations() {
     ims.clearErrorMessage();

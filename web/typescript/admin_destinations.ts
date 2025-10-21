@@ -44,58 +44,53 @@ async function initAdminDestinationsPage(): Promise<void> {
     })
 }
 
-function parseDestinations(): ims.Destinations {
-    const destinations: ims.Destinations = {}
+function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextAreaElement, otherDataEl: HTMLTextAreaElement): ims.Destinations {
+    const destinations: ims.Destinations = {
+        art: [],
+        camp: [],
+        other: [],
+    }
     {
-        const artDataEl = document.getElementById("art-data") as HTMLTextAreaElement;
         const artExtDatas = JSON.parse(artDataEl.value) as ims.BMArt[];
-        const arts: ims.Destination[] = [];
         for (const ed of artExtDatas) {
-            arts.push({
+            destinations.art!.push({
                 name: ed.name,
-                type: "art",
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
-        destinations.art = arts;
     }
     {
-        const campDataEl = document.getElementById("camp-data") as HTMLTextAreaElement;
         const campExtDatas = JSON.parse(campDataEl.value) as ims.BMCamp[];
-        const camps: ims.Destination[] = [];
         for (const ed of campExtDatas) {
-            camps.push({
+            destinations.camp!.push({
                 name: ed.name,
-                type: "camp",
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
-        destinations.camp = camps;
     }
     {
-        const otherDataEl = document.getElementById("other-data") as HTMLTextAreaElement;
-        const otherExtDatas = JSON.parse(otherDataEl.value) as ims.Other[];
-        const others: ims.Destination[] = [];
+        const otherExtDatas = JSON.parse(otherDataEl.value) as ims.OtherDest[];
         for (const ed of otherExtDatas) {
-            others.push({
+            destinations.other!.push({
                 name: ed.name,
-                type: "other",
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
-        destinations.other = others;
     }
     return destinations
 }
 
 async function submit(): Promise<void> {
     ims.clearErrorMessage();
+    const artDataEl = document.getElementById("art-data") as HTMLTextAreaElement;
+    const campDataEl = document.getElementById("camp-data") as HTMLTextAreaElement;
+    const otherDataEl = document.getElementById("other-data") as HTMLTextAreaElement;
     let destinations: ims.Destinations|null = null;
     try {
-        destinations = parseDestinations();
+        destinations = parseDestinations(artDataEl, campDataEl, otherDataEl);
     } catch (e: any) {
         console.log(e);
         ims.setErrorMessage(e);
@@ -111,7 +106,14 @@ async function submit(): Promise<void> {
         const message = `Failed to create destination: ${err}`;
         console.log(message);
         ims.setErrorMessage(message);
+        ims.controlHasError(artDataEl);
+        ims.controlHasError(campDataEl);
+        ims.controlHasError(otherDataEl);
+        return;
     }
+    ims.controlHasSuccess(artDataEl);
+    ims.controlHasSuccess(campDataEl);
+    ims.controlHasSuccess(otherDataEl);
 }
 
 async function loadDestinations(): Promise<void> {
@@ -147,9 +149,9 @@ async function loadDestinations(): Promise<void> {
         (document.getElementById("camp-data-label") as HTMLLabelElement).textContent = `JSON Data (${camps.length})`;
     }
     {
-        const others: ims.Other[] = [];
+        const others: ims.OtherDest[] = [];
         for (const ed of json.other ?? []) {
-            others.push(ed.external_data! as ims.Other);
+            others.push(ed.external_data! as ims.OtherDest);
         }
         (document.getElementById("other-data") as HTMLTextAreaElement).value = JSON.stringify(others, null, 2);
         (document.getElementById("other-data-label") as HTMLLabelElement).textContent = `JSON Data (${others.length})`;

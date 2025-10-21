@@ -324,9 +324,12 @@ export function unhide(selector: string): void {
 }
 
 // Add an error indication to a control
-export function controlHasError(element: HTMLElement) {
+export function controlHasError(element: HTMLElement, clearTimeout: number = 5000) {
     element.classList.remove("is-valid");
     element.classList.add("is-invalid");
+    setTimeout((): void=>{
+        controlClear(element);
+    }, clearTimeout);
 }
 
 
@@ -1562,11 +1565,9 @@ export interface IncidentType {
 type DestinationType = "art"|"camp"|"other";
 
 export type Destination = {
-    event_id?: number|null;
     name?: string|null;
     location_string?: string|null;
-    type?: DestinationType|null;
-    external_data?: object|null;
+    external_data?: BMArt|BMCamp|OtherDest|null;
 }
 
 export type Destinations = Partial<Record<DestinationType, Destination[]|null|undefined>>;
@@ -1587,7 +1588,7 @@ export type BMCamp = {
     // https://api.burningman.org/docs#operation/get_camp
 }
 
-export type Other = {
+export type OtherDest = {
     name: string;
     location_string: string|null;
 }

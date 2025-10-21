@@ -284,9 +284,12 @@ export function unhide(selector) {
     });
 }
 // Add an error indication to a control
-export function controlHasError(element) {
+export function controlHasError(element, clearTimeout = 5000) {
     element.classList.remove("is-valid");
     element.classList.add("is-invalid");
+    setTimeout(() => {
+        controlClear(element);
+    }, clearTimeout);
 }
 // Add a success indication to a control
 export function controlHasSuccess(element, clearTimeout = 1000) {

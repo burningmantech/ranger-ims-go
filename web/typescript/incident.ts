@@ -817,13 +817,14 @@ function drawDestinationsList(): void {
     datalist.replaceChildren();
     datalist.append(document.createElement("option"));
 
+    const newOptions: HTMLOptionElement[] = [];
     for (const d of destinations.art??[]) {
         const option: HTMLOptionElement = document.createElement("option");
         option.value = `${d.name} (Art) (${d.location_string})`;
         option.dataset["name"] = d.name??"";
         option.dataset["address"] = d.location_string??"";
         option.dataset["type"] = "Art";
-        datalist.append(option);
+        newOptions.push(option);
     }
     for (const d of destinations.camp??[]) {
         const option: HTMLOptionElement = document.createElement("option");
@@ -831,7 +832,7 @@ function drawDestinationsList(): void {
         option.dataset["name"] = d.name??"";
         option.dataset["address"] = d.location_string??"";
         option.dataset["type"] = "Camp";
-        datalist.append(option);
+        newOptions.push(option);
     }
     for (const d of destinations.other??[]) {
         const option: HTMLOptionElement = document.createElement("option");
@@ -839,8 +840,10 @@ function drawDestinationsList(): void {
         option.dataset["name"] = d.name??"";
         option.dataset["address"] = d.location_string??"";
         option.dataset["type"] = "Other";
-        datalist.append(option);
+        newOptions.push(option);
     }
+    newOptions.sort((a: HTMLOptionElement, b: HTMLOptionElement): number => a.value.localeCompare(b.value));
+    datalist.append(...newOptions);
 }
 
 function drawLocationAddress() {

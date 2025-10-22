@@ -642,13 +642,14 @@ function drawDestinationsList() {
     const datalist = document.getElementById("destinations-list");
     datalist.replaceChildren();
     datalist.append(document.createElement("option"));
+    const newOptions = [];
     for (const d of destinations.art ?? []) {
         const option = document.createElement("option");
         option.value = `${d.name} (Art) (${d.location_string})`;
         option.dataset["name"] = d.name ?? "";
         option.dataset["address"] = d.location_string ?? "";
         option.dataset["type"] = "Art";
-        datalist.append(option);
+        newOptions.push(option);
     }
     for (const d of destinations.camp ?? []) {
         const option = document.createElement("option");
@@ -656,7 +657,7 @@ function drawDestinationsList() {
         option.dataset["name"] = d.name ?? "";
         option.dataset["address"] = d.location_string ?? "";
         option.dataset["type"] = "Camp";
-        datalist.append(option);
+        newOptions.push(option);
     }
     for (const d of destinations.other ?? []) {
         const option = document.createElement("option");
@@ -664,8 +665,10 @@ function drawDestinationsList() {
         option.dataset["name"] = d.name ?? "";
         option.dataset["address"] = d.location_string ?? "";
         option.dataset["type"] = "Other";
-        datalist.append(option);
+        newOptions.push(option);
     }
+    newOptions.sort((a, b) => a.value.localeCompare(b.value));
+    datalist.append(...newOptions);
 }
 function drawLocationAddress() {
     const locAddr = document.getElementById("incident_location_address");

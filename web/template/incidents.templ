@@ -175,14 +175,17 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
           <li id="show_rows_all" onclick="showRows('all', true); return false;">
             <a href="#" class="name dropdown-item">All Rows</a>
           </li>
-          <li id="show_rows_25" onclick="showRows(  25, true); return false;">
+          <li id="show_rows_25" onclick="showRows('25', true); return false;">
             <a href="#" class="name dropdown-item">25 Rows</a>
           </li>
-          <li id="show_rows_50" onclick="showRows(  50, true); return false;">
+          <li id="show_rows_50" onclick="showRows('50', true); return false;">
             <a href="#" class="name dropdown-item">50 Rows</a>
           </li>
-          <li id="show_rows_100" onclick="showRows( 100, true); return false;">
+          <li id="show_rows_100" onclick="showRows('100', true); return false;">
             <a href="#" class="name dropdown-item">100 Rows</a>
+          </li>
+          <li class="border-top">
+            <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
           </li>
         </ul>
       </div>

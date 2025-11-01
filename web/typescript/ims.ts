@@ -37,7 +37,8 @@ export let eventAccess: AuthInfoEventAccess|null = null;
 const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
 
-const incidentsPreferredStateKey = "incidents_preferred_state";
+const incidentsPreferredStateKey = "preferred_incidents_state";
+const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
 
 const svgNS = "http://www.w3.org/2000/svg";
 
@@ -1396,10 +1397,48 @@ export function getIncidentsPreferredState(): IncidentsTableState|null {
     return null;
 }
 
+export const tableRowsPerPage = ["all", "25", "50", "100"] as const;
+export type TableRowsPerPage = typeof tableRowsPerPage[number];
+export function isValidTableRowsPerPage(value: string|null): value is TableRowsPerPage {
+    if (value) {
+        return tableRowsPerPage.includes(value as TableRowsPerPage);
+    }
+    return false;
+}
+
+export function setPreferredTableRowsPerPage(value: TableRowsPerPage|null): void {
+    if (value) {
+        localStorage.setItem(preferredTableRowsPerPageKey, value.toString());
+    } else {
+        localStorage.removeItem(preferredTableRowsPerPageKey);
+    }
+}
+
+export function getPreferredTableRowsPerPage(): TableRowsPerPage|null {
+    const pref: string|null = localStorage.getItem(preferredTableRowsPerPageKey);
+    if (isValidTableRowsPerPage(pref)) {
+        return pref;
+    }
+    return null;
+}
+
+export function coalesceRowsPerPage(...vals: (string|null)[]): TableRowsPerPage {
+    for (const val of vals) {
+        if (isValidTableRowsPerPage(val)) {
+            return val;
+        }
+    }
+    throw Error("No valid TableRowsPerPage value found");
+}
+
 export function clearLocalStorage(): void {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
+    localStorage.removeItem(preferredTableRowsPerPageKey);
+
+    // an old and now unused key
+    localStorage.removeItem("incidents_preferred_state");
 }
 
 export function clearSessionStorage(): void {
@@ -1568,6 +1607,9 @@ export type Destination = {
     name?: string|null;
     location_string?: string|null;
     external_data?: BMArt|BMCamp|OtherDest|null;
+
+    type?: DestinationType|null;
+    description?: string|null;
 }
 
 export type Destinations = Partial<Record<DestinationType, Destination[]|null|undefined>>;
@@ -1576,6 +1618,7 @@ export type BMArt = {
     name: string;
     location_string: string|null;
 
+    description: string|null;
     // other possible fields can be found here:
     // https://api.burningman.org/docs#operation/get_art
 }
@@ -1584,6 +1627,7 @@ export type BMCamp = {
     name: string;
     location_string: string|null;
 
+    description: string|null;
     // other possible fields can be found here:
     // https://api.burningman.org/docs#operation/get_camp
 }

@@ -21,6 +21,7 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         setPreferredState: (el: HTMLSelectElement) => Promise<void>;
+        setPreferredRowsPerPage: (el: HTMLSelectElement) => Promise<void>;
     }
 }
 
@@ -41,7 +42,13 @@ async function initSettingsPage(): Promise<void> {
         const stateSelect = document.getElementById("preferred_state") as HTMLSelectElement;
         stateSelect.value = preferredState;
     }
+    const preferredRowsPerPage = ims.getPreferredTableRowsPerPage();
+    if (preferredRowsPerPage) {
+        const rowsPerPageSelect = document.getElementById("preferred_rows_per_page") as HTMLSelectElement;
+        rowsPerPageSelect.value = preferredRowsPerPage;
+    }
     window.setPreferredState = setPreferredState;
+    window.setPreferredRowsPerPage = setPreferredRowsPerPage;
 }
 
 async function setPreferredState(el: HTMLSelectElement): Promise<void> {
@@ -49,6 +56,15 @@ async function setPreferredState(el: HTMLSelectElement): Promise<void> {
         ims.setIncidentsPreferredState(el.value);
     } else {
         ims.setIncidentsPreferredState(null);
+    }
+    ims.controlHasSuccess(el);
+}
+
+async function setPreferredRowsPerPage(el: HTMLSelectElement): Promise<void> {
+    if (ims.isValidTableRowsPerPage(el.value)) {
+        ims.setPreferredTableRowsPerPage(el.value);
+    } else {
+        ims.setPreferredTableRowsPerPage(null);
     }
     ims.controlHasSuccess(el);
 }

@@ -223,7 +223,14 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
     <div class="row py-1">
       <div class="col-sm-12">
         <div class="card">
-          <label class="control-label card-header">Location</label>
+          <label class="control-label card-header">Location
+            <a href="../destinations" target="_blank" class="link-body-emphasis float-end no-print" title="On-Duty Report">
+              Destinations
+              <svg fill="currentColor" class="bi">
+                <use href="#box-arrow-up-right"></use>
+              </svg>
+            </a>
+          </label>
           <div class="card-body">
             <form class="form-horizontal">
               <div class="input-group row align-items-center">

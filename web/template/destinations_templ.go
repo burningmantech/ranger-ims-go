@@ -38,7 +38,7 @@ package template
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Settings(deployment, versionName, versionRef string) templ.Component {
+func Destinations(deployment, versionName, versionRef, eventName string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -63,7 +63,7 @@ func Settings(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head("Settings", "settings.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Destinations | "+eventName, "destinations.js", true).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -75,11 +75,11 @@ func Settings(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Nav("").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Nav(eventName).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Settings</h1><h5>Preferred Table Filters</h5><div class=\"py-1\"><div class=\"input-group mb-1 flex-nowrap\"><label class=\"control-label input-group-text\" for=\"preferred_state\" title=\"The default filter view for the Incidents table\">Incident State</label> <select id=\"preferred_state\" class=\"form-control form-select form-select-sm\" onchange=\"setPreferredState(this)\" style=\"max-width: 150px;\"><option value=\"none\" selected>Use Default</option> <option value=\"all\">All</option> <option value=\"open\">Open</option> <option value=\"active\">Active</option></select></div><div class=\"input-group mb-1 flex-nowrap\"><label class=\"control-label input-group-text\" for=\"preferred_rows_per_page\" title=\"The default maximum number of rows to display per page in tables\">Rows Per Page</label> <select id=\"preferred_rows_per_page\" class=\"form-control form-select form-select-sm\" onchange=\"setPreferredRowsPerPage(this)\" style=\"max-width: 150px;\"><option value=\"none\" selected>Use Default</option> <option value=\"all\">All</option> <option value=\"25\">25</option> <option value=\"50\">50</option> <option value=\"100\">100</option></select></div></div><p class=\"mt-3\">These settings exist only in the browser, and they will be reset on logout.<br>Got any other ideas for settings that should go here? Email the Tech Cadre!</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Destinations</h1><div id=\"error_info\" class=\"hidden text-danger\"><p id=\"error_text\"></p></div><div class=\"row\"><div id=\"button_container\" class=\"col-sm-7\"><button id=\"show_rows\" type=\"button\" class=\"btn btn-light btn-sm dropdown-toggle\" data-bs-toggle=\"dropdown\"><span class=\"selection\">All Rows</span></button><ul class=\"dropdown-menu\"><li id=\"show_rows_all\"><a href=\"#\" class=\"name dropdown-item\" onclick=\"destShowRows('all', true); return false;\">All Rows</a></li><li id=\"show_rows_25\"><a href=\"#\" class=\"name dropdown-item\" onclick=\"destShowRows('25', true); return false;\">25 Rows</a></li><li id=\"show_rows_50\"><a href=\"#\" class=\"name dropdown-item\" onclick=\"destShowRows('50', true); return false;\">50 Rows</a></li><li id=\"show_rows_100\"><a href=\"#\" class=\"name dropdown-item\" onclick=\"destShowRows('100', true); return false;\">100 Rows</a></li><li class=\"border-top\"><a href=\"/ims/app/settings\" class=\"name dropdown-item\">Change default</a></li></ul></div><div id=\"search_container\" class=\"form-group form-group-sm col-sm-5\"><div class=\"flex-input-container no-print\"><label for=\"search_input\" class=\"control-label hidden\" aria-label=\"Search\">Search</label> <input id=\"search_input\" type=\"search\" class=\"form-control search-box\" placeholder=\"Press &quot; ⁄ &quot; to search\" inputmode=\"latin\" autocomplete=\"off\" aria-controls=\"destinations_table\"></div></div></div><table id=\"destinations_table\" class=\"table table-striped table-hover\"><thead><tr><th>Name</th><th>Address</th><th>Type</th><th>Description</th></tr></thead> <tbody></tbody><tfoot><tr><th>Name</th><th>Address</th><th>Type</th><th>Description</th></tr></tfoot></table>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

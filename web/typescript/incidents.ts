@@ -22,7 +22,7 @@ declare global {
     interface Window {
         showState: (stateToShow: ims.IncidentsTableState, replaceState: boolean)=>void;
         showDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
-        showRows: (rowsToShow: number | string, replaceState: boolean)=>void;
+        showRows: (rowsToShow: string, replaceState: boolean)=>void;
         toggleCheckAllTypes: ()=>void;
         toggleMultisearchModal: (e?: MouseEvent)=>void;
     }
@@ -35,7 +35,7 @@ const _searchDelayMs = 250;
 let _searchDelayTimer: number|undefined = undefined;
 
 let _showState: ims.IncidentsTableState|null = null;
-const defaultState: ims.IncidentsTableState = ims.getIncidentsPreferredState() ?? "open";
+const defaultState: ims.IncidentsTableState = "open";
 
 let _showModifiedAfter: Date|null = null;
 let _showDaysBack: number|string|null = null;
@@ -49,8 +49,8 @@ let _showOtherType = true;
 const _blankPlaceholder = "(blank)";
 const _otherPlaceholder = "(other)";
 
-let _showRows: number|string|null = null;
-const defaultRows = 25;
+let _showRows: string|null = null;
+const defaultRows = "25";
 
 let allIncidentTypes: ims.IncidentType[] = [];
 let allIncidentTypeIds: number[] = [];
@@ -542,7 +542,13 @@ function initTableButtons(): void {
     showState(state, false);
 
     showDays(fragmentParams.get("days")??defaultDaysBack, false);
-    showRows(fragmentParams.get("rows")??defaultRows, false);
+
+    showRows(
+        ims.coalesceRowsPerPage(
+        fragmentParams.get("rows"),
+        ims.getPreferredTableRowsPerPage(),
+        defaultRows,
+    ), false);
 }
 
 
@@ -809,8 +815,8 @@ function showCheckedTypes(replaceState: boolean): void {
 // Show rows button handling
 //
 
-function showRows(rowsToShow: number|string, replaceState: boolean): void {
-    const id = rowsToShow.toString();
+function showRows(rowsToShow: string, replaceState: boolean): void {
+    const id = rowsToShow;
     _showRows = rowsToShow;
 
     const item = document.getElementById("show_rows_" + id) as HTMLLIElement;
@@ -823,14 +829,14 @@ function showRows(rowsToShow: number|string, replaceState: boolean): void {
     menu.getElementsByClassName("selection")[0]!.textContent = selection
 
     if (rowsToShow === "all") {
-        rowsToShow = -1;
+        rowsToShow = "-1";
     }
 
     if (replaceState) {
         replaceWindowState();
     }
 
-    incidentsTable!.page.len(rowsToShow);
+    incidentsTable!.page.len(ims.parseInt10(rowsToShow));
     incidentsTable!.draw();
 }
 
@@ -863,7 +869,7 @@ function replaceWindowState(): void {
         newParams.push(["days", _showDaysBack.toString()]);
     }
     if (_showRows != null && _showRows !== defaultRows) {
-        newParams.push(["rows", _showRows.toString()]);
+        newParams.push(["rows", _showRows]);
     }
     const newURL = `${ims.urlReplace(url_viewIncidents)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);

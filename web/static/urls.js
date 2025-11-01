@@ -95,3 +95,4 @@ const url_viewFieldReportsRelative = "field_reports";
 const url_viewFieldReportNew = "/ims/app/events/<event_id>/field_reports/new";
 const url_viewFieldReportNumber = "/ims/app/events/<event_id>/field_reports/<number>";
 const url_viewFieldReportJS = "/ims/static/field_report.js";
+const url_viewDestinations = "/ims/app/events/<event_id>/destinations";

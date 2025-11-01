@@ -22,7 +22,7 @@ let incidentsTable = null;
 const _searchDelayMs = 250;
 let _searchDelayTimer = undefined;
 let _showState = null;
-const defaultState = ims.getIncidentsPreferredState() ?? "open";
+const defaultState = "open";
 let _showModifiedAfter = null;
 let _showDaysBack = null;
 const defaultDaysBack = "all";
@@ -34,7 +34,7 @@ let _showOtherType = true;
 const _blankPlaceholder = "(blank)";
 const _otherPlaceholder = "(other)";
 let _showRows = null;
-const defaultRows = 25;
+const defaultRows = "25";
 let allIncidentTypes = [];
 let allIncidentTypeIds = [];
 let visibleIncidentTypes = [];
@@ -467,7 +467,7 @@ function initTableButtons() {
     }
     showState(state, false);
     showDays(fragmentParams.get("days") ?? defaultDaysBack, false);
-    showRows(fragmentParams.get("rows") ?? defaultRows, false);
+    showRows(ims.coalesceRowsPerPage(fragmentParams.get("rows"), ims.getPreferredTableRowsPerPage(), defaultRows), false);
 }
 //
 // Initialize search field
@@ -695,7 +695,7 @@ function showCheckedTypes(replaceState) {
 // Show rows button handling
 //
 function showRows(rowsToShow, replaceState) {
-    const id = rowsToShow.toString();
+    const id = rowsToShow;
     _showRows = rowsToShow;
     const item = document.getElementById("show_rows_" + id);
     // Get title from selected item
@@ -704,12 +704,12 @@ function showRows(rowsToShow, replaceState) {
     const menu = document.getElementById("show_rows");
     menu.getElementsByClassName("selection")[0].textContent = selection;
     if (rowsToShow === "all") {
-        rowsToShow = -1;
+        rowsToShow = "-1";
     }
     if (replaceState) {
         replaceWindowState();
     }
-    incidentsTable.page.len(rowsToShow);
+    incidentsTable.page.len(ims.parseInt10(rowsToShow));
     incidentsTable.draw();
 }
 //
@@ -739,7 +739,7 @@ function replaceWindowState() {
         newParams.push(["days", _showDaysBack.toString()]);
     }
     if (_showRows != null && _showRows !== defaultRows) {
-        newParams.push(["rows", _showRows.toString()]);
+        newParams.push(["rows", _showRows]);
     }
     const newURL = `${ims.urlReplace(url_viewIncidents)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);

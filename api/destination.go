@@ -54,7 +54,11 @@ func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *her
 	if errHTTP != nil {
 		return nil, errHTTP.From("[getEventPermissions]")
 	}
-	if eventPermissions&authz.EventReadDestinations == 0 {
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[getGlobalPermissions]")
+	}
+	if eventPermissions&authz.EventReadDestinations == 0 && globalPermissions&authz.GlobalAdministrateDestinations == 0 {
 		return nil, herr.Forbidden("The requestor does not have EventReadDestinations permission", nil)
 	}
 	err := req.ParseForm()

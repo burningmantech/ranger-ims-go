@@ -32,7 +32,13 @@ async function initSettingsPage() {
         const stateSelect = document.getElementById("preferred_state");
         stateSelect.value = preferredState;
     }
+    const preferredRowsPerPage = ims.getPreferredTableRowsPerPage();
+    if (preferredRowsPerPage) {
+        const rowsPerPageSelect = document.getElementById("preferred_rows_per_page");
+        rowsPerPageSelect.value = preferredRowsPerPage;
+    }
     window.setPreferredState = setPreferredState;
+    window.setPreferredRowsPerPage = setPreferredRowsPerPage;
 }
 async function setPreferredState(el) {
     if (ims.isValidIncidentsTableState(el.value)) {
@@ -40,6 +46,15 @@ async function setPreferredState(el) {
     }
     else {
         ims.setIncidentsPreferredState(null);
+    }
+    ims.controlHasSuccess(el);
+}
+async function setPreferredRowsPerPage(el) {
+    if (ims.isValidTableRowsPerPage(el.value)) {
+        ims.setPreferredTableRowsPerPage(el.value);
+    }
+    else {
+        ims.setPreferredTableRowsPerPage(null);
     }
     ims.controlHasSuccess(el);
 }

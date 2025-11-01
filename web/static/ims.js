@@ -28,7 +28,8 @@ export let pathIds = {
 export let eventAccess = null;
 const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
-const incidentsPreferredStateKey = "incidents_preferred_state";
+const incidentsPreferredStateKey = "preferred_incidents_state";
+const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
 const svgNS = "http://www.w3.org/2000/svg";
 //
 // HTML encoding
@@ -1200,10 +1201,43 @@ export function getIncidentsPreferredState() {
     }
     return null;
 }
+export const tableRowsPerPage = ["all", "25", "50", "100"];
+export function isValidTableRowsPerPage(value) {
+    if (value) {
+        return tableRowsPerPage.includes(value);
+    }
+    return false;
+}
+export function setPreferredTableRowsPerPage(value) {
+    if (value) {
+        localStorage.setItem(preferredTableRowsPerPageKey, value.toString());
+    }
+    else {
+        localStorage.removeItem(preferredTableRowsPerPageKey);
+    }
+}
+export function getPreferredTableRowsPerPage() {
+    const pref = localStorage.getItem(preferredTableRowsPerPageKey);
+    if (isValidTableRowsPerPage(pref)) {
+        return pref;
+    }
+    return null;
+}
+export function coalesceRowsPerPage(...vals) {
+    for (const val of vals) {
+        if (isValidTableRowsPerPage(val)) {
+            return val;
+        }
+    }
+    throw Error("No valid TableRowsPerPage value found");
+}
 export function clearLocalStorage() {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
+    localStorage.removeItem(preferredTableRowsPerPageKey);
+    // an old and now unused key
+    localStorage.removeItem("incidents_preferred_state");
 }
 export function clearSessionStorage() {
     sessionStorage.clear();

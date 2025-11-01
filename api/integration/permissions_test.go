@@ -45,6 +45,9 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		{http.MethodPost, "/ims/api/access"},
 		{http.MethodGet, "/ims/api/actionlogs"},
 		{http.MethodPost, "/ims/api/events"},
+		// It doesn't matter that this event doesn't exist, because the endpoint will deny access to
+		// a non-admin before it checks whether the event even exists.
+		{http.MethodPost, "/ims/api/events/SomeFakeEvent/destinations"},
 		{http.MethodPost, "/ims/api/streets"},
 		{http.MethodPost, "/ims/api/incident_types"},
 		{http.MethodGet, "/ims/api/debug/buildinfo"},
@@ -122,6 +125,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	postFieldReport := MethodURL{http.MethodPost, eventPath + "/field_reports/1"}
 	postFieldReportAttachment := MethodURL{http.MethodPost, eventPath + "/field_reports/1/attachments"}
 	postFieldReportRE := MethodURL{http.MethodPost, eventPath + "/field_reports/1/report_entries/2"}
+	getDestinations := MethodURL{http.MethodGet, eventPath + "/destinations"}
 
 	allPerms := []MethodURL{
 		getIncidents,
@@ -136,6 +140,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		postFieldReport,
 		postFieldReportAttachment,
 		postFieldReportRE,
+		getDestinations,
 	}
 	reporter := []MethodURL{
 		getFieldReports,
@@ -144,6 +149,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		postFieldReport,
 		postFieldReportAttachment,
 		postFieldReportRE,
+		getDestinations,
 	}
 	reader := []MethodURL{
 		getIncidents,
@@ -152,6 +158,11 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getFieldReports,
 		getFieldReport,
 		getFieldReportAttachment,
+		getDestinations,
+	}
+	// these are per-event endpoints that admins can access by virtue of being admins
+	adminGlobal := []MethodURL{
+		getDestinations,
 	}
 	writer := slices.Clone(allPerms)
 
@@ -161,8 +172,11 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		require.True(t, unauthorized(code), "%v %v wanted 401 status code, got %v", api.Method, api.Path, code)
 	}
 
-	// to begin, the user has no permission
+	// to begin, the user has almost no permissions
 	for _, api := range allPerms {
+		if slices.Contains(adminGlobal, api) {
+			continue
+		}
 		// forbidden
 		code := apiCall(t, api, apisAdmin)
 		require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)

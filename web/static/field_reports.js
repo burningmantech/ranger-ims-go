@@ -24,7 +24,7 @@ const frDefaultDaysBack = "all";
 const _frSearchDelayMs = 250;
 let _frSearchDelayTimer = undefined;
 let _frShowRows = null;
-const frDefaultRows = 25;
+const frDefaultRows = "25";
 //
 // Initialize UI
 //
@@ -283,6 +283,7 @@ function frInitTableButtons() {
     // Set button defaults
     frShowDays(fragmentParams.get("days") ?? frDefaultDaysBack, false);
     frShowRows(fragmentParams.get("rows") ?? frDefaultRows, false);
+    frShowRows(ims.coalesceRowsPerPage(fragmentParams.get("rows"), ims.getPreferredTableRowsPerPage(), frDefaultRows), false);
 }
 //
 // Initialize search field
@@ -402,12 +403,12 @@ function frShowRows(rowsToShow, replaceState) {
     const menu = document.getElementById("show_rows");
     menu.getElementsByClassName("selection")[0].textContent = selection;
     if (rowsToShow === "all") {
-        rowsToShow = -1;
+        rowsToShow = "-1";
     }
     if (replaceState) {
         frReplaceWindowState();
     }
-    fieldReportsTable.page.len(rowsToShow);
+    fieldReportsTable.page.len(ims.parseInt10(rowsToShow));
     fieldReportsTable.draw();
 }
 //

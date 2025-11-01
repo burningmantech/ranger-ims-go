@@ -26,14 +26,14 @@ templ Settings(deployment, versionName, versionRef string) {
 @Header(deployment)
 @Nav("")
 <h1 id="doc-title">Settings</h1>
-<h5>Incidents Table Preferred Filters</h5>
+<h5>Preferred Table Filters</h5>
 <div class="py-1">
   <div class="input-group mb-1 flex-nowrap">
     <label
       class="control-label input-group-text"
       for="preferred_state"
       title="The default filter view for the Incidents table"
-    >State</label>
+    >Incident State</label>
     <select
       id="preferred_state"
       class="form-control form-select form-select-sm"
@@ -41,9 +41,28 @@ templ Settings(deployment, versionName, versionRef string) {
       style="max-width: 150px;"
     >
       <option value="none" selected>Use Default</option>
-      <option value="all">All Incidents</option>
-      <option value="open">Open Incidents</option>
-      <option value="active">Active Incidents</option>
+      <option value="all">All</option>
+      <option value="open">Open</option>
+      <option value="active">Active</option>
+    </select>
+    </div>
+    <div class="input-group mb-1 flex-nowrap">
+    <label
+      class="control-label input-group-text"
+      for="preferred_rows_per_page"
+      title="The default maximum number of rows to display per page in tables"
+    >Rows Per Page</label>
+    <select
+      id="preferred_rows_per_page"
+      class="form-control form-select form-select-sm"
+      onchange="setPreferredRowsPerPage(this)"
+      style="max-width: 150px;"
+    >
+      <option value="none" selected>Use Default</option>
+      <option value="all">All</option>
+      <option value="25">25</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
     </select>
   </div>
 </div>

@@ -119,13 +119,16 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
             <a href="#" class="name dropdown-item" onclick="frShowRows('all', true); return false;">All Rows</a>
           </li>
           <li id="show_rows_25">
-            <a href="#" class="name dropdown-item" onclick="frShowRows(  25, true); return false;">25 Rows</a>
+            <a href="#" class="name dropdown-item" onclick="frShowRows('25', true); return false;">25 Rows</a>
           </li>
           <li id="show_rows_50">
-            <a href="#" class="name dropdown-item" onclick="frShowRows(  50, true); return false;">50 Rows</a>
+            <a href="#" class="name dropdown-item" onclick="frShowRows('50', true); return false;">50 Rows</a>
           </li>
           <li id="show_rows_100">
-            <a href="#" class="name dropdown-item" onclick="frShowRows( 100, true); return false;">100 Rows</a>
+            <a href="#" class="name dropdown-item" onclick="frShowRows('100', true); return false;">100 Rows</a>
+          </li>
+          <li class="border-top">
+            <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
           </li>
         </ul>
       </div>

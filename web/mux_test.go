@@ -33,6 +33,7 @@ import (
 var templEndpoints = []string{
 	"/ims/app",
 	"/ims/app/admin",
+	"/ims/app/admin/destinations",
 	"/ims/app/admin/events",
 	"/ims/app/admin/streets",
 	"/ims/app/admin/types",

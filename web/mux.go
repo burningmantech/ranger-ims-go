@@ -172,8 +172,8 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	// Catch-all handler. Requests to the above handlers with a trailing slash will get
 	// a 404 response, so we redirect here instead.
 	mux.HandleFunc("GET /ims/app/{anything...}", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/") {
-			http.Redirect(w, r, strings.TrimSuffix(r.URL.Path, "/"), http.StatusMovedPermanently)
+		if before, ok := strings.CutSuffix(r.URL.Path, "/"); ok {
+			http.Redirect(w, r, before, http.StatusMovedPermanently)
 			return
 		}
 		http.NotFound(w, r)

@@ -1619,8 +1619,16 @@ export type BMArt = {
     location_string: string|null;
 
     description: string|null;
-    // other possible fields can be found here:
-    // https://api.burningman.org/docs#operation/get_art
+    artist: string|null;
+    contact_email: string|null;
+    hometown: string|null;
+    category: string|null;
+    program: string|null;
+    donation_link: string|null;
+    images: BMArtImage[]|null;
+    location: BMArtLocation|null;
+    uid: string;
+    url: string|null;
 }
 
 export type BMCamp = {
@@ -1628,8 +1636,42 @@ export type BMCamp = {
     location_string: string|null;
 
     description: string|null;
+    contact_email: string|null;
+    hometown: string|null;
+    images: BMCampImage[]|null;
+    landmark: string|null;
+    location: BMCampLocation|null;
+    uid: string;
+    url: string|null;
+    year: number;
+
     // other possible fields can be found here:
     // https://api.burningman.org/docs#operation/get_camp
+}
+
+export type BMArtLocation = {
+    hour: number|null;
+    minute: number|null;
+    distance: number|null;
+    category: string|null;
+    gps_latitude: number|null;
+    gps_longitude: number|null;
+}
+
+export type BMCampLocation = {
+    frontage: string|null;
+    intersection: string|null;
+    intersection_type: "@"|"&"|null;
+    dimensions: string|null;
+    exact_location: string|null;
+}
+
+export type BMArtImage = {
+    thumbnail_url: string|null;
+}
+
+export type BMCampImage = {
+    thumbnail_url: string|null;
 }
 
 export type OtherDest = {

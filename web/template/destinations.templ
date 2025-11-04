@@ -31,6 +31,94 @@ templ Destinations(deployment, versionName, versionRef, eventName string) {
       <p id="error_text"></p>
     </div>
 
+    <!-- Destination info -->
+    <div class="modal no-print" id="destinationInfoModal" tabindex="-1" aria-labelledby="destinationInfoModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <p class="modal-title fs-5" id="destinationInfoModalLabel"></p>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+          </div>
+          <div class="modal-body" id="destinationBody" style="white-space: pre-wrap;">
+          </div>
+        </div>
+      </div>
+
+      <template id="camp_template">
+        <dl class="destination-dl">
+          <dt>Name</dt>
+          <dd id="camp_name"></dd>
+
+          <dt>Location - <span id="location_label"></span></dt>
+          <dd id="location_string"></dd>
+
+          <dt>Description</dt>
+          <dd id="description"></dd>
+
+          <dt>Landmark</dt>
+          <dd id="landmark"></dd>
+
+          <dt>Image</dt>
+          <dd id="image_dd">
+            <a id="image_url" href="#" target="_blank">Camp-provided photo</a>
+          </dd>
+
+          <dt>Contact info</dt>
+          <dd id="email_dd">
+            <a id="email_link" href="#" target="_blank"></a>
+          </dd>
+
+          <dt>Website</dt>
+          <dd id="website_dd">
+            <a id="website_url" href="#" target="_blank"></a>
+          </dd>
+
+          <dt>Hometown</dt>
+          <dd id="hometown"></dd>
+
+          <dt>Burning Man Salesforce ID</dt>
+          <dd id="uid"></dd>
+        </dl>
+      </template>
+
+      <template id="art_template">
+        <dl class="destination-dl">
+          <dt>Name</dt>
+          <dd id="art_name"></dd>
+
+          <dt>Location</dt>
+          <dd id="location_string"></dd>
+
+          <dt>Description</dt>
+          <dd id="description"></dd>
+
+          <dt>Artist</dt>
+          <dd id="artist"></dd>
+
+          <dt>Image</dt>
+          <dd id="image_dd">
+            <a id="image_url" href="#" target="_blank">Artist-provided photo</a>
+          </dd>
+
+          <dt>Contact info</dt>
+          <dd id="email_dd">
+            <a id="email_link" href="#" target="_blank"></a>
+          </dd>
+
+          <dt>Website</dt>
+          <dd id="website_dd">
+            <a id="website_url" href="#" target="_blank"></a>
+          </dd>
+
+          <dt>Hometown</dt>
+          <dd id="hometown"></dd>
+
+          <dt>Burning Man Salesforce ID</dt>
+          <dd id="uid"></dd>
+        </dl>
+      </template>
+    </div>
+
     <div class="row">
       <div id="button_container" class="col-sm-7">
         <button

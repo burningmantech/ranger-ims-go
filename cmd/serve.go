@@ -187,9 +187,9 @@ func tuneMemoryLimit(cgroupMemStatFile string) {
 	}
 	slog.Debug("found cgroup memory.stat file", "contents", string(cgroupMemStat), "err", err)
 	const targetLine = "hierarchical_memory_limit "
-	for _, line := range strings.Split(string(cgroupMemStat), "\n") {
-		if strings.HasPrefix(line, targetLine) {
-			memLimitStr := strings.TrimPrefix(line, targetLine)
+	for line := range strings.SplitSeq(string(cgroupMemStat), "\n") {
+		if after, ok := strings.CutPrefix(line, targetLine); ok {
+			memLimitStr := after
 			memLimitBytes, err = conv.ParseInt64(memLimitStr)
 			if err != nil {
 				slog.Error("Error parsing memory limit", "err", err)

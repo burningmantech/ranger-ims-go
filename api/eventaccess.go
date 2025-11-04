@@ -165,17 +165,17 @@ func knownTarget(expression string, allHandles, allPositions, allTeams map[strin
 	if expression == "*" {
 		return true
 	}
-	if strings.HasPrefix(expression, "person:") {
-		return allHandles[strings.TrimPrefix(expression, "person:")]
+	if after, ok := strings.CutPrefix(expression, "person:"); ok {
+		return allHandles[after]
 	}
-	if strings.HasPrefix(expression, "position:") {
-		return allPositions[strings.TrimPrefix(expression, "position:")]
+	if after, ok := strings.CutPrefix(expression, "position:"); ok {
+		return allPositions[after]
 	}
-	if strings.HasPrefix(expression, "onduty:") {
-		return allPositions[strings.TrimPrefix(expression, "onduty:")]
+	if after, ok := strings.CutPrefix(expression, "onduty:"); ok {
+		return allPositions[after]
 	}
-	if strings.HasPrefix(expression, "team:") {
-		return allTeams[strings.TrimPrefix(expression, "team:")]
+	if after, ok := strings.CutPrefix(expression, "team:"); ok {
+		return allTeams[after]
 	}
 	return false
 }

@@ -349,6 +349,10 @@ h1 {
   cursor: pointer;
 }
 
+#destinations_table>tbody>tr {
+  cursor: pointer;
+}
+
 .show-pointer {
   cursor: pointer;
 }
@@ -370,4 +374,8 @@ h1 {
 
 .mw-4rem {
   min-width: 4rem !important;
+}
+
+.destination-dl > dd {
+  padding-left: 1rem;
 }

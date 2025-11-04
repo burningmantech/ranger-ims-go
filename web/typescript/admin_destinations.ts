@@ -143,7 +143,7 @@ async function loadDestinations(): Promise<void> {
     {
         const camps: ims.BMCamp[] = [];
         for (const ed of json.camp ?? []) {
-            camps.push(ed.external_data! as ims.BMArt);
+            camps.push(ed.external_data! as ims.BMCamp);
         }
         (document.getElementById("camp-data") as HTMLTextAreaElement).value = JSON.stringify(camps, null, 2);
         (document.getElementById("camp-data-label") as HTMLLabelElement).textContent = `JSON Data (${camps.length})`;

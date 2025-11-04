@@ -72,6 +72,7 @@ function initDestinationsTable() {
 // Initialize DataTables
 //
 function destInitDataTables() {
+    const destinationInfoModal = ims.bsModal(document.getElementById("destinationInfoModal"));
     DataTable.ext.errMode = "none";
     destinationsTable = new DataTable("#destinations_table", {
         // Save table state to SessionStorage (-1). This tells DataTables to save state
@@ -155,7 +156,116 @@ function destInitDataTables() {
         "order": [
             [0, "asc"],
         ],
+        "createdRow": function (row, destination, _index) {
+            const openLink = function (_e) {
+                document.getElementById("destinationInfoModalLabel").textContent = destination.name ?? "(unnamed destination)";
+                document.getElementById("destinationBody").replaceChildren(destinationToHTML(destination));
+                destinationInfoModal.toggle();
+            };
+            row.addEventListener("click", openLink);
+            row.addEventListener("auxclick", openLink);
+        },
     });
+}
+function destinationToHTML(destination) {
+    switch (destination.type) {
+        case "camp": {
+            const camp = destination.external_data;
+            const campTemplate = document.getElementById("camp_template");
+            // Clone the new row and insert it into the table
+            const campEl = campTemplate.content.cloneNode(true);
+            campEl.getElementById("camp_name").textContent = camp.name;
+            campEl.getElementById("location_label").textContent = `frontage ${camp.location?.intersection_type} intersection`;
+            campEl.getElementById("location_string").textContent =
+                `${camp.location_string ?? "Unknown"}\n` +
+                    `${camp.location?.exact_location ?? ""}\n` +
+                    `${camp.location?.dimensions ?? "Unknown"}`;
+            campEl.getElementById("description").textContent = camp.description ?? "None provided";
+            campEl.getElementById("landmark").textContent = camp.landmark ?? "None provided";
+            let imageURL = camp.images?.find((value) => {
+                return "thumbnail_url" in value;
+            })?.thumbnail_url;
+            if (imageURL) {
+                if (imageURL.includes("?")) {
+                    imageURL = imageURL.substring(0, imageURL.indexOf("?"));
+                }
+                const imageLink = campEl.getElementById("image_url");
+                imageLink.href = imageURL;
+            }
+            else {
+                campEl.getElementById("image_dd").textContent = "None provided";
+            }
+            if (camp.contact_email) {
+                const emailLink = campEl.getElementById("email_link");
+                emailLink.href = `mailto:${camp.contact_email}`;
+                emailLink.textContent = camp.contact_email;
+            }
+            else {
+                campEl.getElementById("email_dd").textContent = "None provided";
+            }
+            if (camp.url) {
+                const websiteLink = campEl.getElementById("website_url");
+                websiteLink.href = camp.url;
+                websiteLink.textContent = camp.url;
+            }
+            else {
+                campEl.getElementById("website_dd").textContent = "None provided";
+            }
+            campEl.getElementById("hometown").textContent = camp.hometown ?? "None provided";
+            campEl.getElementById("uid").textContent = camp.uid ?? "None";
+            return campEl;
+        }
+        case "art": {
+            const art = destination.external_data;
+            const template = document.getElementById("art_template");
+            // Clone the new row and insert it into the table
+            const clone = template.content.cloneNode(true);
+            clone.getElementById("art_name").textContent = art.name;
+            clone.getElementById("location_string").textContent =
+                `${art.location_string ?? "Unknown"}\n` +
+                    // TODO: could link to Google Maps with the lat/long: https://www.google.com/maps/search/%s
+                    `${art.location?.gps_latitude ?? "Unknown"},${art.location?.gps_longitude ?? "Unknown"}`;
+            clone.getElementById("description").textContent = art.description ?? "None provided";
+            clone.getElementById("artist").textContent = art.artist ?? "None provided";
+            let imageURL = art.images?.find((value) => {
+                return "thumbnail_url" in value;
+            })?.thumbnail_url;
+            if (imageURL) {
+                if (imageURL.includes("?")) {
+                    imageURL = imageURL.substring(0, imageURL.indexOf("?"));
+                }
+                const imageLink = clone.getElementById("image_url");
+                imageLink.href = imageURL;
+            }
+            else {
+                clone.getElementById("image_dd").textContent = "None provided";
+            }
+            if (art.contact_email) {
+                const emailLink = clone.getElementById("email_link");
+                emailLink.href = `mailto:${art.contact_email}`;
+                emailLink.textContent = art.contact_email;
+            }
+            else {
+                clone.getElementById("email_dd").textContent = "None provided";
+            }
+            if (art.url) {
+                const websiteLink = clone.getElementById("website_url");
+                websiteLink.href = art.url;
+                websiteLink.textContent = art.url;
+            }
+            else {
+                clone.getElementById("website_dd").textContent = "None provided";
+            }
+            clone.getElementById("hometown").textContent = art.hometown ?? "None provided";
+            clone.getElementById("uid").textContent = art.uid ?? "None";
+            return clone;
+        }
+        default:
+            // TODO: implement something to present ad-hoc locations better
+            const el = document.createElement("p");
+            el.textContent = JSON.stringify(destination.external_data, null, 2);
+            return el;
+    }
 }
 function renderWithMaxLength(maxLength) {
     return function (data, type, _dest) {

@@ -219,14 +219,15 @@ function destinationToHTML(destination) {
             const art = destination.external_data;
             const template = document.getElementById("art_template");
             // Clone the new row and insert it into the table
-            const clone = template.content.cloneNode(true);
-            clone.getElementById("art_name").textContent = art.name;
-            clone.getElementById("location_string").textContent =
+            const artEl = template.content.cloneNode(true);
+            artEl.getElementById("art_name").textContent = art.name;
+            const lat = art.location?.gps_latitude?.toFixed(6) ?? "Unknown";
+            const long = art.location?.gps_longitude?.toFixed(6) ?? "Unknown";
+            artEl.getElementById("location_string").textContent =
                 `${art.location_string ?? "Unknown"}\n` +
-                    // TODO: could link to Google Maps with the lat/long: https://www.google.com/maps/search/%s
-                    `${art.location?.gps_latitude ?? "Unknown"},${art.location?.gps_longitude ?? "Unknown"}`;
-            clone.getElementById("description").textContent = art.description ?? "None provided";
-            clone.getElementById("artist").textContent = art.artist ?? "None provided";
+                    `${lat},${long}`;
+            artEl.getElementById("description").textContent = art.description ?? "None provided";
+            artEl.getElementById("artist").textContent = art.artist ?? "None provided";
             let imageURL = art.images?.find((value) => {
                 return "thumbnail_url" in value;
             })?.thumbnail_url;
@@ -234,31 +235,31 @@ function destinationToHTML(destination) {
                 if (imageURL.includes("?")) {
                     imageURL = imageURL.substring(0, imageURL.indexOf("?"));
                 }
-                const imageLink = clone.getElementById("image_url");
+                const imageLink = artEl.getElementById("image_url");
                 imageLink.href = imageURL;
             }
             else {
-                clone.getElementById("image_dd").textContent = "None provided";
+                artEl.getElementById("image_dd").textContent = "None provided";
             }
             if (art.contact_email) {
-                const emailLink = clone.getElementById("email_link");
+                const emailLink = artEl.getElementById("email_link");
                 emailLink.href = `mailto:${art.contact_email}`;
                 emailLink.textContent = art.contact_email;
             }
             else {
-                clone.getElementById("email_dd").textContent = "None provided";
+                artEl.getElementById("email_dd").textContent = "None provided";
             }
             if (art.url) {
-                const websiteLink = clone.getElementById("website_url");
+                const websiteLink = artEl.getElementById("website_url");
                 websiteLink.href = art.url;
                 websiteLink.textContent = art.url;
             }
             else {
-                clone.getElementById("website_dd").textContent = "None provided";
+                artEl.getElementById("website_dd").textContent = "None provided";
             }
-            clone.getElementById("hometown").textContent = art.hometown ?? "None provided";
-            clone.getElementById("uid").textContent = art.uid ?? "None";
-            return clone;
+            artEl.getElementById("hometown").textContent = art.hometown ?? "None provided";
+            artEl.getElementById("uid").textContent = art.uid ?? "None";
+            return artEl;
         }
         default:
             // TODO: implement something to present ad-hoc locations better

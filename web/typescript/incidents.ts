@@ -487,12 +487,13 @@ function initTableButtons(): void {
 
     const typeFilter = document.getElementById("ul_show_type") as HTMLUListElement;
     for (const type of visibleIncidentTypes) {
-        const a: HTMLAnchorElement = document.createElement("a");
-        a.href = "#";
-        a.classList.add("dropdown-item", "dropdown-item-checkable", "dropdown-item-checked");
-        a.dataset["incidentTypeId"] = type.id?.toString();
-        a.textContent = type.name??"";
-        typeFilter.append(a);
+        const template = document.getElementById("show_type_template") as HTMLTemplateElement;
+        const newLi = template.content.cloneNode(true) as DocumentFragment;
+
+        const newLink = newLi.querySelector("a")!;
+        newLink.dataset["incidentTypeId"] = type.id?.toString();
+        newLink.textContent = type.name??"";
+        typeFilter.append(newLi);
     }
 
     for (const el of document.getElementsByClassName("dropdown-item-checkable")) {
@@ -740,7 +741,7 @@ function showDays(daysBackToShow: number|string, replaceState: boolean): void {
 //
 
 function setCheckedTypes(types: number[], includeBlanks: boolean, includeOthers: boolean): void {
-    for (const type of document.querySelectorAll('#ul_show_type > a')) {
+    for (const type of document.querySelectorAll('#ul_show_type > li > a')) {
         const typeIdStr = (type as HTMLElement).dataset["incidentTypeId"];
         const typeIdNum = ims.parseInt10(typeIdStr);
         if (types.includes(typeIdNum!) ||
@@ -765,7 +766,8 @@ function toggleCheckAllTypes(): void {
 
 function readCheckedTypes(): void {
     _showTypes = [];
-    for (const type of document.querySelectorAll('#ul_show_type > a')) {
+
+    for (const type of document.querySelectorAll('#ul_show_type > li > a')) {
         if (type.id === "show_blank_type") {
             _showBlankType = type.classList.contains("dropdown-item-checked");
         } else if (type.id === "show_other_type") {

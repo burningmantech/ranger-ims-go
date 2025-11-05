@@ -87,7 +87,14 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body">
-            <ul id="incident-type-info" class="list-group list-group-small"></ul>
+            <ul id="incident-type-info" class="list-group list-group-small" style="white-space: pre-wrap;">
+              <template id="incident-type-info-template">
+                <li class="list-group-item">
+                  <div class="type-name"></div>
+                  <div class="type-description ms-3 text-body-secondary"></div>
+                </li>
+              </template>
+            </ul>
           </div>
         </div>
       </div>
@@ -159,11 +166,13 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           </a>
           </label>
           <ul id="incident_rangers_list" class="list-group list-group-flush list-group-small card-body">
-            <li class="list-group-item ps-3 hidden">
-              <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)">
-                X
-              </button>
-            </li>
+            <template id="incident_rangers_li_template">
+              <li class="list-group-item ps-3 hidden">
+                <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)">
+                  X
+                </button>
+              </li>
+            </template>
           </ul>
           <div class="flex-input-container card-footer no-print">
             <label for="ranger_add" class="control-label">Add:</label>
@@ -177,7 +186,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     onchange="addRanger()"
             />
             <datalist id="ranger_handles">
-              <option value=""/>
+              <option value=""></option>
             </datalist>
           </div>
         </div>
@@ -193,11 +202,13 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             </a>
           </label>
           <ul id="incident_types_list" class="list-group list-group-flush list-group-small card-body">
-            <li class="list-group-item ps-3 hidden">
-              <button class="badge btn btn-danger remove-badge float-end" onclick="removeIncidentType(this)">
-                X
-              </button>
-            </li>
+            <template id="incident_types_li_template">
+              <li class="list-group-item ps-3 hidden">
+                <button class="badge btn btn-danger remove-badge float-end" onclick="removeIncidentType(this)">
+                  X
+                </button>
+              </li>
+            </template>
           </ul>
           <div class="card-footer flex-input-container no-print">
             <label class="control-label">Add:</label>

@@ -644,29 +644,26 @@ function drawIncidentSummary(): void {
 // Populate Rangers list
 //
 
-let _rangerItem: HTMLElement|null = null;
-
 function drawRangers() {
-    if (_rangerItem == null) {
-        _rangerItem = document.getElementById("incident_rangers_list")!
-            .getElementsByClassName("list-group-item")[0] as HTMLElement;
-    }
-
     const handles: string[] = incident!.ranger_handles??[];
     handles.sort((a, b) => a.localeCompare(b));
 
+    const rangerItemTemplate = document.getElementById("incident_rangers_li_template") as HTMLTemplateElement;
+
     const rangersElement: HTMLElement = document.getElementById("incident_rangers_list")!;
-    rangersElement.replaceChildren();
+    rangersElement.querySelectorAll("li").forEach((el: HTMLElement) => {el.remove()});
+
     for (const handle of handles) {
 
-        const rangerContainer = _rangerItem!.cloneNode(true) as HTMLElement;
-        rangerContainer.classList.remove("hidden");
-        rangerContainer.dataset["rangerHandle"] = handle;
+        const rangerFragment = rangerItemTemplate.content.cloneNode(true) as DocumentFragment;
+        const rangerLi = rangerFragment.querySelector("li")!;
+        rangerLi.classList.remove("hidden");
+        rangerLi.dataset["rangerHandle"] = handle;
 
         if (personnel?.[handle] == null) {
             const rangerNoLink = document.createElement("span");
             rangerNoLink.textContent = handle;
-            rangerContainer.append(rangerNoLink!);
+            rangerLi.append(rangerNoLink!);
         } else {
             const person = personnel[handle];
             const rangerLink: HTMLAnchorElement = document.createElement("a");
@@ -675,10 +672,10 @@ function drawRangers() {
                 rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
                 rangerLink.target = "_blank";
             }
-            rangerContainer.append(rangerLink);
+            rangerLi.append(rangerLink);
         }
 
-        rangersElement.append(rangerContainer);
+        rangersElement.append(rangerFragment);
     }
 }
 
@@ -722,26 +719,22 @@ function rangerAsString(ranger: Personnel): string {
 // Populate incident types list
 //
 
-let _typesItem: HTMLElement|null = null;
-
 function drawIncidentTypes() {
-    if (_typesItem == null) {
-        _typesItem = document.getElementById("incident_types_list")!
-            .getElementsByClassName("list-group-item")[0] as HTMLElement;
-    }
+    const typeItemTemplate = document.getElementById("incident_types_li_template") as HTMLTemplateElement;
 
     const typesElement: HTMLElement = document.getElementById("incident_types_list")!;
-    typesElement.replaceChildren();
+    typesElement.querySelectorAll("li").forEach((el: HTMLElement) => {el.remove()});
 
     for (const validType of allIncidentTypes) {
         if ((incident!.incident_type_ids??[]).includes(validType.id??-1)) {
-            const item = _typesItem!.cloneNode(true) as HTMLElement;
+            const fragment = typeItemTemplate.content.cloneNode(true) as DocumentFragment;
+            const item = fragment.querySelector("li")!;
             item.classList.remove("hidden");
             const typeSpan = document.createElement("span");
             typeSpan.textContent = validType.name??"";
             item.append(typeSpan);
             item.dataset["incidentTypeId"] = (validType.id??-1).toString();
-            typesElement.append(item);
+            typesElement.append(fragment);
         }
     }
 }
@@ -763,26 +756,15 @@ function drawIncidentTypesToAdd() {
 
 function drawIncidentTypeInfo(): void {
     const infosUL = document.getElementById("incident-type-info") as HTMLUListElement;
-    infosUL.style.whiteSpace = "pre-wrap";
-
+    const typeInfoTemplate = document.getElementById("incident-type-info-template") as HTMLTemplateElement;
     for (const incidentType of allIncidentTypes) {
         if (incidentType.hidden) {
             continue;
         }
-        const li: HTMLLIElement = document.createElement("li");
-        li.classList.add("list-group-item");
-
-        const name = document.createElement("div");
-        name.textContent = incidentType.name??"";
-        li.append(name);
-
-        if (incidentType.description) {
-            const description = document.createElement("div");
-            description.classList.add("ms-3", "text-body-secondary");
-            description.textContent = incidentType.description;
-            li.append(description);
-        }
-        infosUL.append(li);
+        const frag = typeInfoTemplate.content.cloneNode(true) as DocumentFragment;
+        frag.querySelector(".type-name")!.textContent = incidentType.name??"";
+        frag.querySelector(".type-description")!.textContent = incidentType.description??"";
+        infosUL.append(frag);
     }
 }
 

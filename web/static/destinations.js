@@ -168,6 +168,18 @@ function destInitDataTables() {
     });
 }
 function destinationToHTML(destination) {
+    function setImageDetails(imageDd, imageURL) {
+        if (imageURL) {
+            if (imageURL.includes("?")) {
+                imageURL = imageURL.substring(0, imageURL.indexOf("?"));
+            }
+            const imageLink = imageDd.querySelector("a");
+            imageLink.href = imageURL;
+        }
+        else {
+            imageDd.textContent = "None provided";
+        }
+    }
     switch (destination.type) {
         case "camp": {
             const camp = destination.external_data;
@@ -185,16 +197,7 @@ function destinationToHTML(destination) {
             let imageURL = camp.images?.find((value) => {
                 return "thumbnail_url" in value;
             })?.thumbnail_url;
-            if (imageURL) {
-                if (imageURL.includes("?")) {
-                    imageURL = imageURL.substring(0, imageURL.indexOf("?"));
-                }
-                const imageLink = campEl.getElementById("image_url");
-                imageLink.href = imageURL;
-            }
-            else {
-                campEl.getElementById("image_dd").textContent = "None provided";
-            }
+            setImageDetails(campEl.getElementById("image_dd"), imageURL);
             if (camp.contact_email) {
                 const emailLink = campEl.getElementById("email_link");
                 emailLink.href = `mailto:${camp.contact_email}`;
@@ -231,16 +234,7 @@ function destinationToHTML(destination) {
             let imageURL = art.images?.find((value) => {
                 return "thumbnail_url" in value;
             })?.thumbnail_url;
-            if (imageURL) {
-                if (imageURL.includes("?")) {
-                    imageURL = imageURL.substring(0, imageURL.indexOf("?"));
-                }
-                const imageLink = artEl.getElementById("image_url");
-                imageLink.href = imageURL;
-            }
-            else {
-                artEl.getElementById("image_dd").textContent = "None provided";
-            }
+            setImageDetails(artEl.getElementById("image_dd"), imageURL);
             if (art.contact_email) {
                 const emailLink = artEl.getElementById("email_link");
                 emailLink.href = `mailto:${art.contact_email}`;

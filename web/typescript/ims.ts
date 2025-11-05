@@ -1349,7 +1349,7 @@ export function bsModal(el: HTMLElement) {
     return modal;
 }
 
-export function windowFragmentParams() {
+export function windowFragmentParams(): URLSearchParams {
     const fragment = window.location.hash.startsWith("#")
         ? window.location.hash.substring(1)
         : window.location.hash;

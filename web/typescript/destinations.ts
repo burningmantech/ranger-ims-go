@@ -199,6 +199,18 @@ function destInitDataTables() {
 }
 
 function destinationToHTML(destination: ims.Destination): Node {
+    function setImageDetails(imageDd: HTMLElement, imageURL?: string|null) {
+        if (imageURL) {
+            if (imageURL.includes("?")) {
+                imageURL = imageURL.substring(0, imageURL.indexOf("?"));
+            }
+            const imageLink = imageDd.querySelector("a")!;
+            imageLink.href = imageURL;
+        } else {
+            imageDd.textContent = "None provided"
+        }
+    }
+
     switch (destination.type) {
         case "camp": {
             const camp = destination.external_data as ims.BMCamp;
@@ -219,15 +231,7 @@ function destinationToHTML(destination: ims.Destination): Node {
             let imageURL = camp.images?.find((value: object): boolean => {
                 return "thumbnail_url" in value;
             })?.thumbnail_url;
-            if (imageURL) {
-                if (imageURL.includes("?")) {
-                    imageURL = imageURL.substring(0, imageURL.indexOf("?"));
-                }
-                const imageLink = campEl.getElementById("image_url") as HTMLAnchorElement;
-                imageLink.href = imageURL;
-            } else {
-                campEl.getElementById("image_dd")!.textContent = "None provided"
-            }
+            setImageDetails(campEl.getElementById("image_dd")!, imageURL);
             if (camp.contact_email) {
                 const emailLink = campEl.getElementById("email_link") as HTMLAnchorElement;
                 emailLink.href = `mailto:${camp.contact_email}`;
@@ -265,15 +269,7 @@ function destinationToHTML(destination: ims.Destination): Node {
             let imageURL = art.images?.find((value: object): boolean => {
                 return "thumbnail_url" in value;
             })?.thumbnail_url;
-            if (imageURL) {
-                if (imageURL.includes("?")) {
-                    imageURL = imageURL.substring(0, imageURL.indexOf("?"));
-                }
-                const imageLink = artEl.getElementById("image_url") as HTMLAnchorElement;
-                imageLink.href = imageURL;
-            } else {
-                artEl.getElementById("image_dd")!.textContent = "None provided"
-            }
+            setImageDetails(artEl.getElementById("image_dd")!, imageURL);
             if (art.contact_email) {
                 const emailLink = artEl.getElementById("email_link") as HTMLAnchorElement;
                 emailLink.href = `mailto:${art.contact_email}`;

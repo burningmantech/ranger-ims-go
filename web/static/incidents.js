@@ -416,12 +416,12 @@ function renderSummary(_data, type, incident) {
 function initTableButtons() {
     const typeFilter = document.getElementById("ul_show_type");
     for (const type of visibleIncidentTypes) {
-        const a = document.createElement("a");
-        a.href = "#";
-        a.classList.add("dropdown-item", "dropdown-item-checkable", "dropdown-item-checked");
-        a.dataset["incidentTypeId"] = type.id?.toString();
-        a.textContent = type.name ?? "";
-        typeFilter.append(a);
+        const template = document.getElementById("show_type_template");
+        const newLi = template.content.cloneNode(true);
+        const newLink = newLi.querySelector("a");
+        newLink.dataset["incidentTypeId"] = type.id?.toString();
+        newLink.textContent = type.name ?? "";
+        typeFilter.append(newLi);
     }
     for (const el of document.getElementsByClassName("dropdown-item-checkable")) {
         const htmlEl = el;
@@ -622,7 +622,7 @@ function showDays(daysBackToShow, replaceState) {
 // Show type button handling
 //
 function setCheckedTypes(types, includeBlanks, includeOthers) {
-    for (const type of document.querySelectorAll('#ul_show_type > a')) {
+    for (const type of document.querySelectorAll('#ul_show_type > li > a')) {
         const typeIdStr = type.dataset["incidentTypeId"];
         const typeIdNum = ims.parseInt10(typeIdStr);
         if (types.includes(typeIdNum) ||
@@ -646,7 +646,7 @@ function toggleCheckAllTypes() {
 }
 function readCheckedTypes() {
     _showTypes = [];
-    for (const type of document.querySelectorAll('#ul_show_type > a')) {
+    for (const type of document.querySelectorAll('#ul_show_type > li > a')) {
         if (type.id === "show_blank_type") {
             _showBlankType = type.classList.contains("dropdown-item-checked");
         }

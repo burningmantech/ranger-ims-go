@@ -24,7 +24,7 @@ services:
       dockerfile_inline: |
         FROM golang:alpine
         RUN apk add --no-cache git
-        RUN go install github.com/air-verse/air@latest
+        RUN go install github.com/air-verse/air@v1.63.0
         WORKDIR /src
         ENTRYPOINT ["air"]
     image: "ims-go-air"

@@ -64,28 +64,22 @@ async function loadAccessControlList() {
     accessControlList = json;
     return { err: null };
 }
-let _accessTemplate = null;
-let _eventsEntryTemplate = null;
 function drawAccess() {
     const container = document.getElementById("event_access_container");
-    if (_accessTemplate == null) {
-        _accessTemplate = container.getElementsByClassName("event_access")[0];
-        _eventsEntryTemplate = _accessTemplate
-            .getElementsByClassName("list-group")[0]
-            .getElementsByClassName("list-group-item")[0];
-    }
-    container.replaceChildren();
+    container.querySelectorAll(".event_access").forEach((el) => { el.remove(); });
     if (accessControlList == null) {
         return;
     }
+    const accessTemplate = document.getElementById("event_access_template");
     const events = Object.keys(accessControlList);
     for (const event of events) {
         for (const mode of allAccessModes) {
-            const eventAccess = _accessTemplate.cloneNode(true);
+            const eventAccessFrag = accessTemplate.content.cloneNode(true);
+            const eventAccess = eventAccessFrag.querySelector("div");
             // Add an id to the element for future reference
             eventAccess.id = eventAccessContainerId(event, mode);
             // Add to container
-            container.append(eventAccess);
+            container.append(eventAccessFrag);
             updateEventAccess(event, mode);
         }
     }
@@ -107,11 +101,13 @@ function updateEventAccess(event, mode) {
     eventAccess.getElementsByClassName("access_mode")[0].textContent = mode;
     const entryContainer = eventAccess.getElementsByClassName("list-group")[0];
     entryContainer.replaceChildren();
+    const entryTemplate = document.getElementById("permission_template");
     let explainMsgs = [];
     const indent = "    ";
     const accessEntries = (eventACL[mode] ?? []).toSorted((a, b) => a.expression.localeCompare(b.expression));
     for (const accessEntry of accessEntries) {
-        const entryItem = _eventsEntryTemplate.cloneNode(true);
+        const entryItemFrag = entryTemplate.content.cloneNode(true);
+        const entryItem = entryItemFrag.querySelector("li");
         entryItem.append(accessEntry.expression);
         entryItem.dataset["expression"] = accessEntry.expression;
         entryItem.dataset["validity"] = accessEntry.validity;
@@ -168,7 +164,7 @@ function updateEventAccess(event, mode) {
         else {
             unknownTargetText.textContent = "";
         }
-        entryContainer.append(entryItem);
+        entryContainer.append(entryItemFrag);
     }
     const explainButton = eventAccess.getElementsByClassName("explain_button")[0];
     explainButton.addEventListener("click", (_e) => {

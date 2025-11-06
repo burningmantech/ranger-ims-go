@@ -58,49 +58,53 @@ templ AdminEvents(deployment, versionName, versionRef string) {
   <p>A permission with an invalid person, position, or team name will show "Unknown" in that row, to indicate that the admin likely made a typo.</p>
   <p>You can click the "Explain" button to see which Rangers currently match which permissions, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
   <div class="row" id="event_access_container">
-    <div class="col-sm-12 py-1 event_access">
-      <div class="card">
-        <span class="card-header">Access for <span class="event_name"/> (<span class="access_mode"/>):
-          <button type="button" class="explain_button badge btn btn-primary float-end">Explain</button>
-        </span>
-        <ul class="list-group list-group-small list-group-flush card-body">
-          <li class="list-group-item ps-3">
-            <select class="access_validity" onchange="setValidity(this)">
-              <option value="always">Always</option>
-              <option value="onsite">On-Site</option>
-            </select>
-            <button class="badge btn btn-danger float-end ms-1" onclick="removeAccess(this)">
-              X
-            </button>
+    <template id="event_access_template">
+      <div class="col-sm-12 py-1 event_access">
+        <div class="card">
+          <span class="card-header">Access for <span class="event_name"/> (<span class="access_mode"/>):
+            <button type="button" class="explain_button badge btn btn-primary float-end">Explain</button>
+          </span>
+          <ul class="list-group list-group-small list-group-flush card-body">
+          </ul>
+          <div class="card-footer">
+            <label for="access_add">Add:</label>
             <input
-                class="access_expires hidden float-end"
-                type="datetime-local"
-                aria-label="Expiration time"
-                onblur="setExpires(this)"
-                title="Expiration time, in your browser's time zone"
+              id="access_add"
+              class="form-control input-sm auto-width"
+              type="text" inputmode="verbatim"
+              placeholder="person:Tool"
+              onchange="addAccess(this)"
             />
-            <input
-                class="btn btn-xs btn-outline-secondary access_expires_button float-end"
-                type="button"
-                value="Set expiration"
-                onclick="showExpiresInput(this)"
-            />
-            <span class="access_expired_text fw-bold float-end me-2" aria-label="Expiration info"></span>
-            <span class="unknown_target_text fw-bold float-end me-2" aria-label="Unknown info"></span>
-          </li>
-        </ul>
-        <div class="card-footer">
-          <label for="access_add">Add:</label>
-          <input
-                  id="access_add"
-                  class="form-control input-sm auto-width"
-                  type="text" inputmode="verbatim"
-                  placeholder="person:Tool"
-                  onchange="addAccess(this)"
-          />
+          </div>
         </div>
       </div>
-    </div>
+    </template>
+    <template id="permission_template">
+      <li class="list-group-item ps-3">
+        <select class="access_validity" onchange="setValidity(this)">
+          <option value="always">Always</option>
+          <option value="onsite">On-Site</option>
+        </select>
+        <button class="badge btn btn-danger float-end ms-1" onclick="removeAccess(this)">
+          X
+        </button>
+        <input
+            class="access_expires hidden float-end"
+            type="datetime-local"
+            aria-label="Expiration time"
+            onblur="setExpires(this)"
+            title="Expiration time, in your browser's time zone"
+        />
+        <input
+            class="btn btn-xs btn-outline-secondary access_expires_button float-end"
+            type="button"
+            value="Set expiration"
+            onclick="showExpiresInput(this)"
+        />
+        <span class="access_expired_text fw-bold float-end me-2" aria-label="Expiration info"></span>
+        <span class="unknown_target_text fw-bold float-end me-2" aria-label="Unknown info"></span>
+      </li>
+    </template>
   </div>
   <div class="row" id="event_new_container">
     <div class="col-sm-12 event_access">

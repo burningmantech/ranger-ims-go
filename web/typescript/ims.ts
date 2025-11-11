@@ -40,8 +40,6 @@ const accessTokenRefreshAfterKey = "access_token_refresh_after";
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
 
-const svgNS = "http://www.w3.org/2000/svg";
-
 //
 // HTML encoding
 //
@@ -1028,18 +1026,11 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 // Create a button that'll show an SVG icon and some text as its content.
 // The svgID must reference an SVG that exists in the DOM already.
 function createSvgTextButton(svgID: string, text: string): HTMLButtonElement {
-    const button: HTMLButtonElement = document.createElement("button");
-    const svg: SVGSVGElement = document.createElementNS(svgNS,"svg");
-    svg.classList.add("bi");
-    svg.setAttributeNS(null, "fill", "currentColor");
-    const use: SVGUseElement = document.createElementNS(svgNS, "use");
-    use.setAttributeNS(null,"href",  svgID);
-    svg.append(use);
-    button.append(svg, ` ${text}`);
-    button.classList.add(
-        "btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print",
-    );
-    return button;
+    const buttonTemplate = document.getElementById("svg_butt_template") as HTMLTemplateElement;
+    const buttonFrag = buttonTemplate.content.cloneNode(true) as DocumentFragment;
+    buttonFrag.querySelector("use")!.setAttributeNS(null,"href",  svgID);
+    buttonFrag.querySelector("span")!.textContent = text;
+    return buttonFrag.querySelector("button")!;
 }
 
 export function drawReportEntries(entries: ReportEntry[]): void {
@@ -1436,9 +1427,6 @@ export function clearLocalStorage(): void {
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
-
-    // an old and now unused key
-    localStorage.removeItem("incidents_preferred_state");
 }
 
 export function clearSessionStorage(): void {
@@ -1508,6 +1496,7 @@ function cleanupOldCaches(): void {
     localStorage.removeItem("ims.incident_types.deadline");
     localStorage.removeItem("ims.personnel");
     localStorage.removeItem("ims.personnel.deadline");
+    localStorage.removeItem("incidents_preferred_state");
 }
 cleanupOldCaches();
 

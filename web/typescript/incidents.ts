@@ -109,18 +109,16 @@ async function initIncidentsPage(): Promise<void> {
         multisearchModal.toggle();
 
         const list = document.getElementById("multisearch-events-list") as HTMLUListElement;
-        list.replaceChildren();
+        list.querySelectorAll("li").forEach((el) => {el.remove()});
 
+        const hashParams = ims.windowFragmentParams();
+        const liTemplate = list.querySelector("template")!;
         for (const eventData of eventDatas) {
-            const hashParams = ims.windowFragmentParams();
-
-            const newLink = document.createElement("a");
-            newLink.textContent = eventData.name;
-            newLink.href = `${url_viewIncidents.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
-
-            const newLi = document.createElement("li");
-            newLi.append(newLink);
-            list.append(newLi);
+            const liFrag = liTemplate.content.cloneNode(true) as DocumentFragment;
+            const eventLink = liFrag.querySelector("a")!;
+            eventLink.textContent = eventData.name;
+            eventLink.href = `${url_viewIncidents.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
+            list.append(liFrag);
         }
     }
 

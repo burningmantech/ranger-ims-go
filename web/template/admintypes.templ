@@ -55,28 +55,32 @@ templ AdminTypes(deployment, versionName, versionRef string) {
       <div class="card">
         <label class="card-header">Incident types</label>
         <ul class="list-group list-group-small list-group-flush card-body">
-          <li class="list-group-item ps-3">
-            <button class="badge btn btn-primary float-end badge-visible"
-                    onclick="hideIncidentType(this)">
-              Active
-            </button>
-            <button class="badge btn btn-warning float-end badge-hidden"
-                    onclick="showIncidentType(this)">
-              Hidden
-            </button>
-            <button class="show-edit-modal badge btn btn-primary float-end me-2">
-              Edit
-            </button>
-          </li>
+          <template id="type_li_template">
+            <li class="list-group-item ps-3" data-incident-type-id="">
+              <button class="badge btn btn-primary float-end badge-visible"
+                  onclick="hideIncidentType(this)">
+                Active
+              </button>
+              <button class="badge btn btn-warning float-end badge-hidden"
+                  onclick="showIncidentType(this)">
+                Hidden
+              </button>
+              <button class="show-edit-modal badge btn btn-primary float-end me-2">
+                Edit
+              </button>
+              <div class="type-name"></div>
+              <div class="type-description text-body-secondary ms-3"></div>
+            </li>
+          </template>
         </ul>
         <div class="card-footer">
           <label>Add:</label>
           <input
-                  class="form-control input-sm auto-width"
-                  type="text" inputmode="verbatim"
-                  disabled=""
-                  placeholder="Chooch"
-                  onchange="createIncidentType(this)"
+              class="form-control input-sm auto-width"
+              type="text" inputmode="verbatim"
+              disabled=""
+              placeholder="Chooch"
+              onchange="createIncidentType(this)"
           />
         </div>
       </div>

@@ -79,15 +79,15 @@ async function initIncidentsPage() {
         e?.preventDefault();
         multisearchModal.toggle();
         const list = document.getElementById("multisearch-events-list");
-        list.replaceChildren();
+        list.querySelectorAll("li").forEach((el) => { el.remove(); });
+        const hashParams = ims.windowFragmentParams();
+        const liTemplate = list.querySelector("template");
         for (const eventData of eventDatas) {
-            const hashParams = ims.windowFragmentParams();
-            const newLink = document.createElement("a");
-            newLink.textContent = eventData.name;
-            newLink.href = `${url_viewIncidents.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
-            const newLi = document.createElement("li");
-            newLi.append(newLink);
-            list.append(newLi);
+            const liFrag = liTemplate.content.cloneNode(true);
+            const eventLink = liFrag.querySelector("a");
+            eventLink.textContent = eventData.name;
+            eventLink.href = `${url_viewIncidents.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
+            list.append(liFrag);
         }
     };
     // Keyboard shortcuts

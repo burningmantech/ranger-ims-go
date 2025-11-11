@@ -30,7 +30,6 @@ const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
-const svgNS = "http://www.w3.org/2000/svg";
 //
 // HTML encoding
 //
@@ -883,16 +882,11 @@ function reportEntryElement(entry) {
 // Create a button that'll show an SVG icon and some text as its content.
 // The svgID must reference an SVG that exists in the DOM already.
 function createSvgTextButton(svgID, text) {
-    const button = document.createElement("button");
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.classList.add("bi");
-    svg.setAttributeNS(null, "fill", "currentColor");
-    const use = document.createElementNS(svgNS, "use");
-    use.setAttributeNS(null, "href", svgID);
-    svg.append(use);
-    button.append(svg, ` ${text}`);
-    button.classList.add("btn", "btn-default", "btn-sm", "btn-block", "btn-secondary", "my-1", "me-1", "form-control-lite", "no-print");
-    return button;
+    const buttonTemplate = document.getElementById("svg_butt_template");
+    const buttonFrag = buttonTemplate.content.cloneNode(true);
+    buttonFrag.querySelector("use").setAttributeNS(null, "href", svgID);
+    buttonFrag.querySelector("span").textContent = text;
+    return buttonFrag.querySelector("button");
 }
 export function drawReportEntries(entries) {
     const container = document.getElementById("report_entries");
@@ -1236,8 +1230,6 @@ export function clearLocalStorage() {
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
-    // an old and now unused key
-    localStorage.removeItem("incidents_preferred_state");
 }
 export function clearSessionStorage() {
     sessionStorage.clear();
@@ -1300,5 +1292,6 @@ function cleanupOldCaches() {
     localStorage.removeItem("ims.incident_types.deadline");
     localStorage.removeItem("ims.personnel");
     localStorage.removeItem("ims.personnel.deadline");
+    localStorage.removeItem("incidents_preferred_state");
 }
 cleanupOldCaches();

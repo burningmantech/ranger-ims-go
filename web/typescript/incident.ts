@@ -292,7 +292,7 @@ async function initIncidentPage(): Promise<void> {
 //
 
 async function loadIncident(): Promise<{err: string|null}> {
-    let number: number|null = null;
+    let number: number|null;
     if (incident == null) {
         // First time here.  Use page JavaScript initial value.
         number = ims.pathIds.incidentNumber??null;

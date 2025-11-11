@@ -153,7 +153,7 @@ async function initFieldReportPage(): Promise<void> {
 //
 
 async function loadFieldReport(): Promise<{err: string|null}> {
-    let number: number|null = null;
+    let number: number|null;
     if (fieldReport == null) {
         // First time here.  Use page JavaScript initial value.
         number = ims.pathIds.fieldReportNumber??null;

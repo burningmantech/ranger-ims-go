@@ -56,36 +56,29 @@ async function loadAllIncidentTypes() {
     adminIncidentTypes = json;
     return { err: null };
 }
-let _entryTemplate = null;
 function drawAllIncidentTypes() {
-    if (_entryTemplate == null) {
-        _entryTemplate = document.querySelector("#incident_types li");
-    }
     updateIncidentTypes();
 }
 const editModalElement = document.getElementById("editIncidentTypeModal");
 function updateIncidentTypes() {
     const incidentTypesElement = document.getElementById("incident_types");
-    const entryContainer = incidentTypesElement.getElementsByClassName("list-group")[0];
-    entryContainer.replaceChildren();
+    const entryContainer = incidentTypesElement.querySelector("ul");
+    entryContainer.querySelectorAll("li").forEach(entry => { entry.remove(); });
     const editIncidentTypeModal = ims.bsModal(editModalElement);
+    const typeLiTemplate = document.getElementById("type_li_template");
     for (const incidentType of adminIncidentTypes ?? []) {
-        const entryItem = _entryTemplate.cloneNode(true);
+        const entryItemFrag = typeLiTemplate.content.cloneNode(true);
+        const entryItem = entryItemFrag.querySelector("li");
         if (incidentType.hidden) {
             entryItem.classList.add("item-hidden");
         }
         else {
             entryItem.classList.add("item-visible");
         }
-        const typeSpan = document.createElement("div");
+        const typeSpan = entryItem.getElementsByClassName("type-name")[0];
         typeSpan.textContent = incidentType.name ?? null;
-        entryItem.append(typeSpan);
-        if (incidentType.description) {
-            const descriptionSpan = document.createElement("div");
-            descriptionSpan.classList.add("text-body-secondary", "ms-3");
-            descriptionSpan.textContent = `${incidentType.description}`;
-            entryItem.append(descriptionSpan);
-        }
+        const descriptionSpan = entryItem.getElementsByClassName("type-description")[0];
+        descriptionSpan.textContent = `${incidentType.description ?? ""}`;
         entryItem.dataset["incidentTypeId"] = incidentType.id?.toString();
         const showEditModal = entryItem.querySelector(".show-edit-modal");
         showEditModal.addEventListener("click", function (_e) {
@@ -94,7 +87,7 @@ function updateIncidentTypes() {
             document.getElementById("edit_incident_type_description").value = incidentType.description ?? "";
             editIncidentTypeModal.show();
         });
-        entryContainer.append(entryItem);
+        entryContainer.append(entryItemFrag);
     }
 }
 async function createIncidentType(sender) {

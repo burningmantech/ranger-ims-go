@@ -218,7 +218,7 @@ async function initIncidentPage() {
 // Load incident
 //
 async function loadIncident() {
-    let number = null;
+    let number;
     if (incident == null) {
         // First time here.  Use page JavaScript initial value.
         number = ims.pathIds.incidentNumber ?? null;

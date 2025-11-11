@@ -226,7 +226,10 @@ function renderDate(date, type, _incident) {
     const fullDate = ims.fullDateTime.format(d);
     switch (type) {
         case "display":
-            return `<span title="${fullDate}">${nerdDateTime.format(d)}</span>`;
+            const sp = document.createElement("span");
+            sp.title = fullDate;
+            sp.textContent = nerdDateTime.format(d);
+            return sp.outerHTML;
         case "filter":
             return nerdDateTime.format(d);
         case "type":

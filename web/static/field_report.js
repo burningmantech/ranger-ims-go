@@ -121,7 +121,7 @@ async function initFieldReportPage() {
 // Load field report
 //
 async function loadFieldReport() {
-    let number = null;
+    let number;
     if (fieldReport == null) {
         // First time here.  Use page JavaScript initial value.
         number = ims.pathIds.fieldReportNumber ?? null;

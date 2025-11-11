@@ -51,7 +51,7 @@ let accessControlList = null;
 async function loadAccessControlList() {
     // we don't actually need the response from this API, but we want to
     // invalidate the local HTTP cache in the admin's browser
-    ims.fetchNoThrow(url_events, {
+    await ims.fetchNoThrow(url_events, {
         headers: { "Cache-Control": "no-cache" },
     });
     const { json, err } = await ims.fetchNoThrow(url_acl, null);

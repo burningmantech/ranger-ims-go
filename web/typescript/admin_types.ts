@@ -79,12 +79,7 @@ async function loadAllIncidentTypes(): Promise<{err:string|null}> {
 }
 
 
-let _entryTemplate: Element|null = null;
-
 function drawAllIncidentTypes(): void {
-    if (_entryTemplate == null) {
-        _entryTemplate = document.querySelector("#incident_types li");
-    }
     updateIncidentTypes();
 }
 
@@ -93,13 +88,16 @@ const editModalElement: HTMLElement = document.getElementById("editIncidentTypeM
 function updateIncidentTypes(): void {
     const incidentTypesElement: HTMLElement = document.getElementById("incident_types")!;
 
-    const entryContainer = incidentTypesElement.getElementsByClassName("list-group")[0] as HTMLElement;
-    entryContainer.replaceChildren();
+    const entryContainer = incidentTypesElement.querySelector("ul")!;
+    entryContainer.querySelectorAll("li")!.forEach(entry => {entry.remove()});
 
     const editIncidentTypeModal = ims.bsModal(editModalElement);
 
+    const typeLiTemplate = document.getElementById("type_li_template") as HTMLTemplateElement;
+
     for (const incidentType of adminIncidentTypes??[]) {
-        const entryItem = _entryTemplate!.cloneNode(true) as HTMLElement;
+        const entryItemFrag = typeLiTemplate.content.cloneNode(true) as DocumentFragment;
+        const entryItem = entryItemFrag.querySelector("li")!;
 
         if (incidentType.hidden) {
             entryItem.classList.add("item-hidden");
@@ -107,16 +105,11 @@ function updateIncidentTypes(): void {
             entryItem.classList.add("item-visible");
         }
 
-        const typeSpan = document.createElement("div");
+        const typeSpan = entryItem.getElementsByClassName("type-name")[0]!;
         typeSpan.textContent = incidentType.name??null;
-        entryItem.append(typeSpan);
 
-        if (incidentType.description) {
-            const descriptionSpan = document.createElement("div");
-            descriptionSpan.classList.add("text-body-secondary", "ms-3");
-            descriptionSpan.textContent = `${incidentType.description}`;
-            entryItem.append(descriptionSpan);
-        }
+        const descriptionSpan = entryItem.getElementsByClassName("type-description")[0]!;
+        descriptionSpan.textContent = `${incidentType.description??""}`;
 
         entryItem.dataset["incidentTypeId"] = incidentType.id?.toString();
 
@@ -130,7 +123,7 @@ function updateIncidentTypes(): void {
             },
         );
 
-        entryContainer.append(entryItem);
+        entryContainer.append(entryItemFrag);
     }
 }
 

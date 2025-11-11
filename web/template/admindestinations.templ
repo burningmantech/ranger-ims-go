@@ -27,9 +27,7 @@ templ AdminDestinations(deployment, versionName, versionRef string) {
 @Nav("")
 <h1 id="doc-title">Event Destinations</h1>
 
-<div id="error_info" class="hidden text-danger">
-  <p id="error_text"></p>
-</div>
+@ErrorInfo()
 
 <form id="destination-form">
   <div class="mb-3">

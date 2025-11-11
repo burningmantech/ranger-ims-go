@@ -79,7 +79,15 @@ func AdminDebug(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Server Debugging Details</h1><h4>Server Info</h4><p><button id=\"show-build-info\" onclick=\"fetchBuildInfo()\" class=\"btn btn-sm btn-default btn-primary\">Fetch Server Info</button></p><div id=\"build-info-div\" style=\"display:none;\"><p id=\"build-info-p\"></p><pre id=\"build-info\"></pre></div><h4>Garbage Collection</h4><p><button id=\"perform-gc\" onclick=\"performGC()\" class=\"btn btn-sm btn-default btn-primary\">Perform GC</button></p><div id=\"gc-div\" style=\"display:none;\"><pre id=\"gc\"></pre></div><h4>Runtime Metrics</h4><p><button id=\"show-metrics\" onclick=\"fetchRuntimeMetrics()\" class=\"btn btn-sm btn-default btn-primary\">Fetch Runtime Metrics</button></p><div id=\"runtime-metrics-div\" style=\"display:none;\"><p id=\"runtime-metrics-p\"><a href=\"https://pkg.go.dev/runtime/metrics#hdr-Supported_metrics\">See the metric definitions here</a></p><pre id=\"runtime-metrics\"></pre></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Server Debugging Details</h1>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ErrorInfo().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<h4>Server Info</h4><p><button id=\"show-build-info\" onclick=\"fetchBuildInfo()\" class=\"btn btn-sm btn-default btn-primary\">Fetch Server Info</button></p><div id=\"build-info-div\" style=\"display:none;\"><p id=\"build-info-p\"></p><pre id=\"build-info\"></pre></div><h4>Garbage Collection</h4><p><button id=\"perform-gc\" onclick=\"performGC()\" class=\"btn btn-sm btn-default btn-primary\">Perform GC</button></p><div id=\"gc-div\" style=\"display:none;\"><pre id=\"gc\"></pre></div><h4>Runtime Metrics</h4><p><button id=\"show-metrics\" onclick=\"fetchRuntimeMetrics()\" class=\"btn btn-sm btn-default btn-primary\">Fetch Runtime Metrics</button></p><div id=\"runtime-metrics-div\" style=\"display:none;\"><p id=\"runtime-metrics-p\"><a href=\"https://pkg.go.dev/runtime/metrics#hdr-Supported_metrics\">See the metric definitions here</a></p><pre id=\"runtime-metrics\"></pre></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,7 +95,7 @@ func AdminDebug(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

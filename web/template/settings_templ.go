@@ -79,7 +79,15 @@ func Settings(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Settings</h1><h5>Preferred Table Filters</h5><div class=\"py-1\"><div class=\"input-group mb-1 flex-nowrap\"><label class=\"control-label input-group-text\" for=\"preferred_state\" title=\"The default filter view for the Incidents table\">Incident State</label> <select id=\"preferred_state\" class=\"form-control form-select form-select-sm\" onchange=\"setPreferredState(this)\" style=\"max-width: 150px;\"><option value=\"none\" selected>Use Default</option> <option value=\"all\">All</option> <option value=\"open\">Open</option> <option value=\"active\">Active</option></select></div><div class=\"input-group mb-1 flex-nowrap\"><label class=\"control-label input-group-text\" for=\"preferred_rows_per_page\" title=\"The default maximum number of rows to display per page in tables\">Rows Per Page</label> <select id=\"preferred_rows_per_page\" class=\"form-control form-select form-select-sm\" onchange=\"setPreferredRowsPerPage(this)\" style=\"max-width: 150px;\"><option value=\"none\" selected>Use Default</option> <option value=\"all\">All</option> <option value=\"25\">25</option> <option value=\"50\">50</option> <option value=\"100\">100</option></select></div></div><p class=\"mt-3\">These settings exist only in the browser, and they will be reset on logout.<br>Got any other ideas for settings that should go here? Email the Tech Cadre!</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Settings</h1>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ErrorInfo().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<h5>Preferred Table Filters</h5><div class=\"py-1\"><div class=\"input-group mb-1 flex-nowrap\"><label class=\"control-label input-group-text\" for=\"preferred_state\" title=\"The default filter view for the Incidents table\">Incident State</label> <select id=\"preferred_state\" class=\"form-control form-select form-select-sm\" onchange=\"setPreferredState(this)\" style=\"max-width: 150px;\"><option value=\"none\" selected>Use Default</option> <option value=\"all\">All</option> <option value=\"open\">Open</option> <option value=\"active\">Active</option></select></div><div class=\"input-group mb-1 flex-nowrap\"><label class=\"control-label input-group-text\" for=\"preferred_rows_per_page\" title=\"The default maximum number of rows to display per page in tables\">Rows Per Page</label> <select id=\"preferred_rows_per_page\" class=\"form-control form-select form-select-sm\" onchange=\"setPreferredRowsPerPage(this)\" style=\"max-width: 150px;\"><option value=\"none\" selected>Use Default</option> <option value=\"all\">All</option> <option value=\"25\">25</option> <option value=\"50\">50</option> <option value=\"100\">100</option></select></div></div><p class=\"mt-3\">These settings exist only in the browser, and they will be reset on logout.<br>Got any other ideas for settings that should go here? Email the Tech Cadre!</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,7 +95,7 @@ func Settings(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

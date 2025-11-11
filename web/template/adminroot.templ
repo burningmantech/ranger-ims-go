@@ -26,6 +26,9 @@ templ AdminRoot(deployment, versionName, versionRef string) {
 @Header(deployment)
 @Nav("")
 <h1 id="doc-title">Administration Tools</h1>
+
+@ErrorInfo()
+
   <ul>
     <li>
       <a href="/ims/app/admin/actionlogs">

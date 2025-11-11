@@ -27,6 +27,8 @@ templ AdminDebug(deployment, versionName, versionRef string) {
 @Nav("")
 <h1 id="doc-title">Server Debugging Details</h1>
 
+@ErrorInfo()
+
 <h4>Server Info</h4>
 <p><button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Server Info</button></p>
 <div id="build-info-div" style="display:none;">

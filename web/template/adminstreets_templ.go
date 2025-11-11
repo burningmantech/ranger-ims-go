@@ -87,6 +87,10 @@ func AdminStreets(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		templ_7745c5c3_Err = ErrorInfo().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p><strong>IMPORTANT</strong>: this page/the API does not permit editing or removing streets once they've been added. Further edits must be done via SQL against the IMS database. Get it right the first time!</p><p>Each new street must be added with an identifying integer. That ID dictates the order that streets are shown on the Incident page.</p><div class=\"row\" id=\"event_streets_container\"><div class=\"col-sm-12 event_streets\"><div class=\"card\"><label class=\"card-header\">Concentric streets for <span class=\"event_name\"></span>:</label><div class=\"card-body\"><ul class=\"list-group list-group-small\"><li class=\"list-group-item\"></li></ul><div class=\"card-footer\"><label for=\"street_add\">Add:</label> <input id=\"street_add\" class=\"form-control input-sm auto-width\" type=\"text\" inputmode=\"verbatim\" placeholder=\"305:3:00 Public Plaza\" onchange=\"addStreet(this)\"></div></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

@@ -27,9 +27,7 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
 @Nav(eventName)
 <h1 id="doc-title">Field Reports</h1>
 
-    <div id="error_info" class="hidden text-danger">
-      <p id="error_text"></p>
-    </div>
+@ErrorInfo()
 
     <!-- Help modal for field reports page -->
     <div class="modal no-print" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">

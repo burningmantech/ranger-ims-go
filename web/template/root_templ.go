@@ -79,7 +79,15 @@ func Root(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Incident Management System</h1><p class=\"mt-3 if-logged-in hidden\"><a id=\"current-year-link\" href=\"/ims/app/events/2025/incidents\">Jump to the 2025 event</a> or select another event from the dropdown above.</p><div class=\"btn-group mb-3\" role=\"group\"><a id=\"login-button\" href=\"/ims/auth/login\" role=\"button\" class=\"btn btn-md btn-default btn-primary if-not-logged-in hidden\">Log In</a></div><div class=\"btn-group mb-3\" role=\"group\"><a href=\"/ims/auth/logout\" role=\"button\" class=\"btn btn-md btn-default btn-danger if-logged-in hidden\">Log Out</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Incident Management System</h1>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ErrorInfo().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mt-3 if-logged-in hidden\"><a id=\"current-year-link\" href=\"/ims/app/events/2025/incidents\">Jump to the 2025 event</a> or select another event from the dropdown above.</p><div class=\"btn-group mb-3\" role=\"group\"><a id=\"login-button\" href=\"/ims/auth/login\" role=\"button\" class=\"btn btn-md btn-default btn-primary if-not-logged-in hidden\">Log In</a></div><div class=\"btn-group mb-3\" role=\"group\"><a href=\"/ims/auth/logout\" role=\"button\" class=\"btn btn-md btn-default btn-danger if-logged-in hidden\">Log Out</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,7 +95,7 @@ func Root(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

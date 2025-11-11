@@ -79,7 +79,15 @@ func AdminRoot(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Administration Tools</h1><ul><li><a href=\"/ims/app/admin/actionlogs\">Action Logs</a></li><li><a href=\"/ims/app/admin/types\">Incident Types</a></li><li><a href=\"/ims/app/admin/events\">Events and Permissions</a></li><li><a href=\"/ims/app/admin/streets\">Event Concentric Streets</a></li><li><a href=\"/ims/app/admin/destinations\">Event Destinations</a></li><li><a href=\"/ims/app/admin/debug\">Server Debugging Details</a></li></ul>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Administration Tools</h1>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ErrorInfo().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<ul><li><a href=\"/ims/app/admin/actionlogs\">Action Logs</a></li><li><a href=\"/ims/app/admin/types\">Incident Types</a></li><li><a href=\"/ims/app/admin/events\">Events and Permissions</a></li><li><a href=\"/ims/app/admin/streets\">Event Concentric Streets</a></li><li><a href=\"/ims/app/admin/destinations\">Event Destinations</a></li><li><a href=\"/ims/app/admin/debug\">Server Debugging Details</a></li></ul>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,7 +95,7 @@ func AdminRoot(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

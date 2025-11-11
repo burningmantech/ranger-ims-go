@@ -27,6 +27,8 @@ templ Login(deployment, passwordResetURL, versionName, versionRef string) {
 @Nav("")
 <h1 id="doc-title">Incident Management System</h1>
 
+@ErrorInfo()
+
 <form method="POST" id="login_form" class="form-horizontal">
 
 <button type="button" class="btn btn-block btn-danger if-authentication-failed hidden">Authentication Failed</button>

@@ -22,6 +22,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -29,6 +30,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -59,6 +61,11 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 	if globalPermissions&authz.GlobalListEvents == 0 {
 		return empty, herr.Forbidden("The requestor does not have GlobalListEvents permission", nil)
 	}
+	err := req.ParseForm()
+	if err != nil {
+		return nil, herr.BadRequest("Failed to parse form", err)
+	}
+	excludeGroups := !strings.EqualFold(req.Form.Get("include_groups"), "true")
 
 	allEvents, err := action.imsDBQ.Events(req.Context(), action.imsDBQ)
 	if err != nil {
@@ -71,6 +78,9 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 
 	var authorizedEvents []imsdb.EventsRow
 	for _, eve := range allEvents {
+		if eve.Event.IsGroup && excludeGroups {
+			continue
+		}
 		if permsByEvent[eve.Event.ID]&authz.EventReadEventName != 0 || globalPermissions&authz.GlobalAdministrateEvents != 0 {
 			authorizedEvents = append(authorizedEvents, eve)
 		}
@@ -78,8 +88,10 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 	resp := make(imsjson.Events, 0, len(authorizedEvents))
 	for _, eve := range authorizedEvents {
 		resp = append(resp, imsjson.Event{
-			ID:   eve.Event.ID,
-			Name: eve.Event.Name,
+			ID:          eve.Event.ID,
+			Name:        eve.Event.Name,
+			IsGroup:     eve.Event.IsGroup,
+			ParentGroup: conv.SqlToInt32(eve.Event.ParentGroup),
 		})
 	}
 
@@ -129,11 +141,28 @@ func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
 		if !allowedEventNames.MatchString(eventName) {
 			return herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%s'", eventName))
 		}
-		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, eventName)
+		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, imsdb.CreateEventParams{
+			Name:    eventName,
+			IsGroup: false,
+		})
 		if err != nil {
 			return herr.InternalServerError("Failed to create event", err).From("[CreateEvent]")
 		}
 		slog.Info("Created event", "eventName", eventName, "id", id)
+	}
+
+	for _, eventName := range editRequest.AddGroup {
+		if !allowedEventNames.MatchString(eventName) {
+			return herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%s'", eventName))
+		}
+		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, imsdb.CreateEventParams{
+			Name:    eventName,
+			IsGroup: true,
+		})
+		if err != nil {
+			return herr.InternalServerError("Failed to create event group", err).From("[CreateEvent]")
+		}
+		slog.Info("Created event group", "eventName", eventName, "id", id)
 	}
 	return nil
 }

@@ -102,10 +102,11 @@ func EventPermissions(
 ) (eventPermissions map[int32]EventPermissionMask, globalPermissions GlobalPermissionMask, err error) {
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
 	if eventID != nil {
-		accessRows, err := imsDBQ.EventAccess(ctx, imsDBQ, *eventID)
+		accessRows, err := imsDBQ.EventAndParentAccess(ctx, imsDBQ, imsdb.EventAndParentAccessParams{EventID: *eventID})
 		if err != nil {
 			return nil, GlobalNoPermissions, fmt.Errorf("[EventAccess]: %w", err)
 		}
+		// this collects EventAccesses from the Event itself and from an optional parent Event
 		for _, ea := range accessRows {
 			accessByEvent[*eventID] = append(accessByEvent[*eventID], ea.EventAccess)
 		}

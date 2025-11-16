@@ -47,13 +47,19 @@ var Validity;
     Validity["onsite"] = "onsite";
 })(Validity || (Validity = {}));
 const allAccessModes = ["readers", "writers", "reporters"];
+let events;
 let accessControlList = null;
 async function loadAccessControlList() {
-    // we don't actually need the response from this API, but we want to
-    // invalidate the local HTTP cache in the admin's browser
-    await ims.fetchNoThrow(url_events, {
+    const { json: eventsJson, err: eventsErr } = await ims.fetchNoThrow(url_events + "?include_groups=true", {
         headers: { "Cache-Control": "no-cache" },
     });
+    if (eventsErr != null) {
+        const message = `Failed to load events: ${eventsErr}`;
+        console.error(message);
+        window.alert(message);
+        return { err: message };
+    }
+    events = eventsJson ?? [];
     const { json, err } = await ims.fetchNoThrow(url_acl, null);
     if (err != null) {
         const message = `Failed to load access control list: ${err}`;
@@ -66,21 +72,47 @@ async function loadAccessControlList() {
 }
 function drawAccess() {
     const container = document.getElementById("event_access_container");
-    container.querySelectorAll(".event_access").forEach((el) => { el.remove(); });
+    container.replaceChildren();
     if (accessControlList == null) {
         return;
     }
     const accessTemplate = document.getElementById("event_access_template");
-    const events = Object.keys(accessControlList);
-    for (const event of events) {
+    const accessModeTemplate = document.getElementById("event_access_mode_template");
+    // Sort by group status first, then by name
+    const sortedEvents = events.toSorted((a, b) => {
+        const aGroup = a.is_group ? a.id : (a.parent_group ?? -1);
+        const bGroup = b.is_group ? b.id : (b.parent_group ?? -1);
+        if (aGroup !== bGroup) {
+            return bGroup - aGroup;
+        }
+        if (a.is_group !== b.is_group) {
+            return a.is_group ? -1 : 1;
+        }
+        return b.name.localeCompare(a.name);
+    });
+    for (const event of sortedEvents) {
+        const eventAccessFrag = accessTemplate.content.cloneNode(true);
+        let eventWithGroupName = event.name;
+        if (event.is_group) {
+            eventWithGroupName += " (group)";
+        }
+        if (event.parent_group) {
+            const parentGroup = events.find(value => { return value.id === event.parent_group; });
+            if (parentGroup) {
+                eventWithGroupName += ` (${parentGroup.name})`;
+            }
+        }
+        eventAccessFrag.querySelector("h3").textContent = eventWithGroupName;
         for (const mode of allAccessModes) {
-            const eventAccessFrag = accessTemplate.content.cloneNode(true);
-            const eventAccess = eventAccessFrag.querySelector("div");
+            const eventModeAccessFrag = accessModeTemplate.content.cloneNode(true);
+            const eventAccess = eventModeAccessFrag.querySelector("div");
             // Add an id to the element for future reference
-            eventAccess.id = eventAccessContainerId(event, mode);
-            // Add to container
-            container.append(eventAccessFrag);
-            updateEventAccess(event, mode);
+            eventAccess.id = eventAccessContainerId(event.name, mode);
+            eventAccessFrag.append(eventModeAccessFrag);
+        }
+        container.append(eventAccessFrag);
+        for (const mode of allAccessModes) {
+            updateEventAccess(event.name, mode);
         }
     }
 }
@@ -177,12 +209,17 @@ function updateEventAccess(event, mode) {
         explainModal?.show();
     });
 }
-async function addEvent(sender) {
+async function addEvent(sender, type) {
     const event = sender.value.trim();
+    const requestBod = {};
+    if (type === "group") {
+        requestBod["add_group"] = [event];
+    }
+    else {
+        requestBod["add"] = [event];
+    }
     const { err } = await ims.fetchNoThrow(url_events, {
-        body: JSON.stringify({
-            "add": [event],
-        }),
+        body: JSON.stringify(requestBod),
     });
     if (err != null) {
         const message = `Failed to add event: ${err}`;

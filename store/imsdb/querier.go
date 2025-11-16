@@ -22,7 +22,7 @@ type Querier interface {
 	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)
 	CreateConcentricStreet(ctx context.Context, db DBTX, arg CreateConcentricStreetParams) error
 	CreateDestination(ctx context.Context, db DBTX, arg CreateDestinationParams) error
-	CreateEvent(ctx context.Context, db DBTX, name string) (int64, error)
+	CreateEvent(ctx context.Context, db DBTX, arg CreateEventParams) (int64, error)
 	CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error
 	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
 	CreateIncidentType(ctx context.Context, db DBTX, arg CreateIncidentTypeParams) (int64, error)
@@ -31,8 +31,8 @@ type Querier interface {
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
 	Event(ctx context.Context, db DBTX, id int32) (EventRow, error)
-	EventAccess(ctx context.Context, db DBTX, event int32) ([]EventAccessRow, error)
 	EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAllRow, error)
+	EventAndParentAccess(ctx context.Context, db DBTX, arg EventAndParentAccessParams) ([]EventAndParentAccessRow, error)
 	Events(ctx context.Context, db DBTX) ([]EventsRow, error)
 	FieldReport(ctx context.Context, db DBTX, arg FieldReportParams) (FieldReportRow, error)
 	FieldReport_ReportEntries(ctx context.Context, db DBTX, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error)
@@ -62,6 +62,7 @@ type Querier interface {
 	//
 	SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error
 	UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncidentsParams) error
+	UpdateEventParent(ctx context.Context, db DBTX, arg UpdateEventParentParams) error
 	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error
 	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error
 	UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error

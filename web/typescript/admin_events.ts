@@ -17,6 +17,7 @@
 "use strict";
 
 import * as ims from "./ims.ts";
+import {EventData} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -24,7 +25,7 @@ declare global {
         setExpires: (el: HTMLInputElement) => Promise<void>;
         showExpiresInput: (el: HTMLButtonElement) => Promise<void>;
         addAccess: (el: HTMLInputElement)=>Promise<void>;
-        addEvent: (el: HTMLInputElement)=>Promise<void>;
+        addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
         removeAccess: (el: HTMLButtonElement)=>Promise<void>;
     }
 }
@@ -88,14 +89,20 @@ type EventAccess = Partial<Record<AccessMode, Access[]>>;
 // key is event name
 type EventsAccess = Record<string, EventAccess|null>;
 
+let events: ims.EventData[];
 let accessControlList: EventsAccess|null = null;
 
 async function loadAccessControlList() : Promise<{err: string|null}> {
-    // we don't actually need the response from this API, but we want to
-    // invalidate the local HTTP cache in the admin's browser
-    await ims.fetchNoThrow<ims.EventData[]>(url_events, {
+    const {json: eventsJson, err: eventsErr} = await ims.fetchNoThrow<ims.EventData[]>(url_events + "?include_groups=true", {
         headers: {"Cache-Control": "no-cache"},
     });
+    if (eventsErr != null) {
+        const message = `Failed to load events: ${eventsErr}`;
+        console.error(message);
+        window.alert(message);
+        return {err: message};
+    }
+    events = eventsJson??[];
     const {json, err} = await ims.fetchNoThrow<EventsAccess>(url_acl, null);
     if (err != null) {
         const message = `Failed to load access control list: ${err}`;
@@ -109,24 +116,58 @@ async function loadAccessControlList() : Promise<{err: string|null}> {
 
 function drawAccess(): void {
     const container: HTMLElement = document.getElementById("event_access_container")!;
-    container.querySelectorAll(".event_access").forEach((el) => {el.remove()});
+    container.replaceChildren();
 
     if (accessControlList == null) {
         return;
     }
     const accessTemplate = document.getElementById("event_access_template") as HTMLTemplateElement;
-    const events: string[] = Object.keys(accessControlList);
-    for (const event of events) {
+    const accessModeTemplate = document.getElementById("event_access_mode_template") as HTMLTemplateElement;
+
+    // Sort by group status first, then by name
+    const sortedEvents: ims.EventData[] = events.toSorted((a: EventData, b: EventData): number => {
+        const aGroup = a.is_group ? a.id : (a.parent_group??-1);
+        const bGroup = b.is_group ? b.id : (b.parent_group??-1);
+        if (aGroup !== bGroup) {
+            return bGroup-aGroup;
+        }
+        if (a.is_group !== b.is_group) {
+            return a.is_group ? -1 : 1;
+        }
+        return b.name.localeCompare(a.name);
+    });
+
+    for (const event of sortedEvents) {
+        const eventAccessFrag = accessTemplate.content.cloneNode(true) as DocumentFragment;
+
+        let eventWithGroupName: string = event.name;
+        if (event.is_group) {
+            eventWithGroupName += " (group)";
+        }
+        if (event.parent_group) {
+            const parentGroup = events.find(value => {return value.id === event.parent_group});
+            if (parentGroup) {
+                eventWithGroupName += ` (${parentGroup.name})`;
+            }
+        }
+
+        eventAccessFrag.querySelector("h3")!.textContent = eventWithGroupName;
+
         for (const mode of allAccessModes) {
-            const eventAccessFrag = accessTemplate.content.cloneNode(true) as DocumentFragment;
-            const eventAccess = eventAccessFrag.querySelector("div")!;
+
+            const eventModeAccessFrag = accessModeTemplate.content.cloneNode(true) as DocumentFragment;
+
+            const eventAccess = eventModeAccessFrag.querySelector("div")!;
             // Add an id to the element for future reference
-            eventAccess.id = eventAccessContainerId(event, mode);
+            eventAccess.id = eventAccessContainerId(event.name, mode);
 
-            // Add to container
-            container.append(eventAccessFrag);
+            eventAccessFrag.append(eventModeAccessFrag);
+        }
 
-            updateEventAccess(event, mode);
+        container.append(eventAccessFrag);
+
+        for (const mode of allAccessModes) {
+            updateEventAccess(event.name, mode);
         }
     }
 }
@@ -234,13 +275,21 @@ function updateEventAccess(event: string, mode: AccessMode): void {
     })
 }
 
+type EditEvent = {
+    add?: string[],
+    add_group?: string[],
+}
 
-async function addEvent(sender: HTMLInputElement): Promise<void> {
+async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Promise<void> {
     const event = sender.value.trim();
+    const requestBod: EditEvent = {};
+    if (type === "group") {
+        requestBod["add_group"] = [event];
+    } else {
+        requestBod["add"] = [event];
+    }
     const {err} = await ims.fetchNoThrow(url_events, {
-        body: JSON.stringify({
-            "add": [event],
-        }),
+        body: JSON.stringify(requestBod),
     });
     if (err != null) {
         const message = `Failed to add event: ${err}`;

@@ -290,8 +290,10 @@ type Destination struct {
 }
 
 type Event struct {
-	ID   int32
-	Name string
+	ID          int32
+	Name        string
+	IsGroup     bool
+	ParentGroup sql.NullInt32
 }
 
 type EventAccess struct {

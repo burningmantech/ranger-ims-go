@@ -335,11 +335,16 @@ func (q *Queries) CreateDestination(ctx context.Context, db DBTX, arg CreateDest
 }
 
 const createEvent = `-- name: CreateEvent :execlastid
-insert into EVENT (NAME) values (?)
+insert into EVENT (NAME, IS_GROUP) values (?, ?)
 `
 
-func (q *Queries) CreateEvent(ctx context.Context, db DBTX, name string) (int64, error) {
-	result, err := db.ExecContext(ctx, createEvent, name)
+type CreateEventParams struct {
+	Name    string
+	IsGroup bool
+}
+
+func (q *Queries) CreateEvent(ctx context.Context, db DBTX, arg CreateEventParams) (int64, error) {
+	result, err := db.ExecContext(ctx, createEvent, arg.Name, arg.IsGroup)
 	if err != nil {
 		return 0, err
 	}
@@ -562,7 +567,7 @@ func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, db DBTX, a
 }
 
 const event = `-- name: Event :one
-select e.id, e.name from EVENT e where ID = ?
+select e.id, e.name, e.is_group, e.parent_group from EVENT e where ID = ?
 `
 
 type EventRow struct {
@@ -572,48 +577,13 @@ type EventRow struct {
 func (q *Queries) Event(ctx context.Context, db DBTX, id int32) (EventRow, error) {
 	row := db.QueryRowContext(ctx, event, id)
 	var i EventRow
-	err := row.Scan(&i.Event.ID, &i.Event.Name)
+	err := row.Scan(
+		&i.Event.ID,
+		&i.Event.Name,
+		&i.Event.IsGroup,
+		&i.Event.ParentGroup,
+	)
 	return i, err
-}
-
-const eventAccess = `-- name: EventAccess :many
-select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
-from EVENT_ACCESS ea
-where ea.EVENT = ?
-`
-
-type EventAccessRow struct {
-	EventAccess EventAccess
-}
-
-func (q *Queries) EventAccess(ctx context.Context, db DBTX, event int32) ([]EventAccessRow, error) {
-	rows, err := db.QueryContext(ctx, eventAccess, event)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []EventAccessRow
-	for rows.Next() {
-		var i EventAccessRow
-		if err := rows.Scan(
-			&i.EventAccess.ID,
-			&i.EventAccess.Event,
-			&i.EventAccess.Expression,
-			&i.EventAccess.Mode,
-			&i.EventAccess.Validity,
-			&i.EventAccess.Expires,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const eventAccessAll = `-- name: EventAccessAll :many
@@ -655,8 +625,59 @@ func (q *Queries) EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAll
 	return items, nil
 }
 
+const eventAndParentAccess = `-- name: EventAndParentAccess :many
+select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
+from EVENT_ACCESS ea
+where ea.EVENT = ?
+union all
+select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
+from ` + "`" + `EVENT` + "`" + ` e
+    join EVENT_ACCESS ea
+        on e.PARENT_GROUP = ea.EVENT
+where e.ID = ?
+    and e.PARENT_GROUP is not null
+`
+
+type EventAndParentAccessParams struct {
+	EventID int32
+}
+
+type EventAndParentAccessRow struct {
+	EventAccess EventAccess
+}
+
+func (q *Queries) EventAndParentAccess(ctx context.Context, db DBTX, arg EventAndParentAccessParams) ([]EventAndParentAccessRow, error) {
+	rows, err := db.QueryContext(ctx, eventAndParentAccess, arg.EventID, arg.EventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EventAndParentAccessRow
+	for rows.Next() {
+		var i EventAndParentAccessRow
+		if err := rows.Scan(
+			&i.EventAccess.ID,
+			&i.EventAccess.Event,
+			&i.EventAccess.Expression,
+			&i.EventAccess.Mode,
+			&i.EventAccess.Validity,
+			&i.EventAccess.Expires,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const events = `-- name: Events :many
-select e.id, e.name from EVENT e
+select e.id, e.name, e.is_group, e.parent_group from EVENT e
 `
 
 type EventsRow struct {
@@ -672,7 +693,12 @@ func (q *Queries) Events(ctx context.Context, db DBTX) ([]EventsRow, error) {
 	var items []EventsRow
 	for rows.Next() {
 		var i EventsRow
-		if err := rows.Scan(&i.Event.ID, &i.Event.Name); err != nil {
+		if err := rows.Scan(
+			&i.Event.ID,
+			&i.Event.Name,
+			&i.Event.IsGroup,
+			&i.Event.ParentGroup,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1297,7 +1323,7 @@ func (q *Queries) NextIncidentNumber(ctx context.Context, db DBTX, event int32) 
 }
 
 const queryEventID = `-- name: QueryEventID :one
-select e.id, e.name from EVENT e where e.NAME = ?
+select e.id, e.name, e.is_group, e.parent_group from EVENT e where e.NAME = ?
 `
 
 type QueryEventIDRow struct {
@@ -1307,7 +1333,12 @@ type QueryEventIDRow struct {
 func (q *Queries) QueryEventID(ctx context.Context, db DBTX, name string) (QueryEventIDRow, error) {
 	row := db.QueryRowContext(ctx, queryEventID, name)
 	var i QueryEventIDRow
-	err := row.Scan(&i.Event.ID, &i.Event.Name)
+	err := row.Scan(
+		&i.Event.ID,
+		&i.Event.Name,
+		&i.Event.IsGroup,
+		&i.Event.ParentGroup,
+	)
 	return i, err
 }
 
@@ -1425,6 +1456,22 @@ func (q *Queries) UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncide
 		arg.Event2,
 		arg.IncidentNumber2,
 	)
+	return err
+}
+
+const updateEventParent = `-- name: UpdateEventParent :exec
+update ` + "`" + `EVENT` + "`" + `
+set PARENT_GROUP = ?
+where ID = ? and not IS_GROUP
+`
+
+type UpdateEventParentParams struct {
+	ParentGroup sql.NullInt32
+	ID          int32
+}
+
+func (q *Queries) UpdateEventParent(ctx context.Context, db DBTX, arg UpdateEventParentParams) error {
+	_, err := db.ExecContext(ctx, updateEventParent, arg.ParentGroup, arg.ID)
 	return err
 }
 

@@ -6,15 +6,19 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (24);
+insert into SCHEMA_INFO (VERSION) values (25);
 
 
 create table `EVENT` (
-    ID   integer      not null auto_increment,
-    NAME varchar(128) not null,
+    ID      integer      not null auto_increment,
+    NAME    varchar(128) not null,
+
+    IS_GROUP        boolean not null default false,
+    PARENT_GROUP    integer,
 
     primary key (ID),
-    unique key (NAME)
+    unique key (NAME),
+    foreign key `PARENT_GROUP_TO_PARENT`(PARENT_GROUP) references `EVENT`(ID)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

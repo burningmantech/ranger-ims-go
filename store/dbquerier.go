@@ -120,9 +120,9 @@ func (l DBQ) CreateConcentricStreet(ctx context.Context, db imsdb.DBTX, arg imsd
 	return err
 }
 
-func (l DBQ) CreateEvent(ctx context.Context, db imsdb.DBTX, name string) (int64, error) {
+func (l DBQ) CreateEvent(ctx context.Context, db imsdb.DBTX, params imsdb.CreateEventParams) (int64, error) {
 	start := time.Now()
-	event, err := l.q.CreateEvent(ctx, db, name)
+	event, err := l.q.CreateEvent(ctx, db, params)
 	logQuery("CreateEvent", start, err)
 	return event, err
 }
@@ -162,10 +162,10 @@ func (l DBQ) DetachRangerHandleFromIncident(ctx context.Context, db imsdb.DBTX, 
 	return err
 }
 
-func (l DBQ) EventAccess(ctx context.Context, db imsdb.DBTX, event int32) ([]imsdb.EventAccessRow, error) {
+func (l DBQ) EventAndParentAccess(ctx context.Context, db imsdb.DBTX, params imsdb.EventAndParentAccessParams) ([]imsdb.EventAndParentAccessRow, error) {
 	start := time.Now()
-	items, err := l.q.EventAccess(ctx, db, event)
-	logQuery("EventAccess", start, err)
+	items, err := l.q.EventAndParentAccess(ctx, db, params)
+	logQuery("EventAndParentAccess", start, err)
 	return items, err
 }
 
@@ -383,5 +383,12 @@ func (l DBQ) RemoveDestinations(ctx context.Context, db imsdb.DBTX, arg imsdb.Re
 	start := time.Now()
 	err := l.q.RemoveDestinations(ctx, db, arg)
 	logQuery("RemoveDestinations", start, err)
+	return err
+}
+
+func (l DBQ) UpdateEventParent(ctx context.Context, db imsdb.DBTX, arg imsdb.UpdateEventParentParams) error {
+	start := time.Now()
+	err := l.q.UpdateEventParent(ctx, db, arg)
+	logQuery("UpdateEventParent", start, err)
 	return err
 }

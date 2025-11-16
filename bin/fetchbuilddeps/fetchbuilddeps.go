@@ -88,8 +88,8 @@ func main() {
 		return existOrFetch(groupCtx, staticExtRoot,
 			// https://cdn.datatables.net/
 			"dataTables.min.js",
-			"https://cdn.datatables.net/2.3.3/js/dataTables.min.js",
-			"sha384-Xp3hrez5cC/Ot5PMHmF9GYnsdNaAC3NNSHFmTVlIrm853c+UWMLJfwmGkpWCmOLJ",
+			"https://cdn.datatables.net/2.3.5/js/dataTables.min.js",
+			"sha384-VQb2IR8f6y3bNbMe6kK6H+edzCXdt7Z/3GtWA7zYzXcvfwYRR5rHGl46q28FbtsY",
 		)
 	})
 
@@ -97,15 +97,15 @@ func main() {
 		return existOrFetch(groupCtx, staticExtRoot,
 			// https://cdn.datatables.net/
 			"dataTables.bootstrap5.min.js",
-			"https://cdn.datatables.net/2.3.3/js/dataTables.bootstrap5.min.js",
-			"sha384-G85lmdZCo2WkHaZ8U1ZceHekzKcg37sFrs4St2+u/r2UtfvSDQmQrkMsEx4Cgv/W",
+			"https://cdn.datatables.net/2.3.5/js/dataTables.bootstrap5.min.js",
+			"sha384-3BApNGXgbm9rg2kjIbaEVprAGb2B0n9QyLjBrH090WdkzZ3IiUv8RZoTh5uP8oWH",
 		)
 	})
 
 	g.Go(func() error {
 		return existOrFetch(groupCtx, staticExtRoot,
 			"dataTables.bootstrap5.min.css",
-			"https://cdn.datatables.net/2.3.3/css/dataTables.bootstrap5.min.css",
+			"https://cdn.datatables.net/2.3.5/css/dataTables.bootstrap5.min.css",
 			"sha384-zmMNeKbOwzvUmxN8Z/VoYM+i+cwyC14+U9lq4+ZL0Ro7p1GMoh8uq8/HvIBgnh9+",
 		)
 	})

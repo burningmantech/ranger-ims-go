@@ -18,12 +18,8 @@ package json
 
 type Events []Event
 type Event struct {
-	ID          int32  `json:"id"`
-	Name        string `json:"name"`
-	IsGroup     bool   `json:"is_group"`
-	ParentGroup *int32 `json:"parent_group"`
-}
-type EditEventsRequest struct {
-	Add      []string `json:"add"`
-	AddGroup []string `json:"add_group"`
+	ID          int32   `json:"id"`
+	Name        *string `json:"name"`
+	IsGroup     *bool   `json:"is_group"`
+	ParentGroup *int32  `json:"parent_group"`
 }

@@ -18,6 +18,7 @@ package api
 
 import (
 	"cmp"
+	"database/sql"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -30,6 +31,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -89,8 +91,8 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 	for _, eve := range authorizedEvents {
 		resp = append(resp, imsjson.Event{
 			ID:          eve.Event.ID,
-			Name:        eve.Event.Name,
-			IsGroup:     eve.Event.IsGroup,
+			Name:        &eve.Event.Name,
+			IsGroup:     &eve.Event.IsGroup,
 			ParentGroup: conv.SqlToInt32(eve.Event.ParentGroup),
 		})
 	}
@@ -102,7 +104,7 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 	return resp, nil
 }
 
-type EditEvents struct {
+type EditEvent struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
 	imsAdmins []string
@@ -112,57 +114,103 @@ type EditEvents struct {
 // and in filesystem directory paths.
 var allowedEventNames = regexp.MustCompile(`^[\w-]+$`)
 
-func (action EditEvents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	errHTTP := action.editEvents(req)
+func (action EditEvent) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	newID, errHTTP := action.editEvents(req)
 	if errHTTP != nil {
 		errHTTP.From("[editEvents]").WriteResponse(w)
 		return
 	}
+	if newID != nil {
+		w.Header().Set("IMS-Event-ID", strconv.Itoa(int(*newID)))
+	}
 	herr.WriteNoContentResponse(w, "Success")
 }
-func (action EditEvents) editEvents(req *http.Request) *herr.HTTPError {
+func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTTP *herr.HTTPError) {
 	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return errHTTP.From("[getGlobalPermissions]")
+		return nil, errHTTP.From("[getGlobalPermissions]")
 	}
 	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
-		return herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
+		return nil, herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
 	}
 	err := req.ParseForm()
 	if err != nil {
-		return herr.BadRequest("Failed to parse HTTP form", err)
+		return nil, herr.BadRequest("Failed to parse HTTP form", err)
 	}
-	editRequest, errHTTP := readBodyAs[imsjson.EditEventsRequest](req)
+	editRequest, errHTTP := readBodyAs[imsjson.Event](req)
 	if errHTTP != nil {
-		return errHTTP.From("[readBodyAs]")
+		return nil, errHTTP.From("[readBodyAs]")
 	}
 
-	for _, eventName := range editRequest.Add {
-		if !allowedEventNames.MatchString(eventName) {
-			return herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%s'", eventName))
+	if editRequest.ID == 0 {
+		// We're making a new Event.
+		if editRequest.Name == nil || !allowedEventNames.MatchString(*editRequest.Name) {
+			return nil, herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%v'", editRequest.Name))
 		}
-		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, imsdb.CreateEventParams{
-			Name:    eventName,
-			IsGroup: false,
-		})
+		createParams := imsdb.CreateEventParams{
+			Name: *editRequest.Name,
+		}
+		if editRequest.IsGroup != nil {
+			createParams.IsGroup = *editRequest.IsGroup
+		}
+		if editRequest.ParentGroup != nil {
+			createParams.ParentGroup = sql.NullInt32{Int32: *editRequest.ParentGroup, Valid: true}
+		}
+		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, createParams)
 		if err != nil {
-			return herr.InternalServerError("Failed to create event", err).From("[CreateEvent]")
+			return nil, herr.InternalServerError("Failed to create event", err).From("[CreateEvent]")
 		}
-		slog.Info("Created event", "eventName", eventName, "id", id)
+		slog.Info("Created event", "eventName", *editRequest.Name, "id", id)
+		newID := conv.MustInt32(id)
+		return &newID, nil
 	}
 
-	for _, eventName := range editRequest.AddGroup {
-		if !allowedEventNames.MatchString(eventName) {
-			return herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%s'", eventName))
-		}
-		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, imsdb.CreateEventParams{
-			Name:    eventName,
-			IsGroup: true,
-		})
-		if err != nil {
-			return herr.InternalServerError("Failed to create event group", err).From("[CreateEvent]")
-		}
-		slog.Info("Created event group", "eventName", eventName, "id", id)
+	existingEventRow, err := action.imsDBQ.Event(req.Context(), action.imsDBQ, editRequest.ID)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch event", err).From("[Event]")
 	}
-	return nil
+
+	updateParams := imsdb.UpdateEventParams{
+		ID:          editRequest.ID,
+		Name:        existingEventRow.Event.Name,
+		IsGroup:     existingEventRow.Event.IsGroup,
+		ParentGroup: existingEventRow.Event.ParentGroup,
+	}
+
+	if editRequest.Name != nil {
+		if !allowedEventNames.MatchString(*editRequest.Name) {
+			return nil, herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%v'", editRequest.Name))
+		}
+		updateParams.Name = *editRequest.Name
+	}
+	if editRequest.IsGroup != nil {
+		updateParams.IsGroup = *editRequest.IsGroup
+	}
+	if editRequest.ParentGroup != nil {
+		if *editRequest.ParentGroup == editRequest.ID {
+			return nil, herr.BadRequest("Event parent group cannot be the same as the event itself", nil)
+		}
+		if *editRequest.ParentGroup > 0 {
+			targetParentGroup, err := action.imsDBQ.Event(req.Context(), action.imsDBQ, *editRequest.ParentGroup)
+			if err != nil {
+				return nil, herr.InternalServerError("Failed to fetch parent group", err).From("[Event]")
+			}
+			if !targetParentGroup.Event.IsGroup {
+				return nil, herr.BadRequest("Event parent must be an event group", nil)
+			}
+			updateParams.ParentGroup = sql.NullInt32{Int32: *editRequest.ParentGroup, Valid: true}
+		} else {
+			updateParams.ParentGroup = sql.NullInt32{}
+		}
+	}
+	if updateParams.IsGroup && updateParams.ParentGroup.Valid {
+		return nil, herr.BadRequest("An event group cannot have a parent event group", nil)
+	}
+
+	err = action.imsDBQ.UpdateEvent(req.Context(), action.imsDBQ, updateParams)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to update event", err).From("[UpdateEvent]")
+	}
+
+	return nil, nil
 }

@@ -47,7 +47,7 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addReporter(ctx, eventName, userAliceHandle)
@@ -110,7 +110,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	// give itself Writer role,
 	// then give the normal user Reporter role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAdminHandle)
@@ -241,7 +241,7 @@ func TestCreateAndAttachFileToFieldReport(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addReporter(ctx, eventName, userAliceHandle)

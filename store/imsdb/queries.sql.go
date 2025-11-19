@@ -335,16 +335,17 @@ func (q *Queries) CreateDestination(ctx context.Context, db DBTX, arg CreateDest
 }
 
 const createEvent = `-- name: CreateEvent :execlastid
-insert into EVENT (NAME, IS_GROUP) values (?, ?)
+insert into EVENT (NAME, IS_GROUP, PARENT_GROUP) values (?, ?, ?)
 `
 
 type CreateEventParams struct {
-	Name    string
-	IsGroup bool
+	Name        string
+	IsGroup     bool
+	ParentGroup sql.NullInt32
 }
 
 func (q *Queries) CreateEvent(ctx context.Context, db DBTX, arg CreateEventParams) (int64, error) {
-	result, err := db.ExecContext(ctx, createEvent, arg.Name, arg.IsGroup)
+	result, err := db.ExecContext(ctx, createEvent, arg.Name, arg.IsGroup, arg.ParentGroup)
 	if err != nil {
 		return 0, err
 	}
@@ -1459,19 +1460,29 @@ func (q *Queries) UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncide
 	return err
 }
 
-const updateEventParent = `-- name: UpdateEventParent :exec
+const updateEvent = `-- name: UpdateEvent :exec
 update ` + "`" + `EVENT` + "`" + `
-set PARENT_GROUP = ?
-where ID = ? and not IS_GROUP
+set
+    NAME = ?,
+    IS_GROUP = ?,
+    PARENT_GROUP = ?
+where ID = ?
 `
 
-type UpdateEventParentParams struct {
+type UpdateEventParams struct {
+	Name        string
+	IsGroup     bool
 	ParentGroup sql.NullInt32
 	ID          int32
 }
 
-func (q *Queries) UpdateEventParent(ctx context.Context, db DBTX, arg UpdateEventParentParams) error {
-	_, err := db.ExecContext(ctx, updateEventParent, arg.ParentGroup, arg.ID)
+func (q *Queries) UpdateEvent(ctx context.Context, db DBTX, arg UpdateEventParams) error {
+	_, err := db.ExecContext(ctx, updateEvent,
+		arg.Name,
+		arg.IsGroup,
+		arg.ParentGroup,
+		arg.ID,
+	)
 	return err
 }
 

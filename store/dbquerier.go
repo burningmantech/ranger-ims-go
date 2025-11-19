@@ -386,9 +386,9 @@ func (l DBQ) RemoveDestinations(ctx context.Context, db imsdb.DBTX, arg imsdb.Re
 	return err
 }
 
-func (l DBQ) UpdateEventParent(ctx context.Context, db imsdb.DBTX, arg imsdb.UpdateEventParentParams) error {
+func (l DBQ) UpdateEvent(ctx context.Context, db imsdb.DBTX, arg imsdb.UpdateEventParams) error {
 	start := time.Now()
-	err := l.q.UpdateEventParent(ctx, db, arg)
-	logQuery("UpdateEventParent", start, err)
+	err := l.q.UpdateEvent(ctx, db, arg)
+	logQuery("UpdateEvent", start, err)
 	return err
 }

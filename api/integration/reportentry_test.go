@@ -34,7 +34,7 @@ func TestEditIncidentReportEntry(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
@@ -101,7 +101,7 @@ func TestEditFieldReportReportEntry(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)

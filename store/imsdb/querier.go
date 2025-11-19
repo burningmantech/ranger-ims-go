@@ -62,7 +62,7 @@ type Querier interface {
 	//
 	SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error
 	UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncidentsParams) error
-	UpdateEventParent(ctx context.Context, db DBTX, arg UpdateEventParentParams) error
+	UpdateEvent(ctx context.Context, db DBTX, arg UpdateEventParams) error
 	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error
 	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error
 	UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error

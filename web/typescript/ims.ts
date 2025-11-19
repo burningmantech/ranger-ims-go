@@ -1565,7 +1565,7 @@ export type FieldReportsByNumber = Record<number, FieldReport>;
 export type EventData = {
     id: number,
     name: string,
-    is_group: boolean,
+    is_group?: boolean,
     parent_group?: number|null,
 }
 

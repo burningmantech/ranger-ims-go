@@ -307,7 +307,7 @@ func AddToMux(
 
 	mux.Handle("POST /ims/api/events",
 		Adapt(
-			EditEvents{db, userStore, cfg.Core.Admins},
+			EditEvent{db, userStore, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),

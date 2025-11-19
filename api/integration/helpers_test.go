@@ -244,7 +244,7 @@ func (a ApiHelper) updateFieldReportReportEntry(ctx context.Context, eventName s
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/", conv.FormatInt(fieldReport), "/report_entries/", conv.FormatInt(req.ID)).String())
 }
 
-func (a ApiHelper) editEvent(ctx context.Context, req imsjson.EditEventsRequest) *http.Response {
+func (a ApiHelper) editEvent(ctx context.Context, req imsjson.Event) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events").String())
 }

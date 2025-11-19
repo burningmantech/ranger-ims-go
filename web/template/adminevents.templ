@@ -30,6 +30,27 @@ templ AdminEvents(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+  <div class="modal no-print" id="editEventModal" tabindex="-1" aria-labelledby="editEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <p class="modal-title fs-5" id="editEventModalLabel">Edit Event</p>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+        </div>
+        <div class="modal-body row">
+          <div class="input-group mb-3">
+            <label for="is_group" class="control-label input-group-text">Is Group</label>
+            <input id="is_group" type="text" class="form-control form-control-sm" disabled="" />
+          </div>
+          <div class="input-group mb-3">
+            <label for="edit_parent_group" class="control-label input-group-text">Parent Group</label>
+            <input id="edit_parent_group" type="text" class="form-control form-control-sm" onchange="setParentGroup(this);" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- "Explain permissions" modal -->
   <div class="modal no-print" id="explainModal" tabindex="-1" aria-labelledby="explainModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -60,10 +81,10 @@ templ AdminEvents(deployment, versionName, versionRef string) {
   <p>A permission with an invalid person, position, or team name will show "Unknown" in that row, to indicate that the admin likely made a typo.</p>
   <p>You can click the "Explain" button to see which Rangers currently match which permissions, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
   <div class="row" id="event_access_container">
-    <!-- event_access_template elemements go here -->
+    <!-- event_access_template elements go here -->
   </div>
   <template id="event_access_template">
-    <h3 class="event_name mt-2"></h3>
+    <h3 class="mt-2"><span class="event_name"></span><button class="show-edit-modal badge btn btn-primary float-end me-2">Edit</button></h3>
     <!-- event_access_mode_template elements go here -->
   </template>
   <template id="event_access_mode_template">

@@ -32,7 +32,7 @@ func TestCreateStreets(t *testing.T) {
 
 	// Make an event
 	eventName := rand.NonCryptoText()
-	resp := apis.editEvent(ctx, imsjson.EditEventsRequest{Add: []string{eventName}})
+	resp := apis.editEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	events, resp := apis.getEvents(ctx)
@@ -40,7 +40,7 @@ func TestCreateStreets(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	var event imsjson.Event
 	for _, e := range events {
-		if e.Name == eventName {
+		if *e.Name == eventName {
 			event = e
 			break
 		}

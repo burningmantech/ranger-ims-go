@@ -33,8 +33,8 @@ func TestGetAndEditEvent(t *testing.T) {
 
 	testEventName := rand.NonCryptoText()
 
-	editEventReq := imsjson.EditEventsRequest{
-		Add: []string{testEventName},
+	editEventReq := imsjson.Event{
+		Name: &testEventName,
 	}
 
 	resp := apisAdmin.editEvent(ctx, editEventReq)
@@ -74,12 +74,13 @@ func TestGetAndEditEvent(t *testing.T) {
 	// The best we can do is loop through the events and make sure there's one that matches.
 	var foundEvent *imsjson.Event
 	for _, event := range events {
-		if event.Name == testEventName {
+		if *event.Name == testEventName {
 			foundEvent = &event
 		}
 	}
 	require.NotNil(t, foundEvent)
-	require.Equal(t, testEventName, foundEvent.Name)
+	require.NotNil(t, foundEvent.Name)
+	require.Equal(t, testEventName, *foundEvent.Name)
 	require.NotZero(t, foundEvent.ID)
 }
 
@@ -91,8 +92,8 @@ func TestEditEvent_errors(t *testing.T) {
 
 	testEventName := "This name is ugly (has spaces and parentheses)"
 
-	editEventReq := imsjson.EditEventsRequest{
-		Add: []string{testEventName},
+	editEventReq := imsjson.Event{
+		Name: &testEventName,
 	}
 
 	resp := apisAdmin.editEvent(ctx, editEventReq)

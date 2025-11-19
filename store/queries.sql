@@ -11,12 +11,15 @@ select sqlc.embed(e) from EVENT e where ID = ?;
 select sqlc.embed(e) from EVENT e;
 
 -- name: CreateEvent :execlastid
-insert into EVENT (NAME, IS_GROUP) values (?, ?);
+insert into EVENT (NAME, IS_GROUP, PARENT_GROUP) values (?, ?, ?);
 
--- name: UpdateEventParent :exec
+-- name: UpdateEvent :exec
 update `EVENT`
-set PARENT_GROUP = ?
-where ID = ? and not IS_GROUP
+set
+    NAME = ?,
+    IS_GROUP = ?,
+    PARENT_GROUP = ?
+where ID = ?
 ;
 
 -- name: EventAndParentAccess :many

@@ -17,7 +17,6 @@
 "use strict";
 
 import * as ims from "./ims.ts";
-import {EventData} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -27,10 +26,13 @@ declare global {
         addAccess: (el: HTMLInputElement)=>Promise<void>;
         addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
         removeAccess: (el: HTMLButtonElement)=>Promise<void>;
+        setParentGroup: (el: HTMLInputElement) => Promise<void>;
     }
 }
 
 let explainModal: ims.bootstrap.Modal|null = null;
+let editEventModal: ims.bootstrap.Modal|null = null;
+let editEventModalElement = document.getElementById("editEventModal") as HTMLElement;
 
 //
 // Initialize UI
@@ -51,6 +53,7 @@ async function initAdminEventsPage(): Promise<void> {
     window.addEvent = addEvent;
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
+    window.setParentGroup = setParentGroup;
 
     document.getElementById("browser_tz")!.textContent = ims.localTzLongName(new Date());
 
@@ -58,6 +61,7 @@ async function initAdminEventsPage(): Promise<void> {
     drawAccess();
 
     explainModal = ims.bsModal(document.getElementById("explainModal")!);
+    editEventModal = ims.bsModal(editEventModalElement);
 
     ims.hideLoadingOverlay();
     ims.enableEditing();
@@ -125,7 +129,7 @@ function drawAccess(): void {
     const accessModeTemplate = document.getElementById("event_access_mode_template") as HTMLTemplateElement;
 
     // Sort by group status first, then by name
-    const sortedEvents: ims.EventData[] = events.toSorted((a: EventData, b: EventData): number => {
+    const sortedEvents: ims.EventData[] = events.toSorted((a: ims.EventData, b: ims.EventData): number => {
         const aGroup = a.is_group ? a.id : (a.parent_group??-1);
         const bGroup = b.is_group ? b.id : (b.parent_group??-1);
         if (aGroup !== bGroup) {
@@ -142,7 +146,7 @@ function drawAccess(): void {
 
         let eventWithGroupName: string = event.name;
         if (event.is_group) {
-            eventWithGroupName += " (group)";
+            eventWithGroupName = `Group: ${eventWithGroupName}`;
         }
         if (event.parent_group) {
             const parentGroup = events.find(value => {return value.id === event.parent_group});
@@ -151,16 +155,32 @@ function drawAccess(): void {
             }
         }
 
-        eventAccessFrag.querySelector("h3")!.textContent = eventWithGroupName;
+        eventAccessFrag.querySelector(".event_name")!.textContent = eventWithGroupName;
+
+        const editButton = eventAccessFrag.querySelector(".show-edit-modal") as HTMLButtonElement;
+        editButton.addEventListener("click", (_e: MouseEvent): void => {
+            editEventModalElement.querySelector(".modal-title")!.textContent = event.name;
+            editEventModalElement.dataset["eventId"] = event.id.toString();
+
+            const isGroupInput = editEventModalElement.querySelector("#is_group") as HTMLInputElement;
+            isGroupInput.disabled = true;
+            isGroupInput.value = (event.is_group??false).toString();
+
+            const parentGroupInput = editEventModalElement.querySelector("#edit_parent_group") as HTMLInputElement;
+
+            // groups can't have parent groups
+            parentGroupInput.disabled = event.is_group??false;
+            const currentParent = events.find(value => {return value.id === event.parent_group});
+            parentGroupInput.value = currentParent?.name??"";
+
+            editEventModal?.show();
+        })
 
         for (const mode of allAccessModes) {
-
             const eventModeAccessFrag = accessModeTemplate.content.cloneNode(true) as DocumentFragment;
-
             const eventAccess = eventModeAccessFrag.querySelector("div")!;
             // Add an id to the element for future reference
             eventAccess.id = eventAccessContainerId(event.name, mode);
-
             eventAccessFrag.append(eventModeAccessFrag);
         }
 
@@ -275,19 +295,13 @@ function updateEventAccess(event: string, mode: AccessMode): void {
     })
 }
 
-type EditEvent = {
-    add?: string[],
-    add_group?: string[],
-}
-
 async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Promise<void> {
     const event = sender.value.trim();
-    const requestBod: EditEvent = {};
-    if (type === "group") {
-        requestBod["add_group"] = [event];
-    } else {
-        requestBod["add"] = [event];
-    }
+    const requestBod: ims.EventData = {
+        id: 0,
+        name: event,
+    };
+    requestBod.is_group = type === "group";
     const {err} = await ims.fetchNoThrow(url_events, {
         body: JSON.stringify(requestBod),
     });
@@ -490,7 +504,6 @@ async function setExpires(sender: HTMLInputElement): Promise<void> {
         ims.controlHasError(sender);
         return;
     }
-    // sender.value = "";  // Clear input field
 }
 
 async function showExpiresInput(sender: HTMLButtonElement): Promise<void> {
@@ -511,4 +524,47 @@ async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {
     console.log(message);
     window.alert(message);
     return {err: err};
+}
+
+async function setParentGroup(sender: HTMLInputElement): Promise<void> {
+    const eventId = ims.parseInt10(editEventModalElement.dataset["eventId"])!;
+
+    const requestBod: ims.EventData = {
+        id: eventId,
+        // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.
+        name: null,
+    };
+
+    const parentGroupName = sender.value;
+    if (parentGroupName === "") {
+        // unset parent_group
+        requestBod.parent_group = 0;
+    } else {
+        const newParent = events.find(value => {return value.name === parentGroupName});
+        if (!newParent) {
+            const message = `No group by that name`;
+            console.log(message);
+            window.alert(message);
+            await loadAccessControlList();
+            drawAccess();
+            ims.controlHasError(sender);
+            return;
+        }
+        requestBod.parent_group = newParent.id;
+    }
+    const {err} = await ims.fetchNoThrow(url_events, {
+        body: JSON.stringify(requestBod),
+    });
+    if (err != null) {
+        const message = `Failed to edit event: ${err}`;
+        console.log(message);
+        window.alert(message);
+        await loadAccessControlList();
+        drawAccess();
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender);
+    await loadAccessControlList();
+    drawAccess();
 }

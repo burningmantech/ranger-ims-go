@@ -628,8 +628,11 @@ func (q *Queries) EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAll
 
 const eventAndParentAccess = `-- name: EventAndParentAccess :many
 select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
-from EVENT_ACCESS ea
-where ea.EVENT = ?
+from ` + "`" + `EVENT` + "`" + ` e
+    join EVENT_ACCESS ea
+        on e.ID = ea.EVENT
+where e.ID = ?
+    and not e.IS_GROUP
 union all
 select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
 from ` + "`" + `EVENT` + "`" + ` e
@@ -647,6 +650,10 @@ type EventAndParentAccessRow struct {
 	EventAccess EventAccess
 }
 
+// This returns access for a target event, as well as for that event's
+// parent group, if any. If the target event *is* a group, this query
+// will return nothing. That's intentional, and it helps prevent people
+// from adding incidents or FRs to event groups as though those were events.
 func (q *Queries) EventAndParentAccess(ctx context.Context, db DBTX, arg EventAndParentAccessParams) ([]EventAndParentAccessRow, error) {
 	rows, err := db.QueryContext(ctx, eventAndParentAccess, arg.EventID, arg.EventID)
 	if err != nil {

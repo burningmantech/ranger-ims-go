@@ -102,6 +102,8 @@ func EventPermissions(
 ) (eventPermissions map[int32]EventPermissionMask, globalPermissions GlobalPermissionMask, err error) {
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
 	if eventID != nil {
+		// If the eventID is the ID for an event group, this query returns no rows.
+		// This prevents users from adding entities under event groups, which we don't want.
 		accessRows, err := imsDBQ.EventAndParentAccess(ctx, imsDBQ, imsdb.EventAndParentAccessParams{EventID: *eventID})
 		if err != nil {
 			return nil, GlobalNoPermissions, fmt.Errorf("[EventAccess]: %w", err)

@@ -32,6 +32,10 @@ type Querier interface {
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
 	Event(ctx context.Context, db DBTX, id int32) (EventRow, error)
 	EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAllRow, error)
+	// This returns access for a target event, as well as for that event's
+	// parent group, if any. If the target event *is* a group, this query
+	// will return nothing. That's intentional, and it helps prevent people
+	// from adding incidents or FRs to event groups as though those were events.
 	EventAndParentAccess(ctx context.Context, db DBTX, arg EventAndParentAccessParams) ([]EventAndParentAccessRow, error)
 	Events(ctx context.Context, db DBTX) ([]EventsRow, error)
 	FieldReport(ctx context.Context, db DBTX, arg FieldReportParams) (FieldReportRow, error)

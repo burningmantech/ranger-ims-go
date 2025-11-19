@@ -22,10 +22,17 @@ set
 where ID = ?
 ;
 
+-- This returns access for a target event, as well as for that event's
+-- parent group, if any. If the target event *is* a group, this query
+-- will return nothing. That's intentional, and it helps prevent people
+-- from adding incidents or FRs to event groups as though those were events.
 -- name: EventAndParentAccess :many
 select sqlc.embed(ea)
-from EVENT_ACCESS ea
-where ea.EVENT = sqlc.arg(event_id)
+from `EVENT` e
+    join EVENT_ACCESS ea
+        on e.ID = ea.EVENT
+where e.ID = sqlc.arg(event_id)
+    and not e.IS_GROUP
 union all
 select sqlc.embed(ea)
 from `EVENT` e

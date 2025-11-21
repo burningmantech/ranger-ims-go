@@ -138,6 +138,8 @@ func getGlobalPermissions(req *http.Request, imsDBQ *store.DBQ, userStore *direc
 func permissionsByEvent(ctx context.Context, jwtCtx JWTContext, imsDBQ *store.DBQ, userStore *directory.UserStore, imsAdmins []string) (
 	map[int32]authz.EventPermissionMask, *herr.HTTPError,
 ) {
+	// This query doesn't know about parent groups. We'll start by accumulating EventAccesses directly referencing
+	// events, then worry about parent groups below.
 	accessRows, err := imsDBQ.EventAccessAll(ctx, imsDBQ)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to fetch event access", err).From("[EventAccessAll]")
@@ -145,6 +147,23 @@ func permissionsByEvent(ctx context.Context, jwtCtx JWTContext, imsDBQ *store.DB
 	accessRowByEventID := make(map[int32][]imsdb.EventAccess)
 	for _, ar := range accessRows {
 		accessRowByEventID[ar.EventAccess.Event] = append(accessRowByEventID[ar.EventAccess.Event], ar.EventAccess)
+	}
+
+	// Now add in parent group EventAccesses.
+	events, err := imsDBQ.Events(ctx, imsDBQ)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch Events", err).From("[Events]")
+	}
+	for _, e := range events {
+		child := e.Event
+		// No parent, nothing to do
+		if !child.ParentGroup.Valid {
+			continue
+		}
+		// Has a parent. Add in all the EventAccesses from the parent.
+		for _, ar := range accessRowByEventID[child.ParentGroup.Int32] {
+			accessRowByEventID[child.ID] = append(accessRowByEventID[child.ID], ar)
+		}
 	}
 
 	allPositions, allTeams, err := userStore.GetPositionsAndTeams(ctx)

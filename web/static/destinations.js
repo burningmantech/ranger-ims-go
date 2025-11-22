@@ -181,17 +181,20 @@ function destinationToHTML(destination) {
         }
     }
     switch (destination.type) {
+        case "other":
         case "camp": {
             const camp = destination.external_data;
             const campTemplate = document.getElementById("camp_template");
             // Clone the new row and insert it into the table
             const campEl = campTemplate.content.cloneNode(true);
             campEl.getElementById("camp_name").textContent = camp.name;
-            campEl.getElementById("location_label").textContent = `frontage ${camp.location?.intersection_type} intersection`;
+            campEl.getElementById("location_label").textContent = (camp.location?.intersection_type)
+                ? (` - frontage ${camp.location?.intersection_type} intersection`)
+                : "";
             campEl.getElementById("location_string").textContent =
                 `${camp.location_string ?? "Unknown"}\n` +
                     `${camp.location?.exact_location ?? ""}\n` +
-                    `${camp.location?.dimensions ?? "Unknown"}`;
+                    `${camp.location?.dimensions ?? ""}`;
             campEl.getElementById("description").textContent = camp.description ?? "None provided";
             campEl.getElementById("landmark").textContent = camp.landmark ?? "None provided";
             let imageURL = camp.images?.find((value) => {
@@ -256,10 +259,7 @@ function destinationToHTML(destination) {
             return artEl;
         }
         default:
-            // TODO: implement something to present ad-hoc locations better
-            const el = document.createElement("p");
-            el.textContent = JSON.stringify(destination.external_data, null, 2);
-            return el;
+            throw new Error("Found no destination type");
     }
 }
 function renderWithMaxLength(maxLength) {

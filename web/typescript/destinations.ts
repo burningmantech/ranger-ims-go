@@ -212,6 +212,7 @@ function destinationToHTML(destination: ims.Destination): Node {
     }
 
     switch (destination.type) {
+        case "other":
         case "camp": {
             const camp = destination.external_data as ims.BMCamp;
 
@@ -221,11 +222,13 @@ function destinationToHTML(destination: ims.Destination): Node {
             const campEl = campTemplate.content.cloneNode(true) as DocumentFragment;
 
             campEl.getElementById("camp_name")!.textContent = camp.name;
-            campEl.getElementById("location_label")!.textContent = `frontage ${camp.location?.intersection_type} intersection`;
+            campEl.getElementById("location_label")!.textContent = (camp.location?.intersection_type)
+                ? (` - frontage ${camp.location?.intersection_type} intersection`)
+                : "";
             campEl.getElementById("location_string")!.textContent =
                 `${camp.location_string ?? "Unknown"}\n` +
                 `${camp.location?.exact_location ?? ""}\n` +
-                `${camp.location?.dimensions ?? "Unknown"}`;
+                `${camp.location?.dimensions ?? ""}`;
             campEl.getElementById("description")!.textContent = camp.description ?? "None provided";
             campEl.getElementById("landmark")!.textContent = camp.landmark ?? "None provided";
             let imageURL = camp.images?.find((value: object): boolean => {
@@ -289,10 +292,7 @@ function destinationToHTML(destination: ims.Destination): Node {
             return artEl;
         }
         default:
-            // TODO: implement something to present ad-hoc locations better
-            const el = document.createElement("p");
-            el.textContent = JSON.stringify(destination.external_data, null, 2);
-            return el;
+            throw new Error("Found no destination type");
     }
 }
 

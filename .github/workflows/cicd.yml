@@ -58,7 +58,7 @@ jobs:
             storage.googleapis.com:443
 
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -110,7 +110,7 @@ jobs:
             storage.googleapis.com:443
 
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -169,7 +169,7 @@ jobs:
             storage.googleapis.com:443
 
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build Docker image
         run: docker build --tag "ranger-ims-go:${{ github.sha }}" .
@@ -211,7 +211,7 @@ jobs:
             storage.googleapis.com:443
 
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download Docker image artifacts
         uses: actions/download-artifact@v6

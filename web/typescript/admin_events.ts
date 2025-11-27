@@ -93,7 +93,7 @@ type EventAccess = Partial<Record<AccessMode, Access[]>>;
 // key is event name
 type EventsAccess = Record<string, EventAccess|null>;
 
-let events: ims.EventData[];
+let sortedEvents: ims.EventData[];
 let accessControlList: EventsAccess|null = null;
 
 async function loadAccessControlList() : Promise<{err: string|null}> {
@@ -106,7 +106,7 @@ async function loadAccessControlList() : Promise<{err: string|null}> {
         window.alert(message);
         return {err: message};
     }
-    events = eventsJson??[];
+    const events = eventsJson??[];
     const {json, err} = await ims.fetchNoThrow<EventsAccess>(url_acl, null);
     if (err != null) {
         const message = `Failed to load access control list: ${err}`;
@@ -115,6 +115,18 @@ async function loadAccessControlList() : Promise<{err: string|null}> {
         return {err: message};
     }
     accessControlList = json;
+    // Sort by group status first, then by name
+    sortedEvents = events.toSorted((a: ims.EventData, b: ims.EventData): number => {
+        const aGroup = a.is_group ? a.id : (a.parent_group??-1);
+        const bGroup = b.is_group ? b.id : (b.parent_group??-1);
+        if (aGroup !== bGroup) {
+            return bGroup-aGroup;
+        }
+        if (a.is_group !== b.is_group) {
+            return a.is_group ? -1 : 1;
+        }
+        return b.name.localeCompare(a.name);
+    });
     return {err: null};
 }
 
@@ -128,19 +140,6 @@ function drawAccess(): void {
     const accessTemplate = document.getElementById("event_access_template") as HTMLTemplateElement;
     const accessModeTemplate = document.getElementById("event_access_mode_template") as HTMLTemplateElement;
 
-    // Sort by group status first, then by name
-    const sortedEvents: ims.EventData[] = events.toSorted((a: ims.EventData, b: ims.EventData): number => {
-        const aGroup = a.is_group ? a.id : (a.parent_group??-1);
-        const bGroup = b.is_group ? b.id : (b.parent_group??-1);
-        if (aGroup !== bGroup) {
-            return bGroup-aGroup;
-        }
-        if (a.is_group !== b.is_group) {
-            return a.is_group ? -1 : 1;
-        }
-        return b.name.localeCompare(a.name);
-    });
-
     for (const event of sortedEvents) {
         const eventAccessFrag = accessTemplate.content.cloneNode(true) as DocumentFragment;
 
@@ -149,7 +148,7 @@ function drawAccess(): void {
             eventWithGroupName = `Group: ${eventWithGroupName}`;
         }
         if (event.parent_group) {
-            const parentGroup = events.find(value => {return value.id === event.parent_group});
+            const parentGroup = sortedEvents.find(value => {return value.id === event.parent_group});
             if (parentGroup) {
                 eventWithGroupName += ` (${parentGroup.name})`;
             }
@@ -170,7 +169,7 @@ function drawAccess(): void {
 
             // groups can't have parent groups
             parentGroupInput.disabled = event.is_group??false;
-            const currentParent = events.find(value => {return value.id === event.parent_group});
+            const currentParent = sortedEvents.find(value => {return value.id === event.parent_group});
             parentGroupInput.value = currentParent?.name??"";
 
             editEventModal?.show();
@@ -290,7 +289,17 @@ function updateEventAccess(event: string, mode: AccessMode): void {
         if (explainMsgs.length === 0) {
             explainMsgs.push("No permissions");
         }
-        modal.querySelector(".modal-body")!.textContent = explainMsgs.join("\n");
+        const modalBody = modal.querySelector(".modal-body")!;
+        modalBody.textContent = explainMsgs.join("\n");
+        const eventData = sortedEvents.find(value => {return value.name === event});
+        if (eventData && eventData.is_group) {
+            modalBody.textContent += "\n\nThis is an event group, so all permissions above also apply to its child events:\n";
+            for (const event of sortedEvents) {
+                if (event.parent_group === eventData.id) {
+                    modalBody.textContent += `${indent}${event.name}\n`;
+                }
+            }
+        }
         explainModal?.show();
     })
 }
@@ -540,7 +549,7 @@ async function setParentGroup(sender: HTMLInputElement): Promise<void> {
         // unset parent_group
         requestBod.parent_group = 0;
     } else {
-        const newParent = events.find(value => {return value.name === parentGroupName});
+        const newParent = sortedEvents.find(value => {return value.name === parentGroupName});
         if (!newParent) {
             const message = `No group by that name`;
             console.log(message);

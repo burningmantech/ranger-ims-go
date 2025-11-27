@@ -51,7 +51,7 @@ var Validity;
     Validity["onsite"] = "onsite";
 })(Validity || (Validity = {}));
 const allAccessModes = ["readers", "writers", "reporters"];
-let events;
+let sortedEvents;
 let accessControlList = null;
 async function loadAccessControlList() {
     const { json: eventsJson, err: eventsErr } = await ims.fetchNoThrow(url_events + "?include_groups=true", {
@@ -63,7 +63,7 @@ async function loadAccessControlList() {
         window.alert(message);
         return { err: message };
     }
-    events = eventsJson ?? [];
+    const events = eventsJson ?? [];
     const { json, err } = await ims.fetchNoThrow(url_acl, null);
     if (err != null) {
         const message = `Failed to load access control list: ${err}`;
@@ -72,18 +72,8 @@ async function loadAccessControlList() {
         return { err: message };
     }
     accessControlList = json;
-    return { err: null };
-}
-function drawAccess() {
-    const container = document.getElementById("event_access_container");
-    container.replaceChildren();
-    if (accessControlList == null) {
-        return;
-    }
-    const accessTemplate = document.getElementById("event_access_template");
-    const accessModeTemplate = document.getElementById("event_access_mode_template");
     // Sort by group status first, then by name
-    const sortedEvents = events.toSorted((a, b) => {
+    sortedEvents = events.toSorted((a, b) => {
         const aGroup = a.is_group ? a.id : (a.parent_group ?? -1);
         const bGroup = b.is_group ? b.id : (b.parent_group ?? -1);
         if (aGroup !== bGroup) {
@@ -94,6 +84,16 @@ function drawAccess() {
         }
         return b.name.localeCompare(a.name);
     });
+    return { err: null };
+}
+function drawAccess() {
+    const container = document.getElementById("event_access_container");
+    container.replaceChildren();
+    if (accessControlList == null) {
+        return;
+    }
+    const accessTemplate = document.getElementById("event_access_template");
+    const accessModeTemplate = document.getElementById("event_access_mode_template");
     for (const event of sortedEvents) {
         const eventAccessFrag = accessTemplate.content.cloneNode(true);
         let eventWithGroupName = event.name;
@@ -101,7 +101,7 @@ function drawAccess() {
             eventWithGroupName = `Group: ${eventWithGroupName}`;
         }
         if (event.parent_group) {
-            const parentGroup = events.find(value => { return value.id === event.parent_group; });
+            const parentGroup = sortedEvents.find(value => { return value.id === event.parent_group; });
             if (parentGroup) {
                 eventWithGroupName += ` (${parentGroup.name})`;
             }
@@ -117,7 +117,7 @@ function drawAccess() {
             const parentGroupInput = editEventModalElement.querySelector("#edit_parent_group");
             // groups can't have parent groups
             parentGroupInput.disabled = event.is_group ?? false;
-            const currentParent = events.find(value => { return value.id === event.parent_group; });
+            const currentParent = sortedEvents.find(value => { return value.id === event.parent_group; });
             parentGroupInput.value = currentParent?.name ?? "";
             editEventModal?.show();
         });
@@ -223,7 +223,17 @@ function updateEventAccess(event, mode) {
         if (explainMsgs.length === 0) {
             explainMsgs.push("No permissions");
         }
-        modal.querySelector(".modal-body").textContent = explainMsgs.join("\n");
+        const modalBody = modal.querySelector(".modal-body");
+        modalBody.textContent = explainMsgs.join("\n");
+        const eventData = sortedEvents.find(value => { return value.name === event; });
+        if (eventData && eventData.is_group) {
+            modalBody.textContent += "\n\nThis is an event group, so all permissions above also apply to its child events:\n";
+            for (const event of sortedEvents) {
+                if (event.parent_group === eventData.id) {
+                    modalBody.textContent += `${indent}${event.name}\n`;
+                }
+            }
+        }
         explainModal?.show();
     });
 }
@@ -430,7 +440,7 @@ async function setParentGroup(sender) {
         requestBod.parent_group = 0;
     }
     else {
-        const newParent = events.find(value => { return value.name === parentGroupName; });
+        const newParent = sortedEvents.find(value => { return value.name === parentGroupName; });
         if (!newParent) {
             const message = `No group by that name`;
             console.log(message);

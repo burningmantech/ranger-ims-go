@@ -6,7 +6,7 @@ require (
 	github.com/a-h/templ v0.3.960
 	github.com/aws/aws-sdk-go-v2/config v1.32.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.1
-	github.com/aws/smithy-go v1.23.2
+	github.com/aws/smithy-go v1.24.0
 	github.com/gabriel-vasile/mimetype v1.4.11
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-jwt/jwt/v5 v5.3.0

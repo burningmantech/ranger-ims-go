@@ -79,8 +79,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # Be aware that this database isn't seeded with any data, so while the IMS server
-  # will successfully start up, there won't be any users with whom to log in.
   clubhouse-db:
     image: "mariadb:10.5.27"
     container_name: "ranger-clubhouse-db"

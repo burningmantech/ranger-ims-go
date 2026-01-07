@@ -4,7 +4,6 @@
 # We want that included so that Go can generate BuildInfo for the binary.
 
 # local dev configuration
-conf/testusers.go
 .env
 
 # the compiled binary

@@ -158,8 +158,8 @@ To modify the IMS database schema:
 Configuration uses environment variables loaded from a `.env` file (copy from `.env.example`).
 
 Key configuration concepts:
-- **Directory types**: `fake` (in-memory test users from `directory/fakeclubhousedb/seed.sql`) or `ClubhouseDB` (real MariaDB)
-- **DB store types**: `fake` (volatile in-memory) or `MariaDB` (persistent)
+- **Directory types**: `fake` (test users from `directory/fakeclubhousedb/seed.sql`) or `ClubhouseDB` (real MariaDB)
+- **DB store types**: `MariaDB` (persistent storage) or `noop` (no-op for testing only)
 - **Attachments stores**: `local` (filesystem) or `s3` (AWS S3)
 
 ### API Structure
@@ -221,7 +221,7 @@ All authenticated API requests are logged to an action log (`store/actionlog/`) 
 
 ## Key Differences from Python Version
 
-- No SQLite support (MariaDB only for persistent storage, or in-memory fake DB for testing)
+- No SQLite support (MariaDB only for persistent storage)
 - Uses `.env` file instead of `conf/imsd.conf`
 - "File" directory type renamed to "TestUsers" and implemented as compiled Go code
 - Heavy use of sqlc code generation instead of ORM

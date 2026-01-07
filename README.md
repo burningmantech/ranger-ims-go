@@ -31,6 +31,8 @@ docker compose -f docker-compose.dev.yml up
 
 ## Run IMS locally with MariaDB
 
+**This documentation is slightly wrong, because the TestUsers part is no longer a thing. Just use the docker compose way for now.**
+
 1. Have a local MariaDB server running. An empty database is fine, as the IMS program will
    migrate your DB automatically on startup from nothing. e.g.
    ```shell

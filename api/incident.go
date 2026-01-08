@@ -22,6 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -30,11 +36,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"golang.org/x/sync/errgroup"
-	"net/http"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type GetIncidents struct {
@@ -225,6 +226,10 @@ func incidentToJSON(
 			lastModified = re.Created
 		}
 	}
+	rangers := make([]imsjson.IncidentRanger, len(rangerHandles))
+	for i, rh := range rangerHandles {
+		rangers[i] = imsjson.IncidentRanger{Handle: rh}
+	}
 	resp = imsjson.Incident{
 		Event:        event.Name,
 		EventID:      event.ID,
@@ -246,7 +251,7 @@ func incidentToJSON(
 		},
 		IncidentTypeIDs: &incidentTypeIDs,
 		FieldReports:    &fieldReportNumbers,
-		RangerHandles:   &rangerHandles,
+		Rangers:         &rangers,
 		ReportEntries:   resultEntries,
 		LinkedIncidents: &linkedIncidentJson,
 	}
@@ -539,9 +544,13 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to update incident", err).From("[UpdateIncident]")
 	}
 
-	if newIncident.RangerHandles != nil {
-		add := sliceSubtract(*newIncident.RangerHandles, rangerHandles)
-		sub := sliceSubtract(rangerHandles, *newIncident.RangerHandles)
+	if newIncident.Rangers != nil {
+		newIncidentHandles := make([]string, len(*newIncident.Rangers))
+		for i, nir := range *newIncident.Rangers {
+			newIncidentHandles[i] = nir.Handle
+		}
+		add := sliceSubtract(newIncidentHandles, rangerHandles)
+		sub := sliceSubtract(rangerHandles, newIncidentHandles)
 		if len(add) > 0 {
 			logs = append(logs, fmt.Sprintf("Added Ranger: %v", strings.Join(add, ", ")))
 			for _, rh := range add {

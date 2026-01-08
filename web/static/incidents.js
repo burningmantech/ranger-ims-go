@@ -348,9 +348,9 @@ function initDataTables(tablePrereqs) {
             {
                 "name": "incident_ranger_handles",
                 "className": "incident_ranger_handles",
-                "data": "ranger_handles",
+                "data": "rangers",
                 "defaultContent": "",
-                "render": ims.renderSafeSorted,
+                "render": ims.renderRangerHandles,
                 "responsivePriority": 6,
             },
             {

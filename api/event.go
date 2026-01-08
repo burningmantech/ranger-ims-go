@@ -20,13 +20,6 @@ import (
 	"cmp"
 	"database/sql"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/directory"
-	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/burningmantech/ranger-ims-go/lib/authz"
-	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	"github.com/burningmantech/ranger-ims-go/lib/herr"
-	"github.com/burningmantech/ranger-ims-go/store"
-	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -34,6 +27,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/directory"
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
+	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 )
 
 type GetEvents struct {
@@ -155,6 +156,9 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		}
 		if editRequest.ParentGroup != nil {
 			createParams.ParentGroup = sql.NullInt32{Int32: *editRequest.ParentGroup, Valid: true}
+		}
+		if createParams.IsGroup && createParams.ParentGroup.Valid {
+			return nil, herr.BadRequest("An event group cannot have a parent event group", nil)
 		}
 		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, createParams)
 		if err != nil {

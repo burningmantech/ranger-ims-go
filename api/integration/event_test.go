@@ -17,12 +17,13 @@
 package integration_test
 
 import (
-	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/burningmantech/ranger-ims-go/lib/rand"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"testing"
+
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetAndEditEvent(t *testing.T) {

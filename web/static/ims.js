@@ -719,6 +719,12 @@ export function renderLocation(data, type, _incident) {
     }
     return undefined;
 }
+export function renderRangerHandles(data, _type, _incident) {
+    if (data?.handle == null) {
+        return undefined;
+    }
+    return DataTable.render.text().display(data.handle);
+}
 //
 // Populate report entry text
 //

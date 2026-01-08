@@ -645,7 +645,7 @@ function drawIncidentSummary(): void {
 //
 
 function drawRangers() {
-    const handles: string[] = incident!.ranger_handles??[];
+    const handles: string[] = (incident!.rangers??[]).map(r=>r.handle??"");
     handles.sort((a, b) => a.localeCompare(b));
 
     const rangerItemTemplate = document.getElementById("incident_rangers_li_template") as HTMLTemplateElement;
@@ -1197,8 +1197,8 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
 
     await sendEdits(
         {
-            "ranger_handles": (incident!.ranger_handles??[]).filter(
-                function(h: string): boolean { return h !== rangerHandle; }
+            "rangers": (incident!.rangers??[]).filter(
+                function(h: ims.IncidentRanger): boolean { return h.handle !== rangerHandle; }
             ),
         },
     );
@@ -1223,8 +1223,9 @@ async function addRanger(): Promise<void> {
     const addRanger = document.getElementById("ranger_add") as HTMLInputElement;
     let handle: string = addRanger.value;
 
-    // make a copy of the handles
-    const handles = (incident!.ranger_handles??[]).slice();
+    // make a copy of the rangers
+    const rangers = (incident!.rangers??[]).slice();
+    const handles = rangers.map(r=>r.handle).filter(handle => handle != null);
 
     // fuzzy-match on handle, to allow case insensitivity and
     // leading/trailing whitespace.
@@ -1249,10 +1250,10 @@ async function addRanger(): Promise<void> {
         return;
     }
 
-    handles.push(handle);
+    rangers.push({handle: handle});
 
     addRanger.disabled = true;
-    const {err} = await sendEdits({"ranger_handles": handles});
+    const {err} = await sendEdits({"rangers": rangers});
     if (err !== null) {
         ims.controlHasError(addRanger);
         addRanger.value = "";

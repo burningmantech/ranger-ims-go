@@ -839,6 +839,13 @@ export function renderLocation(data: EventLocation|null, type: string, _incident
     return undefined;
 }
 
+export function renderRangerHandles(data: IncidentRanger|null, _type: string, _incident: Incident): string|undefined {
+    if (data?.handle == null) {
+        return undefined;
+    }
+    return DataTable.render.text().display(data.handle);
+}
+
 //
 // Populate report entry text
 //
@@ -1534,6 +1541,11 @@ export type LinkedIncident = {
     summary?: string|null;
 }
 
+export type IncidentRanger = {
+    handle?: string|null;
+    // role?: string|null;
+}
+
 export type Incident = {
     number?: number|null;
     event?: string|null;
@@ -1543,7 +1555,7 @@ export type Incident = {
     created?: string|null;
     started?: string|null;
     last_modified?: string|null;
-    ranger_handles?: string[]|null;
+    rangers?: IncidentRanger[]|null;
     incident_type_ids?: number[]|null;
     location?: EventLocation|null;
     report_entries?: ReportEntry[]|null;

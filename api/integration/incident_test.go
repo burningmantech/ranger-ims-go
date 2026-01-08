@@ -17,13 +17,14 @@
 package integration_test
 
 import (
-	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/burningmantech/ranger-ims-go/lib/rand"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/stretchr/testify/require"
 )
 
 func sampleIncident1(eventName string) imsjson.Incident {
@@ -41,7 +42,7 @@ func sampleIncident1(eventName string) imsjson.Incident {
 		},
 		IncidentTypeIDs: &[]int32{1, 2},
 		FieldReports:    &[]int32{},
-		RangerHandles:   &[]string{"SomeOne", "SomeTwo"},
+		Rangers:         &[]imsjson.IncidentRanger{{Handle: "SomeOne"}, {Handle: "SomeTwo"}},
 		ReportEntries: []imsjson.ReportEntry{
 			{Text: "This is some report text lol"},
 			{Text: ""},
@@ -251,7 +252,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		},
 		IncidentTypeIDs: &[]int32{},
 		FieldReports:    &[]int32{},
-		RangerHandles:   &[]string{},
+		Rangers:         &[]imsjson.IncidentRanger{},
 		ReportEntries:   []imsjson.ReportEntry{},
 	}
 	resp = apisNonAdmin.updateIncident(ctx, eventName, num, updates)
@@ -270,7 +271,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		Location:        imsjson.Location{},
 		IncidentTypeIDs: &[]int32{},
 		FieldReports:    &[]int32{},
-		RangerHandles:   &[]string{},
+		Rangers:         &[]imsjson.IncidentRanger{},
 		LinkedIncidents: &[]imsjson.LinkedIncident{},
 	}
 	requireEqualIncident(t, expected, retrievedIncidentAfterUpdate)
@@ -426,7 +427,7 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	require.Equal(t, before.Summary, after.Summary)
 	require.Equal(t, before.Location, after.Location)
 	require.Equal(t, before.IncidentTypeIDs, after.IncidentTypeIDs)
-	require.Equal(t, before.RangerHandles, after.RangerHandles)
+	require.Equal(t, before.Rangers, after.Rangers)
 	require.Equal(t, before.FieldReports, after.FieldReports)
 	require.Equal(t, before.LinkedIncidents, after.LinkedIncidents)
 	// these will always be different. Check them separately of this function

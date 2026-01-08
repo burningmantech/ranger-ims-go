@@ -505,7 +505,7 @@ function drawIncidentSummary() {
 // Populate Rangers list
 //
 function drawRangers() {
-    const handles = incident.ranger_handles ?? [];
+    const handles = (incident.rangers ?? []).map(r => r.handle ?? "");
     handles.sort((a, b) => a.localeCompare(b));
     const rangerItemTemplate = document.getElementById("incident_rangers_li_template");
     const rangersElement = document.getElementById("incident_rangers_list");
@@ -949,7 +949,7 @@ async function removeRanger(sender) {
     const parent = sender.parentElement;
     const rangerHandle = parent.dataset["rangerHandle"];
     await sendEdits({
-        "ranger_handles": (incident.ranger_handles ?? []).filter(function (h) { return h !== rangerHandle; }),
+        "rangers": (incident.rangers ?? []).filter(function (h) { return h.handle !== rangerHandle; }),
     });
 }
 async function removeIncidentType(sender) {
@@ -965,8 +965,9 @@ function normalize(str) {
 async function addRanger() {
     const addRanger = document.getElementById("ranger_add");
     let handle = addRanger.value;
-    // make a copy of the handles
-    const handles = (incident.ranger_handles ?? []).slice();
+    // make a copy of the rangers
+    const rangers = (incident.rangers ?? []).slice();
+    const handles = rangers.map(r => r.handle).filter(handle => handle != null);
     // fuzzy-match on handle, to allow case insensitivity and
     // leading/trailing whitespace.
     if (!(handle in (personnel ?? []))) {
@@ -988,9 +989,9 @@ async function addRanger() {
         addRanger.value = "";
         return;
     }
-    handles.push(handle);
+    rangers.push({ handle: handle });
     addRanger.disabled = true;
-    const { err } = await sendEdits({ "ranger_handles": handles });
+    const { err } = await sendEdits({ "rangers": rangers });
     if (err !== null) {
         ims.controlHasError(addRanger);
         addRanger.value = "";

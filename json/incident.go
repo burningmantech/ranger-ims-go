@@ -54,9 +54,14 @@ type Incident struct {
 	Location        Location          `json:"location"`
 	IncidentTypeIDs *[]int32          `json:"incident_type_ids"`
 	FieldReports    *[]int32          `json:"field_reports"`
-	RangerHandles   *[]string         `json:"ranger_handles"`
+	Rangers         *[]IncidentRanger `json:"rangers"`
 	LinkedIncidents *[]LinkedIncident `json:"linked_incidents,omitzero"`
 	ReportEntries   []ReportEntry     `json:"report_entries"`
+}
+
+type IncidentRanger struct {
+	Handle string `json:"handle,omitempty"`
+	// Role   *string `json:"role,omitempty"`
 }
 
 type LinkedIncident struct {

@@ -839,11 +839,11 @@ export function renderLocation(data: EventLocation|null, type: string, _incident
     return undefined;
 }
 
-export function renderRangerHandles(data: IncidentRanger|null, _type: string, _incident: Incident): string|undefined {
-    if (data?.handle == null) {
+export function renderRangerHandles(data: IncidentRanger[]|null, _type: string, _incident: Incident): string|undefined {
+    if (data == null) {
         return undefined;
     }
-    return DataTable.render.text().display(data.handle);
+    return renderSafeSorted(data.map(r=>r.handle).filter(r=>r!=null));
 }
 
 //

@@ -17,14 +17,15 @@
 package integration_test
 
 import (
-	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/burningmantech/ranger-ims-go/lib/rand"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"slices"
 	"testing"
 	"time"
+
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/stretchr/testify/require"
 )
 
 type MethodURL struct {
@@ -108,7 +109,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 

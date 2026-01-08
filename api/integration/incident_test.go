@@ -61,7 +61,7 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 
 	// Make an event to which no one has any access
 	eventName := rand.NonCryptoText()
-	resp := adminUser.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := adminUser.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -140,7 +140,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
@@ -203,7 +203,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
@@ -287,7 +287,7 @@ func TestCreateAndAttachFileToIncident(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)
@@ -328,7 +328,7 @@ func TestCreateAndLinkIncidents(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAliceHandle)

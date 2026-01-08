@@ -17,12 +17,13 @@
 package integration_test
 
 import (
+	"net/http"
+	"testing"
+
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"testing"
 )
 
 func TestCreateDestination(t *testing.T) {
@@ -33,7 +34,7 @@ func TestCreateDestination(t *testing.T) {
 
 	// Make an event
 	eventName := rand.NonCryptoText()
-	resp := apis.editEvent(ctx, imsjson.Event{
+	_, resp := apis.createEvent(ctx, imsjson.Event{
 		Name: &eventName,
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)

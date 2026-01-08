@@ -30,6 +30,11 @@ run: build
 run/live:
 	go tool air
 
+## compose/live: run the application stack with live reloading
+.PHONY: compose/live
+compose/live:
+	docker compose -f docker-compose.dev.yml up
+
 ## upgrade-deps: upgrade all Go deps
 .PHONY: upgrade-deps
 upgrade-deps:

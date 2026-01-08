@@ -720,10 +720,10 @@ export function renderLocation(data, type, _incident) {
     return undefined;
 }
 export function renderRangerHandles(data, _type, _incident) {
-    if (data?.handle == null) {
+    if (data == null) {
         return undefined;
     }
-    return DataTable.render.text().display(data.handle);
+    return renderSafeSorted(data.map(r => r.handle).filter(r => r != null));
 }
 //
 // Populate report entry text

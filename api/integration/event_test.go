@@ -38,7 +38,7 @@ func TestGetAndEditEvent(t *testing.T) {
 		Name: &testEventName,
 	}
 
-	resp := apisAdmin.editEvent(ctx, editEventReq)
+	eventID, resp := apisAdmin.createEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -71,11 +71,10 @@ func TestGetAndEditEvent(t *testing.T) {
 	events, resp := apisAdmin.getEvents(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	// The list may include events from other tests, and we can't be sure of this event's numeric ID.
-	// The best we can do is loop through the events and make sure there's one that matches.
+	// The list may include events from other tests
 	var foundEvent *imsjson.Event
 	for _, event := range events {
-		if *event.Name == testEventName {
+		if event.ID == eventID {
 			foundEvent = &event
 		}
 	}

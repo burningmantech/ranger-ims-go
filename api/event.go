@@ -116,6 +116,9 @@ type EditEvent struct {
 var allowedEventNames = regexp.MustCompile(`^[\w-]+$`)
 
 func (action EditEvent) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// TODO: make this RESTful. It'd be better to have separate create and update endpoints,
+	//  and it'd be good to have a GetEvent (singular) endpoint too.
+
 	newID, errHTTP := action.editEvents(req)
 	if errHTTP != nil {
 		errHTTP.From("[editEvents]").WriteResponse(w)
@@ -151,22 +154,15 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		createParams := imsdb.CreateEventParams{
 			Name: *editRequest.Name,
 		}
-		if editRequest.IsGroup != nil {
-			createParams.IsGroup = *editRequest.IsGroup
-		}
-		if editRequest.ParentGroup != nil {
-			createParams.ParentGroup = sql.NullInt32{Int32: *editRequest.ParentGroup, Valid: true}
-		}
-		if createParams.IsGroup && createParams.ParentGroup.Valid {
-			return nil, herr.BadRequest("An event group cannot have a parent event group", nil)
-		}
 		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, createParams)
 		if err != nil {
 			return nil, herr.InternalServerError("Failed to create event", err).From("[CreateEvent]")
 		}
 		slog.Info("Created event", "eventName", *editRequest.Name, "id", id)
 		newID := conv.MustInt32(id)
-		return &newID, nil
+		editRequest.ID = newID
+
+		newEventID = &newID
 	}
 
 	existingEventRow, err := action.imsDBQ.Event(req.Context(), action.imsDBQ, editRequest.ID)
@@ -216,5 +212,5 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		return nil, herr.InternalServerError("Failed to update event", err).From("[UpdateEvent]")
 	}
 
-	return nil, nil
+	return newEventID, nil
 }

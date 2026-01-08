@@ -21,11 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/api"
-	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	"github.com/burningmantech/ranger-ims-go/lib/rand"
-	"github.com/stretchr/testify/require"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -33,6 +28,12 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/api"
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/stretchr/testify/require"
 )
 
 type ApiHelper struct {
@@ -247,6 +248,15 @@ func (a ApiHelper) updateFieldReportReportEntry(ctx context.Context, eventName s
 func (a ApiHelper) editEvent(ctx context.Context, req imsjson.Event) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events").String())
+}
+
+func (a ApiHelper) createEvent(ctx context.Context, req imsjson.Event) (eventID int32, resp *http.Response) {
+	a.t.Helper()
+	resp = a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events").String())
+	var err error
+	eventID, err = conv.ParseInt32(resp.Header.Get("IMS-Event-Id"))
+	require.NoError(a.t, err)
+	return eventID, resp
 }
 
 func (a ApiHelper) getEvents(ctx context.Context) (imsjson.Events, *http.Response) {

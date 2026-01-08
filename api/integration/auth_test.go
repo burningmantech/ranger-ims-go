@@ -18,16 +18,17 @@ package integration_test
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"testing"
-	"time"
 )
 
 func TestPostAuthAPIAuthorization(t *testing.T) {
@@ -119,7 +120,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 
 	// create event and give this user permissions on it
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{
 		Name: &eventName,
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)

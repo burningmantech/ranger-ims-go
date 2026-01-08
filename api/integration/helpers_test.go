@@ -254,7 +254,7 @@ func (a ApiHelper) createEvent(ctx context.Context, req imsjson.Event) (eventID 
 	a.t.Helper()
 	resp = a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events").String())
 	var err error
-	eventID, err = conv.ParseInt32(resp.Header.Get("IMS-Event-Id"))
+	eventID, err = conv.ParseInt32(resp.Header.Get("IMS-Event-ID"))
 	require.NoError(a.t, err)
 	return eventID, resp
 }

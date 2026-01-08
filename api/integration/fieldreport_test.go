@@ -17,13 +17,14 @@
 package integration_test
 
 import (
-	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/burningmantech/ranger-ims-go/lib/rand"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/stretchr/testify/require"
 )
 
 func sampleFieldReport1(eventName string) imsjson.FieldReport {
@@ -47,7 +48,7 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addReporter(ctx, eventName, userAliceHandle)
@@ -110,7 +111,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	// give itself Writer role,
 	// then give the normal user Reporter role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addWriter(ctx, eventName, userAdminHandle)
@@ -241,7 +242,7 @@ func TestCreateAndAttachFileToFieldReport(t *testing.T) {
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event
 	eventName := rand.NonCryptoText()
-	resp := apisAdmin.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.addReporter(ctx, eventName, userAliceHandle)

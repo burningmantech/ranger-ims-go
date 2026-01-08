@@ -96,6 +96,7 @@ func TestEditEvent_errors(t *testing.T) {
 		Name: &testEventName,
 	}
 
+	// use editEvent rather than createEvent, because createEvent fails if it can't actually create the event
 	resp := apisAdmin.editEvent(ctx, editEventReq)
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	b, err := io.ReadAll(resp.Body)

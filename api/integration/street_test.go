@@ -17,11 +17,12 @@
 package integration_test
 
 import (
+	"net/http"
+	"testing"
+
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"testing"
 )
 
 func TestCreateStreets(t *testing.T) {
@@ -32,7 +33,7 @@ func TestCreateStreets(t *testing.T) {
 
 	// Make an event
 	eventName := rand.NonCryptoText()
-	resp := apis.editEvent(ctx, imsjson.Event{Name: &eventName})
+	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	events, resp := apis.getEvents(ctx)

@@ -95,6 +95,18 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 		return nil
 	})
 
+	rangersByIncident := make(map[int32][]imsdb.IncidentRanger)
+	group.Go(func() error {
+		rangersRows, err := action.imsDBQ.Incidents_Rangers(groupCtx, action.imsDBQ, event.ID)
+		if err != nil {
+			return herr.InternalServerError("Failed to fetch rangers", err).From("[Incidents_Rangers]")
+		}
+		for _, row := range rangersRows {
+			rangersByIncident[row.IncidentRanger.IncidentNumber] = append(rangersByIncident[row.IncidentRanger.IncidentNumber], row.IncidentRanger)
+		}
+		return nil
+	})
+
 	var incidentsRows []imsdb.IncidentsRow
 	group.Go(func() error {
 		var err error
@@ -119,7 +131,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 		// we don't bother looking up linked incidents for the GetIncidents call
 		var emptyLinkedIncidents []imsdb.Incident_LinkedIncidentsRow
 
-		incJSON, errHTTP := incidentToJSON(incidentRow, entriesByIncident[r.Incident.Number], emptyLinkedIncidents, event, action.attachmentsEnabled)
+		incJSON, errHTTP := incidentToJSON(incidentRow, rangersByIncident[r.Incident.Number], entriesByIncident[r.Incident.Number], emptyLinkedIncidents, event, action.attachmentsEnabled)
 		if errHTTP != nil {
 			return resp, errHTTP.From("[incidentToJSON]")
 		}
@@ -172,6 +184,18 @@ func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *her
 		return resp, errHTTP.From("[permissionsByEvent]")
 	}
 
+	rangersRows, err := action.imsDBQ.Incident_Rangers(ctx, action.imsDBQ, imsdb.Incident_RangersParams{
+		Event:          event.ID,
+		IncidentNumber: incidentNumber,
+	})
+	if err != nil {
+		return resp, herr.InternalServerError("Failed to fetch rangers", err)
+	}
+	rangers := make([]imsdb.IncidentRanger, len(rangersRows))
+	for i, row := range rangersRows {
+		rangers[i] = row.IncidentRanger
+	}
+
 	linkedIncidents, err := action.imsDBQ.Incident_LinkedIncidents(ctx, action.imsDBQ, imsdb.Incident_LinkedIncidentsParams{
 		Event1:          event.ID,
 		IncidentNumber1: incidentNumber,
@@ -185,37 +209,42 @@ func (action GetIncident) getIncident(req *http.Request) (imsjson.Incident, *her
 		}
 	}
 
-	resp, errHTTP = incidentToJSON(storedRow, reportEntries, linkedIncidents, event, action.attachmentsEnabled)
+	resp, errHTTP = incidentToJSON(storedRow, rangers, reportEntries, linkedIncidents, event, action.attachmentsEnabled)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[incidentToJSON]")
 	}
 	return resp, nil
 }
 
-func incidentToJSON(
-	storedRow imsdb.IncidentRow,
-	reportEntries []imsdb.ReportEntry,
-	linkedIncidents []imsdb.Incident_LinkedIncidentsRow,
-	event imsdb.Event,
-	attachmentsEnabled bool,
+func incidentToJSON(storedRow imsdb.IncidentRow, incidentRangers []imsdb.IncidentRanger,
+	reportEntries []imsdb.ReportEntry, linkedIncidents []imsdb.Incident_LinkedIncidentsRow,
+	event imsdb.Event, attachmentsEnabled bool,
 ) (imsjson.Incident, *herr.HTTPError) {
 	var resp imsjson.Incident
-	resultEntries := make([]imsjson.ReportEntry, 0)
-	for _, re := range reportEntries {
-		resultEntries = append(resultEntries, reportEntryToJSON(re, attachmentsEnabled))
+	resultEntries := make([]imsjson.ReportEntry, len(reportEntries))
+	for i, re := range reportEntries {
+		resultEntries[i] = reportEntryToJSON(re, attachmentsEnabled)
 	}
 
-	linkedIncidentJson := make([]imsjson.LinkedIncident, 0)
-	for _, li := range linkedIncidents {
-		linkedIncidentJson = append(linkedIncidentJson, imsjson.LinkedIncident{
+	linkedIncidentJson := make([]imsjson.LinkedIncident, len(linkedIncidents))
+	for i, li := range linkedIncidents {
+		linkedIncidentJson[i] = imsjson.LinkedIncident{
 			EventID:   li.LinkedEvent,
 			EventName: li.LinkedEventName,
 			Number:    li.LinkedIncident,
 			Summary:   li.LinkedIncidentSummary.String,
-		})
+		}
 	}
 
-	rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
+	rangersJson := make([]imsjson.IncidentRanger, len(incidentRangers))
+	for i, ir := range incidentRangers {
+		rangersJson[i] = imsjson.IncidentRanger{
+			Handle: ir.RangerHandle,
+			Role:   conv.SqlToString(ir.Role),
+		}
+	}
+
+	incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
 	if err != nil {
 		return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -225,10 +254,6 @@ func incidentToJSON(
 		if re.Created.After(lastModified) {
 			lastModified = re.Created
 		}
-	}
-	rangers := make([]imsjson.IncidentRanger, len(rangerHandles))
-	for i, rh := range rangerHandles {
-		rangers[i] = imsjson.IncidentRanger{Handle: rh}
 	}
 	resp = imsjson.Incident{
 		Event:        event.Name,
@@ -251,7 +276,7 @@ func incidentToJSON(
 		},
 		IncidentTypeIDs: &incidentTypeIDs,
 		FieldReports:    &fieldReportNumbers,
-		Rangers:         &rangers,
+		Rangers:         &rangersJson,
 		ReportEntries:   resultEntries,
 		LinkedIncidents: &linkedIncidentJson,
 	}
@@ -398,20 +423,16 @@ func unmarshalByteSlice[T any](isByteSlice any) (T, error) {
 	return result, nil
 }
 
-func readExtraIncidentRowFields(row imsdb.IncidentRow) (rangerHandles []string, incidentTypeIDs, fieldReportNumbers []int32, err error) {
-	rangerHandles, err = unmarshalByteSlice[[]string](row.RangerHandles)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
-	}
+func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeIDs, fieldReportNumbers []int32, err error) {
 	incidentTypeIDs, err = unmarshalByteSlice[[]int32](row.IncidentTypeIds)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
 	fieldReportNumbers, err = unmarshalByteSlice[[]int32](row.FieldReportNumbers)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
-	return rangerHandles, incidentTypeIDs, fieldReportNumbers, nil
+	return incidentTypeIDs, fieldReportNumbers, nil
 }
 
 func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
@@ -453,8 +474,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to fetch linked incidents", err)
 	}
 
-	_, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
-	_ = incidentTypeIDs
+	incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	if err != nil {
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -863,29 +883,37 @@ func (action AttachRangerToIncident) attachRanger(req *http.Request) *herr.HTTPE
 		return herr.BadRequest("Empty Ranger Name", nil)
 	}
 
-	_, errHTTP = readBodyAs[imsjson.IncidentRanger](req)
+	body, errHTTP := readBodyAs[imsjson.IncidentRanger](req)
 	if errHTTP != nil {
 		return errHTTP.From("[readBodyAs]")
 	}
+	txn, err := action.imsDBQ.Begin()
+	if err != nil {
+		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
+	}
+	defer rollback(txn)
 
-	// TODO: maybe use a transaction
-
-	err = action.imsDBQ.AttachRangerHandleToIncident(ctx, action.imsDBQ, imsdb.AttachRangerHandleToIncidentParams{
+	err = action.imsDBQ.AttachRangerHandleToIncident(ctx, txn, imsdb.AttachRangerHandleToIncidentParams{
 		Event:          event.ID,
 		IncidentNumber: incidentNumber,
 		RangerHandle:   rangerName,
+		Role:           conv.StringToSql(body.Role, 128),
 	})
 	if err != nil {
 		return herr.InternalServerError("Failed to attach Ranger to Incident", err).From("[AttachRangerHandleToIncident]")
 	}
 
 	_, errHTTP = addIncidentReportEntry(
-		ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber,
+		ctx, action.imsDBQ, txn, event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), fmt.Sprintf("Added Ranger: %v", rangerName),
 		true, "", "", "",
 	)
 	if errHTTP != nil {
 		return errHTTP.From("[addIncidentReportEntry]")
+	}
+	err = txn.Commit()
+	if err != nil {
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
 	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)
@@ -929,9 +957,13 @@ func (action DetachRangerFromIncident) detachRanger(req *http.Request) *herr.HTT
 		return herr.BadRequest("Empty Ranger Name", nil)
 	}
 
-	// TODO: maybe use a transaction
+	txn, err := action.imsDBQ.Begin()
+	if err != nil {
+		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
+	}
+	defer rollback(txn)
 
-	err = action.imsDBQ.DetachRangerHandleFromIncident(ctx, action.imsDBQ, imsdb.DetachRangerHandleFromIncidentParams{
+	err = action.imsDBQ.DetachRangerHandleFromIncident(ctx, txn, imsdb.DetachRangerHandleFromIncidentParams{
 		Event:          event.ID,
 		IncidentNumber: incidentNumber,
 		RangerHandle:   rangerName,
@@ -941,12 +973,17 @@ func (action DetachRangerFromIncident) detachRanger(req *http.Request) *herr.HTT
 	}
 
 	_, errHTTP = addIncidentReportEntry(
-		ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber,
+		ctx, action.imsDBQ, txn, event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), fmt.Sprintf("Removed Ranger: %v", rangerName),
 		true, "", "", "",
 	)
 	if errHTTP != nil {
 		return errHTTP.From("[addIncidentReportEntry]")
+	}
+
+	err = txn.Commit()
+	if err != nil {
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
 	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)

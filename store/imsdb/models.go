@@ -354,6 +354,7 @@ type IncidentRanger struct {
 	Event          int32
 	IncidentNumber int32
 	RangerHandle   string
+	Role           sql.NullString
 }
 
 type IncidentReportEntry struct {

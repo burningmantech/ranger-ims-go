@@ -106,13 +106,7 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
           and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS,
-    (
-        select coalesce(json_arrayagg(ir.RANGER_HANDLE), "[]")
-        from INCIDENT__RANGER ir
-        where i.EVENT = ir.EVENT
-            and i.NUMBER = ir.INCIDENT_NUMBER
-    ) as RANGER_HANDLES
+    ) as FIELD_REPORT_NUMBERS
 from INCIDENT i
 where i.EVENT = ?
     and i.NUMBER = ?;
@@ -131,19 +125,30 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
             and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS,
-    (
-        select coalesce(json_arrayagg(ir.RANGER_HANDLE), "[]")
-        from INCIDENT__RANGER ir
-        where i.EVENT = ir.EVENT
-            and i.NUMBER = ir.INCIDENT_NUMBER
-    ) as RANGER_HANDLES
+    ) as FIELD_REPORT_NUMBERS
 from
     INCIDENT i
 where
     i.EVENT = ?
 group by
     i.NUMBER;
+
+-- name: Incidents_Rangers :many
+select
+    sqlc.embed(ir)
+from
+    INCIDENT__RANGER ir
+where
+    ir.EVENT = ?;
+
+-- name: Incident_Rangers :many
+select
+    sqlc.embed(ir)
+from
+    INCIDENT__RANGER ir
+where
+    ir.EVENT = ?
+    and ir.INCIDENT_NUMBER = ?;
 
 -- name: Incident_LinkedIncidents :many
 select
@@ -328,8 +333,8 @@ where ID IN (
 );
 
 -- name: AttachRangerHandleToIncident :exec
-insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE)
-values (?, ?, ?);
+insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE, ROLE)
+values (?, ?, ?, ?);
 
 -- name: DetachRangerHandleFromIncident :exec
 delete from INCIDENT__RANGER

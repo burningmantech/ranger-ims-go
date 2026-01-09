@@ -60,8 +60,8 @@ type Incident struct {
 }
 
 type IncidentRanger struct {
-	Handle string `json:"handle,omitempty"`
-	// Role   *string `json:"role,omitempty"`
+	Handle string  `json:"handle,omitempty"`
+	Role   *string `json:"role,omitempty"`
 }
 
 type LinkedIncident struct {

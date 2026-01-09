@@ -1194,14 +1194,18 @@ async function editLocationDescription(): Promise<void> {
 async function removeRanger(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
     const rangerHandle = parent.dataset["rangerHandle"];
+    if (!rangerHandle) {
+        return;
+    }
 
-    await sendEdits(
-        {
-            "rangers": (incident!.rangers??[]).filter(
-                function(h: ims.IncidentRanger): boolean { return h.handle !== rangerHandle; }
-            ),
-        },
+    const url = (
+        ims.urlReplace(url_incidentRanger)
+            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+            .replace("<ranger_name>", encodeURIComponent(rangerHandle))
     );
+    await ims.fetchNoThrow(url, {
+        method: "DELETE",
+    });
 }
 
 
@@ -1253,7 +1257,15 @@ async function addRanger(): Promise<void> {
     rangers.push({handle: handle});
 
     addRanger.disabled = true;
-    const {err} = await sendEdits({"rangers": rangers});
+
+    const url = (
+        ims.urlReplace(url_incidentRanger)
+            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+            .replace("<ranger_name>", encodeURIComponent(handle))
+    );
+    const {err} = await ims.fetchNoThrow(url, {
+        body: JSON.stringify({}),
+    });
     if (err !== null) {
         ims.controlHasError(addRanger);
         addRanger.value = "";

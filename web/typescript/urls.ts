@@ -38,6 +38,7 @@ const url_incidentNumber = "/ims/api/events/<event_id>/incidents/<incident_numbe
 const url_incident_reportEntries = "/ims/api/events/<event_id>/incidents/<incident_number>/report_entries";
 const url_incident_reportEntry = "/ims/api/events/<event_id>/incidents/<incident_number>/report_entries/<report_entry_id>";
 const url_incidentAttachments = "/ims/api/events/<event_id>/incidents/<incident_number>/attachments";
+const url_incidentRanger = "/ims/api/events/<event_id>/incidents/<incident_number>/rangers/<ranger_name>";
 const url_incidentAttachmentNumber = "/ims/api/events/<event_id>/incidents/<incident_number>/attachments/<attachment_number>";
 const url_fieldReports = "/ims/api/events/<event_id>/field_reports";
 const url_fieldReport = "/ims/api/events/<event_id>/field_reports/<field_report_number>";

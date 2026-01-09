@@ -453,7 +453,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to fetch linked incidents", err)
 	}
 
-	rangerHandles, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
+	_, incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	_ = incidentTypeIDs
 	if err != nil {
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
@@ -544,42 +544,6 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to update incident", err).From("[UpdateIncident]")
 	}
 
-	if newIncident.Rangers != nil {
-		newIncidentHandles := make([]string, len(*newIncident.Rangers))
-		for i, nir := range *newIncident.Rangers {
-			newIncidentHandles[i] = nir.Handle
-		}
-		add := sliceSubtract(newIncidentHandles, rangerHandles)
-		sub := sliceSubtract(rangerHandles, newIncidentHandles)
-		if len(add) > 0 {
-			logs = append(logs, fmt.Sprintf("Added Ranger: %v", strings.Join(add, ", ")))
-			for _, rh := range add {
-				err = imsDBQ.AttachRangerHandleToIncident(ctx, txn, imsdb.AttachRangerHandleToIncidentParams{
-					Event:          newIncident.EventID,
-					IncidentNumber: newIncident.Number,
-					RangerHandle:   rh,
-				})
-				if err != nil {
-					return herr.InternalServerError("Failed to attach Ranger to Incident", err).From("[AttachRangerHandleToIncident]")
-				}
-			}
-		}
-		if len(sub) > 0 {
-			logs = append(logs, fmt.Sprintf("Removed Ranger: %v", strings.Join(sub, ", ")))
-			for _, rh := range sub {
-				err = imsDBQ.DetachRangerHandleFromIncident(ctx, txn,
-					imsdb.DetachRangerHandleFromIncidentParams{
-						Event:          newIncident.EventID,
-						IncidentNumber: newIncident.Number,
-						RangerHandle:   rh,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to detach Ranger from Incident", err).From("[DetachRangerHandleFromIncident]")
-				}
-			}
-		}
-	}
 	if newIncident.IncidentTypeIDs != nil {
 		add := sliceSubtract(*newIncident.IncidentTypeIDs, incidentTypeIDs)
 		sub := sliceSubtract(incidentTypeIDs, *newIncident.IncidentTypeIDs)
@@ -859,6 +823,133 @@ func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
 	if errHTTP != nil {
 		return errHTTP.From("[updateIncident]")
 	}
+
+	return nil
+}
+
+type AttachRangerToIncident struct {
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	es        *EventSourcerer
+	imsAdmins []string
+}
+
+func (action AttachRangerToIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	errHTTP := action.attachRanger(req)
+	if errHTTP != nil {
+		errHTTP.From("[attachRanger]").WriteResponse(w)
+		return
+	}
+	herr.WriteNoContentResponse(w, "Success")
+}
+
+func (action AttachRangerToIncident) attachRanger(req *http.Request) *herr.HTTPError {
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return errHTTP.From("[getEventPermissions]")
+	}
+	if eventPermissions&authz.EventWriteIncidents == 0 {
+		return herr.Forbidden("The requestor does not have EventWriteIncidents permission for this Event", nil)
+	}
+	ctx := req.Context()
+
+	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
+	if err != nil {
+		return herr.BadRequest("Invalid Incident Number", err).From("[ParseInt32]")
+	}
+
+	rangerName := req.PathValue("rangerName")
+	if rangerName == "" {
+		return herr.BadRequest("Empty Ranger Name", nil)
+	}
+
+	_, errHTTP = readBodyAs[imsjson.IncidentRanger](req)
+	if errHTTP != nil {
+		return errHTTP.From("[readBodyAs]")
+	}
+
+	// TODO: maybe use a transaction
+
+	err = action.imsDBQ.AttachRangerHandleToIncident(ctx, action.imsDBQ, imsdb.AttachRangerHandleToIncidentParams{
+		Event:          event.ID,
+		IncidentNumber: incidentNumber,
+		RangerHandle:   rangerName,
+	})
+	if err != nil {
+		return herr.InternalServerError("Failed to attach Ranger to Incident", err).From("[AttachRangerHandleToIncident]")
+	}
+
+	_, errHTTP = addIncidentReportEntry(
+		ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber,
+		jwtCtx.Claims.RangerHandle(), fmt.Sprintf("Added Ranger: %v", rangerName),
+		true, "", "", "",
+	)
+	if errHTTP != nil {
+		return errHTTP.From("[addIncidentReportEntry]")
+	}
+
+	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)
+
+	return nil
+}
+
+type DetachRangerFromIncident struct {
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	es        *EventSourcerer
+	imsAdmins []string
+}
+
+func (action DetachRangerFromIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	errHTTP := action.detachRanger(req)
+	if errHTTP != nil {
+		errHTTP.From("[detachRanger]").WriteResponse(w)
+		return
+	}
+	herr.WriteNoContentResponse(w, "Success")
+}
+
+func (action DetachRangerFromIncident) detachRanger(req *http.Request) *herr.HTTPError {
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return errHTTP.From("[getEventPermissions]")
+	}
+	if eventPermissions&authz.EventWriteIncidents == 0 {
+		return herr.Forbidden("The requestor does not have EventWriteIncidents permission for this Event", nil)
+	}
+	ctx := req.Context()
+
+	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
+	if err != nil {
+		return herr.BadRequest("Invalid Incident Number", err).From("[ParseInt32]")
+	}
+
+	rangerName := req.PathValue("rangerName")
+	if rangerName == "" {
+		return herr.BadRequest("Empty Ranger Name", nil)
+	}
+
+	// TODO: maybe use a transaction
+
+	err = action.imsDBQ.DetachRangerHandleFromIncident(ctx, action.imsDBQ, imsdb.DetachRangerHandleFromIncidentParams{
+		Event:          event.ID,
+		IncidentNumber: incidentNumber,
+		RangerHandle:   rangerName,
+	})
+	if err != nil {
+		return herr.InternalServerError("Failed to detach Ranger from Incident", err).From("[DetachRangerHandleFromIncident]")
+	}
+
+	_, errHTTP = addIncidentReportEntry(
+		ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber,
+		jwtCtx.Claims.RangerHandle(), fmt.Sprintf("Removed Ranger: %v", rangerName),
+		true, "", "", "",
+	)
+	if errHTTP != nil {
+		return errHTTP.From("[addIncidentReportEntry]")
+	}
+
+	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)
 
 	return nil
 }

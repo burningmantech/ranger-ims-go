@@ -20,6 +20,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"net/netip"
+	"runtime/debug"
+	"strings"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
@@ -29,12 +36,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"log/slog"
-	"net/http"
-	"net/netip"
-	"runtime/debug"
-	"strings"
-	"time"
 )
 
 func AddToMux(
@@ -188,6 +189,26 @@ func AddToMux(
 	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments",
 		Adapt(
 			AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}",
+		Adapt(
+			AttachRangerToIncident{db, userStore, es, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}",
+		Adapt(
+			DetachRangerFromIncident{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),

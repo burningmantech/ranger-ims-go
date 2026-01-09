@@ -174,18 +174,24 @@ func (q *Queries) AttachIncidentTypeToIncident(ctx context.Context, db DBTX, arg
 }
 
 const attachRangerHandleToIncident = `-- name: AttachRangerHandleToIncident :exec
-insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE)
-values (?, ?, ?)
+insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE, ROLE)
+values (?, ?, ?, ?)
 `
 
 type AttachRangerHandleToIncidentParams struct {
 	Event          int32
 	IncidentNumber int32
 	RangerHandle   string
+	Role           sql.NullString
 }
 
 func (q *Queries) AttachRangerHandleToIncident(ctx context.Context, db DBTX, arg AttachRangerHandleToIncidentParams) error {
-	_, err := db.ExecContext(ctx, attachRangerHandleToIncident, arg.Event, arg.IncidentNumber, arg.RangerHandle)
+	_, err := db.ExecContext(ctx, attachRangerHandleToIncident,
+		arg.Event,
+		arg.IncidentNumber,
+		arg.RangerHandle,
+		arg.Role,
+	)
 	return err
 }
 
@@ -913,13 +919,7 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
           and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS,
-    (
-        select coalesce(json_arrayagg(ir.RANGER_HANDLE), "[]")
-        from INCIDENT__RANGER ir
-        where i.EVENT = ir.EVENT
-            and i.NUMBER = ir.INCIDENT_NUMBER
-    ) as RANGER_HANDLES
+    ) as FIELD_REPORT_NUMBERS
 from INCIDENT i
 where i.EVENT = ?
     and i.NUMBER = ?
@@ -934,7 +934,6 @@ type IncidentRow struct {
 	Incident           Incident
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
-	RangerHandles      interface{}
 }
 
 func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error) {
@@ -957,7 +956,6 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.LocationDescription,
 		&i.IncidentTypeIds,
 		&i.FieldReportNumbers,
-		&i.RangerHandles,
 	)
 	return i, err
 }
@@ -1079,6 +1077,54 @@ func (q *Queries) Incident_LinkedIncidents(ctx context.Context, db DBTX, arg Inc
 	return items, nil
 }
 
+const incident_Rangers = `-- name: Incident_Rangers :many
+select
+    ir.id, ir.event, ir.incident_number, ir.ranger_handle, ir.role
+from
+    INCIDENT__RANGER ir
+where
+    ir.EVENT = ?
+    and ir.INCIDENT_NUMBER = ?
+`
+
+type Incident_RangersParams struct {
+	Event          int32
+	IncidentNumber int32
+}
+
+type Incident_RangersRow struct {
+	IncidentRanger IncidentRanger
+}
+
+func (q *Queries) Incident_Rangers(ctx context.Context, db DBTX, arg Incident_RangersParams) ([]Incident_RangersRow, error) {
+	rows, err := db.QueryContext(ctx, incident_Rangers, arg.Event, arg.IncidentNumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Incident_RangersRow
+	for rows.Next() {
+		var i Incident_RangersRow
+		if err := rows.Scan(
+			&i.IncidentRanger.ID,
+			&i.IncidentRanger.Event,
+			&i.IncidentRanger.IncidentNumber,
+			&i.IncidentRanger.RangerHandle,
+			&i.IncidentRanger.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const incident_ReportEntries = `-- name: Incident_ReportEntries :many
 select
     ire.INCIDENT_NUMBER,
@@ -1150,13 +1196,7 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
             and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS,
-    (
-        select coalesce(json_arrayagg(ir.RANGER_HANDLE), "[]")
-        from INCIDENT__RANGER ir
-        where i.EVENT = ir.EVENT
-            and i.NUMBER = ir.INCIDENT_NUMBER
-    ) as RANGER_HANDLES
+    ) as FIELD_REPORT_NUMBERS
 from
     INCIDENT i
 where
@@ -1169,7 +1209,6 @@ type IncidentsRow struct {
 	Incident           Incident
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
-	RangerHandles      interface{}
 }
 
 func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error) {
@@ -1198,7 +1237,48 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.LocationDescription,
 			&i.IncidentTypeIds,
 			&i.FieldReportNumbers,
-			&i.RangerHandles,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const incidents_Rangers = `-- name: Incidents_Rangers :many
+select
+    ir.id, ir.event, ir.incident_number, ir.ranger_handle, ir.role
+from
+    INCIDENT__RANGER ir
+where
+    ir.EVENT = ?
+`
+
+type Incidents_RangersRow struct {
+	IncidentRanger IncidentRanger
+}
+
+func (q *Queries) Incidents_Rangers(ctx context.Context, db DBTX, event int32) ([]Incidents_RangersRow, error) {
+	rows, err := db.QueryContext(ctx, incidents_Rangers, event)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Incidents_RangersRow
+	for rows.Next() {
+		var i Incidents_RangersRow
+		if err := rows.Scan(
+			&i.IncidentRanger.ID,
+			&i.IncidentRanger.Event,
+			&i.IncidentRanger.IncidentNumber,
+			&i.IncidentRanger.RangerHandle,
+			&i.IncidentRanger.Role,
 		); err != nil {
 			return nil, err
 		}

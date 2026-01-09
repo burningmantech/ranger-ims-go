@@ -1543,7 +1543,7 @@ export type LinkedIncident = {
 
 export type IncidentRanger = {
     handle?: string|null;
-    // role?: string|null;
+    role?: string|null;
 }
 
 export type Incident = {

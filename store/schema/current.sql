@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (25);
+insert into SCHEMA_INFO (VERSION) values (26);
 
 
 create table `EVENT` (
@@ -97,6 +97,7 @@ create table INCIDENT__RANGER (
     `EVENT`         integer     not null,
     INCIDENT_NUMBER integer     not null,
     RANGER_HANDLE   varchar(64) not null,
+    ROLE            varchar(128),
 
     foreign key (`EVENT`) references `EVENT`(ID),
     foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),

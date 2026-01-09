@@ -46,8 +46,10 @@ type Querier interface {
 	IncidentType(ctx context.Context, db DBTX, id int32) (IncidentTypeRow, error)
 	IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRow, error)
 	Incident_LinkedIncidents(ctx context.Context, db DBTX, arg Incident_LinkedIncidentsParams) ([]Incident_LinkedIncidentsRow, error)
+	Incident_Rangers(ctx context.Context, db DBTX, arg Incident_RangersParams) ([]Incident_RangersRow, error)
 	Incident_ReportEntries(ctx context.Context, db DBTX, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
 	Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error)
+	Incidents_Rangers(ctx context.Context, db DBTX, event int32) ([]Incidents_RangersRow, error)
 	Incidents_ReportEntries(ctx context.Context, db DBTX, arg Incidents_ReportEntriesParams) ([]Incidents_ReportEntriesRow, error)
 	LinkIncidents(ctx context.Context, db DBTX, arg LinkIncidentsParams) error
 	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.

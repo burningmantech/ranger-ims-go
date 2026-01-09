@@ -20,9 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"log/slog"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 )
 
 // DBQ combines the SQL database and the Querier for the IMS datastore.
@@ -391,4 +392,18 @@ func (l DBQ) UpdateEvent(ctx context.Context, db imsdb.DBTX, arg imsdb.UpdateEve
 	err := l.q.UpdateEvent(ctx, db, arg)
 	logQuery("UpdateEvent", start, err)
 	return err
+}
+
+func (l DBQ) Incident_Rangers(ctx context.Context, db imsdb.DBTX, arg imsdb.Incident_RangersParams) ([]imsdb.Incident_RangersRow, error) {
+	start := time.Now()
+	rows, err := l.q.Incident_Rangers(ctx, db, arg)
+	logQuery("Incident_Rangers", start, err)
+	return rows, err
+}
+
+func (l DBQ) Incidents_Rangers(ctx context.Context, db imsdb.DBTX, event int32) ([]imsdb.Incidents_RangersRow, error) {
+	start := time.Now()
+	rows, err := l.q.Incidents_Rangers(ctx, db, event)
+	logQuery("Incidents_Rangers", start, err)
+	return rows, err
 }

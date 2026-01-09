@@ -228,6 +228,18 @@ func (a ApiHelper) updateIncident(ctx context.Context, eventName string, inciden
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String())
 }
 
+func (a ApiHelper) attachRangerToIncident(ctx context.Context, eventName string, incident int32, handle string) *http.Response {
+	a.t.Helper()
+	req := imsjson.IncidentRanger{Handle: handle}
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident)), "/rangers/", handle).String())
+}
+
+func (a ApiHelper) detachRangerFromIncident(ctx context.Context, eventName string, incident int32, handle string) *http.Response {
+	a.t.Helper()
+	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident)), "/rangers/", handle).String(), nil)
+	return resp
+}
+
 func (a ApiHelper) getIncidents(ctx context.Context, eventName string) (imsjson.Incidents, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/incidents")).String()
@@ -400,9 +412,19 @@ func (a ApiHelper) imsGetBodyBytes(ctx context.Context, path string) ([]byte, *h
 	return outBytes.([]byte), httpResp
 }
 
+func (a ApiHelper) imsDelete(ctx context.Context, path string, resp any) (any, *http.Response) {
+	a.t.Helper()
+	return a.imsDoNoReqBody(ctx, http.MethodDelete, path, resp)
+}
+
 func (a ApiHelper) imsGet(ctx context.Context, path string, resp any) (any, *http.Response) {
 	a.t.Helper()
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+	return a.imsDoNoReqBody(ctx, http.MethodGet, path, resp)
+}
+
+func (a ApiHelper) imsDoNoReqBody(ctx context.Context, method, path string, resp any) (any, *http.Response) {
+	a.t.Helper()
+	httpReq, err := http.NewRequestWithContext(ctx, method, path, nil)
 	require.NoError(a.t, err)
 	if a.jwt != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+a.jwt)

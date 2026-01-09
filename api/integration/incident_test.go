@@ -152,6 +152,11 @@ func TestCreateAndGetIncident(t *testing.T) {
 	entryReq := incidentReq.ReportEntries[0]
 	num := apisNonAdmin.newIncidentSuccess(ctx, incidentReq)
 	incidentReq.Number = num
+	for _, r := range *incidentReq.Rangers {
+		resp = apisNonAdmin.attachRangerToIncident(ctx, eventName, num, r.Handle)
+		require.Equal(t, http.StatusNoContent, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+	}
 
 	{
 		// Use normal user to fetch that Incident from the API and check it over
@@ -162,7 +167,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 		require.WithinDuration(t, time.Now(), retrievedIncident.Created, 5*time.Minute)
 		require.WithinDuration(t, time.Now(), retrievedIncident.Started, 5*time.Minute)
 		require.WithinDuration(t, time.Now(), retrievedIncident.LastModified, 5*time.Minute)
-		require.Len(t, retrievedIncident.ReportEntries, 2)
+		require.Len(t, retrievedIncident.ReportEntries, 4)
 
 		// The first report entry will be the system entry. The second should be the one we sent in the request
 		retrievedUserEntry := retrievedIncident.ReportEntries[1]
@@ -275,6 +280,25 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		LinkedIncidents: &[]imsjson.LinkedIncident{},
 	}
 	requireEqualIncident(t, expected, retrievedIncidentAfterUpdate)
+
+	// attach a Ranger
+	resp = apisNonAdmin.attachRangerToIncident(ctx, eventName, num, "Some Dude")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	retrievedIncidentAfterUpdate, resp = apisNonAdmin.getIncident(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrievedIncidentAfterUpdate.Rangers, 1)
+	require.Equal(t, "Some Dude", (*retrievedIncidentAfterUpdate.Rangers)[0].Handle)
+
+	// detach that Ranger
+	resp = apisNonAdmin.detachRangerFromIncident(ctx, eventName, num, "Some Dude")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	retrievedIncidentAfterUpdate, resp = apisNonAdmin.getIncident(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *retrievedIncidentAfterUpdate.Rangers)
 }
 
 func TestCreateAndAttachFileToIncident(t *testing.T) {

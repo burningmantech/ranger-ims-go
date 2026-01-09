@@ -120,6 +120,8 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	postIncident := MethodURL{http.MethodPost, eventPath + "/incidents/1"}
 	postIncidentAttachment := MethodURL{http.MethodPost, eventPath + "/incidents/1/attachments"}
 	postIncidentRE := MethodURL{http.MethodPost, eventPath + "/incidents/1/report_entries/2"}
+	postIncidentRanger := MethodURL{http.MethodPost, eventPath + "/incidents/1/rangers/some_name"}
+	deleteIncidentRanger := MethodURL{http.MethodDelete, eventPath + "/incidents/1/rangers/some_name"}
 	getFieldReports := MethodURL{http.MethodGet, eventPath + "/field_reports"}
 	getFieldReport := MethodURL{http.MethodGet, eventPath + "/field_reports/1"}
 	getFieldReportAttachment := MethodURL{http.MethodGet, eventPath + "/field_reports/1/attachments/1"}
@@ -135,6 +137,8 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		postIncident,
 		postIncidentAttachment,
 		postIncidentRE,
+		postIncidentRanger,
+		deleteIncidentRanger,
 		getFieldReports,
 		getFieldReport,
 		getFieldReportAttachment,
@@ -306,6 +310,8 @@ func apiCall(t *testing.T, api MethodURL, user ApiHelper) (statusCode int) {
 	ctx := t.Context()
 	var httpResp *http.Response
 	switch api.Method {
+	case http.MethodDelete:
+		_, httpResp = user.imsDelete(ctx, user.serverURL.JoinPath(api.Path).String(), nil)
 	case http.MethodGet:
 		_, httpResp = user.imsGetBodyBytes(ctx, user.serverURL.JoinPath(api.Path).String())
 	case http.MethodPost:

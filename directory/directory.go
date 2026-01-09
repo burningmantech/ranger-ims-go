@@ -20,9 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/cache"
-	"time"
 )
 
 type UserStore struct {
@@ -103,7 +104,8 @@ func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions, te
 	errs = append(errs, err)
 	teamMap, err := store.teamCache.Get(ctx)
 	errs = append(errs, err)
-	if errors.Join(errs...) != nil {
+	err = errors.Join(errs...)
+	if err != nil {
 		return nil, nil, fmt.Errorf("[GetPositionsAndTeams] %w", err)
 	}
 	return *posMap, *teamMap, nil

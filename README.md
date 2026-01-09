@@ -27,6 +27,8 @@ There's good documentation in `docker-compose.dev.yml` that's worth a read.
 
 ```shell
 docker compose -f docker-compose.dev.yml up
+# or
+make compose/live
 ```
 
 ## Run IMS locally with MariaDB

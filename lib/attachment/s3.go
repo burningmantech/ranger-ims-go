@@ -21,13 +21,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
-	"io"
-	"log/slog"
-	"time"
 )
 
 // S3Funcs is an interface for the S3 AWS APIs that IMS actually uses.
@@ -85,7 +86,7 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 		}
 		return nil, herr.InternalServerError("IMS failed to pull the file from S3. There may be an internet connectivity issue.", err).From("[GetObject]")
 	}
-
+	defer shut(output.Body)
 	// This reads the whole object in memory, which isn't ideal, but it lets us use the
 	// http.ServeContent(..) in attachments.go, which requires an io.ReadSeeker.
 	// In an ideal world, we'd just stream the object to the IMS API client.
@@ -100,4 +101,8 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 
 func ptr[T any](s T) *T {
 	return &s
+}
+
+func shut(c io.Closer) {
+	_ = c.Close()
 }

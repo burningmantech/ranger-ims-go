@@ -15,7 +15,37 @@ Each month below should look like the following, using the same ordering for the
 ### Added
 ### Removed
 ### Fixed
+
+This page accounts for changes up until:
+https://github.com/burningmantech/ranger-ims-go/pull/528
 -->
+
+## 2026-01
+
+### Added
+
+- Added "Roles" for Rangers within an incident. These are short textual representations of a Ranger's role within an incident, e.g. "Incident Commander" or "First on scene". https://github.com/burningmantech/ranger-ims-go/issues/451
+
+## 2025-11
+
+### Added
+
+- Added "event groups", which allow for much easier administration of event permissions. https://github.com/burningmantech/ranger-ims-go/pull/493
+
+### Changed
+
+- Did a bunch of internal frontend cleanups, moved a lot of templatizing into HTML template elements.
+
+## 2025-10
+
+### Changed
+
+- Got rid of the location address dropdowns (concentric, radial hour, radial minute), and replaced them with a string field. https://github.com/burningmantech/ranger-ims-go/pull/463
+
+### Added
+
+- Added a "Destinations" functionality to IMS, so that users can see all the art and camps for an event. Users can also quickly set the location of an Incident to match one of those camps or art pieces. https://github.com/burningmantech/ranger-ims-go/pull/461
+- Started allowing setting the IMS number for an FR from the FR page. https://github.com/burningmantech/ranger-ims-go/pull/452
 
 ## 2025-09
 

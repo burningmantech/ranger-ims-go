@@ -46,6 +46,7 @@ async function initIncidentPage() {
     window.editLocationAddressConcentric = editLocationAddressConcentric;
     window.editLocationDescription = editLocationDescription;
     window.removeRanger = removeRanger;
+    window.setRangerRole = setRangerRole;
     window.removeIncidentType = removeIncidentType;
     window.detachFieldReport = detachFieldReport;
     window.attachFieldReport = attachFieldReport;
@@ -505,30 +506,38 @@ function drawIncidentSummary() {
 // Populate Rangers list
 //
 function drawRangers() {
-    const handles = (incident.rangers ?? []).map(r => r.handle ?? "");
-    handles.sort((a, b) => a.localeCompare(b));
+    const rangers = incident?.rangers ?? [];
+    rangers.sort((a, b) => (a.handle ?? "").localeCompare(b.handle ?? ""));
     const rangerItemTemplate = document.getElementById("incident_rangers_li_template");
     const rangersElement = document.getElementById("incident_rangers_list");
     rangersElement.querySelectorAll("li").forEach((el) => { el.remove(); });
-    for (const handle of handles) {
+    for (const [i, ranger] of rangers.entries()) {
+        if (!ranger.handle) {
+            continue;
+        }
+        const handle = ranger.handle;
         const rangerFragment = rangerItemTemplate.content.cloneNode(true);
         const rangerLi = rangerFragment.querySelector("li");
         rangerLi.classList.remove("hidden");
         rangerLi.dataset["rangerHandle"] = handle;
+        const label = rangerLi.querySelector("label");
+        label.htmlFor = `ranger_role_${i}`;
         if (personnel?.[handle] == null) {
-            const rangerNoLink = document.createElement("span");
-            rangerNoLink.textContent = handle;
-            rangerLi.append(rangerNoLink);
+            rangerLi.querySelector("label").textContent = handle;
         }
         else {
             const person = personnel[handle];
-            const rangerLink = document.createElement("a");
+            const rangerLink = rangerLi.querySelector("a");
             rangerLink.textContent = rangerAsString(person);
             if (person.directory_id != null) {
                 rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
                 rangerLink.target = "_blank";
             }
-            rangerLi.append(rangerLink);
+        }
+        const roleInput = rangerLi.querySelector("input");
+        roleInput.id = label.htmlFor;
+        if (ranger.role) {
+            rangerLi.querySelector("input").value = ranger.role;
         }
         rangersElement.append(rangerFragment);
     }
@@ -958,6 +967,28 @@ async function removeRanger(sender) {
         method: "DELETE",
     });
 }
+async function setRangerRole(sender) {
+    const handle = sender.closest("li")?.dataset["rangerHandle"];
+    if (!handle) {
+        console.log("no Ranger handle for element");
+        return;
+    }
+    const url = (ims.urlReplace(url_incidentRanger)
+        .replace("<incident_number>", ims.pathIds.incidentNumber.toString())
+        .replace("<ranger_name>", encodeURIComponent(handle)));
+    const { err } = await ims.fetchNoThrow(url, {
+        body: JSON.stringify({
+            handle: handle,
+            role: sender.value,
+        }),
+    });
+    if (err !== null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender);
+    return;
+}
 async function removeIncidentType(sender) {
     const parent = sender.parentElement;
     const incidentType = ims.parseInt10(parent.dataset["incidentTypeId"]);
@@ -1001,7 +1032,9 @@ async function addRanger() {
         .replace("<incident_number>", ims.pathIds.incidentNumber.toString())
         .replace("<ranger_name>", encodeURIComponent(handle)));
     const { err } = await ims.fetchNoThrow(url, {
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+            handle: handle,
+        }),
     });
     if (err !== null) {
         ims.controlHasError(addRanger);

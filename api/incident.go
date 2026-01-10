@@ -893,6 +893,15 @@ func (action AttachRangerToIncident) attachRanger(req *http.Request) *herr.HTTPE
 	}
 	defer rollback(txn)
 
+	err = action.imsDBQ.DetachRangerHandleFromIncident(ctx, txn, imsdb.DetachRangerHandleFromIncidentParams{
+		Event:          event.ID,
+		IncidentNumber: incidentNumber,
+		RangerHandle:   rangerName,
+	})
+	if err != nil {
+		return herr.InternalServerError("Failed to detach Ranger from Incident", err).From("[DetachRangerHandleFromIncident]")
+	}
+
 	err = action.imsDBQ.AttachRangerHandleToIncident(ctx, txn, imsdb.AttachRangerHandleToIncidentParams{
 		Event:          event.ID,
 		IncidentNumber: incidentNumber,
@@ -971,7 +980,6 @@ func (action DetachRangerFromIncident) detachRanger(req *http.Request) *herr.HTT
 	if err != nil {
 		return herr.InternalServerError("Failed to detach Ranger from Incident", err).From("[DetachRangerHandleFromIncident]")
 	}
-
 	_, errHTTP = addIncidentReportEntry(
 		ctx, action.imsDBQ, txn, event.ID, incidentNumber,
 		jwtCtx.Claims.RangerHandle(), fmt.Sprintf("Removed Ranger: %v", rangerName),

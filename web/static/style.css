@@ -379,3 +379,12 @@ h1 {
 .destination-dl > dd {
   padding-left: 1rem;
 }
+
+.hover-placeholder::placeholder {
+  opacity: 0;
+  transition: opacity 0.05s ease;
+}
+
+.hover-placeholder:hover::placeholder {
+  opacity: 1;
+}

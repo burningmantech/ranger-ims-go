@@ -165,7 +165,11 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           </label>
           <ul id="incident_rangers_list" class="list-group list-group-flush list-group-small card-body">
             <template id="incident_rangers_li_template">
-              <li class="list-group-item ps-3 hidden">
+              <li class="list-group-item flex-input-container ps-3 hidden">
+                <label for="ranger_role" ><a href="#"></a></label>
+                <input id="ranger_role" type="text" class="form-control form-control-sm auto-width hover-placeholder border-0"
+                    placeholder="Short description of role" onchange="setRangerRole(this)" maxlength="50"
+                />
                 <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)">
                   X
                 </button>

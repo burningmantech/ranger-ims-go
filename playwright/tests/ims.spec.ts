@@ -249,6 +249,10 @@ test("incidents", async ({ page, browser }) => {
         await page.getByLabel("Add Ranger Handle").press("Tab");
         await expect(page.locator("li", {hasText: rangerName})).toBeVisible({timeout: 5000});
         await expect(page.getByLabel("Add Ranger Handle")).toHaveValue("");
+        const roleField = page.locator("li", {hasText: rangerName}).getByRole("textbox");
+        await roleField.fill(`${rangerName} Role`);
+        await roleField.press("Tab");
+        // The value of the roleField is checked later on in this test
       }
 
       await addRanger(incidentPage, "Doggy");
@@ -260,18 +264,18 @@ test("incidents", async ({ page, browser }) => {
     // override start time
     {
       await incidentPage.getByTitle("Override Start Time").click();
-      await incidentPage.getByRole("textbox", { name: "Start Date" }).fill("2025-01-27");
-      await incidentPage.getByRole("textbox", { name: "Start Date" }).blur();
-      await incidentPage.getByRole("textbox", { name: "Start Time" }).focus();
+      await incidentPage.getByRole("textbox", {name: "Start Date"}).fill("2025-01-27");
+      await incidentPage.getByRole("textbox", {name: "Start Date"}).blur();
+      await incidentPage.getByRole("textbox", {name: "Start Time"}).focus();
       // We want to look for a substring in the value, and that requires a regex.
       await expect(incidentPage.locator("#started_datetime")).toHaveValue(/Mon, Jan 27, 2025/);
-      await incidentPage.getByRole("textbox", { name: "Start Time" }).clear();
-      await incidentPage.getByRole("textbox", { name: "Start Time" }).fill("21:34");
-      await incidentPage.getByRole("textbox", { name: "Start Date" }).focus();
+      await incidentPage.getByRole("textbox", {name: "Start Time"}).clear();
+      await incidentPage.getByRole("textbox", {name: "Start Time"}).fill("21:34");
+      await incidentPage.getByRole("textbox", {name: "Start Date"}).focus();
       // We want to look for a substring in the value, and that requires a regex.
       await expect(incidentPage.locator("#started_datetime")).toHaveValue(/Mon, Jan 27, 2025, 21:34/);
       // Close the modal
-      await incidentPage.getByRole("textbox", { name: "Start Time" }).press("Escape");
+      await incidentPage.getByRole("textbox", {name: "Start Time"}).press("Escape");
     }
 
     // add location details
@@ -318,6 +322,15 @@ test("incidents", async ({ page, browser }) => {
         const linkedIncident = incidentPage.getByText(`IMS ${eventName} #1: `);
         await expect(linkedIncident).toBeVisible();
       }
+    }
+
+    // reload the page, make sure some data loads again
+    {
+      await incidentPage.reload();
+      const runnerRanger = incidentPage.getByLabel("Runner");
+      await expect(runnerRanger).toBeVisible();
+      const runnerRow = incidentPage.getByRole("listitem").filter({has: runnerRanger}).getByRole("textbox");
+      await expect(runnerRow).toHaveValue("Runner Role");
     }
 
     // try searching for the incident by its report text

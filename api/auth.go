@@ -19,16 +19,17 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/directory"
-	"github.com/burningmantech/ranger-ims-go/lib/authn"
-	"github.com/burningmantech/ranger-ims-go/lib/authz"
-	"github.com/burningmantech/ranger-ims-go/lib/herr"
-	"github.com/burningmantech/ranger-ims-go/store"
 	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/authn"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
+	"github.com/burningmantech/ranger-ims-go/store"
 )
 
 type PostAuth struct {
@@ -85,7 +86,17 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		}
 	}
 
+	// See https://instatunnel.my/blog/the-1mb-password-crashing-backends-via-hashing-exhaustion
+	if len(vals.Password) > 256 {
+		return empty, nil, herr.BadRequest("Outrageously long passwords are disallowed", errors.New("rejected very long password"))
+	}
+
 	if matchedPerson == nil {
+		// Run Verify against some dummy hashed password.
+		// We want to avoid timing attacks, where the client could know
+		// the username is invalid because the login attempt is fast, so
+		// we force a password verification even if no one matched.
+		_, _ = authn.Verify(vals.Password, "$argon2id$v=19$m=8192,t=4,p=1$Ke9wio+D+PfBYlVzJ3CTAA$/kNb/yXgSLyFpfmwIfwKwcNnBRRrUqJp8YXPtDKfNTE")
 		return empty, nil, herr.Unauthorized(
 			"Failed login attempt (bad credentials)",
 			fmt.Errorf("login attempt for nonexistent user. Identification: %v", vals.Identification),

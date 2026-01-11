@@ -17,11 +17,12 @@
 package argon2id
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateHash(t *testing.T) {

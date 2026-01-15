@@ -47,35 +47,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       </div>
     </div>
 
-    <div class="modal no-print" id="startTimeModal" tabindex="-1" aria-labelledby="startTimeModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <p class="modal-title fs-5" id="startTimeModalLabel">Override start time</p>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
-          </div>
-          <div class="modal-body row">
-            <p>
-              Approximately when did the incident start?
-            </p>
-            <div class="input-group mb-3">
-              <label for="override_start_date" class="control-label input-group-text">Started</label>
-              <input id="override_start_date" aria-label="Start Date" type="date" class="form-control form-control-sm" />
-              <input id="override_start_time" aria-label="Start Time" type="time" class="form-control form-control-sm" />
-              <span id="override_start_tz" class="input-group-text control-label"
-                    title="This date and time must be edited in your computer's local time zone."
-              ></span>
-            </div>
-            <p>
-              It's normally fine to leave this value as the default, which is the
-              time that the incident was created in IMS. This override is intended for
-              cases in which the incident began hours or days before it was logged in IMS.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Incident type info -->
     <div class="modal no-print" id="incidentTypeInfoModal" tabindex="-1" aria-labelledby="incidentTypeInfoModalLabel" aria-hidden="true">
       <div class="modal-dialog">
@@ -125,13 +96,12 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       </div>
       <div class="col-sm-6 py-1">
         <div class="input-group">
-          <label class="control-label input-group-text" for="started_datetime">Started</label>
-          <input id="started_datetime" type="text" class="form-control form-control-static" readonly />
-          <span id="override_started_button" class="input-group-text show-pointer no-print" title="Override Start Time">
-            <svg fill="currentColor" class="bi align-middle">
-              <use href="#pencil-square" />
-            </svg>
-          </span>
+          <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
+          <label class="control-label input-group-text" for="alt_started_datetime">Started</label>
+          <input id="started_datetime" type="text" class="form-control" />
+          <span id="started_datetime_tz" class="control-follow-text input-group-text"
+              title="This datetime must be edited in your computer's local time zone."
+          ></span>
         </div>
       </div>
     </div>
@@ -213,7 +183,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             </template>
           </ul>
           <div class="card-footer flex-input-container no-print">
-            <label class="control-label">Add:</label>
+            <label for="incident_type_add" class="control-label">Add:</label>
             <input
                     type="text"
                     id="incident_type_add"
@@ -307,7 +277,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             </li>
           </ul>
           <div id="attached_field_report_add_container" class="flex-input-container card-footer no-print">
-            <label class="control-label">Add:</label>
+            <label for="attached_field_report_add" class="control-label">Add:</label>
             <select
                     id="attached_field_report_add"
                     class="form-control form-control-sm"

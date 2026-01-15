@@ -221,7 +221,7 @@ test("incidents", async ({ page, browser }) => {
     await expect(incidentsPage.getByText(newIncidentSummary)).toBeVisible();
 
     await incidentPage.getByLabel("State").selectOption("on_hold");
-    await incidentPage.getByLabel("State").press("Tab");
+    await incidentPage.getByLabel("State").press("Enter");
 
     // add several incident types to the incident
     {
@@ -262,20 +262,20 @@ test("incidents", async ({ page, browser }) => {
     }
 
     // override start time
+    const altStartedDatetime = incidentPage.locator("#alt_started_datetime");
     {
-      await incidentPage.getByTitle("Override Start Time").click();
-      await incidentPage.getByRole("textbox", {name: "Start Date"}).fill("2025-01-27");
-      await incidentPage.getByRole("textbox", {name: "Start Date"}).blur();
-      await incidentPage.getByRole("textbox", {name: "Start Time"}).focus();
-      // We want to look for a substring in the value, and that requires a regex.
-      await expect(incidentPage.locator("#started_datetime")).toHaveValue(/Mon, Jan 27, 2025/);
-      await incidentPage.getByRole("textbox", {name: "Start Time"}).clear();
-      await incidentPage.getByRole("textbox", {name: "Start Time"}).fill("21:34");
-      await incidentPage.getByRole("textbox", {name: "Start Date"}).focus();
-      // We want to look for a substring in the value, and that requires a regex.
-      await expect(incidentPage.locator("#started_datetime")).toHaveValue(/Mon, Jan 27, 2025, 21:34/);
-      // Close the modal
-      await incidentPage.getByRole("textbox", {name: "Start Time"}).press("Escape");
+      // This currently fails on mobile Safari and mobile Chrome, where Flatpickr doesn't show
+      // the altInput.
+      await expect(altStartedDatetime).toBeVisible();
+      await expect(altStartedDatetime).toHaveValue(/\d\d\d\d-\d\d-\d\d/);
+      await altStartedDatetime.clear();
+      await altStartedDatetime.fill("2025-01-27 (Mon) 22:11");
+      const responsePromise = page.waitForResponse(response =>
+          response.url().includes(`/ims/api/events/${eventName}/incidents/`)
+          && response.request().method() === "GET"
+      )
+      await altStartedDatetime.press("Tab");
+      await responsePromise;
     }
 
     // add location details
@@ -331,6 +331,8 @@ test("incidents", async ({ page, browser }) => {
       await expect(runnerRanger).toBeVisible();
       const runnerRow = incidentPage.getByRole("listitem").filter({has: runnerRanger}).getByRole("textbox");
       await expect(runnerRow).toHaveValue("Runner Role");
+      await expect(altStartedDatetime).toBeVisible();
+      await expect(altStartedDatetime).toHaveValue("2025-01-27 (Mon) 22:11");
     }
 
     // try searching for the incident by its report text

@@ -173,6 +173,10 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--font-size-smaller);
 }
 
+.control-follow-text {
+  font-size: var(--font-size-smaller);
+}
+
 .search-box {
   font-size: var(--font-size-smaller);
 }

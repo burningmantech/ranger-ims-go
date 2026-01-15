@@ -681,7 +681,7 @@ export function renderDate(date, type, _incident) {
     const fullDate = fullDateTime.format(d);
     switch (type) {
         case "display":
-            return `<span title="${fullDate}">${shortDate.format(d)}<wbr />@${shortTime.format(d)}</span>`;
+            return `<span title="${fullDate}">${shortDate.format(d)}, <wbr />${shortTime.format(d)}</span>`;
         case "filter":
             return shortDate.format(d) + " " + shortTime.format(d);
         case "type":
@@ -1301,3 +1301,6 @@ function cleanupOldCaches() {
     localStorage.removeItem("incidents_preferred_state");
 }
 cleanupOldCaches();
+export function newFlatpickr(selector, opts) {
+    return flatpickr(selector, opts);
+}

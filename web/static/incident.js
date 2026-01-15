@@ -59,8 +59,6 @@ async function initIncidentPage() {
     window.toggleShowHistory = ims.toggleShowHistory;
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
-    window.overrideStartDate = overrideStartDate;
-    window.overrideStartTime = overrideStartTime;
     // load everything from the APIs concurrently
     await Promise.all([
         await ims.loadStreets(ims.pathIds.eventId),
@@ -73,6 +71,24 @@ async function initIncidentPage() {
         await loadAllFieldReports(),
     ]);
     allEvents = await initResult.eventDatas;
+    ims.newFlatpickr("#started_datetime", {
+        altInput: true,
+        altFormat: 'Y-m-d (D) H:i',
+        enableTime: true,
+        allowInput: true,
+        dateFormat: 'Y-m-d H:i',
+        time_24hr: true,
+        minuteIncrement: 5,
+        onReady: function (_selectedDates, _dateStr, instance) {
+            instance.altInput.id = "alt_started_datetime";
+        },
+        onChange: setStartDatetime,
+        // This lets us set the date even on manual data entry in the altInput field.
+        // TODO: does this work on mobile, if altInput isn't displayed?
+        onClose: function (_selectedDates, _dateStr, instance) {
+            instance.setDate(instance.altInput.value, true, instance.config.altFormat);
+        }
+    });
     ims.disableEditing();
     displayIncident();
     if (incident == null) {
@@ -125,7 +141,6 @@ async function initIncidentPage() {
         }
     };
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
-    const startTimeModal = ims.bsModal(document.getElementById("startTimeModal"));
     const incidentTypeInfoModal = ims.bsModal(document.getElementById("incidentTypeInfoModal"));
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
@@ -172,42 +187,10 @@ async function initIncidentPage() {
             ims.submitReportEntry();
         }
     });
-    document.getElementById("override_started_button").addEventListener("click", function (_) {
-        startTimeModal.show();
-    });
     document.getElementById("show-incident-type-info").addEventListener("click", function (e) {
         e.preventDefault();
         incidentTypeInfoModal.show();
     });
-    // Incident fields generally trigger an update call automatically when the user
-    // sets a new value in the field. This behavior is tricky to get right for date
-    // and time inputs. Users might type directly into the date/time input, or they
-    // might use a browser-supplied date/time picker. With typing, we only want the
-    // update sent to the server when focus is lost from the input field (i.e. on blur).
-    // With a picker, we want the update sent when the user has finished picking a
-    // date or time (i.e. on input). In order to make both of those things work, while
-    // not updating on every keypress if the user is typing, we do the below, which
-    // avoids input updates for typing.
-    //
-    // The weird thing for date/time inputs is that an input and change event get fired
-    // after every basically keypress if the user is typing. A normal text input field
-    // only sees input and change events when the user blurs or hits enter/tab on the field.
-    function addDateTimeInputListeners(dti, update) {
-        let keydown = false;
-        dti.addEventListener("keydown", (_) => {
-            keydown = true;
-            setTimeout(() => { keydown = false; }, 10);
-        });
-        dti.addEventListener("input", (_) => {
-            if (!keydown)
-                update();
-        });
-        dti.addEventListener("blur", (_) => {
-            update();
-        });
-    }
-    addDateTimeInputListeners(document.getElementById("override_start_date"), overrideStartDate);
-    addDateTimeInputListeners(document.getElementById("override_start_time"), overrideStartTime);
     window.addEventListener("beforeprint", (_event) => {
         drawIncidentTitle("for_print_to_pdf");
     });
@@ -462,21 +445,9 @@ function drawStarted() {
     const dateNum = Date.parse(date);
     const dateDate = new Date(dateNum);
     const startedElement = document.getElementById("started_datetime");
-    startedElement.value = `${ims.longDate.format(dateNum)}, ${ims.shortTimeTZ.format(dateNum)}`;
-    startedElement.title = ims.fullDateTime.format(dateNum);
-    const dateInput = document.getElementById("override_start_date");
-    const newDateISO = ims.localDateISO(dateDate);
-    if (dateInput.value !== newDateISO) {
-        dateInput.value = newDateISO;
-    }
-    const timeInput = document.getElementById("override_start_time");
-    const localTime = ims.localTimeHHMM(dateDate);
-    if (timeInput.value !== localTime) {
-        timeInput.value = localTime;
-    }
-    const tzInput = document.getElementById("override_start_tz");
+    startedElement._flatpickr.setDate(date, false, "Z");
+    const tzInput = document.getElementById("started_datetime_tz");
     tzInput.textContent = ims.localTzShortName(dateDate);
-    tzInput.dataset["tzOffset"] = ims.localTzOffset(dateDate) ?? undefined;
 }
 //
 // Populate incident priority
@@ -876,29 +847,15 @@ async function editState() {
     }
     await ims.editFromElement(state, "state");
 }
-async function overrideStartDate() {
-    const dateInput = document.getElementById("override_start_date");
-    const prevDateISO = ims.localDateISO(new Date(incident?.started ?? 0));
-    if (dateInput.value === prevDateISO) {
+async function setStartDatetime(selectedDates, _dateStr, sender) {
+    const prevDate = new Date(incident?.started ?? 0);
+    const newDate = selectedDates[0];
+    if (!newDate || newDate.getTime() === prevDate.getTime()) {
         // nothing to do
         return;
     }
-    const timeInput = document.getElementById("override_start_time");
-    const tzOffset = document.getElementById("override_start_tz").dataset["tzOffset"] ?? "Z";
-    await ims.editFromElement(dateInput, "started", (_) => {
-        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzOffset);
-    });
-}
-async function overrideStartTime() {
-    const dateInput = document.getElementById("override_start_date");
-    const timeInput = document.getElementById("override_start_time");
-    if (timeInput.value === ims.localTimeHHMM(new Date(Date.parse(incident?.started ?? "")))) {
-        // nothing to do
-        return;
-    }
-    const tzOffset = document.getElementById("override_start_tz").dataset["tzOffset"] ?? "Z";
-    await ims.editFromElement(timeInput, "started", (_) => {
-        return ims.newDateTimeVal(dateInput.value, timeInput.value, tzOffset);
+    await ims.editFromElement(sender.altInput, "started", (_) => {
+        return newDate.toISOString();
     });
 }
 async function editIncidentSummary() {

@@ -16,12 +16,19 @@
 
 package template
 
-templ Head(title string, module string, usesDataTables bool) {
+templ Head(title string, module string, usesDataTables bool, cacheVersion string) {
+{{
+    v := cacheVersion[:8]
+    var esImports = map[string]any{
+        "imports": map[string]string{
+            "/ims/static/ims.js": "/ims/static/ims.js?v=" + v,
+        },
+    }
+}}
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="modulepreload" href={"/ims/static/" + module} />
-    <link rel="modulepreload" href="/ims/static/ims.js" />
+    @templ.JSONScript("importmap", esImports).WithType("importmap")
     <link rel="apple-touch-icon" sizes="180x180" href="/ims/static/logos/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/ims/static/logos/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/ims/static/logos/favicon-16x16.png">
@@ -36,14 +43,14 @@ templ Head(title string, module string, usesDataTables bool) {
     <script src="/ims/static/ext/jquery.min.js" defer></script>
     <script src="/ims/static/ext/bootstrap.bundle.min.js" defer></script>
     <script src="/ims/static/ext/flatpickr.min.js" defer></script>
-    <script src="/ims/static/urls.js" defer></script>
+    <script src={"/ims/static/urls.js?v=" + v} defer></script>
     if usesDataTables {
     <script src="/ims/static/ext/dataTables.min.js" defer></script>
     <script src="/ims/static/ext/dataTables.bootstrap5.min.js" defer></script>
     }
-    <script src={"/ims/static/" + module} type="module"></script>
+    <script src={"/ims/static/" + module + "?v=" + v} type="module"></script>
     <!-- theme.js should not be deferred, so add it last. -->
-    <!-- We run it synchronously to avoid a light flicker on page load for dark mode users. -->
-    <script src="/ims/static/theme.js"></script>
+    <!-- We run it synchronously to avoid a flicker on page load for dark mode users. -->
+    <script src={"/ims/static/theme.js?v=" + v}></script>
 </head>
 }

@@ -63,7 +63,7 @@ func Incident(deployment, versionName, versionRef, eventName string) templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head("Incident Details | "+eventName, "incident.js", true).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Incident Details | "+eventName, "incident.js", true, versionRef).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

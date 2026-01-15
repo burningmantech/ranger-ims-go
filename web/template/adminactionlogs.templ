@@ -19,7 +19,7 @@ package template
 templ AdminActionLogs(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Action Logs", "admin_action_logs.js", true)
+@Head("Action Logs", "admin_action_logs.js", true, versionRef)
 
 <body>
 <div class="container-fluid">

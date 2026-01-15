@@ -19,7 +19,7 @@ package template
 templ FieldReport(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Field Report Details | " + eventName, "field_report.js", false)
+@Head("Field Report Details | " + eventName, "field_report.js", false, versionRef)
 
 <body>
 <div class="container-fluid">

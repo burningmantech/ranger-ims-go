@@ -21,7 +21,7 @@ import "strings"
 templ Incidents(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Incidents | " + eventName, "incidents.js", true)
+@Head("Incidents | " + eventName, "incidents.js", true, versionRef)
 
 <body>
 <div class="container-fluid">

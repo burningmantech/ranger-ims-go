@@ -19,7 +19,7 @@ package template
 templ AdminDebug(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Debugging Details", "admin_debug.js", false)
+@Head("Debugging Details", "admin_debug.js", false, versionRef)
 
 <body>
 <div class="container-fluid">

@@ -19,7 +19,7 @@ package template
 templ AdminRoot(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Administration Tools", "admin_root.js", false)
+@Head("Administration Tools", "admin_root.js", false, versionRef)
 
 <body>
 <div class="container-fluid">

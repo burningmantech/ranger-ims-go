@@ -18,16 +18,17 @@ package web
 
 import (
 	"fmt"
-	"github.com/a-h/templ"
-	"github.com/burningmantech/ranger-ims-go/conf"
-	"github.com/burningmantech/ranger-ims-go/lib/authz"
-	"github.com/burningmantech/ranger-ims-go/lib/herr"
-	"github.com/burningmantech/ranger-ims-go/web/template"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/a-h/templ"
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
+	"github.com/burningmantech/ranger-ims-go/web/template"
 )
 
 func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
@@ -35,7 +36,10 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		mux = http.NewServeMux()
 	}
 
-	var versionName, versionRef string
+	// Supply a default versionName and fake ref, in case BuildInfo is unavailable.
+	// This version name is just the current UTC time, all smushed together.
+	versionName := time.Now().UTC().Format("20060102150405")
+	versionRef := "deadbeef"
 	bi, _ := debug.ReadBuildInfo()
 	if bi != nil {
 		// e.g. "20250629122355-7254ff315bc4"

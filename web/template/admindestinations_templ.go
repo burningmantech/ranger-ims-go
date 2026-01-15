@@ -63,7 +63,7 @@ func AdminDestinations(deployment, versionName, versionRef string) templ.Compone
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head("Destinations", "admin_destinations.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Destinations", "admin_destinations.js", false, versionRef).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

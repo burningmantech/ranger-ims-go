@@ -63,7 +63,7 @@ func Login(deployment, passwordResetURL, versionName, versionRef string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head("Log In | IMS", "login.js", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Log In | IMS", "login.js", false, versionRef).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

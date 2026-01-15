@@ -797,7 +797,7 @@ export function renderDate(date: string, type: string, _incident: any): string|n
     const fullDate = fullDateTime.format(d);
     switch (type) {
         case "display":
-            return `<span title="${fullDate}">${shortDate.format(d)}<wbr />@${shortTime.format(d)}</span>`;
+            return `<span title="${fullDate}">${shortDate.format(d)}, <wbr />${shortTime.format(d)}</span>`;
         case "filter":
             return shortDate.format(d) + " " + shortTime.format(d);
         case "type":
@@ -1778,3 +1778,40 @@ export declare namespace bootstrap {
 }
 
 declare let DataTable: any;
+
+// This is fulfilled by FlatpickrJS.
+declare let flatpickr: (selector: string|Node, opts: FlatpickrOptions)=>Flatpickr;
+
+export function newFlatpickr(selector: string|Node, opts: FlatpickrOptions): Flatpickr {
+    return flatpickr(selector, opts);
+}
+
+type FlatpickrEventFunc = (selectedDates: Date[], dateStr: string, instance: Flatpickr) => void;
+
+export interface FlatpickrOptions {
+    // See https://flatpickr.js.org/options/
+
+    altInput?: boolean;
+    altFormat?: string;
+    allowInput?: boolean;
+    enableTime?: boolean;
+    dateFormat?: string;
+    time_24hr?: boolean;
+    minuteIncrement?: number;
+    onClose?: FlatpickrEventFunc|FlatpickrEventFunc[];
+    onReady?: FlatpickrEventFunc;
+    onChange?: FlatpickrEventFunc|FlatpickrEventFunc[];
+}
+
+export interface Flatpickr {
+    config: FlatpickrOptions;
+    selectedDates: Date[];
+    input?: FlatpickrHTMLInputElement;
+    altInput?: HTMLInputElement;
+    setDate(date: Date|string|Date[], triggerChange: boolean, dateStrFormat: string): void;
+    parseDate(date: string|number, format: string): Date;
+}
+
+export interface FlatpickrHTMLInputElement extends HTMLInputElement {
+    _flatpickr: Flatpickr;
+}

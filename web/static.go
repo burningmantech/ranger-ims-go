@@ -32,4 +32,6 @@ import "embed"
 //go:embed static/ext/dataTables.min.js
 //go:embed static/ext/dataTables.bootstrap5.min.js
 //go:embed static/ext/dataTables.bootstrap5.min.css
+//go:embed static/ext/flatpickr.min.css
+//go:embed static/ext/flatpickr.min.js
 var StaticFS embed.FS

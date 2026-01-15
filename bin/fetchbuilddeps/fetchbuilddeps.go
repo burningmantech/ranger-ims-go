@@ -22,7 +22,6 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"log"
 	"net/http"
@@ -31,6 +30,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var client = &http.Client{
@@ -107,6 +108,22 @@ func main() {
 			"dataTables.bootstrap5.min.css",
 			"https://cdn.datatables.net/2.3.5/css/dataTables.bootstrap5.min.css",
 			"sha384-zmMNeKbOwzvUmxN8Z/VoYM+i+cwyC14+U9lq4+ZL0Ro7p1GMoh8uq8/HvIBgnh9+",
+		)
+	})
+
+	g.Go(func() error {
+		return existOrFetch(groupCtx, staticExtRoot,
+			"flatpickr.min.css",
+			"https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css",
+			"sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt",
+		)
+	})
+
+	g.Go(func() error {
+		return existOrFetch(groupCtx, staticExtRoot,
+			"flatpickr.min.js",
+			"https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js",
+			"sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6",
 		)
 	})
 

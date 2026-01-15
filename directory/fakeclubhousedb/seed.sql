@@ -11,13 +11,12 @@ alter table `person`
 insert into `person`
 (`id`,  `callsign`, `email`,                `password`,                     `status`,   `on_site`)
 values
--- This password is "Hardware"
-(600,   "Hardware", "hardware@example.com", "$argon2id$v=19$m=65536,t=3,p=4$ipVDinFcaxnDwt20s1YPZg$Y1XUdJBb4+VVy7hQ29ORNZvgsMu7ySbzLfdXgGMO6lo",  "active",   true),
-(601,   "Loosy",    "loosy@example.com",    concat(":", sha1("Loosy")),     "active",   true),
-(602,   "Doggy",    "doggy@example.com",    concat(":", sha1("Doggy")),     "active",   true),
-(603,   "Runner",   "runner@example.com",   concat(":", sha1("Runner")),    "active",   true),
--- The below password is "TheMan"
-(604,   "TheMan",   "theman@example.com",   "$argon2id$v=19$m=65536,t=1,p=12$YqQK04inaw4iIkQf5k0hyg$O1/TG6705h9w6R0C96qodP26JkN1pwM1vTod07yz3BM",    "active",   true)
+-- All of these users just have passwords equal to their case-sensitive callsigns
+(600,   "Hardware", "hardware@example.com", "$argon2id$v=19$m=8192,t=4,p=1$pGcXPQ1tP2Lz54c+R+8jgg$FZryn3Gttrxi7GoZXxyG/rGl/xNjOEjjDGeboEGMph8", "active",   true),
+(601,   "Loosy",    "loosy@example.com",    "$argon2id$v=19$m=8192,t=4,p=1$qGMBHtiPMl0MtCQncHhNdA$f1LbS0MIcIYjfiisvxAyEJC21lGVMBB11Yr9ctLP7aI", "active",   true),
+(602,   "Doggy",    "doggy@example.com",    "$argon2id$v=19$m=8192,t=4,p=1$L1EBUN9twap4arU4qurBdA$ML6fWDryXTmbyiAfzIQMFUoHYbJoOhwh58Oq3ffxeWA", "active",   true),
+(603,   "Runner",   "runner@example.com",   "$argon2id$v=19$m=8192,t=4,p=1$YY+aGB2MTKrnHFEQqdfdNg$Q9yByHhJ1GpOW+fUWePv+u76wE9fCGXSONkawTiyJEs", "active",   true),
+(604,   "TheMan",   "theman@example.com",   "$argon2id$v=19$m=8192,t=4,p=1$5zituz25m5nT7J2MgGAwfQ$EtaP17cnQCVOaVx3Ns8TZPPN1s3zY7bLvKW4QlwSR9Y", "active",   true)
 ;
 
 insert into `position`

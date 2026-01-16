@@ -30,6 +30,12 @@ run: build
 run/live:
 	go tool air
 
+
+## compose/build: build the stack for live reloading
+.PHONY: compose/build
+compose/build:
+	docker compose -f docker-compose.dev.yml build --pull
+
 ## compose/live: run the application stack with live reloading
 .PHONY: compose/live
 compose/live:

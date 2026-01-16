@@ -33,20 +33,20 @@ templ Head(title string, module string, usesDataTables bool, cacheVersion string
     <link rel="icon" type="image/png" sizes="32x32" href="/ims/static/logos/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/ims/static/logos/favicon-16x16.png">
     <link rel="manifest" href="/ims/static/logos/site.webmanifest">
-    <link rel="stylesheet" href="/ims/static/ext/bootstrap.min.css" type="text/css">
-    <link rel="stylesheet" href="/ims/static/ext/flatpickr.min.css" type="text/css">
+    <link rel="stylesheet" href="/ims/static/ext/bootstrap/bootstrap.min.css" type="text/css">
+    <link rel="stylesheet" href="/ims/static/ext/flatpickr/flatpickr.min.css" type="text/css">
     if usesDataTables {
-    <link rel="stylesheet" href="/ims/static/ext/dataTables.bootstrap5.min.css" type="text/css">
+    <link rel="stylesheet" href="/ims/static/ext/datatables/dataTables.bootstrap5.min.css" type="text/css">
     }
     <link rel="stylesheet" href="/ims/static/style.css" type="text/css">
     <title>{title}</title>
     <script src="/ims/static/ext/jquery.min.js" defer></script>
-    <script src="/ims/static/ext/bootstrap.bundle.min.js" defer></script>
-    <script src="/ims/static/ext/flatpickr.min.js" defer></script>
+    <script src="/ims/static/ext/bootstrap/bootstrap.bundle.min.js" defer></script>
+    <script src="/ims/static/ext/flatpickr/flatpickr.min.js" defer></script>
     <script src={"/ims/static/urls.js?v=" + v} defer></script>
     if usesDataTables {
-    <script src="/ims/static/ext/dataTables.min.js" defer></script>
-    <script src="/ims/static/ext/dataTables.bootstrap5.min.js" defer></script>
+    <script src="/ims/static/ext/datatables/dataTables.min.js" defer></script>
+    <script src="/ims/static/ext/datatables/dataTables.bootstrap5.min.js" defer></script>
     }
     <script src={"/ims/static/" + module + "?v=" + v} type="module"></script>
     <!-- theme.js should not be deferred, so add it last. -->

@@ -26,12 +26,12 @@ import "embed"
 // order to compile.
 
 //go:embed static
-//go:embed static/ext/bootstrap.min.css
-//go:embed static/ext/bootstrap.bundle.min.js
+//go:embed static/ext/bootstrap/bootstrap.min.css
+//go:embed static/ext/bootstrap/bootstrap.bundle.min.js
 //go:embed static/ext/jquery.min.js
-//go:embed static/ext/dataTables.min.js
-//go:embed static/ext/dataTables.bootstrap5.min.js
-//go:embed static/ext/dataTables.bootstrap5.min.css
-//go:embed static/ext/flatpickr.min.css
-//go:embed static/ext/flatpickr.min.js
+//go:embed static/ext/datatables/dataTables.min.js
+//go:embed static/ext/datatables/dataTables.bootstrap5.min.js
+//go:embed static/ext/datatables/dataTables.bootstrap5.min.css
+//go:embed static/ext/flatpickr/flatpickr.min.css
+//go:embed static/ext/flatpickr/flatpickr.min.js
 var StaticFS embed.FS

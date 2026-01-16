@@ -73,12 +73,12 @@ func Head(title string, module string, usesDataTables bool, cacheVersion string)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/ims/static/logos/apple-touch-icon.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/ims/static/logos/favicon-32x32.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/ims/static/logos/favicon-16x16.png\"><link rel=\"manifest\" href=\"/ims/static/logos/site.webmanifest\"><link rel=\"stylesheet\" href=\"/ims/static/ext/bootstrap.min.css\" type=\"text/css\"><link rel=\"stylesheet\" href=\"/ims/static/ext/flatpickr.min.css\" type=\"text/css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/ims/static/logos/apple-touch-icon.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/ims/static/logos/favicon-32x32.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/ims/static/logos/favicon-16x16.png\"><link rel=\"manifest\" href=\"/ims/static/logos/site.webmanifest\"><link rel=\"stylesheet\" href=\"/ims/static/ext/bootstrap/bootstrap.min.css\" type=\"text/css\"><link rel=\"stylesheet\" href=\"/ims/static/ext/flatpickr/flatpickr.min.css\" type=\"text/css\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if usesDataTables {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<link rel=\"stylesheet\" href=\"/ims/static/ext/dataTables.bootstrap5.min.css\" type=\"text/css\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<link rel=\"stylesheet\" href=\"/ims/static/ext/datatables/dataTables.bootstrap5.min.css\" type=\"text/css\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -96,7 +96,7 @@ func Head(title string, module string, usesDataTables bool, cacheVersion string)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</title><script src=\"/ims/static/ext/jquery.min.js\" defer></script><script src=\"/ims/static/ext/bootstrap.bundle.min.js\" defer></script><script src=\"/ims/static/ext/flatpickr.min.js\" defer></script><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</title><script src=\"/ims/static/ext/jquery.min.js\" defer></script><script src=\"/ims/static/ext/bootstrap/bootstrap.bundle.min.js\" defer></script><script src=\"/ims/static/ext/flatpickr/flatpickr.min.js\" defer></script><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -114,7 +114,7 @@ func Head(title string, module string, usesDataTables bool, cacheVersion string)
 			return templ_7745c5c3_Err
 		}
 		if usesDataTables {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<script src=\"/ims/static/ext/dataTables.min.js\" defer></script> <script src=\"/ims/static/ext/dataTables.bootstrap5.min.js\" defer></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<script src=\"/ims/static/ext/datatables/dataTables.min.js\" defer></script> <script src=\"/ims/static/ext/datatables/dataTables.bootstrap5.min.js\" defer></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

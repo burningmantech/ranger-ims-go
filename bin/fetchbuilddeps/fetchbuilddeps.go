@@ -22,6 +22,7 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
+	"hash"
 	"io"
 	"log"
 	"net/http"
@@ -54,8 +55,10 @@ func main() {
 	staticExtRoot := mustMakeSubRoot(repoRoot, filepath.Join("web", "static", "ext"))
 	defer logClose(staticExtRoot)
 
-	g, groupCtx := errgroup.WithContext(ctx)
+	g := errgroup.Group{}
+	groupCtx := ctx
 
+	// https://jquery.com/download/
 	jqueryVersion := "3.7.1"
 	{
 		g.Go(existOrFetch(groupCtx, staticExtRoot,
@@ -64,6 +67,7 @@ func main() {
 			"sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=",
 		))
 	}
+	// https://getbootstrap.com/docs/5.3/getting-started/download/#cdn-via-jsdelivr
 	bootstrapVersion := "5.3.8"
 	{
 		bootstrapDir := mustMakeSubRoot(staticExtRoot, "bootstrap")
@@ -79,14 +83,15 @@ func main() {
 			"sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI",
 		))
 	}
-	datatablesVersion := "2.3.5"
+	// https://cdn.datatables.net/#Release
+	datatablesVersion := "2.3.6"
 	{
 		datatablesDir := mustMakeSubRoot(staticExtRoot, "datatables")
 		defer logClose(datatablesDir)
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.min.js",
 			"https://cdn.datatables.net/"+datatablesVersion+"/js/dataTables.min.js",
-			"sha384-VQb2IR8f6y3bNbMe6kK6H+edzCXdt7Z/3GtWA7zYzXcvfwYRR5rHGl46q28FbtsY",
+			"sha384-UWkoRdMUXnG8Q4NLgaww6X9JWGlDfsKjC6ymI792g6v93zDTOEuOkkYJFzD6pQkR",
 		))
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.js",
@@ -96,9 +101,10 @@ func main() {
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.css",
 			"https://cdn.datatables.net/"+datatablesVersion+"/css/dataTables.bootstrap5.min.css",
-			"sha384-zmMNeKbOwzvUmxN8Z/VoYM+i+cwyC14+U9lq4+ZL0Ro7p1GMoh8uq8/HvIBgnh9+",
+			"sha384-q6bAgUAsga3oT16XWJ1toXdKcHmBp45jM5roe3RCQ6dET9xGL89Qmpx4tJAI2pm2",
 		))
 	}
+	// https://cdn.jsdelivr.net/npm/flatpickr/dist/
 	flatpickrVersion := "4.6.13"
 	{
 		flatpickrDir := mustMakeSubRoot(staticExtRoot, "flatpickr")
@@ -135,7 +141,10 @@ func main() {
 		// ))
 	}
 
-	must(g.Wait())
+	err = g.Wait()
+	if err != nil {
+		log.Fatal("Failed fetching build deps. See error above.")
+	}
 }
 
 func mustMakeSubRoot(root *os.Root, subdir string) *os.Root {
@@ -152,9 +161,8 @@ func existOrFetch(ctx context.Context, dir *os.Root, basename, url, tegridy stri
 			if err == nil {
 				log.Printf("File already exists with expected hash: %v", basename)
 				return nil
-			} else {
-				log.Printf("Will re-fetch file because it has the wrong hash: %v", basename)
 			}
+			// log.Printf("Will re-fetch file because it has the wrong hash: %v", basename)
 		}
 
 		log.Printf("Fetching: %v", url)
@@ -178,35 +186,40 @@ func existOrFetch(ctx context.Context, dir *os.Root, basename, url, tegridy stri
 		if err != nil {
 			return fmt.Errorf("[Copy]: %w", err)
 		}
-		return checkIntegrity(dir, basename, tegridy)
+		err = checkIntegrity(dir, basename, tegridy)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		return nil
 	}
 }
 
 func checkIntegrity(root *os.Root, basename, tegridy string) error {
-	f, err := root.Open(basename)
-	must(err)
-	b, err := io.ReadAll(f)
+	b, err := root.ReadFile(basename)
 	must(err)
 
-	var hasher = sha256.New()
+	var hasher hash.Hash
+	var prefix string
 	switch {
 	case strings.HasPrefix(tegridy, "sha256-"):
 		hasher = sha256.New()
-		tegridy = strings.TrimPrefix(tegridy, "sha256-")
+		prefix = "sha256-"
 	case strings.HasPrefix(tegridy, "sha384-"):
 		hasher = sha512.New384()
-		tegridy = strings.TrimPrefix(tegridy, "sha384-")
+		prefix = "sha384-"
 	case strings.HasPrefix(tegridy, "sha512-"):
 		hasher = sha512.New()
-		tegridy = strings.TrimPrefix(tegridy, "sha512-")
+		prefix = "sha512-"
 	case tegridy == "":
 		return fmt.Errorf("missing hash name prefix: %v", tegridy)
 	}
+	tegridy = strings.TrimPrefix(tegridy, prefix)
 	_, err = hasher.Write(b)
 	must(err)
 	hashStr := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
 	if tegridy != hashStr {
-		return fmt.Errorf("bad hash for %v\nWanted %v, got %v\n", f.Name(), tegridy, hashStr)
+		return fmt.Errorf("bad hash!\n%v:\n  expected %v%v\n  actual %v%v", basename, prefix, tegridy, prefix, hashStr)
 	}
 	return nil
 }

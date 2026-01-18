@@ -257,19 +257,8 @@ export function parseInt10(stringInt: string|null|undefined): number|null {
 function timeElement(date: Date): HTMLTimeElement {
     const timeStampContainer = document.createElement("time");
     timeStampContainer.setAttribute("datetime", date.toISOString());
-    timeStampContainer.textContent = fullDateTime.format(date);
+    timeStampContainer.textContent = longFormatDate(date);
     return timeStampContainer;
-}
-
-export function newDateTimeVal(dateInput: string, timeInput: string, tzOffset: string): string {
-    const val = `${dateInput.trim()}T${timeInput.trim()}${tzOffset}`;
-    const date = new Date(val);
-    // Just do a check on the year to prevent obvious mistakes.
-    // This will break in year 2099. Feel free to update maximum year.
-    if (date.getFullYear() < 2000 || date.getFullYear() > 2099) {
-        throw new Error(`year seems incorrect: ${date.getFullYear()}`);
-    }
-    return date.toISOString();
 }
 
 // Disable an element
@@ -721,14 +710,6 @@ export const shortDate: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined,
     // timeZone not specified; will use user's timezone
 });
 
-export const longDate: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    // timeZone not specified; will use user's timezone
-});
-
 // e.g. "19:21"
 export const shortTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
@@ -737,44 +718,42 @@ export const shortTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined,
     // timeZone not specified; will use user's timezone
 });
 
-// e.g. 13:34 EDT
-export const shortTimeTZ: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    hour12: false,
-    minute: "numeric",
-    timeZoneName: "short",
-    // timeZone not specified; will use user's timezone
-});
+// Returns something like "Sun, 2026-01-18 at 14:26:31 EST"
+export function longFormatDate(date: Date|number): string {
+    const options: Intl.DateTimeFormatOptions = {
+        weekday: 'short',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short',
+        hour12: false
+    };
 
-// e.g. "Thu, Aug 29, 2024, 19:11:04 EDT"
-export const fullDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    hour12: false,
-    minute: "numeric",
-    second: "numeric",
-    timeZoneName: "short",
-    // timeZone not specified; will use user's timezone
-});
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(date);
 
+    const partMap: Record<string, string> = {};
+    parts.forEach(part => {
+        partMap[part.type] = part.value;
+    });
+
+    return `${partMap['weekday']}, ${partMap['year']}-${partMap['month']}-${partMap['day']} at ${partMap['hour']}:${partMap['minute']}:${partMap['second']} ${partMap['timeZoneName']}`;
+}
+
+// returns something like -05:00
 export function localTzOffset(d: Date): string|null {
     const parts = new Intl.DateTimeFormat(
         undefined, { timeZoneName: 'longOffset' }).formatToParts(d);
     return (parts.find(p => p.type === 'timeZoneName')?.value.replace("GMT", ""))??null;
 }
 
+// returns something like PDT
 export function localTzShortName(d: Date): string|null {
     const parts = new Intl.DateTimeFormat(
         undefined, { timeZoneName: 'short' }).formatToParts(d);
-    return (parts.find(p => p.type === 'timeZoneName')?.value)??null;
-}
-
-export function localTzLongName(d: Date): string|null {
-    const parts = new Intl.DateTimeFormat(
-        undefined, { timeZoneName: 'long' }).formatToParts(d);
     return (parts.find(p => p.type === 'timeZoneName')?.value)??null;
 }
 
@@ -794,7 +773,7 @@ export function localTimeHHMM(date: Date): string {
 
 export function renderDate(date: string, type: string, _incident: any): string|number|undefined {
     const d = Date.parse(date);
-    const fullDate = fullDateTime.format(d);
+    const fullDate = longFormatDate(d);
     switch (type) {
         case "display":
             return `<span title="${fullDate}">${shortDate.format(d)}, <wbr />${shortTime.format(d)}</span>`;

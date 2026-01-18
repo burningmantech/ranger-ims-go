@@ -37,7 +37,7 @@ async function initAdminEventsPage() {
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
-    document.getElementById("browser_tz").textContent = ims.localTzLongName(new Date());
+    document.getElementById("browser_tz").textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
     await loadAccessControlList();
     drawAccess();
     explainModal = ims.bsModal(document.getElementById("explainModal"));

@@ -223,7 +223,7 @@ const nerdDateTime = new Intl.DateTimeFormat("sv-SE", {
 });
 function renderDate(date, type, _incident) {
     const d = Date.parse(date);
-    const fullDate = ims.fullDateTime.format(d);
+    const fullDate = ims.longFormatDate(d);
     switch (type) {
         case "display":
             const sp = document.createElement("span");

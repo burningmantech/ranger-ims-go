@@ -448,7 +448,7 @@ function drawStarted() {
     startedElement._flatpickr.setDate(date, false, "Z");
     const tzInput = document.getElementById("started_datetime_tz");
     tzInput.textContent = ims.localTzShortName(dateDate);
-    tzInput.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}. ` +
+    tzInput.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}\n\n` +
         `All date and time fields in IMS use your computer's time zone, not necessarily Gerlach time.`;
 }
 //

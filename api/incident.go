@@ -584,7 +584,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 			}
 		}
 		if len(sub) > 0 {
-			names := namesForIncidentTypes(allIncidentTypes, add)
+			names := namesForIncidentTypes(allIncidentTypes, sub)
 			logs = append(logs, fmt.Sprintf("Removed type: %v", names))
 			for _, rh := range sub {
 				err = imsDBQ.DetachIncidentTypeFromIncident(ctx, txn,

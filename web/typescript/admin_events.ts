@@ -55,7 +55,7 @@ async function initAdminEventsPage(): Promise<void> {
     window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
 
-    document.getElementById("browser_tz")!.textContent = ims.localTzLongName(new Date());
+    document.getElementById("browser_tz")!.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     await loadAccessControlList();
     drawAccess();

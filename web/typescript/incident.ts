@@ -116,7 +116,7 @@ async function initIncidentPage(): Promise<void> {
 
     ims.newFlatpickr("#started_datetime", {
         altInput: true,
-        altFormat: 'Y-m-d (D) H:i',
+        altFormat: 'D, Y-m-d at H:i',
         enableTime: true,
         allowInput: true,
         dateFormat: 'Y-m-d H:i',
@@ -562,6 +562,8 @@ function drawStarted(): void {
 
     const tzInput = document.getElementById("started_datetime_tz") as HTMLSpanElement;
     tzInput.textContent = ims.localTzShortName(dateDate);
+    tzInput.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}. ` +
+        `All date and time fields in IMS use your computer's time zone, not necessarily Gerlach time.`;
 }
 
 //

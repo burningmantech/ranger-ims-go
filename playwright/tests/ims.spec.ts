@@ -263,7 +263,7 @@ test("incidents", async ({ page, browser }) => {
 
     // override start time
     let altStartedDatetime = incidentPage.locator("#alt_started_datetime");
-    let altStartedDateTimeStr = "2025-01-27 (Mon) 22:11";
+    let altStartedDateTimeStr = "Mon, 2025-01-27 at 22:11";
     let ignoreDatetimeCheck = false;
 
     if (!await altStartedDatetime.isVisible()) {

@@ -613,7 +613,7 @@ function drawRangers() {
     const rangersElement: HTMLElement = document.getElementById("incident_rangers_list")!;
     rangersElement.querySelectorAll("li").forEach((el: HTMLElement) => {el.remove()});
 
-    for (const [i, ranger] of rangers.entries()) {
+    for (const ranger of rangers) {
         if (!ranger.handle) {
             continue;
         }
@@ -624,13 +624,12 @@ function drawRangers() {
         rangerLi.classList.remove("hidden");
         rangerLi.dataset["rangerHandle"] = handle;
 
-        const label =  rangerLi.querySelector("label")!
-        label.htmlFor = `ranger_role_${i}`;
+        const rangerName =  rangerLi.querySelector("span")!
         if (personnel?.[handle] == null) {
-            rangerLi.querySelector("label")!.textContent = handle;
+            rangerName.textContent = handle;
         } else {
             const person = personnel[handle];
-            const rangerLink = rangerLi.querySelector("a")!;
+            const rangerLink = rangerName.querySelector("a")!;
             rangerLink.textContent = rangerAsString(person);
             if (person.directory_id != null) {
                 rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
@@ -638,7 +637,7 @@ function drawRangers() {
             }
         }
         const roleInput = rangerLi.querySelector("input")!;
-        roleInput.id = label.htmlFor;
+        roleInput.ariaLabel = `Ranger role for ${handle}`;
         if (ranger.role) {
             rangerLi.querySelector("input")!.value = ranger.role;
         }

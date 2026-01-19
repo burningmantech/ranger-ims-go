@@ -776,7 +776,7 @@ export function renderDate(date: string, type: string, _incident: any): string|n
     const fullDate = longFormatDate(d);
     switch (type) {
         case "display":
-            return `<span title="${fullDate}">${shortDate.format(d)}, <wbr />${shortTime.format(d)}</span>`;
+            return `<span title="${fullDate}">${shortDate.format(d)}<br />${shortTime.format(d)}</span>`;
         case "filter":
             return shortDate.format(d) + " " + shortTime.format(d);
         case "type":

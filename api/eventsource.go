@@ -18,10 +18,11 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/launchdarkly/eventsource"
 	"log/slog"
 	"strconv"
 	"sync/atomic"
+
+	"github.com/launchdarkly/eventsource"
 )
 
 const EventSourceChannel = "imsevents"
@@ -30,11 +31,12 @@ type IMSEventData struct {
 	EventID int32  `json:"event_id,omitzero"`
 	Comment string `json:"comment,omitzero"`
 
-	// Exactly one of IncidentNumber, FieldReportNumber, or InitialEvent must be set,
-	// as this indicates the type of IMS SSE.
+	// Exactly one of IncidentNumber, FieldReportNumber, StayNumber,
+	// or InitialEvent must be set, as this indicates the type of IMS SSE.
 
 	IncidentNumber    int32 `json:"incident_number,omitzero"`
 	FieldReportNumber int32 `json:"field_report_number,omitzero"`
+	StayNumber        int32 `json:"stay_number,omitzero"`
 	InitialEvent      bool  `json:"initial_event,omitzero"`
 }
 
@@ -53,6 +55,9 @@ func (e IMSEvent) Event() string {
 	}
 	if e.EventData.FieldReportNumber > 0 {
 		return "FieldReport"
+	}
+	if e.EventData.StayNumber > 0 {
+		return "Stay"
 	}
 	if e.EventData.InitialEvent {
 		return "InitialEvent"
@@ -99,7 +104,7 @@ func (es *EventSourcerer) Replay(channel, id string) chan eventsource.Event {
 	return out
 }
 
-func (es *EventSourcerer) notifyFieldReportUpdateV2(eventID int32, frNumber int32) {
+func (es *EventSourcerer) notifyFieldReportUpdate(eventID int32, frNumber int32) {
 	if frNumber == 0 {
 		return
 	}
@@ -112,7 +117,7 @@ func (es *EventSourcerer) notifyFieldReportUpdateV2(eventID int32, frNumber int3
 	})
 }
 
-func (es *EventSourcerer) notifyIncidentUpdateV2(eventID int32, incidentNumber int32) {
+func (es *EventSourcerer) notifyIncidentUpdate(eventID int32, incidentNumber int32) {
 	if incidentNumber == 0 {
 		return
 	}
@@ -121,6 +126,26 @@ func (es *EventSourcerer) notifyIncidentUpdateV2(eventID int32, incidentNumber i
 		EventData: IMSEventData{
 			EventID:        eventID,
 			IncidentNumber: incidentNumber,
+		},
+	})
+}
+
+func (es *EventSourcerer) notifyIncidentUpdates(eventID int32, incident1, incident2 int32) {
+	es.notifyIncidentUpdate(eventID, incident1)
+	if incident2 != incident1 {
+		es.notifyIncidentUpdate(eventID, incident2)
+	}
+}
+
+func (es *EventSourcerer) notifyStayUpdate(eventID int32, stayNumber int32) {
+	if stayNumber == 0 {
+		return
+	}
+	es.Server.Publish([]string{EventSourceChannel}, IMSEvent{
+		EventID: es.IdCounter.Add(1),
+		EventData: IMSEventData{
+			EventID:    eventID,
+			StayNumber: stayNumber,
 		},
 	})
 }

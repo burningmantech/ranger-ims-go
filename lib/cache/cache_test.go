@@ -18,13 +18,14 @@ package cache_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/lib/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	"sync/atomic"
-	"testing"
-	"time"
 )
 
 type cacheVal struct {

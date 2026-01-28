@@ -15,8 +15,10 @@ type Querier interface {
 	AttachFieldReportToIncident(ctx context.Context, db DBTX, arg AttachFieldReportToIncidentParams) error
 	AttachIncidentTypeToIncident(ctx context.Context, db DBTX, arg AttachIncidentTypeToIncidentParams) error
 	AttachRangerHandleToIncident(ctx context.Context, db DBTX, arg AttachRangerHandleToIncidentParams) error
+	AttachRangerToStay(ctx context.Context, db DBTX, arg AttachRangerToStayParams) error
 	AttachReportEntryToFieldReport(ctx context.Context, db DBTX, arg AttachReportEntryToFieldReportParams) error
 	AttachReportEntryToIncident(ctx context.Context, db DBTX, arg AttachReportEntryToIncidentParams) error
+	AttachReportEntryToStay(ctx context.Context, db DBTX, arg AttachReportEntryToStayParams) error
 	ClearEventAccessForExpression(ctx context.Context, db DBTX, arg ClearEventAccessForExpressionParams) error
 	ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error
 	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)
@@ -27,8 +29,10 @@ type Querier interface {
 	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
 	CreateIncidentType(ctx context.Context, db DBTX, arg CreateIncidentTypeParams) (int64, error)
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
+	CreateStay(ctx context.Context, db DBTX, arg CreateStayParams) (int64, error)
 	Destinations(ctx context.Context, db DBTX, arg DestinationsParams) ([]DestinationsRow, error)
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
+	DetachRangerFromStay(ctx context.Context, db DBTX, arg DetachRangerFromStayParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
 	Event(ctx context.Context, db DBTX, id int32) (EventRow, error)
 	EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAllRow, error)
@@ -56,6 +60,8 @@ type Querier interface {
 	NextFieldReportNumber(ctx context.Context, db DBTX, event int32) (int32, error)
 	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
 	NextIncidentNumber(ctx context.Context, db DBTX, event int32) (int32, error)
+	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+	NextStayNumber(ctx context.Context, db DBTX, event int32) (int32, error)
 	QueryEventID(ctx context.Context, db DBTX, name string) (QueryEventIDRow, error)
 	RemoveDestinations(ctx context.Context, db DBTX, arg RemoveDestinationsParams) error
 	SchemaVersion(ctx context.Context, db DBTX) (int16, error)
@@ -67,11 +73,18 @@ type Querier interface {
 	// the reportEntryID in question, and that's important for authorization purposes.
 	//
 	SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error
+	Stay(ctx context.Context, db DBTX, arg StayParams) (StayRow, error)
+	Stay_Rangers(ctx context.Context, db DBTX, arg Stay_RangersParams) ([]Stay_RangersRow, error)
+	Stay_ReportEntries(ctx context.Context, db DBTX, arg Stay_ReportEntriesParams) ([]Stay_ReportEntriesRow, error)
+	Stays(ctx context.Context, db DBTX, event int32) ([]StaysRow, error)
+	Stays_Rangers(ctx context.Context, db DBTX, event int32) ([]Stays_RangersRow, error)
+	Stays_ReportEntries(ctx context.Context, db DBTX, arg Stays_ReportEntriesParams) ([]Stays_ReportEntriesRow, error)
 	UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncidentsParams) error
 	UpdateEvent(ctx context.Context, db DBTX, arg UpdateEventParams) error
 	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error
 	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error
 	UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error
+	UpdateStay(ctx context.Context, db DBTX, arg UpdateStayParams) error
 }
 
 var _ Querier = (*Queries)(nil)

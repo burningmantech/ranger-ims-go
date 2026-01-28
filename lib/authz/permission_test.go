@@ -14,41 +14,46 @@
 // limitations under the License.
 //
 
-package authz_test
+package authz
 
 import (
-	. "github.com/burningmantech/ranger-ims-go/lib/authz"
+	"testing"
+
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 var testAdmins = []string{"AdminCat", "AdminDog"}
 
 const (
-	readerPerm             = EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadDestinations
-	writerPerm             = EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadDestinations
+	readerPerm             = EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadStays | EventReadDestinations
+	writerPerm             = EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadStays | EventWriteStays | EventReadDestinations
 	reporterPerm           = EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations
+	stayWriterPerm         = EventReadEventName | EventReadStays | EventWriteStays | EventReadDestinations
 	authenticatedUserPerms = GlobalListEvents | GlobalReadIncidentTypes | GlobalReadPersonnel | GlobalReadStreets
 	adminGlobalPerms       = GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministrateDebugging | GlobalAdministrateStreets | GlobalAdministrateDestinations
 )
 
-func addPerm(m map[int32][]imsdb.EventAccess, eventID int32, expr, mode, validity string) {
-	m[eventID] = append(m[eventID], imsdb.EventAccess{
-		Event:      eventID,
-		Expression: expr,
-		Mode:       imsdb.EventAccessMode(mode),
-		Validity:   imsdb.EventAccessValidity(validity),
-	})
+func addPerm(m map[int32][]imsdb.EventAccess, eventID int32, expr string, mode imsdb.EventAccessMode, validity imsdb.EventAccessValidity) {
+	m[eventID] = append(m[eventID],
+		imsdb.EventAccess{
+			Event:      eventID,
+			Expression: expr,
+			Mode:       mode,
+			Validity:   validity,
+		},
+	)
 }
 
 func TestManyEventPermissions_personRules(t *testing.T) {
 	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
-	addPerm(accessByEvent, 999, "person:SomeoneElse", "read", "always")
-	addPerm(accessByEvent, 123, "person:EventReaderGuy", "read", "always")
-	addPerm(accessByEvent, 123, "person:EventWriterGal", "write", "always")
-	addPerm(accessByEvent, 123, "person:EventReporterPerson", "report", "always")
+	addPerm(accessByEvent, 999, "person:SomeoneElse", modeRead, validityAlways)
+	addPerm(accessByEvent, 123, "person:EventReaderGuy", modeRead, validityAlways)
+	addPerm(accessByEvent, 123, "person:EventWriterGal", modeWrite, validityAlways)
+	addPerm(accessByEvent, 123, "person:EventReporterPerson", modeReport, validityAlways)
+	addPerm(accessByEvent, 123, "person:EventStayWriterPerson", modeWriteStays, validityAlways)
+
 	permissions, globalPermissions := ManyEventPermissions(
 		accessByEvent,
 		testAdmins,
@@ -91,6 +96,19 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 	permissions, globalPermissions = ManyEventPermissions(
 		accessByEvent,
 		testAdmins,
+		"EventStayWriterPerson",
+		true,
+		[]string{},
+		[]string{},
+		"",
+	)
+	require.Equal(t, EventNoPermissions, permissions[999])
+	require.Equal(t, stayWriterPerm, permissions[123])
+	require.Equal(t, authenticatedUserPerms, globalPermissions)
+
+	permissions, globalPermissions = ManyEventPermissions(
+		accessByEvent,
+		testAdmins,
 		"AdminCat",
 		true,
 		[]string{},
@@ -105,9 +123,9 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 func TestManyEventPermissions_positionRules(t *testing.T) {
 	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
-	addPerm(accessByEvent, 123, "person:Running Ranger", "report", "always")
-	addPerm(accessByEvent, 123, "position:Runner", "read", "always")
-	addPerm(accessByEvent, 999, "position:Non-Runner", "read", "always")
+	addPerm(accessByEvent, 123, "person:Running Ranger", modeReport, validityAlways)
+	addPerm(accessByEvent, 123, "position:Runner", modeRead, validityAlways)
+	addPerm(accessByEvent, 999, "position:Non-Runner", modeRead, validityAlways)
 
 	// this user matches both a person and a position rule on event 123
 	permissions, globalPermissions := ManyEventPermissions(
@@ -127,9 +145,9 @@ func TestManyEventPermissions_positionRules(t *testing.T) {
 func TestManyEventPermissions_teamRules(t *testing.T) {
 	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
-	addPerm(accessByEvent, 123, "position:Runner", "report", "always")
-	addPerm(accessByEvent, 123, "team:Running Squad", "read", "always")
-	addPerm(accessByEvent, 999, "team:Non-Runner", "read", "always")
+	addPerm(accessByEvent, 123, "position:Runner", modeReport, validityAlways)
+	addPerm(accessByEvent, 123, "team:Running Squad", modeRead, validityAlways)
+	addPerm(accessByEvent, 999, "team:Non-Runner", modeRead, validityAlways)
 
 	// this user matches both a team and position rule on event 123
 	permissions, globalPermissions := ManyEventPermissions(
@@ -149,9 +167,9 @@ func TestManyEventPermissions_teamRules(t *testing.T) {
 func TestManyEventPermissions_onDutyRules(t *testing.T) {
 	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
-	addPerm(accessByEvent, 123, "person:Running Ranger", "report", "always")
-	addPerm(accessByEvent, 123, "onduty:Runner", "read", "always")
-	addPerm(accessByEvent, 999, "position:Runner", "read", "always")
+	addPerm(accessByEvent, 123, "person:Running Ranger", modeReport, validityAlways)
+	addPerm(accessByEvent, 123, "onduty:Runner", modeRead, validityAlways)
+	addPerm(accessByEvent, 999, "position:Runner", modeRead, validityAlways)
 
 	// this user matches both a person and an onduty rule on event 123
 	permissions, globalPermissions := ManyEventPermissions(
@@ -171,7 +189,7 @@ func TestManyEventPermissions_onDutyRules(t *testing.T) {
 func TestManyEventPermissions_wildcardValidity(t *testing.T) {
 	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)
-	addPerm(accessByEvent, 123, "*", "report", "onsite")
+	addPerm(accessByEvent, 123, "*", modeReport, validityOnsite)
 
 	permissions, globalPermissions := ManyEventPermissions(
 		accessByEvent,

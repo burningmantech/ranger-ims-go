@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (26);
+insert into SCHEMA_INFO (VERSION) values (27);
 
 
 create table `EVENT` (
@@ -154,7 +154,7 @@ create table EVENT_ACCESS (
     `EVENT`    integer      not null,
     EXPRESSION varchar(128) not null,
 
-    MODE     enum ('read', 'write', 'report') not null,
+    MODE     enum ('read', 'write', 'report', 'write_stays') not null,
     VALIDITY enum ('always', 'onsite') not null default 'always',
     -- An optional timestamp at which the access rule expires
     EXPIRES  double,
@@ -219,6 +219,7 @@ create table `ACTION_LOG` (
     primary key (`ID`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
 create table `DESTINATION` (
     `EVENT`             integer not null,
     `TYPE`              enum('camp', 'art', 'other') not null,
@@ -230,3 +231,66 @@ create table `DESTINATION` (
     primary key (`EVENT`, `TYPE`, `NUMBER`),
     foreign key `DEST_EVENT` (`EVENT`) references `EVENT`(ID)
 ) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
+
+create table STAY (
+    `EVENT`         integer  not null,
+    NUMBER          integer  not null,
+    CREATED         double   not null,
+    INCIDENT_NUMBER integer,
+
+    GUEST_PREFERRED_NAME        varchar(128),
+    GUEST_LEGAL_NAME            varchar(128),
+    GUEST_DESCRIPTION           varchar(256),
+    GUEST_CAMP_NAME             varchar(256),
+    GUEST_CAMP_ADDRESS          varchar(256),
+    GUEST_CAMP_DESCRIPTION      varchar(256),
+
+    ARRIVAL_TIME        double,
+    ARRIVAL_METHOD      varchar(256),
+    ARRIVAL_STATE       varchar(256),
+    ARRIVAL_REASON      varchar(256),
+    ARRIVAL_BELONGINGS  varchar(256),
+
+    DEPARTURE_TIME      double,
+    DEPARTURE_METHOD    varchar(256),
+    DEPARTURE_STATE     varchar(256),
+
+    RESOURCE_REST       varchar(256),
+    RESOURCE_CLOTHES    varchar(256),
+    RESOURCE_POGS       varchar(256),
+    RESOURCE_FOOD_BEV   varchar(256),
+    RESOURCE_OTHER      varchar(256),
+
+    foreign key `STAY_TO_EVENT` (`EVENT`) references `EVENT`(ID),
+    foreign key `STAY_TO_INCIDENT` (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
+
+    primary key (`EVENT`, NUMBER)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table STAY__REPORT_ENTRY (
+    `EVENT`             integer not null,
+    STAY_NUMBER  integer not null,
+    REPORT_ENTRY        integer not null,
+
+    foreign key `SRE_TO_EVENT` (`EVENT`) references `EVENT`(ID),
+    foreign key `SRE_TO_GUEST_VISIT` (`EVENT`, STAY_NUMBER)
+        references STAY(`EVENT`, NUMBER),
+    foreign key `SRE_TO_REPORT_ENTRY` (REPORT_ENTRY)
+        references REPORT_ENTRY(ID),
+
+    primary key (`EVENT`, STAY_NUMBER, REPORT_ENTRY)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table STAY__RANGER (
+    ID                  integer     not null auto_increment,
+    `EVENT`             integer     not null,
+    STAY_NUMBER   integer     not null,
+    RANGER_HANDLE       varchar(64) not null,
+    ROLE                varchar(128),
+
+    foreign key (`EVENT`) references `EVENT` (ID),
+    foreign key (`EVENT`, STAY_NUMBER) references STAY (`EVENT`, NUMBER),
+
+    primary key (ID)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

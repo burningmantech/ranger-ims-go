@@ -296,6 +296,86 @@ func AddToMux(
 		),
 	)
 
+	mux.Handle("GET /ims/api/events/{eventName}/stays",
+		Adapt(
+			GetStays{db, userStore, cfg.Core.Admins, attachmentsEnabled},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(false, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("GET /ims/api/events/{eventName}/stays/{stayNumber}",
+		Adapt(
+			GetStay{db, userStore, cfg.Core.Admins, attachmentsEnabled},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(false, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/stays",
+		Adapt(
+			NewStay{db, userStore, es, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(false, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}",
+		Adapt(
+			EditStay{db, userStore, es, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(false, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}/rangers/{rangerName}",
+		Adapt(
+			AttachRangerToStay{db, userStore, es, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("DELETE /ims/api/events/{eventName}/stays/{stayNumber}/rangers/{rangerName}",
+		Adapt(
+			DetachRangerFromStay{db, userStore, es, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("GET /ims/api/events/{eventName}/stays/{stayNumber}/attachments/{attachmentNumber}",
+		Adapt(
+			GetStayAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
+	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}/attachments",
+		Adapt(
+			AttachToStay{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
 	mux.Handle("GET /ims/api/events/{eventName}/destinations",
 		Adapt(
 			GetDestinations{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},

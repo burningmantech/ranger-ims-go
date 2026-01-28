@@ -21,15 +21,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/conf"
-	"github.com/burningmantech/ranger-ims-go/directory"
-	"github.com/burningmantech/ranger-ims-go/lib/attachment"
-	"github.com/burningmantech/ranger-ims-go/lib/authz"
-	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	"github.com/burningmantech/ranger-ims-go/lib/format"
-	"github.com/burningmantech/ranger-ims-go/lib/herr"
-	"github.com/burningmantech/ranger-ims-go/store"
-	"github.com/gabriel-vasile/mimetype"
 	"io"
 	"log/slog"
 	"mime"
@@ -39,6 +30,16 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/attachment"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/format"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
+	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/gabriel-vasile/mimetype"
 )
 
 const (
@@ -72,6 +73,23 @@ type GetFieldReportAttachment struct {
 }
 
 type AttachToFieldReport struct {
+	imsDBQ           *store.DBQ
+	userStore        *directory.UserStore
+	es               *EventSourcerer
+	attachmentsStore conf.AttachmentsStore
+	s3Client         *attachment.S3Client
+	imsAdmins        []string
+}
+
+type GetStayAttachment struct {
+	imsDBQ           *store.DBQ
+	userStore        *directory.UserStore
+	attachmentsStore conf.AttachmentsStore
+	s3Client         *attachment.S3Client
+	imsAdmins        []string
+}
+
+type AttachToStay struct {
 	imsDBQ           *store.DBQ
 	userStore        *directory.UserStore
 	es               *EventSourcerer
@@ -357,7 +375,7 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		return 0, errHTTP.From("[addIncidentReportEntry]")
 	}
 
-	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)
+	action.es.notifyIncidentUpdate(event.ID, incidentNumber)
 	return reID, nil
 }
 
@@ -469,10 +487,141 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		return 0, errHTTP.From("[addFRReportEntry]")
 	}
 
-	action.es.notifyFieldReportUpdateV2(event.ID, fieldReportNumber)
+	action.es.notifyFieldReportUpdate(event.ID, fieldReportNumber)
 	if fieldReport.IncidentNumber.Valid {
-		action.es.notifyIncidentUpdateV2(event.ID, fieldReport.IncidentNumber.Int32)
+		action.es.notifyIncidentUpdate(event.ID, fieldReport.IncidentNumber.Int32)
 	}
+	return reID, nil
+}
+
+func (action GetStayAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	file, contentType, errHTTP := action.getStayAttachment(req)
+	if errHTTP != nil {
+		errHTTP.From("[getStayAttachment]").WriteResponse(w)
+		return
+	}
+	w.Header().Set("Content-Type", contentType)
+	http.ServeContent(w, req, "Attached File", time.Now(), file)
+}
+
+func (action GetStayAttachment) getStayAttachment(
+	req *http.Request,
+) (fi io.ReadSeeker, contentType string, errHTTP *herr.HTTPError) {
+	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return nil, "", errHTTP.From("[getEventPermissions]")
+	}
+	if eventPermissions&authz.EventReadStays == 0 {
+		return nil, "", herr.Forbidden("The requestor does not have EventReadStays permission on this Event", nil)
+	}
+	ctx := req.Context()
+
+	stayNumber, err := conv.ParseInt32(req.PathValue("stayNumber"))
+	if err != nil {
+		return nil, "", herr.BadRequest("Failed to parse stay number", err).From("[ParseInt32]")
+	}
+	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
+	if err != nil {
+		return nil, "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
+	}
+
+	_, reportEntries, errHTTP := fetchStay(ctx, action.imsDBQ, event.ID, stayNumber)
+	if errHTTP != nil {
+		return nil, "", errHTTP.From("[fetchStay]")
+	}
+
+	var filename string
+	for _, reportEntry := range reportEntries {
+		if reportEntry.ID == attachmentNumber {
+			filename = reportEntry.AttachedFile.String
+			break
+		}
+	}
+
+	file, errHTTP := retrieveFile(ctx, action.attachmentsStore, action.s3Client, filename)
+	if errHTTP != nil {
+		return nil, "", errHTTP.From("[retrieveFile]")
+	}
+
+	mtype, errHTTP := sniffFile(file)
+	if errHTTP != nil {
+		return nil, "", errHTTP.From("[sniffFile]")
+	}
+	contentType = safeToPreviewContentType(mtype.String())
+
+	return file, contentType, nil
+}
+
+func (action AttachToStay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	reID, errHTTP := action.attachToStay(req)
+	if errHTTP != nil {
+		errHTTP.From("[attachToStay]").WriteResponse(w)
+		return
+	}
+	slog.Info("Saved Stay attachment")
+	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt(reID))
+	herr.WriteNoContentResponse(w, "Saved Stay attachment")
+}
+
+func (action AttachToStay) attachToStay(req *http.Request) (int32, *herr.HTTPError) {
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[getEventPermissions]")
+	}
+	if eventPermissions&authz.EventWriteStays == 0 {
+		return 0, herr.Forbidden("The requestor does not have EventWriteStays permission on this Event", nil)
+	}
+	ctx := req.Context()
+
+	stayNumber, err := conv.ParseInt32(req.PathValue("stayNumber"))
+	if err != nil {
+		return 0, herr.BadRequest("Failed to parse stay number", err).From("[ParseInt32]")
+	}
+
+	// this must match the key sent by the client
+	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
+	if err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			return 0, herr.RequestEntityTooLarge(fmt.Sprintf("The supplied file is above the server limit of %v", format.HumanByteSize(mbe.Limit)), err)
+		}
+		return 0, herr.BadRequest("Failed to parse file", err)
+	}
+	defer shut(fi)
+
+	mtype, errHTTP := sniffFile(fi)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[sniffFile]")
+	}
+
+	newFileName := fmt.Sprintf("event_%05d_stay_%05d_%v%v", event.ID, stayNumber, rand.Text(), mtype.Extension())
+	slog.Info("User uploaded a stay attachment",
+		"user", jwtCtx.Claims.RangerHandle(),
+		"eventName", event.Name,
+		"stayNumber", stayNumber,
+		"originalName", fiHead.Filename,
+		"newFileName", newFileName,
+		"size", fiHead.Size,
+		"contentType", mtype.String(),
+		"extension", mtype.Extension(),
+	)
+
+	errHTTP = saveFile(ctx, action.attachmentsStore, action.s3Client, newFileName, fi)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[saveFile]")
+	}
+
+	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
+		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
+	reID, errHTTP := addStayReportEntry(
+		ctx, action.imsDBQ, action.imsDBQ, event.ID, stayNumber, jwtCtx.Claims.RangerHandle(),
+		reText, false, newFileName, fiHead.Filename, mtype.String(),
+	)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[addStayReportEntry]")
+	}
+
+	action.es.notifyIncidentUpdate(event.ID, stayNumber)
 	return reID, nil
 }
 

@@ -117,7 +117,8 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	getIncidents := MethodURL{http.MethodGet, eventPath + "/incidents"}
 	getIncident := MethodURL{http.MethodGet, eventPath + "/incidents/1"}
 	getIncidentAttachment := MethodURL{http.MethodGet, eventPath + "/incidents/1/attachments/1"}
-	postIncident := MethodURL{http.MethodPost, eventPath + "/incidents/1"}
+	createIncident := MethodURL{http.MethodPost, eventPath + "/incidents"}
+	updateIncident := MethodURL{http.MethodPost, eventPath + "/incidents/1"}
 	postIncidentAttachment := MethodURL{http.MethodPost, eventPath + "/incidents/1/attachments"}
 	postIncidentRE := MethodURL{http.MethodPost, eventPath + "/incidents/1/report_entries/2"}
 	postIncidentRanger := MethodURL{http.MethodPost, eventPath + "/incidents/1/rangers/some_name"}
@@ -125,16 +126,26 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	getFieldReports := MethodURL{http.MethodGet, eventPath + "/field_reports"}
 	getFieldReport := MethodURL{http.MethodGet, eventPath + "/field_reports/1"}
 	getFieldReportAttachment := MethodURL{http.MethodGet, eventPath + "/field_reports/1/attachments/1"}
-	postFieldReport := MethodURL{http.MethodPost, eventPath + "/field_reports/1"}
-	postFieldReportAttachment := MethodURL{http.MethodPost, eventPath + "/field_reports/1/attachments"}
-	postFieldReportRE := MethodURL{http.MethodPost, eventPath + "/field_reports/1/report_entries/2"}
+	createFieldReport := MethodURL{http.MethodPost, eventPath + "/field_reports"}
+	updateFieldReport := MethodURL{http.MethodPost, eventPath + "/field_reports/9999999"}
+	postFieldReportAttachment := MethodURL{http.MethodPost, eventPath + "/field_reports/9999999/attachments"}
+	postFieldReportRE := MethodURL{http.MethodPost, eventPath + "/field_reports/9999999/report_entries/2"}
+	getStays := MethodURL{http.MethodGet, eventPath + "/stays"}
+	getStay := MethodURL{http.MethodGet, eventPath + "/stays/1"}
+	getStayAttachment := MethodURL{http.MethodGet, eventPath + "/stays/1/attachments/1"}
+	createStay := MethodURL{http.MethodPost, eventPath + "/stays"}
+	updateStay := MethodURL{http.MethodPost, eventPath + "/stays/1"}
+	postStayAttachment := MethodURL{http.MethodPost, eventPath + "/stays/1/attachments"}
+	postStayRanger := MethodURL{http.MethodPost, eventPath + "/stays/1/rangers/some_name"}
+	deleteStayRanger := MethodURL{http.MethodDelete, eventPath + "/stays/1/rangers/some_name"}
 	getDestinations := MethodURL{http.MethodGet, eventPath + "/destinations"}
 
 	allPerms := []MethodURL{
 		getIncidents,
 		getIncident,
 		getIncidentAttachment,
-		postIncident,
+		createIncident,
+		updateIncident,
 		postIncidentAttachment,
 		postIncidentRE,
 		postIncidentRanger,
@@ -142,16 +153,25 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getFieldReports,
 		getFieldReport,
 		getFieldReportAttachment,
-		postFieldReport,
+		createFieldReport,
+		updateFieldReport,
 		postFieldReportAttachment,
 		postFieldReportRE,
+		getStays,
+		getStay,
+		getStayAttachment,
+		createStay,
+		updateStay,
+		postStayAttachment,
+		postStayRanger,
+		deleteStayRanger,
 		getDestinations,
 	}
 	reporter := []MethodURL{
 		getFieldReports,
 		getFieldReport,
 		getFieldReportAttachment,
-		postFieldReport,
+		createFieldReport,
 		postFieldReportAttachment,
 		postFieldReportRE,
 		getDestinations,
@@ -163,6 +183,9 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getFieldReports,
 		getFieldReport,
 		getFieldReportAttachment,
+		getStays,
+		getStay,
+		getStayAttachment,
 		getDestinations,
 	}
 	// these are per-event endpoints that admins can access by virtue of being admins
@@ -202,12 +225,12 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	// now the user can hit some more endpoints
 	for _, api := range allPerms {
 		switch {
-		case api == postFieldReport:
+		case api == updateFieldReport || api == postFieldReportRE || api == postFieldReportAttachment:
 			// the user won't be able to write to an FR for which they're not an author,
-			// e.g. the one in this dummy call, so we should expect a 403, but we
+			// e.g. the one in this dummy call, so we should expect a 403 or 404, but we
 			// can confirm they got the right error message
 			code := apiCall(t, api, apisAdmin)
-			require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
+			require.True(t, forbiddenOrNotFound(code), "%v %v wanted 403/404 status code, got %v", api.Method, api.Path, code)
 		case slices.Contains(reporter, api):
 			// permitted
 			code := apiCall(t, api, apisAdmin)
@@ -332,4 +355,8 @@ func unauthorized(status int) bool {
 
 func forbidden(status int) bool {
 	return status == http.StatusForbidden
+}
+
+func forbiddenOrNotFound(status int) bool {
+	return status == http.StatusNotFound || status == http.StatusForbidden
 }

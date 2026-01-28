@@ -75,9 +75,10 @@ func AllDestinationTypeValues() []DestinationType {
 type EventAccessMode string
 
 const (
-	EventAccessModeRead   EventAccessMode = "read"
-	EventAccessModeWrite  EventAccessMode = "write"
-	EventAccessModeReport EventAccessMode = "report"
+	EventAccessModeRead       EventAccessMode = "read"
+	EventAccessModeWrite      EventAccessMode = "write"
+	EventAccessModeReport     EventAccessMode = "report"
+	EventAccessModeWriteStays EventAccessMode = "write_stays"
 )
 
 func (e *EventAccessMode) Scan(src interface{}) error {
@@ -119,7 +120,8 @@ func (e EventAccessMode) Valid() bool {
 	switch e {
 	case EventAccessModeRead,
 		EventAccessModeWrite,
-		EventAccessModeReport:
+		EventAccessModeReport,
+		EventAccessModeWriteStays:
 		return true
 	}
 	return false
@@ -130,6 +132,7 @@ func AllEventAccessModeValues() []EventAccessMode {
 		EventAccessModeRead,
 		EventAccessModeWrite,
 		EventAccessModeReport,
+		EventAccessModeWriteStays,
 	}
 }
 
@@ -384,4 +387,44 @@ type ReportEntry struct {
 
 type SchemaInfo struct {
 	Version int16
+}
+
+type Stay struct {
+	Event                int32
+	Number               int32
+	Created              float64
+	IncidentNumber       sql.NullInt32
+	GuestPreferredName   sql.NullString
+	GuestLegalName       sql.NullString
+	GuestDescription     sql.NullString
+	GuestCampName        sql.NullString
+	GuestCampAddress     sql.NullString
+	GuestCampDescription sql.NullString
+	ArrivalTime          sql.NullFloat64
+	ArrivalMethod        sql.NullString
+	ArrivalState         sql.NullString
+	ArrivalReason        sql.NullString
+	ArrivalBelongings    sql.NullString
+	DepartureTime        sql.NullFloat64
+	DepartureMethod      sql.NullString
+	DepartureState       sql.NullString
+	ResourceRest         sql.NullString
+	ResourceClothes      sql.NullString
+	ResourcePogs         sql.NullString
+	ResourceFoodBev      sql.NullString
+	ResourceOther        sql.NullString
+}
+
+type StayRanger struct {
+	ID           int32
+	Event        int32
+	StayNumber   int32
+	RangerHandle string
+	Role         sql.NullString
+}
+
+type StayReportEntry struct {
+	Event       int32
+	StayNumber  int32
+	ReportEntry int32
 }

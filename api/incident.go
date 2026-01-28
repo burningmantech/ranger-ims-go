@@ -444,7 +444,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		},
 	)
 	if err != nil {
-		return herr.InternalServerError("Failed to create incident", err).From("[Incident]")
+		return herr.InternalServerError("Failed to fetch incident", err).From("[Incident]")
 	}
 	storedIncident := storedIncidentRow.Incident
 
@@ -479,9 +479,6 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
 	}
 
-	// Be sure to do any data lookups prior to starting the transaction, as issues can arise
-	// with database connection contention if you try to SELECT while in the process of a transaction.
-	// This is specifically about the in-process MySQL, which only allows one DB connection.
 	txn, err := imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
@@ -760,12 +757,12 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
-	es.notifyIncidentUpdateV2(newIncident.EventID, newIncident.Number)
+	es.notifyIncidentUpdate(newIncident.EventID, newIncident.Number)
 	for _, fr := range updatedFieldReports {
-		es.notifyFieldReportUpdateV2(newIncident.EventID, fr)
+		es.notifyFieldReportUpdate(newIncident.EventID, fr)
 	}
 	for _, inc := range updatedLinkedIncidents {
-		es.notifyIncidentUpdateV2(inc.EventID, inc.Number)
+		es.notifyIncidentUpdate(inc.EventID, inc.Number)
 	}
 
 	return nil
@@ -925,7 +922,7 @@ func (action AttachRangerToIncident) attachRanger(req *http.Request) *herr.HTTPE
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
-	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)
+	action.es.notifyIncidentUpdate(event.ID, incidentNumber)
 
 	return nil
 }
@@ -994,7 +991,7 @@ func (action DetachRangerFromIncident) detachRanger(req *http.Request) *herr.HTT
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
-	action.es.notifyIncidentUpdateV2(event.ID, incidentNumber)
+	action.es.notifyIncidentUpdate(event.ID, incidentNumber)
 
 	return nil
 }

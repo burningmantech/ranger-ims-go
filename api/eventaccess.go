@@ -19,6 +19,12 @@ package api
 import (
 	"context"
 	"database/sql"
+	"net/http"
+	"slices"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -26,11 +32,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"net/http"
-	"slices"
-	"strings"
-	"sync"
-	"time"
 )
 
 type GetEventAccesses struct {
@@ -109,9 +110,10 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 
 	for _, e := range storedEvents {
 		ea := imsjson.EventAccess{
-			Readers:   []imsjson.AccessRule{},
-			Writers:   []imsjson.AccessRule{},
-			Reporters: []imsjson.AccessRule{},
+			Readers:     []imsjson.AccessRule{},
+			Writers:     []imsjson.AccessRule{},
+			Reporters:   []imsjson.AccessRule{},
+			StayWriters: []imsjson.AccessRule{},
 		}
 		for _, accessRow := range accessRowByEventID[e.ID] {
 			access := accessRow
@@ -153,6 +155,8 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 				ea.Writers = append(ea.Writers, rule)
 			case imsdb.EventAccessModeReport:
 				ea.Reporters = append(ea.Reporters, rule)
+			case imsdb.EventAccessModeWriteStays:
+				ea.StayWriters = append(ea.StayWriters, rule)
 			}
 		}
 		result[e.Name] = ea
@@ -224,6 +228,10 @@ func (action PostEventAccess) postEventAccess(req *http.Request) *herr.HTTPError
 			return errHTTP.From("[maybeSetAccess] EventAccessModeWrite")
 		}
 		errHTTP = action.maybeSetAccess(ctx, event, access.Reporters, imsdb.EventAccessModeReport)
+		if errHTTP != nil {
+			return errHTTP.From("[maybeSetAccess] EventAccessModeReport")
+		}
+		errHTTP = action.maybeSetAccess(ctx, event, access.StayWriters, imsdb.EventAccessModeWriteStays)
 		if errHTTP != nil {
 			return errHTTP.From("[maybeSetAccess] EventAccessModeReport")
 		}

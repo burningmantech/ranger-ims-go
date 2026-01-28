@@ -19,22 +19,36 @@ package authz
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"slices"
-	"strings"
-	"time"
 )
 
 type Role string
 
+const (
+	validityAlways = imsdb.EventAccessValidityAlways
+	validityOnsite = imsdb.EventAccessValidityOnsite
+)
+
+const (
+	modeRead       = imsdb.EventAccessModeRead
+	modeWrite      = imsdb.EventAccessModeWrite
+	modeReport     = imsdb.EventAccessModeReport
+	modeWriteStays = imsdb.EventAccessModeWriteStays
+)
+
 var (
 	modeToRole = map[imsdb.EventAccessMode]Role{
-		imsdb.EventAccessModeRead:   EventReader,
-		imsdb.EventAccessModeWrite:  EventWriter,
-		imsdb.EventAccessModeReport: EventReporter,
+		modeRead:       EventReader,
+		modeWrite:      EventWriter,
+		modeReport:     EventReporter,
+		modeWriteStays: EventStayWriter,
 	}
 )
 
@@ -43,6 +57,7 @@ const (
 	EventReporter        Role = "EventReporter"
 	EventReader          Role = "EventReader"
 	EventWriter          Role = "EventWriter"
+	EventStayWriter      Role = "EventStayWriter"
 	Administrator        Role = "Administrator"
 )
 
@@ -65,6 +80,8 @@ const (
 	EventWriteOwnFieldReports
 	EventReadEventName
 	EventReadDestinations
+	EventReadStays
+	EventWriteStays
 )
 
 const (
@@ -87,9 +104,10 @@ var RolesToGlobalPerms = map[Role]GlobalPermissionMask{
 }
 
 var RolesToEventPerms = map[Role]EventPermissionMask{
-	EventReporter: EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
-	EventReader:   EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadDestinations,
-	EventWriter:   EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
+	EventReporter:   EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
+	EventReader:     EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadStays | EventReadDestinations,
+	EventWriter:     EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadStays | EventWriteStays | EventReadDestinations,
+	EventStayWriter: EventReadEventName | EventReadStays | EventWriteStays | EventReadDestinations,
 }
 
 func EventPermissions(
@@ -209,10 +227,10 @@ func PersonMatches(
 		matchExpr = true
 	}
 	matchValidity := false
-	if ea.Validity == imsdb.EventAccessValidityAlways {
+	if ea.Validity == validityAlways {
 		matchValidity = true
 	}
-	if ea.Validity == imsdb.EventAccessValidityOnsite && onsite {
+	if ea.Validity == validityOnsite && onsite {
 		matchValidity = true
 	}
 	return matchExpr && matchValidity

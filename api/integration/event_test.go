@@ -57,9 +57,10 @@ func TestGetAndEditEvent(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	expectedAccessResult := imsjson.EventAccess{
-		Writers:   accessReq[testEventName].Writers,
-		Readers:   []imsjson.AccessRule{},
-		Reporters: []imsjson.AccessRule{},
+		Writers:     accessReq[testEventName].Writers,
+		Readers:     []imsjson.AccessRule{},
+		Reporters:   []imsjson.AccessRule{},
+		StayWriters: []imsjson.AccessRule{},
 	}
 	expectedAccessResult.Writers[0].DebugInfo.MatchesUsers = []string{userAdminHandle}
 	expectedAccessResult.Writers[0].DebugInfo.KnownTarget = true

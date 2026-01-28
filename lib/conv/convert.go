@@ -127,6 +127,14 @@ func NullFloatToTime(f sql.NullFloat64) time.Time {
 	return FloatToTime(f.Float64)
 }
 
+func NullFloatToTimePtr(f sql.NullFloat64) *time.Time {
+	if !f.Valid {
+		return nil
+	}
+	res := FloatToTime(f.Float64)
+	return &res
+}
+
 func TimeToNullFloat(t time.Time) sql.NullFloat64 {
 	if t.IsZero() {
 		return sql.NullFloat64{}

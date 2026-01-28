@@ -21,6 +21,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -29,11 +35,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/go-sql-driver/mysql"
-	"log/slog"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type GetFieldReports struct {
@@ -349,7 +350,7 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
-	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, storedFR.Number)
+	defer action.eventSource.notifyFieldReportUpdate(event.ID, storedFR.Number)
 	return nil
 }
 
@@ -400,9 +401,8 @@ func (action EditFieldReport) handleLinkToIncident(
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
-	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, fieldReportNumber)
-	defer action.eventSource.notifyIncidentUpdateV2(event.ID, previousIncident.Int32)
-	defer action.eventSource.notifyIncidentUpdateV2(event.ID, newIncident.Int32)
+	defer action.eventSource.notifyFieldReportUpdate(event.ID, fieldReportNumber)
+	defer action.eventSource.notifyIncidentUpdates(event.ID, previousIncident.Int32, newIncident.Int32)
 	slog.Info("Attached Field Report to newIncident",
 		"event", event.ID,
 		"newIncident", newIncident.Int32,
@@ -456,7 +456,7 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	herr.WriteCreatedResponse(w, http.StatusText(http.StatusCreated))
 }
 
-func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
+func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, location string, errHTTP *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[getEventPermissions]")
@@ -526,7 +526,7 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (incidentNumber i
 	}
 
 	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, fr.Number)
-	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, fr.Number)
+	defer action.eventSource.notifyFieldReportUpdate(event.ID, fr.Number)
 	return fr.Number, loc, nil
 }
 

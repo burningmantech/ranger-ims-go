@@ -277,10 +277,9 @@ func TestCreateAndAttachFileToFieldReport(t *testing.T) {
 // It does not consider ReportEntries.
 func requireEqualFieldReport(t *testing.T, before, after imsjson.FieldReport) {
 	t.Helper()
-	// This field isn't in use in the client yet
-	// require.Equal(t, before.EventID, after.EventID)
-	require.Equal(t, before.Event, after.Event)
-	require.Equal(t, before.Number, after.Number)
+
+	// These will always be different. Check them separately of this function
+	before.ReportEntries, after.ReportEntries = nil, nil
 
 	// If the timestamp field was set before, then check it's the same. Otherwise
 	// see if it was set to some reasonable time for when the test was running
@@ -289,7 +288,7 @@ func requireEqualFieldReport(t *testing.T, before, after imsjson.FieldReport) {
 	} else {
 		require.WithinDuration(t, time.Now(), after.Created, 20*time.Minute)
 	}
-	require.Equal(t, before.Summary, after.Summary)
-	// these will always be different. Check them separately of this function
-	// require.Equal(t, before.ReportEntries, after.ReportEntries)
+	before.Created, after.Created = time.Time{}, time.Time{}
+
+	require.Equal(t, before, after)
 }

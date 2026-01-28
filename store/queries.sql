@@ -303,6 +303,13 @@ insert into INCIDENT__REPORT_ENTRY (
     ?, ?, ?
 );
 
+-- name: AttachReportEntryToStay :exec
+insert into STAY__REPORT_ENTRY (
+    EVENT, STAY_NUMBER, REPORT_ENTRY
+) values (
+    ?, ?, ?
+);
+
 --
 -- The "stricken" queries seem bloated at first blush, because the whole
 -- "where ID in (..." could just be "where ID =". What it's doing though is
@@ -436,3 +443,121 @@ from
 where
     EVENT = ?
 ;
+
+-- name: CreateStay :execlastid
+insert into STAY (`EVENT`, NUMBER, CREATED) values (?, ?, ?);
+
+-- name: UpdateStay :exec
+update STAY set
+    -- CREATED should be immutable, so it's not present in this UPDATE query
+    INCIDENT_NUMBER = ?,
+    GUEST_PREFERRED_NAME = ?,
+    GUEST_LEGAL_NAME = ?,
+    GUEST_DESCRIPTION = ?,
+    GUEST_CAMP_NAME = ?,
+    GUEST_CAMP_ADDRESS = ?,
+    GUEST_CAMP_DESCRIPTION = ?,
+
+    ARRIVAL_TIME = ?,
+    ARRIVAL_METHOD = ?,
+    ARRIVAL_STATE = ?,
+    ARRIVAL_REASON = ?,
+    ARRIVAL_BELONGINGS = ?,
+
+    DEPARTURE_TIME = ?,
+    DEPARTURE_METHOD = ?,
+    DEPARTURE_STATE = ?,
+
+    RESOURCE_REST = ?,
+    RESOURCE_CLOTHES = ?,
+    RESOURCE_POGS = ?,
+    RESOURCE_FOOD_BEV = ?,
+    RESOURCE_OTHER = ?
+where
+    EVENT = ?
+    and NUMBER = ?
+;
+
+-- name: Stay :one
+select
+    sqlc.embed(s)
+from
+    STAY s
+where
+    s.EVENT = ?
+    and s.NUMBER = ?;
+
+-- name: Stays :many
+select
+    sqlc.embed(s)
+from
+    STAY s
+where
+    s.EVENT = ?
+group by
+    s.NUMBER;
+
+-- name: Stays_Rangers :many
+select
+    sqlc.embed(sr)
+from
+    STAY__RANGER sr
+where
+    sr.EVENT = ?;
+
+-- name: Stay_Rangers :many
+select
+    sqlc.embed(sr)
+from
+    STAY__RANGER sr
+where
+    sr.EVENT = ?
+    and sr.STAY_NUMBER = ?;
+
+-- name: AttachRangerToStay :exec
+insert into STAY__RANGER (EVENT, STAY_NUMBER, RANGER_HANDLE, ROLE)
+values (?, ?, ?, ?);
+
+-- name: DetachRangerFromStay :exec
+delete from STAY__RANGER
+where
+    EVENT = ?
+    and STAY_NUMBER = ?
+    and RANGER_HANDLE = ?
+;
+
+-- name: Stay_ReportEntries :many
+select
+    sre.STAY_NUMBER,
+    sqlc.embed(re)
+from
+    STAY__REPORT_ENTRY sre
+        join REPORT_ENTRY re
+             on re.ID = sre.REPORT_ENTRY
+where
+    sre.EVENT = ?
+    and sre.STAY_NUMBER = ?
+;
+
+-- name: Stays_ReportEntries :many
+select
+    sre.STAY_NUMBER,
+    sqlc.embed(re)
+from
+    STAY__REPORT_ENTRY sre
+        join REPORT_ENTRY re
+             on re.ID = sre.REPORT_ENTRY
+where
+    sre.EVENT = ?
+    and re.GENERATED <= ?
+;
+
+-- This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
+-- name: NextStayNumber :one
+select NUMBER + 1 as NEXT_ID
+from STAY
+where EVENT = ?
+union
+select 1
+order by 1 desc
+limit 1;

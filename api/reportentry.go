@@ -18,6 +18,9 @@ package api
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -25,8 +28,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"net/http"
-	"time"
 )
 
 type EditFieldReportReportEntry struct {
@@ -71,6 +72,14 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return errHTTP.From("[readBodyAs]")
 	}
 
+	_, err = action.imsDBQ.FieldReport(ctx, action.imsDBQ, imsdb.FieldReportParams{
+		Event:  event.ID,
+		Number: fieldReportNumber,
+	})
+	if err != nil {
+		return herr.NotFound("There is no Field Report for the provided ID", err).From("[FieldReport]")
+	}
+
 	if re.Stricken == nil {
 		// Nothing to do if no Stricken value is set, since Stricken is the only field this endpoint can modify
 		return nil
@@ -106,7 +115,7 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
 	}
 
-	defer action.eventSource.notifyFieldReportUpdateV2(event.ID, fieldReportNumber)
+	defer action.eventSource.notifyFieldReportUpdate(event.ID, fieldReportNumber)
 
 	return nil
 }
@@ -188,7 +197,7 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
 	}
 
-	defer action.eventSource.notifyIncidentUpdateV2(event.ID, incidentNumber)
+	defer action.eventSource.notifyIncidentUpdate(event.ID, incidentNumber)
 	return nil
 }
 

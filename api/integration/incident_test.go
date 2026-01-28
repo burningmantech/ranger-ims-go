@@ -271,6 +271,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		Event:           eventName,
 		Number:          num,
 		State:           "closed",
+		Closed:          time.Now(),
 		Priority:        1,
 		Started:         time.UnixMilli(1),
 		Location:        imsjson.Location{},
@@ -428,6 +429,7 @@ func TestCreateAndLinkIncidents(t *testing.T) {
 // It does not consider ReportEntries.
 func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	t.Helper()
+
 	// This field isn't in use in the client yet
 	// require.Equal(t, before.EventID, after.EventID)
 	require.Equal(t, before.Event, after.Event)
@@ -445,17 +447,16 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	} else {
 		require.WithinDuration(t, time.Now(), after.Started, 20*time.Minute)
 	}
-	require.WithinDuration(t, time.Now(), after.LastModified, 20*time.Minute)
-	require.Equal(t, before.State, after.State)
-	require.Equal(t, before.Priority, after.Priority)
-	require.Equal(t, before.Summary, after.Summary)
-	require.Equal(t, before.Location, after.Location)
-	require.Equal(t, before.IncidentTypeIDs, after.IncidentTypeIDs)
-	require.Equal(t, before.Rangers, after.Rangers)
-	require.Equal(t, before.FieldReports, after.FieldReports)
-	require.Equal(t, before.LinkedIncidents, after.LinkedIncidents)
-	// these will always be different. Check them separately of this function
-	// require.Equal(t, before.ReportEntries, after.ReportEntries)
+	require.WithinDuration(t, before.Closed, after.Closed, 1*time.Minute)
+
+	before.EventID, after.EventID = 0, 0
+	before.Created, after.Created = time.Time{}, time.Time{}
+	before.Started, after.Started = time.Time{}, time.Time{}
+	before.Closed, after.Closed = time.Time{}, time.Time{}
+	before.LastModified, after.LastModified = time.Time{}, time.Time{}
+	before.ReportEntries, after.ReportEntries = nil, nil
+
+	require.Equal(t, before, after)
 }
 
 func ptr[T any](s T) *T {

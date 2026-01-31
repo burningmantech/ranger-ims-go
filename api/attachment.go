@@ -621,7 +621,7 @@ func (action AttachToStay) attachToStay(req *http.Request) (int32, *herr.HTTPErr
 		return 0, errHTTP.From("[addStayReportEntry]")
 	}
 
-	action.es.notifyIncidentUpdate(event.ID, stayNumber)
+	action.es.notifyStayUpdate(event.ID, stayNumber)
 	return reID, nil
 }
 

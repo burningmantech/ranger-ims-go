@@ -220,10 +220,7 @@ function drawTitle() {
 // Populate field report number
 //
 function drawNumber() {
-    let number = fieldReport.number;
-    if (number == null) {
-        number = "(new)";
-    }
+    const number = fieldReport.number ?? "(new)";
     document.getElementById("field_report_number").value = number.toString();
 }
 //

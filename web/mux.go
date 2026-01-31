@@ -142,6 +142,22 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			).ServeHTTP(w, r)
 		},
 	)
+	mux.HandleFunc("GET /ims/app/events/{eventName}/stays",
+		func(w http.ResponseWriter, r *http.Request) {
+			AdaptTempl(
+				template.SanctuaryStays(deployment, versionName, versionRef, r.PathValue("eventName")),
+				cfg.Core.CacheControlLong,
+			).ServeHTTP(w, r)
+		},
+	)
+	mux.HandleFunc("GET /ims/app/events/{eventName}/stays/{stayNumber}",
+		func(w http.ResponseWriter, r *http.Request) {
+			AdaptTempl(
+				template.SanctuaryStay(deployment, versionName, versionRef, r.PathValue("eventName")),
+				cfg.Core.CacheControlLong,
+			).ServeHTTP(w, r)
+		},
+	)
 	mux.HandleFunc("GET /ims/app/events/{eventName}",
 		func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/ims/app/events/"+r.PathValue("eventName")+"/incidents", http.StatusFound)

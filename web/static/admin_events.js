@@ -50,7 +50,7 @@ var Validity;
     Validity["always"] = "always";
     Validity["onsite"] = "onsite";
 })(Validity || (Validity = {}));
-const allAccessModes = ["readers", "writers", "reporters"];
+const allAccessModes = ["readers", "writers", "reporters", "stay_writers"];
 let sortedEvents;
 let accessControlList = null;
 async function loadAccessControlList() {
@@ -126,6 +126,8 @@ function drawAccess() {
             const eventAccess = eventModeAccessFrag.querySelector("div");
             // Add an id to the element for future reference
             eventAccess.id = eventAccessContainerId(event.name, mode);
+            eventAccess.dataset["accessMode"] = mode;
+            eventAccess.dataset["eventName"] = event.name;
             eventAccessFrag.append(eventModeAccessFrag);
         }
         container.append(eventAccessFrag);
@@ -136,6 +138,20 @@ function drawAccess() {
 }
 function eventAccessContainerId(event, mode) {
     return "event_access_" + event + "_" + mode;
+}
+function displayMode(m) {
+    switch (m) {
+        case "readers":
+            return "Full readers";
+        case "writers":
+            return "Full writers";
+        case "reporters":
+            return "Reporters";
+        case "stay_writers":
+            return "Stay writers";
+        default:
+            throw new Error(`unexpected access mode ${m}`);
+    }
 }
 function updateEventAccess(event, mode) {
     if (accessControlList == null) {
@@ -148,7 +164,7 @@ function updateEventAccess(event, mode) {
     const eventAccess = document.getElementById(eventAccessContainerId(event, mode));
     // Set displayed event name and mode
     eventAccess.getElementsByClassName("event_name")[0].textContent = event;
-    eventAccess.getElementsByClassName("access_mode")[0].textContent = mode;
+    eventAccess.getElementsByClassName("access_mode")[0].textContent = displayMode(mode);
     const entryContainer = eventAccess.getElementsByClassName("list-group")[0];
     entryContainer.replaceChildren();
     const entryTemplate = document.getElementById("permission_template");
@@ -262,8 +278,8 @@ async function addEvent(sender, type) {
 }
 async function addAccess(sender) {
     const container = sender.closest(".event_access");
-    const event = container.getElementsByClassName("event_name")[0].textContent;
-    const mode = container.getElementsByClassName("access_mode")[0].textContent;
+    const event = container.dataset["eventName"];
+    const mode = container.dataset["accessMode"];
     const newExpression = sender.value.trim();
     if (newExpression === "") {
         return;
@@ -316,8 +332,8 @@ async function addAccess(sender) {
 }
 async function removeAccess(sender) {
     const container = sender.closest(".event_access");
-    const event = container.getElementsByClassName("event_name")[0].textContent;
-    const mode = container.getElementsByClassName("access_mode")[0].textContent;
+    const event = container.dataset["eventName"];
+    const mode = container.dataset["accessMode"];
     const expression = sender.closest("li").dataset["expression"].trim();
     const acl = accessControlList[event][mode].slice();
     let foundIndex = -1;
@@ -343,8 +359,8 @@ async function removeAccess(sender) {
 }
 async function setValidity(sender) {
     const container = sender.closest(".event_access");
-    const event = container.getElementsByClassName("event_name")[0].textContent;
-    const mode = container.getElementsByClassName("access_mode")[0].textContent;
+    const event = container.dataset["eventName"];
+    const mode = container.dataset["accessMode"];
     const accessRow = sender.closest("li");
     const expression = accessRow.dataset["expression"].trim();
     const expires = accessRow.dataset["expires"] || null;
@@ -373,8 +389,8 @@ async function setValidity(sender) {
 }
 async function setExpires(sender) {
     const container = sender.closest(".event_access");
-    const event = container.getElementsByClassName("event_name")[0].textContent;
-    const mode = container.getElementsByClassName("access_mode")[0].textContent;
+    const event = container.dataset["eventName"];
+    const mode = container.dataset["accessMode"];
     const accessRow = sender.closest("li");
     const expression = accessRow.dataset["expression"].trim();
     const validity = accessRow.dataset["validity"].trim();

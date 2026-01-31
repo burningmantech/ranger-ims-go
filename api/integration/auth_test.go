@@ -47,10 +47,12 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 	require.Empty(t, token)
 
 	// A user with the correct password gets logged in and gets a JWT
-	statusCode, _, token = apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
-		Identification: userAliceEmail,
-		Password:       userAlicePassword,
-	})
+	statusCode, _, token = apisNotAuthenticated.postAuth(ctx,
+		api.PostAuthRequest{
+			Identification: userAliceEmail,
+			Password:       userAlicePassword,
+		},
+	)
 	require.Equal(t, http.StatusOK, statusCode)
 	require.NotEmpty(t, token)
 
@@ -150,6 +152,8 @@ func TestGetAuthWithEvent(t *testing.T) {
 				ReadIncidents:     true,
 				WriteIncidents:    false,
 				WriteFieldReports: false,
+				ReadStays:         true,
+				WriteStays:        false,
 				AttachFiles:       true,
 			},
 		},
@@ -172,6 +176,8 @@ func TestGetAuthWithBadEventNames(t *testing.T) {
 		ReadIncidents:     false,
 		WriteIncidents:    false,
 		WriteFieldReports: false,
+		ReadStays:         false,
+		WriteStays:        false,
 		AttachFiles:       false,
 	}, gar.EventAccess["ThisEventDoesNotExist"])
 

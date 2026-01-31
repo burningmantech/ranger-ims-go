@@ -1,0 +1,463 @@
+//
+// See the file COPYRIGHT for copyright information.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package template
+
+templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
+<!DOCTYPE html>
+<html lang="en">
+@Head("Sanctuary Stay | " + eventName, "sanctuary_stay.js", true, versionRef)
+
+<body>
+<div class="container-fluid">
+@Header(deployment)
+@Nav(eventName)
+<h1 id="doc-title">Sanctuary Stay</h1>
+
+@LoadingOverlay()
+
+@ErrorInfo()
+
+    <!-- Help modal -->
+    <div class="modal no-print" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <p class="modal-title fs-5" id="helpModalLabel">Keyboard shortcuts</p>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+          </div>
+          <div class="modal-body">
+            <code>n</code>: create (n)ew Sanctuary Guest Stay<br/>
+            <code>a</code>: jump to (a)dd new report text<br/>
+            <code>h</code>: toggle showing system-generated (h)istory <br/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stay number, state, check-in time -->
+
+    <div class="row py-1">
+      <div class="col-sm-6 py-1">
+        <div class="input-group flex-nowrap">
+          <label for="stay_number" class="control-label input-group-text">Stay #</label>
+          <input id="stay_number" type="text" class="form-control form-control-static mw-4rem" readonly/>
+        </div>
+      </div>
+      <div class="col-sm-6 py-1">
+        <div class="input-group">
+          <label for="parent_incident" class="control-label input-group-text">IMS #</label>
+          <input
+              id="parent_incident"
+              type="text"
+              class="form-control form-control-sm"
+              placeholder="Enter IMS # or leave blank"
+              autocomplete="off"
+              onchange="editParentIncident()"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">Basics</label>
+          <div class="card-body">
+              <form class="form-horizontal">
+                <div class="input-group row align-items-center">
+                  <label for="guest_preferred_name"
+                       class="col-sm-2 col-form-label control-label">Preferred name:</label>
+                  <div class="col-sm-10">
+                    <input
+                        id="guest_preferred_name" class="form-control form-control-sm"
+                        type="text" inputmode="latin-prose" autocomplete="off"
+                        placeholder=""
+                        onchange="editGuestPreferredName()"
+                    />
+                  </div>
+                </div>
+                <div class="input-group row align-items-center">
+                  <label for="guest_legal_name"
+                         class="col-sm-2 col-form-label control-label">Legal name:</label>
+                  <div class="col-sm-10">
+                    <input
+                        id="guest_legal_name" class="form-control form-control-sm"
+                        type="text" inputmode="latin-prose" autocomplete="off"
+                        placeholder=""
+                        onchange="editGuestLegalName()"
+                    />
+                  </div>
+                </div>
+                <div class="input-group row align-items-center">
+                  <label for="guest_description" class="col-sm-2 col-form-label control-label">Description:</label>
+                  <div class="col-sm-10">
+                    <input
+                        id="guest_description" class="form-control form-control-sm"
+                        type="text" inputmode="latin-prose" autocomplete="off"
+                        placeholder="e.g. 60ish Hispanic woman with pink hair"
+                        onchange="editGuestDescription()"
+                    />
+                  </div>
+                </div>
+                <div class="input-group row align-items-center">
+                  <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
+                  <label class="col-sm-2 col-form-label control-label" for="alt_arrival_time">Arrival time:</label>
+                  <div class="col-sm-10">
+                    <input id="arrival_time" type="text" class="form-control" />
+                  </div>
+                </div>
+                <div class="input-group row align-items-center">
+                  <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
+                  <label class="col-sm-2 col-form-label control-label" for="alt_departure_time">Departure time:</label>
+                  <div class="col-sm-10">
+                    <input id="departure_time" type="text" class="form-control" />
+                  </div>
+                </div>
+              </form>
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrival and Departure Information Cards -->
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">Arrival details</label>
+          <div class="card-body">
+            <form class="form-horizontal">
+              <div class="input-group row align-items-center">
+                <label for="arrival_method" class="col-sm-2 col-form-label control-label">Method:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="arrival_method"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editArrivalMethod()"
+                  />
+                </div>
+              </div>
+
+              <div class="input-group row align-items-center">
+                <label for="arrival_state" class="col-sm-2 col-form-label control-label">Overall state:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="arrival_state"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editArrivalState()"
+                  />
+                </div>
+              </div>
+
+              <div class="input-group row align-items-center">
+                <label for="arrival_reason" class="col-sm-2 col-form-label control-label">Reason:</label>
+                <div class="col-sm-10">
+                  <textarea
+                      id="arrival_reason"
+                      class="form-control form-control-sm"
+                      rows="1"
+                      placeholder="Reason for needing Sanctuary"
+                      onchange="editArrivalReason()"
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="input-group row align-items-center">
+                <label for="arrival_belongings" class="col-sm-2 col-form-label control-label">Personal belongings:</label>
+                <div class="col-sm-10">
+                  <textarea
+                      id="arrival_belongings"
+                      class="form-control form-control-sm"
+                      rows="1"
+                      placeholder="Things brought with the guest to Sanctuary"
+                      onchange="editArrivalBelongings()"
+                  ></textarea>
+                </div>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">Departure details</label>
+          <div class="card-body">
+            <form class="form-horizontal">
+              <div class="input-group row align-items-center">
+                <label for="departure_method" class="col-sm-2 col-form-label control-label">Method:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="departure_method"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editDepartureMethod()"
+                  />
+                </div>
+              </div>
+
+              <div class="input-group row align-items-center">
+                <label for="departure_state" class="col-sm-2 col-form-label control-label">Overall state:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="departure_state"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editDepartureState()"
+                  />
+                </div>
+              </div>
+
+
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guest Camp Information -->
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">Guest camp information</label>
+          <div class="card-body">
+            <form class="form-horizontal">
+              <div class="input-group row align-items-center mb-2">
+                <label for="guest_camp_name" class="col-sm-2 col-form-label control-label">Camp name:</label>
+                <div class="col-sm-10">
+                  <input
+                          id="guest_camp_name"
+                          type="text"
+                          class="form-control form-control-sm"
+                          placeholder=""
+                          autocomplete="off"
+                          onchange="editGuestCampName()"
+                  />
+                </div>
+              </div>
+              <div class="input-group row align-items-center mb-2">
+                <label for="guest_camp_address" class="col-sm-2 col-form-label control-label">Address:</label>
+                <div class="col-sm-10">
+                  <input
+                          id="guest_camp_address"
+                          type="text"
+                          class="form-control form-control-sm"
+                          placeholder=""
+                          autocomplete="off"
+                          onchange="editGuestCampAddress()"
+                  />
+                </div>
+              </div>
+              <div class="input-group row align-items-center mb-2">
+                <label for="guest_camp_description" class="col-sm-2 col-form-label control-label">Description:</label>
+                <div class="col-sm-10">
+                  <input
+                          id="guest_camp_description"
+                          type="text"
+                          class="form-control form-control-sm"
+                          aria-label="Additional location description"
+                          placeholder="Other identifying info"
+                          autocomplete="off"
+                          onchange="editGuestCampDescription()"
+                  />
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sanctuary Rangers -->
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">
+          Sanctuary Rangers
+          </label>
+          <ul id="sanctuary_rangers_list" class="list-group list-group-flush list-group-small card-body">
+            <template id="sanctuary_rangers_li_template">
+              <li class="list-group-item flex-input-container ps-3 hidden">
+                <span><a href="#" tabindex="-1"></a></span>
+                <input aria-label="Description of Ranger role" type="text" class="form-control form-control-sm short-input auto-width hover-placeholder border-0"
+                    placeholder="Short description of role" onchange="setRangerRole(this)" maxlength="50"
+                />
+                <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)" tabindex="-1">
+                  X
+                </button>
+              </li>
+            </template>
+          </ul>
+          <div class="flex-input-container card-footer no-print">
+            <label for="ranger_add" class="control-label">Add:</label>
+            <input
+                    type="text"
+                    id="ranger_add"
+                    aria-label="Add Ranger Handle"
+                    list="ranger_handles"
+                    autocomplete="off"
+                    class="form-control form-control-sm auto-width"
+                    onchange="addRanger()"
+            />
+            <datalist id="ranger_handles">
+              <option value=""></option>
+            </datalist>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">Sanctuary resources</label>
+          <div class="card-body">
+            <form class="form-horizontal">
+              <div class="input-group row align-items-center mb-2">
+                <label for="resource_rest" class="col-sm-2 col-form-label control-label">Rest details:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_rest"
+                      type="text"
+                      class="form-control form-control-sm"
+                      placeholder="If/where they slept at Sanctuary, and what sleep resources were used"
+                      autocomplete="off"
+                      onchange="editResourceRest()"
+                  />
+                </div>
+              </div>
+              <div class="input-group row align-items-center mb-2">
+                <label for="resource_clothes" class="col-sm-2 col-form-label control-label">Clothes given:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_clothes"
+                      type="text"
+                      class="form-control form-control-sm"
+                      placeholder="Items of Sanctuary clothes donated to the guest"
+                      autocomplete="off"
+                      onchange="editResourceClothes()"
+                  />
+                </div>
+              </div>
+              <div class="input-group row align-items-center mb-2">
+                <label for="resource_pogs" class="col-sm-2 col-form-label control-label">Meal pogs:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_pogs"
+                      type="text"
+                      class="form-control form-control-sm"
+                      placeholder="Details of any Commissary meal pog gifts to the guest"
+                      autocomplete="off"
+                      onchange="editResourcePogs()"
+                  />
+                </div>
+              </div>
+              <div class="input-group row align-items-center mb-2">
+                <label for="resource_food_bev" class="col-sm-2 col-form-label control-label">Food/bev given:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_food_bev"
+                      type="text"
+                      class="form-control form-control-sm"
+                      placeholder="Food or beverage items given to the guest"
+                      autocomplete="off"
+                      onchange="editResourceFoodBev()"
+                  />
+                </div>
+              </div>
+              <div class="input-group row align-items-center mb-2">
+                <label for="resource_other" class="col-sm-2 col-form-label control-label">Other resources:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_other"
+                      type="text"
+                      class="form-control form-control-sm"
+                      placeholder="Any other expendable resources used for the guest, e.g. first aid"
+                      autocomplete="off"
+                      onchange="editResourceOther()"
+                  />
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report Entries -->
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">Stay Notes & Report Entries</label>
+          <div id="report_entry_well" class="card-body">
+            <label class="control-label">
+              <input id="history_checkbox" type="checkbox" onchange="toggleShowHistory()"/>
+              Show history and stricken
+            </label>
+            <div id="report_entries"></div>
+          </div>
+          <div class="card-footer">
+            <textarea
+                    id="report_entry_add"
+                    aria-label="New report entry text"
+                    class="form-control no-print"
+                    placeholder="Press &quot;a&quot; to add report text"
+                    onchange="reportEntryEdited()"
+            ></textarea>
+            <div class="d-flex justify-content-between">
+              <button
+                      id="report_entry_submit"
+                      aria-label="Submit report entry"
+                      type="submit"
+                      class="btn btn-default btn-sm btn-block my-1 disabled no-print float-start"
+                      onclick="submitReportEntry()"
+              >
+                Add Entry (Control &#9166;)
+              </button>
+              <!-- File attachment -->
+              <label class="input-group-text hidden" for="attach_file_input">Attach file</label>
+              <input type="file" class="form-control hidden" id="attach_file_input" name="filename" onchange="attachFile();" />
+              <input
+                      id="attach_file"
+                      type="button"
+                      class="btn btn-default btn-sm btn-block btn-secondary my-1 form-control-lite no-print hidden"
+                      value="Attach file"
+                      onclick="document.getElementById('attach_file_input').click();"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+@Footer(versionName, versionRef)
+</div>
+</body>
+</html>
+}

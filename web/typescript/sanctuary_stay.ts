@@ -1,0 +1,476 @@
+//
+// See the file COPYRIGHT for copyright information.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+"use strict";
+
+import * as ims from "./ims.ts";
+
+declare global {
+    interface Window {
+        editParentIncident: () => void;
+
+        editGuestPreferredName: () => void;
+        editGuestLegalName: () => void;
+        editGuestDescription: () => void;
+        editGuestCampName: () => void;
+        editGuestCampAddress: () => void;
+        editGuestCampDescription: () => void;
+
+        editArrivalMethod: () => void;
+        editArrivalState: () => void;
+        editArrivalReason: () => void;
+        editArrivalBelongings: () => void;
+
+        editDepartureMethod: () => void;
+        editDepartureState: () => void;
+
+        editResourceRest: () => void;
+        editResourceClothes: () => void;
+        editResourcePogs: () => void;
+        editResourceFoodBev: () => void;
+        editResourceOther: () => void;
+    }
+}
+
+let stay: ims.Stay|null = null;
+
+//
+// Initialize UI
+//
+
+const el = {
+    stayNumber: ims.typedElement("stay_number", HTMLInputElement),
+    parentIncident: ims.typedElement("parent_incident", HTMLInputElement),
+
+    guestPreferredName: ims.typedElement("guest_preferred_name", HTMLInputElement),
+    guestLegalName: ims.typedElement("guest_legal_name", HTMLInputElement),
+    guestDescription: ims.typedElement("guest_description", HTMLInputElement),
+    guestCampName: ims.typedElement("guest_camp_name", HTMLInputElement),
+    guestCampAddress: ims.typedElement("guest_camp_address", HTMLInputElement),
+    guestCampDescription: ims.typedElement("guest_camp_description", HTMLInputElement),
+
+    arrivalTime: ims.typedElement("arrival_time", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
+    arrivalMethod: ims.typedElement("arrival_method", HTMLInputElement),
+    arrivalState: ims.typedElement("arrival_state", HTMLInputElement),
+    arrivalReason: ims.typedElement("arrival_reason", HTMLTextAreaElement),
+    arrivalBelongings: ims.typedElement("arrival_belongings", HTMLTextAreaElement),
+
+    departureTime: ims.typedElement("departure_time", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
+    departureMethod: ims.typedElement("departure_method", HTMLInputElement),
+    departureState: ims.typedElement("departure_state", HTMLInputElement),
+
+    resourceRest: ims.typedElement("resource_rest", HTMLInputElement),
+    resourceClothes: ims.typedElement("resource_clothes", HTMLInputElement),
+    resourcePogs: ims.typedElement("resource_pogs", HTMLInputElement),
+    resourceFoodBev: ims.typedElement("resource_food_bev", HTMLInputElement),
+    resourceOther: ims.typedElement("resource_other", HTMLInputElement),
+
+    historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
+    reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
+    attachFile: ims.typedElement("attach_file", HTMLInputElement),
+};
+
+initSanctuaryStayPage();
+
+async function initSanctuaryStayPage(): Promise<void> {
+    const initResult = await ims.commonPageInit();
+    if (!initResult.authInfo.authenticated) {
+        await ims.redirectToLogin();
+        return;
+    }
+    if (!ims.eventAccess!.readStays) {
+        ims.setErrorMessage(
+            `You're not currently authorized to read Stays in Event "${ims.pathIds.eventName}".`
+        );
+        ims.hideLoadingOverlay();
+        return;
+    }
+
+    // TODO: window assignments go here
+    window.editParentIncident = editParentIncident;
+
+    window.editGuestPreferredName = editGuestPreferredName;
+    window.editGuestLegalName = editGuestLegalName;
+    window.editGuestDescription = editGuestDescription;
+    window.editGuestCampName = editGuestCampName;
+    window.editGuestCampAddress = editGuestCampAddress;
+    window.editGuestCampDescription = editGuestCampDescription;
+
+    window.editArrivalMethod = editArrivalMethod;
+    window.editArrivalState = editArrivalState;
+    window.editArrivalReason = editArrivalReason;
+    window.editArrivalBelongings = editArrivalBelongings;
+
+    window.editDepartureMethod = editDepartureMethod;
+    window.editDepartureState = editDepartureState;
+
+    window.editResourceRest = editResourceRest;
+    window.editResourceClothes = editResourceClothes;
+    window.editResourcePogs = editResourcePogs;
+    window.editResourceFoodBev = editResourceFoodBev;
+    window.editResourceOther = editResourceOther;
+
+    // TODO: load data from backend
+    await loadStay();
+
+    const onChange = function(selectedDates: Date[], _dateStr: string, instance: ims.Flatpickr): void {
+        instance.input!.title = ims.longFormatDate(selectedDates[0]!);
+        instance.altInput!.title = ims.longFormatDate(selectedDates[0]!);
+    };
+
+    ims.newFlatpickr(el.arrivalTime, "alt_arrival_time", editArrivalTime);
+    ims.newFlatpickr(el.departureTime, "alt_departure_time", onChange);
+
+    ims.disableEditing();
+    displayStay();
+    if (stay == null) {
+        return;
+    }
+
+    // TODO: draw other fields
+
+    ims.hideLoadingOverlay();
+
+    // For a new stay, jump to the name field
+    if (stay!.number == null) {
+        el.guestPreferredName.focus();
+    }
+
+    // Warn the user if they're about to navigate away with unsaved text.
+    window.addEventListener("beforeunload", function (e: BeforeUnloadEvent): void {
+        if (el.reportEntryAdd.value !== "") {
+            e.preventDefault();
+        }
+    });
+
+    ims.requestEventSourceLock();
+
+    ims.newStayChannel().onmessage = async function (e: MessageEvent<ims.StayBroadcast>): Promise<void> {
+        const number = e.data.stay_number;
+        const eventId = e.data.event_id;
+        const updateAll = e.data.update_all??false;
+
+        if (updateAll || (eventId === ims.pathIds.eventId && number === ims.pathIds.stayNumber)) {
+            console.log("Got stay update: " + number);
+            await loadAndDisplayStay();
+        }
+    }
+
+    const helpModal = ims.bsModal(document.getElementById("helpModal")!);
+
+    // Keyboard shortcuts
+    document.addEventListener("keydown", function(e: KeyboardEvent): void {
+        // No shortcuts when an input field is active
+        if (ims.blockKeyboardShortcutFieldActive()) {
+            return
+        }
+        // No shortcuts when ctrl, alt, or meta is being held down
+        if (e.altKey || e.ctrlKey || e.metaKey) {
+            return;
+        }
+        // ? --> show help modal
+        if (e.key === "?") {
+            helpModal.toggle();
+        }
+        // a --> jump to add a new report entry
+        if (e.key === "a") {
+            e.preventDefault();
+            // Scroll to report_entry_add field
+            el.reportEntryAdd.focus();
+            el.reportEntryAdd.scrollIntoView(true);
+        }
+        // h --> toggle showing system entries
+        if (e.key.toLowerCase() === "h") {
+            el.historyCheckbox.click();
+        }
+        // n --> new stay
+        if (e.key.toLowerCase() === "n") {
+            (window.open("./new", '_blank') as Window).focus();
+        }
+    });
+    (document.getElementById("helpModal") as HTMLDivElement).addEventListener("keydown", function(e: KeyboardEvent): void {
+        if (e.key === "?") {
+            helpModal.toggle();
+            // This is needed to prevent the document's listener for "?" to trigger the modal to
+            // toggle back on immediately. This is fallout from the fix for
+            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            e.stopPropagation();
+        }
+    });
+    el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
+        const submitEnabled = !document.getElementById("report_entry_submit")!.classList.contains("disabled");
+        if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
+            ims.submitReportEntry();
+        }
+    });
+
+    window.addEventListener("beforeprint", (_event: Event): void => {
+        drawStayTitle("for_print_to_pdf");
+    });
+    window.addEventListener("afterprint", (_event: Event): void => {
+        drawStayTitle("for_display");
+    });
+}
+
+async function loadAndDisplayStay(): Promise<void> {
+    await loadStay();
+    displayStay();
+}
+
+async function loadStay(): Promise<{err: string|null}> {
+    let number: number|null;
+    if (stay == null) {
+        // First time here. Use page initial value.
+        number = ims.pathIds.stayNumber??null;
+    } else {
+        // We have a stay already. Use that number.
+        number = stay.number!;
+    }
+
+    if (number == null) {
+        stay = {
+            "number": null,
+        };
+    } else {
+        const {json, err} = await ims.fetchNoThrow<ims.Stay>(
+            `${ims.urlReplace(url_stays)}/${number}`, null);
+        if (err != null) {
+            ims.disableEditing();
+            const message = `Failed to load Stay ${number}: ${err}`;
+            console.error(message);
+            ims.setErrorMessage(message);
+            return {err: message};
+        }
+        stay = json;
+    }
+    return {err: null};
+}
+
+function displayStay(): void {
+    if (stay == null) {
+        const message = "Stay failed to load";
+        console.log(message);
+        ims.setErrorMessage(message);
+        return;
+    }
+
+    drawStayFields();
+    ims.clearErrorMessage();
+
+    if (ims.eventAccess?.writeStays) {
+        ims.enableEditing();
+    }
+
+    if (ims.eventAccess?.attachFiles) {
+        el.attachFile.classList.remove("hidden");
+    }
+}
+
+function drawStayFields(): void {
+    drawStayTitle("for_display");
+    el.stayNumber.value = (stay?.number??"(new)").toString();
+    el.parentIncident.value = (stay?.incident_number?.toString())??"";
+
+    el.guestPreferredName.value = (stay?.guest_preferred_name?.toString())??"";
+    el.guestLegalName.value = (stay?.guest_legal_name?.toString())??"";
+    el.guestDescription.value = (stay?.guest_description?.toString())??"";
+    el.guestCampName.value = (stay?.guest_camp_name?.toString())??"";
+    el.guestCampAddress.value = (stay?.guest_camp_address?.toString())??"";
+    el.guestCampDescription.value = (stay?.guest_camp_description?.toString())??"";
+
+    if (stay?.arrival_time) {
+        el.arrivalTime._flatpickr.setDate(stay.arrival_time, false, "Z");
+    }
+    el.arrivalMethod.value = (stay?.arrival_method?.toString())??"";
+    el.arrivalState.value = (stay?.arrival_state?.toString())??"";
+    el.arrivalReason.value = (stay?.arrival_reason?.toString())??"";
+    el.arrivalBelongings.value = (stay?.arrival_belongings?.toString())??"";
+
+    if (stay?.departure_time) {
+        el.departureTime._flatpickr.setDate(stay.departure_time, false, "Z");
+    }
+    el.departureMethod.value = (stay?.departure_method?.toString())??"";
+    el.departureState.value = (stay?.departure_state?.toString())??"";
+
+    el.resourceRest.value = (stay?.resource_rest?.toString())??"";
+    el.resourceClothes.value = (stay?.resource_clothes?.toString())??"";
+    el.resourcePogs.value = (stay?.resource_pogs?.toString())??"";
+    el.resourceFoodBev.value = (stay?.resource_food_bev?.toString())??"";
+    el.resourceOther.value = (stay?.resource_other?.toString())??"";
+
+    ims.toggleShowHistory();
+    // drawMergedReportEntries();
+
+    el.reportEntryAdd.addEventListener("input", ims.reportEntryEdited);
+}
+
+function drawStayTitle(mode: "for_display"|"for_print_to_pdf"): void {
+    let newTitle: string = "";
+    if (mode === "for_print_to_pdf" && stay?.number) {
+        newTitle = `Stay-${ims.pathIds.eventName}-${stay.number}_${stay.guest_preferred_name}`;
+    } else {
+        const eventSuffix: string = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
+        newTitle = `${ims.stayAsString(stay!)}${eventSuffix}`;
+    }
+    document.title = newTitle;
+}
+
+
+async function sendEdits(edits: ims.Stay): Promise<{err:string|null}> {
+    const number = stay!.number;
+    let url = ims.urlReplace(url_stays);
+
+    if (number == null) {
+        // We're creating a new stay. Assume the guest checked in now.
+        edits.arrival_time = new Date().toISOString();
+    } else {
+        // We're editing an existing stay.
+        edits.number = number;
+        url += `/${number}`;
+    }
+
+    const {resp, err} = await ims.fetchNoThrow(url, {
+        body: JSON.stringify(edits),
+    });
+
+    if (err != null) {
+        const message = `Failed to apply edit: ${err}`;
+        await loadAndDisplayStay();
+        ims.setErrorMessage(message);
+        return {err: message};
+    }
+
+    if (number == null && resp != null) {
+        // We created a new stay.
+        // We need to find out the created stay number so that future
+        // edits don't keep creating new resources.
+
+        let newNumber: string|number|null = resp.headers.get("IMS-Stay-Number");
+        // Check that we got a value back
+        if (newNumber == null) {
+            const msg = "No IMS-Stay-Number header provided.";
+            ims.setErrorMessage(msg);
+            return {err: msg};
+        }
+
+        newNumber = ims.parseInt10(newNumber);
+        // Check that the value we got back is valid
+        if (newNumber == null) {
+            const msg = "Non-integer IMS-Stay-Number header provided:" + newNumber;
+            ims.setErrorMessage(msg);
+            return {err: msg};
+        }
+
+        // Store the new number in our stay object
+        ims.pathIds.stayNumber = stay!.number = newNumber;
+
+        // Update browser history to update URL
+        drawStayTitle("for_display");
+        window.history.pushState(
+            null, document.title, `${ims.urlReplace(url_viewStays)}/${newNumber}`
+        );
+
+        // Fetch auth info again with the newly updated URL, just to update
+        // the action log.
+        await ims.getAuthInfo();
+    }
+
+    await loadAndDisplayStay();
+    return {err: null};
+}
+ims.setSendEdits(sendEdits);
+
+async function editParentIncident(): Promise<void> {
+    const transform = (value: string): number|null => {
+        if (value === "") {
+            return 0;
+        }
+        return ims.parseInt10(value);
+    }
+    await ims.editFromElement(el.parentIncident, "incident_number", transform);
+}
+
+async function editGuestPreferredName(): Promise<void> {
+    await ims.editFromElement(el.guestPreferredName, "guest_preferred_name");
+}
+
+async function editGuestLegalName(): Promise<void> {
+    await ims.editFromElement(el.guestLegalName, "guest_legal_name");
+}
+
+async function editGuestDescription(): Promise<void> {
+    await ims.editFromElement(el.guestDescription, "guest_description");
+}
+
+async function editGuestCampName(): Promise<void> {
+    await ims.editFromElement(el.guestCampName, "guest_camp_name");
+}
+
+async function editGuestCampAddress(): Promise<void> {
+    await ims.editFromElement(el.guestCampAddress, "guest_camp_address");
+}
+
+async function editGuestCampDescription(): Promise<void> {
+    await ims.editFromElement(el.guestCampDescription, "guest_camp_description");
+}
+
+async function editArrivalTime(selectedDates: Date[], _dateStr: string, sender: ims.Flatpickr): Promise<void> {
+    const prevDate = new Date(stay?.arrival_time??0);
+    const newDate = selectedDates[0];
+    if (!newDate || newDate.getTime() === prevDate.getTime()) {
+        // nothing to do
+        return;
+    }
+
+    await ims.editFromElement(sender.altInput!, "arrival_time", (_: string|null):string=> {
+        return newDate.toISOString();
+    });
+}
+async function editArrivalMethod(): Promise<void> {
+    await ims.editFromElement(el.arrivalMethod, "arrival_method");
+}
+async function editArrivalState(): Promise<void> {
+    await ims.editFromElement(el.arrivalState, "arrival_state");
+}
+async function editArrivalReason(): Promise<void> {
+    await ims.editFromElement(el.arrivalReason, "arrival_reason");
+}
+async function editArrivalBelongings(): Promise<void> {
+    await ims.editFromElement(el.arrivalBelongings, "arrival_belongings");
+}
+
+async function editDepartureMethod(): Promise<void> {
+    await ims.editFromElement(el.departureMethod, "departure_method");
+}
+async function editDepartureState(): Promise<void> {
+    await ims.editFromElement(el.departureState, "departure_state");
+}
+
+async function editResourceRest(): Promise<void> {
+    await ims.editFromElement(el.resourceRest, "resource_rest");
+}
+async function editResourceClothes(): Promise<void> {
+    await ims.editFromElement(el.resourceClothes, "resource_clothes");
+}
+async function editResourcePogs(): Promise<void> {
+    await ims.editFromElement(el.resourcePogs, "resource_pogs");
+}
+async function editResourceFoodBev(): Promise<void> {
+    await ims.editFromElement(el.resourceFoodBev, "resource_food_bev");
+}
+async function editResourceOther(): Promise<void> {
+    await ims.editFromElement(el.resourceOther, "resource_other");
+}

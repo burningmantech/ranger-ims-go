@@ -25,11 +25,13 @@ export let pathIds: {
     eventId: number|null,
     incidentNumber: number|null,
     fieldReportNumber: number|null,
+    stayNumber: number|null,
 } = {
     eventName: null,
     eventId: null,
     incidentNumber: null,
     fieldReportNumber: null,
+    stayNumber: null,
 };
 
 export let eventAccess: AuthInfoEventAccess|null = null;
@@ -51,6 +53,7 @@ function idsFromPath(): {
     eventId: number|null,
     incidentNumber:number|null,
     fieldReportNumber: number|null,
+    stayNumber:number|null,
 } {
     const splits = window.location.pathname.split("/");
 
@@ -74,6 +77,7 @@ function idsFromPath(): {
         eventId: null,
         incidentNumber: parseInt10(tokenAfter("incidents")),
         fieldReportNumber: parseInt10(tokenAfter("field_reports")),
+        stayNumber: parseInt10(tokenAfter("stays")),
     };
 }
 
@@ -484,30 +488,36 @@ export function selectOptionWithValue(select: HTMLSelectElement, value: string|n
 
 
 // Look up a state's name given its ID.
-function stateNameFromID(stateID: string): string {
+function stateNameFromID(stateID: IncidentState): string {
     switch (stateID) {
         case "new"       : return "New";
         case "on_hold"   : return "On Hold";
         case "dispatched": return "Dispatched";
         case "on_scene"  : return "On Scene";
         case "closed"    : return "Closed";
+        case "null"      :
+            console.warn(`Unknown incident state ID: ${stateID}`);
+            return "Unknown";
         default:
-            console.warn("Unknown incident state ID: " + stateID);
+            console.warn(`Unknown incident state ID: ${stateID satisfies never}`);
             return "Unknown";
     }
 }
 
 
 // Look up a state's sort key given its ID.
-function stateSortKeyFromID(stateID: string): number|undefined {
+function stateSortKeyFromID(stateID: IncidentState): number|undefined {
     switch (stateID) {
         case "new"       : return 1;
         case "on_hold"   : return 2;
         case "dispatched": return 3;
         case "on_scene"  : return 4;
         case "closed"    : return 5;
+        case "null"      :
+            console.warn(`Unknown incident state ID: ${stateID}`);
+            return undefined;
         default:
-            console.warn("Unknown incident state ID: " + stateID);
+            console.warn(`Unknown incident state ID: ${stateID satisfies never}`);
             return undefined;
     }
 }
@@ -541,14 +551,14 @@ export function concentricStreetFromID(streetID: string|null|undefined): string 
 
 
 // Return the state ID for a given incident.
-export function stateForIncident(incident: Incident): string {
+export function stateForIncident(incident: Incident): IncidentState {
     // Data from 2014+ should have incident.state set.
     if (incident.state !== undefined) {
-        return incident.state!;
+        return incident.state || 'null';
     }
 
     console.warn("Unknown state for incident: " + incident);
-    return "Unknown";
+    return 'null';
 }
 
 
@@ -609,6 +619,13 @@ export function fieldReportAsString(report: FieldReport): string {
         return `New Field Report`;
     }
     return `FR #${report.number} (${fieldReportAuthor(report)}): ${summarizeIncidentOrFR(report)}`;
+}
+
+export function stayAsString(s: Stay): string {
+    if (s.number == null) {
+        return "New Stay";
+    }
+    return `Stay #${s.number} (${s.guest_preferred_name})`;
 }
 
 // Return all user-entered report text for a given incident as a single string.
@@ -786,7 +803,7 @@ export function renderDate(date: string, type: string, _incident: any): string|n
     return undefined;
 }
 
-export function renderState(state: string, type: string, incident: Incident): string|number|undefined {
+export function renderState(state: IncidentState, type: string, incident: Incident): string|number|undefined {
     if (state == null) {
         state = stateForIncident(incident);
     }
@@ -1144,11 +1161,11 @@ export function toggleShowHistory(): void {
 }
 
 export async function editFromElement(
-    element: HTMLInputElement|HTMLSelectElement,
+    element: HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement,
     jsonKey: string,
-    transform?: (v: string)=>string|null): Promise<void>
+    transform?: (v: string)=>string|number|null): Promise<void>
 {
-    let value: string|null = element.value;
+    let value: string|number|null = element.value;
 
     if (transform != null) {
         try {
@@ -1197,7 +1214,10 @@ export function newFieldReportChannel(): BroadcastChannelTyped<FieldReportBroadc
     const fieldReportChannelName= "field_report_update";
     return new BroadcastChannel(fieldReportChannelName);
 }
-
+export function newStayChannel(): BroadcastChannelTyped<StayBroadcast> {
+    const stayChannelName= "stay_update";
+    return new BroadcastChannel(stayChannelName);
+}
 
 //
 // EventSource
@@ -1286,6 +1306,11 @@ function subscribeToUpdates(closed: (_value?: undefined)=>void): void {
     eventSource.addEventListener("FieldReport", function(e: MessageEvent<string>) {
         localStorage.setItem(lastSseIDKey, e.lastEventId);
         newFieldReportChannel().postMessage(JSON.parse(e.data) as FieldReportBroadcast);
+    });
+
+    eventSource.addEventListener("Stay", function(e: MessageEvent<string>) {
+        localStorage.setItem(lastSseIDKey, e.lastEventId);
+        newStayChannel().postMessage(JSON.parse(e.data) as StayBroadcast);
     });
 }
 
@@ -1486,6 +1511,34 @@ function cleanupOldCaches(): void {
 }
 cleanupOldCaches();
 
+export function assertInstanceof<T>(
+    value: unknown, type: {new (...args: any): T},
+    message?: string): asserts value is T {
+    if (value instanceof type) {
+        return;
+    }
+
+    if (!message && value instanceof HTMLElement) {
+        message = `DOM element with id '${value.id}' has type ${value.constructor.name}, but wanted ${type.name || typeof type}`;
+    }
+
+    throw new Error(
+        message || `Value ${value} is not of type ${type.name || typeof type}`
+    );
+}
+
+
+export function typedElement<T>(
+    elementOrId: HTMLElement | string | null,
+    type: {new (...args: any): T},
+    message?: string): T
+{
+    if (typeof elementOrId === "string") {
+        elementOrId = document.getElementById(elementOrId);
+    }
+    assertInstanceof(elementOrId, type, message);
+    return elementOrId;
+}
 
 //
 // TypeScript declarations. These won't appear in the final JavaScript.
@@ -1525,10 +1578,17 @@ export type IncidentRanger = {
     role?: string|null;
 }
 
+export type StayRanger = {
+    handle?: string|null;
+    role?: string|null;
+}
+
+export type IncidentState = 'new'|'on_hold'|'dispatched'|'on_scene'|'closed'|'null';
+
 export type Incident = {
     number?: number|null;
     event?: string|null;
-    state?: string|null;
+    state?: IncidentState|null;
     priority?: number|null;
     summary?: string|null;
     created?: string|null;
@@ -1552,6 +1612,40 @@ export type FieldReport = {
 }
 
 export type FieldReportsByNumber = Record<number, FieldReport>;
+
+export type Stay = {
+    number?: number|null;
+    event?: string|null;
+    created?: string|null;
+    last_modified?: string|null;
+    incident_number?: number|null;
+
+    guest_preferred_name?: string|null;
+    guest_legal_name?: string|null;
+    guest_description?: string|null;
+    guest_camp_name?: string|null;
+    guest_camp_address?: string|null;
+    guest_camp_description?: string|null;
+
+    arrival_time?: string|null;
+    arrival_method?: string|null;
+    arrival_state?: string|null;
+    arrival_reason?: string|null;
+    arrival_belongings?: string|null;
+
+    departure_time?: string|null;
+    departure_method?: string|null;
+    departure_state?: string|null;
+
+    resource_rest?: string|null;
+    resource_clothes?: string|null;
+    resource_pogs?: string|null;
+    resource_food_bev?: string|null;
+    resource_other?: string|null;
+
+    rangers?: StayRanger[]|null;
+    report_entries?: ReportEntry[]|null;
+}
 
 export type EventData = {
     id: number,
@@ -1680,6 +1774,8 @@ export type AuthInfoEventAccess = {
     readIncidents: boolean,
     writeIncidents: boolean,
     writeFieldReports: boolean,
+    readStays: boolean,
+    writeStays: boolean,
     attachFiles: boolean,
 }
 
@@ -1707,8 +1803,16 @@ export type FieldReportBroadcast = {
     update_all?: boolean
 }
 
+export type StayBroadcast = {
+    // fields from SSE
+    event_id?: number|null;
+    stay_number?: number|null;
+    // additional fields for use in BroadcastChannel
+    update_all?: boolean
+}
+
 interface EditMap {
-    [index: string]: EditMap|string;
+    [index: string]: EditMap|string|number;
 }
 
 export type FetchRes<T> = {
@@ -1761,8 +1865,28 @@ declare let DataTable: any;
 // This is fulfilled by FlatpickrJS.
 declare let flatpickr: (selector: string|Node, opts: FlatpickrOptions)=>Flatpickr;
 
-export function newFlatpickr(selector: string|Node, opts: FlatpickrOptions): Flatpickr {
+function newFlatpickrInternal(selector: string|Node, opts: FlatpickrOptions): Flatpickr {
     return flatpickr(selector, opts);
+}
+
+export function newFlatpickr(selector: string|Node, altInputId: string, onChange: FlatpickrEventFunc): Flatpickr {
+    return newFlatpickrInternal(selector, {
+        altInput: true,
+        altFormat: 'D Y-m-d @ H:i',
+        enableTime: true,
+        allowInput: true,
+        dateFormat: 'Y-m-d H:i',
+        time_24hr: true,
+        minuteIncrement: 5,
+        onReady: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
+            instance.altInput!.id = altInputId;
+        },
+        onChange: onChange,
+        // This lets us set the date even on manual data entry in the altInput field.
+        onClose: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
+            instance.setDate(instance.altInput!.value, true, instance.config.altFormat!);
+        },
+    });
 }
 
 type FlatpickrEventFunc = (selectedDates: Date[], dateStr: string, instance: Flatpickr) => void;
@@ -1777,8 +1901,11 @@ export interface FlatpickrOptions {
     dateFormat?: string;
     time_24hr?: boolean;
     minuteIncrement?: number;
+    defaultHour?: number;
+    defaultMinute?: number;
+    onOpen?: FlatpickrEventFunc|FlatpickrEventFunc[];
     onClose?: FlatpickrEventFunc|FlatpickrEventFunc[];
-    onReady?: FlatpickrEventFunc;
+    onReady?: FlatpickrEventFunc|FlatpickrEventFunc[];
     onChange?: FlatpickrEventFunc|FlatpickrEventFunc[];
 }
 

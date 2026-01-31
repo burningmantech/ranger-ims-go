@@ -61,15 +61,16 @@ async function addEvent(page: Page, eventName: string): Promise<void> {
   await page.getByPlaceholder("Burn-A-Matic-3000").fill(eventName);
   await page.getByPlaceholder("Burn-A-Matic-3000").press("Enter");
 
-  await expect(page.getByText(`readers for ${eventName}`)).toBeVisible();
-  await expect(page.getByText(`writers for ${eventName}`)).toBeVisible();
-  await expect(page.getByText(`reporters for ${eventName}`)).toBeVisible();
+  await expect(page.getByText(`Full readers for ${eventName}`)).toBeVisible();
+  await expect(page.getByText(`Full writers for ${eventName}`)).toBeVisible();
+  await expect(page.getByText(`Reporters for ${eventName}`)).toBeVisible();
+  await expect(page.getByText(`Stay writers for ${eventName}`)).toBeVisible();
 }
 
 async function addWriter(page: Page, eventName: string, writer: string): Promise<void> {
   await eventsPage(page);
 
-  const writers = page.locator("div.card").filter({has: page.getByText(`writers for ${eventName}`)});
+  const writers = page.locator("div.card").filter({has: page.getByText(`Full writers for ${eventName}`)});
 
   await writers.getByRole("textbox").fill(writer);
   await writers.getByRole("textbox").press("Enter");
@@ -142,7 +143,7 @@ test("admin_events", async ({ browser }) => {
   await addEvent(page, eventName);
   await addWriter(page, eventName, "person:SomeGuy");
 
-  const writers = page.locator("div.card").filter({has: page.getByText(`writers for ${eventName}`)});
+  const writers = page.locator("div.card").filter({has: page.getByText(`Full writers for ${eventName}`)});
   // it's hard to tell on the client side when this has completed, hence the toPass block below
   await writers.locator("select").selectOption("On-Site");
 
@@ -150,7 +151,7 @@ test("admin_events", async ({ browser }) => {
   await login(page2);
   await eventsPage(page2);
   await expect(async (): Promise<void> => {
-    const writers = page2.locator("div.card").filter({has: page2.getByText(`writers for ${eventName}`)});
+    const writers = page2.locator("div.card").filter({has: page2.getByText(`Full writers for ${eventName}`)});
     await expect(writers).toBeVisible();
     await expect(writers.getByText("person:SomeGuy")).toBeVisible();
     await expect(writers.locator("select")).toHaveValue("onsite");
@@ -263,7 +264,7 @@ test("incidents", async ({ page, browser }) => {
 
     // override start time
     let altStartedDatetime = incidentPage.locator("#alt_started_datetime");
-    let altStartedDateTimeStr = "Mon, 2025-01-27 at 22:11";
+    let altStartedDateTimeStr = "Mon 2025-01-27 @ 22:11";
     let ignoreDatetimeCheck = false;
 
     if (!await altStartedDatetime.isVisible()) {

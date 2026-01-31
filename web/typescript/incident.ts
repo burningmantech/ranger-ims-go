@@ -59,6 +59,10 @@ let destinations: ims.Destinations = {};
 // Initialize UI
 //
 
+const inputIncidentSummary = ims.typedElement("incident_summary", HTMLInputElement);
+const selectIncidentState = ims.typedElement("incident_state", HTMLSelectElement);
+const textAreaReportEntryAdd = ims.typedElement("report_entry_add", HTMLTextAreaElement);
+
 initIncidentPage();
 
 async function initIncidentPage(): Promise<void> {
@@ -114,24 +118,7 @@ async function initIncidentPage(): Promise<void> {
 
     allEvents = await initResult.eventDatas;
 
-    ims.newFlatpickr("#started_datetime", {
-        altInput: true,
-        altFormat: 'D, Y-m-d at H:i',
-        enableTime: true,
-        allowInput: true,
-        dateFormat: 'Y-m-d H:i',
-        time_24hr: true,
-        minuteIncrement: 5,
-        onReady: function(_selectedDates: Date[], _dateStr: string, instance: ims.Flatpickr): void {
-            instance.altInput!.id = "alt_started_datetime";
-        },
-        onChange: setStartDatetime,
-        // This lets us set the date even on manual data entry in the altInput field.
-        // TODO: does this work on mobile, if altInput isn't displayed?
-        onClose: function(_selectedDates: Date[], _dateStr: string, instance: ims.Flatpickr): void {
-            instance.setDate(instance.altInput!.value, true, instance.config.altFormat!);
-        }
-    });
+    ims.newFlatpickr("#started_datetime", "alt_started_datetime", setStartDatetime);
 
     ims.disableEditing();
     displayIncident();
@@ -149,12 +136,12 @@ async function initIncidentPage(): Promise<void> {
 
     // for a new incident, jump to summary field
     if (incident!.number == null) {
-        document.getElementById("incident_summary")!.focus();
+        inputIncidentSummary.focus();
     }
 
     // Warn the user if they're about to navigate away with unsaved text.
     window.addEventListener("beforeunload", function (e: BeforeUnloadEvent): void {
-        if ((document.getElementById("report_entry_add") as HTMLTextAreaElement).value !== "") {
+        if (textAreaReportEntryAdd.value !== "") {
             e.preventDefault();
         }
     });
@@ -215,8 +202,8 @@ async function initIncidentPage(): Promise<void> {
         if (e.key === "a") {
             e.preventDefault();
             // Scroll to report_entry_add field
-            document.getElementById("report_entry_add")!.focus();
-            document.getElementById("report_entry_add")!.scrollIntoView(true);
+            textAreaReportEntryAdd.focus();
+            textAreaReportEntryAdd.scrollIntoView(true);
         }
         // h --> toggle showing system entries
         if (e.key.toLowerCase() === "h") {
@@ -236,7 +223,7 @@ async function initIncidentPage(): Promise<void> {
             e.stopPropagation();
         }
     });
-    document.getElementById("report_entry_add")!.addEventListener("keydown", function (e: KeyboardEvent): void {
+    textAreaReportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
         const submitEnabled = !document.getElementById("report_entry_submit")!.classList.contains("disabled");
         if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
@@ -366,8 +353,10 @@ async function loadPersonnel(): Promise<{err: string|null}> {
                 _personnel[record.handle] = record;
                 break
             case "auditor":
+                // Don't add auditors to the personnel list.
+                break;
             default:
-                // Don't add this person to the personnel list.
+                console.log(`unrecognized status: ${record.status satisfies never}`);
                 break;
         }
     }
@@ -491,7 +480,7 @@ function drawIncidentFields() {
     ims.toggleShowHistory();
     drawMergedReportEntries();
 
-    document.getElementById("report_entry_add")!.addEventListener("input", ims.reportEntryEdited);
+    textAreaReportEntryAdd.addEventListener("input", ims.reportEntryEdited);
 }
 
 
@@ -526,10 +515,7 @@ function drawIncidentTitle(mode: "for_display"|"for_print_to_pdf"): void {
 //
 
 function drawIncidentNumber(): void {
-    let number: number|string|null = incident!.number??null;
-    if (number == null) {
-        number = "(new)";
-    }
+    const number: number|string = incident!.number??"(new)";
     (document.getElementById("incident_number") as HTMLInputElement).value = number.toString();
 }
 
@@ -540,7 +526,7 @@ function drawIncidentNumber(): void {
 
 function drawState(): void {
     ims.selectOptionWithValue(
-        document.getElementById("incident_state") as HTMLSelectElement,
+        selectIncidentState,
         ims.stateForIncident(incident!)
     );
 }
@@ -588,15 +574,14 @@ function drawPriority(): void {
 //
 
 function drawIncidentSummary(): void {
-    const summaryElement = document.getElementById("incident_summary") as HTMLInputElement;
-    summaryElement.placeholder = "One-line summary of incident";
+    inputIncidentSummary.placeholder = "One-line summary of incident";
     if (incident!.summary) {
-        summaryElement.value = incident!.summary;
-        summaryElement.placeholder = "";
+        inputIncidentSummary.value = incident!.summary;
+        inputIncidentSummary.placeholder = "";
         return;
     }
 
-    summaryElement.value = ims.summarizeIncidentOrFR(incident!);
+    inputIncidentSummary.value = ims.summarizeIncidentOrFR(incident!);
 }
 
 
@@ -1039,9 +1024,7 @@ async function sendEdits(edits: ims.Incident): Promise<{err:string|null}> {
 ims.setSendEdits(sendEdits);
 
 async function editState(): Promise<void> {
-    const state = document.getElementById("incident_state") as HTMLSelectElement;
-
-    if (state.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
+    if (selectIncidentState.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
         window.alert(
             "Closing out this incident?\n"+
             "Please add an incident type!\n\n" +
@@ -1052,7 +1035,7 @@ async function editState(): Promise<void> {
         );
     }
 
-    await ims.editFromElement(state, "state");
+    await ims.editFromElement(selectIncidentState, "state");
 }
 
 async function setStartDatetime(selectedDates: Date[], _dateStr: string, sender: ims.Flatpickr): Promise<void> {
@@ -1069,8 +1052,7 @@ async function setStartDatetime(selectedDates: Date[], _dateStr: string, sender:
 }
 
 async function editIncidentSummary(): Promise<void> {
-    const summaryInput = document.getElementById("incident_summary") as HTMLInputElement;
-    await ims.editFromElement(summaryInput, "summary");
+    await ims.editFromElement(inputIncidentSummary, "summary");
 }
 
 

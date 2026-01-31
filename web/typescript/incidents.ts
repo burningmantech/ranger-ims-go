@@ -632,7 +632,7 @@ function initSearch(): void {
 
     incidentsTable!.search.fixed("state", function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
         const incident: ims.Incident = incidentsTable!.data()[rowIndex]!;
-        let state;
+        let state: ims.IncidentState;
         if (_showState != null) {
             switch (_showState) {
                 case "all":

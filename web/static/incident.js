@@ -25,6 +25,9 @@ let destinations = {};
 //
 // Initialize UI
 //
+const inputIncidentSummary = ims.typedElement("incident_summary", HTMLInputElement);
+const selectIncidentState = ims.typedElement("incident_state", HTMLSelectElement);
+const textAreaReportEntryAdd = ims.typedElement("report_entry_add", HTMLTextAreaElement);
 initIncidentPage();
 async function initIncidentPage() {
     const initResult = await ims.commonPageInit();
@@ -71,24 +74,7 @@ async function initIncidentPage() {
         await loadAllFieldReports(),
     ]);
     allEvents = await initResult.eventDatas;
-    ims.newFlatpickr("#started_datetime", {
-        altInput: true,
-        altFormat: 'D, Y-m-d at H:i',
-        enableTime: true,
-        allowInput: true,
-        dateFormat: 'Y-m-d H:i',
-        time_24hr: true,
-        minuteIncrement: 5,
-        onReady: function (_selectedDates, _dateStr, instance) {
-            instance.altInput.id = "alt_started_datetime";
-        },
-        onChange: setStartDatetime,
-        // This lets us set the date even on manual data entry in the altInput field.
-        // TODO: does this work on mobile, if altInput isn't displayed?
-        onClose: function (_selectedDates, _dateStr, instance) {
-            instance.setDate(instance.altInput.value, true, instance.config.altFormat);
-        }
-    });
+    ims.newFlatpickr("#started_datetime", "alt_started_datetime", setStartDatetime);
     ims.disableEditing();
     displayIncident();
     if (incident == null) {
@@ -103,11 +89,11 @@ async function initIncidentPage() {
     ims.hideLoadingOverlay();
     // for a new incident, jump to summary field
     if (incident.number == null) {
-        document.getElementById("incident_summary").focus();
+        inputIncidentSummary.focus();
     }
     // Warn the user if they're about to navigate away with unsaved text.
     window.addEventListener("beforeunload", function (e) {
-        if (document.getElementById("report_entry_add").value !== "") {
+        if (textAreaReportEntryAdd.value !== "") {
             e.preventDefault();
         }
     });
@@ -160,8 +146,8 @@ async function initIncidentPage() {
         if (e.key === "a") {
             e.preventDefault();
             // Scroll to report_entry_add field
-            document.getElementById("report_entry_add").focus();
-            document.getElementById("report_entry_add").scrollIntoView(true);
+            textAreaReportEntryAdd.focus();
+            textAreaReportEntryAdd.scrollIntoView(true);
         }
         // h --> toggle showing system entries
         if (e.key.toLowerCase() === "h") {
@@ -181,7 +167,7 @@ async function initIncidentPage() {
             e.stopPropagation();
         }
     });
-    document.getElementById("report_entry_add").addEventListener("keydown", function (e) {
+    textAreaReportEntryAdd.addEventListener("keydown", function (e) {
         const submitEnabled = !document.getElementById("report_entry_submit").classList.contains("disabled");
         if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
@@ -283,8 +269,10 @@ async function loadPersonnel() {
                 _personnel[record.handle] = record;
                 break;
             case "auditor":
+                // Don't add auditors to the personnel list.
+                break;
             default:
-                // Don't add this person to the personnel list.
+                console.log(`unrecognized status: ${record.status}`);
                 break;
         }
     }
@@ -392,7 +380,7 @@ function drawIncidentFields() {
     drawLocationDescription();
     ims.toggleShowHistory();
     drawMergedReportEntries();
-    document.getElementById("report_entry_add").addEventListener("input", ims.reportEntryEdited);
+    textAreaReportEntryAdd.addEventListener("input", ims.reportEntryEdited);
 }
 //
 // Populate page title
@@ -422,17 +410,14 @@ function drawIncidentTitle(mode) {
 // Populate incident number
 //
 function drawIncidentNumber() {
-    let number = incident.number ?? null;
-    if (number == null) {
-        number = "(new)";
-    }
+    const number = incident.number ?? "(new)";
     document.getElementById("incident_number").value = number.toString();
 }
 //
 // Populate incident state
 //
 function drawState() {
-    ims.selectOptionWithValue(document.getElementById("incident_state"), ims.stateForIncident(incident));
+    ims.selectOptionWithValue(selectIncidentState, ims.stateForIncident(incident));
 }
 //
 // Populate started datetime
@@ -466,14 +451,13 @@ function drawPriority() {
 // Populate incident summary
 //
 function drawIncidentSummary() {
-    const summaryElement = document.getElementById("incident_summary");
-    summaryElement.placeholder = "One-line summary of incident";
+    inputIncidentSummary.placeholder = "One-line summary of incident";
     if (incident.summary) {
-        summaryElement.value = incident.summary;
-        summaryElement.placeholder = "";
+        inputIncidentSummary.value = incident.summary;
+        inputIncidentSummary.placeholder = "";
         return;
     }
-    summaryElement.value = ims.summarizeIncidentOrFR(incident);
+    inputIncidentSummary.value = ims.summarizeIncidentOrFR(incident);
 }
 //
 // Populate Rangers list
@@ -837,8 +821,7 @@ async function sendEdits(edits) {
 }
 ims.setSendEdits(sendEdits);
 async function editState() {
-    const state = document.getElementById("incident_state");
-    if (state.value === "closed" && (incident.incident_type_ids ?? []).length === 0) {
+    if (selectIncidentState.value === "closed" && (incident.incident_type_ids ?? []).length === 0) {
         window.alert("Closing out this incident?\n" +
             "Please add an incident type!\n\n" +
             "Special cases:\n" +
@@ -846,7 +829,7 @@ async function editState() {
             "    Admin: for administrative information, i.e. not Incidents at all\n\n" +
             "See the Incident Types help link for more details.\n");
     }
-    await ims.editFromElement(state, "state");
+    await ims.editFromElement(selectIncidentState, "state");
 }
 async function setStartDatetime(selectedDates, _dateStr, sender) {
     const prevDate = new Date(incident?.started ?? 0);
@@ -860,8 +843,7 @@ async function setStartDatetime(selectedDates, _dateStr, sender) {
     });
 }
 async function editIncidentSummary() {
-    const summaryInput = document.getElementById("incident_summary");
-    await ims.editFromElement(summaryInput, "summary");
+    await ims.editFromElement(inputIncidentSummary, "summary");
 }
 async function editLocationName() {
     const locNameInput = document.getElementById("incident_location_name");

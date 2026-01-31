@@ -266,10 +266,7 @@ function drawTitle(): void {
 //
 
 function drawNumber(): void {
-    let number: number|string|null|undefined = fieldReport!.number;
-    if (number == null) {
-        number = "(new)";
-    }
+    const number: number|string = fieldReport!.number??"(new)";
     (document.getElementById("field_report_number") as HTMLInputElement).value = number.toString();
 }
 

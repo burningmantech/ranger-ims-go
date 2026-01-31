@@ -87,7 +87,7 @@ interface DebugInfo {
     known_target?: boolean|null
 }
 
-const allAccessModes = ["readers", "writers", "reporters"] as const;
+const allAccessModes = ["readers", "writers", "reporters", "stay_writers"] as const;
 type AccessMode = typeof allAccessModes[number];
 type EventAccess = Partial<Record<AccessMode, Access[]>>;
 // key is event name
@@ -180,6 +180,8 @@ function drawAccess(): void {
             const eventAccess = eventModeAccessFrag.querySelector("div")!;
             // Add an id to the element for future reference
             eventAccess.id = eventAccessContainerId(event.name, mode);
+            eventAccess.dataset["accessMode"] = mode;
+            eventAccess.dataset["eventName"] = event.name;
             eventAccessFrag.append(eventModeAccessFrag);
         }
 
@@ -195,6 +197,21 @@ function eventAccessContainerId(event: string, mode: string): string {
     return "event_access_" + event + "_" + mode;
 }
 
+function displayMode(m: AccessMode): string {
+    switch (m) {
+        case "readers":
+            return "Full readers";
+        case "writers":
+            return "Full writers";
+        case "reporters":
+            return "Reporters";
+        case "stay_writers":
+            return "Stay writers";
+        default:
+            throw new Error(`unexpected access mode ${m satisfies never}`);
+    }
+}
+
 function updateEventAccess(event: string, mode: AccessMode): void {
     if (accessControlList == null) {
         return;
@@ -208,7 +225,7 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
     // Set displayed event name and mode
     eventAccess.getElementsByClassName("event_name")[0]!.textContent = event;
-    eventAccess.getElementsByClassName("access_mode")[0]!.textContent = mode;
+    eventAccess.getElementsByClassName("access_mode")[0]!.textContent = displayMode(mode);
 
     const entryContainer = eventAccess.getElementsByClassName("list-group")[0]!;
 
@@ -331,8 +348,8 @@ async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Pr
 
 async function addAccess(sender: HTMLInputElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
-    const event = container.getElementsByClassName("event_name")[0]!.textContent!;
-    const mode = container.getElementsByClassName("access_mode")[0]!.textContent as AccessMode;
+    const event = container.dataset["eventName"]!;
+    const mode = container.dataset["accessMode"] as AccessMode;
     const newExpression = sender.value.trim();
 
     if (newExpression === "") {
@@ -400,8 +417,8 @@ async function addAccess(sender: HTMLInputElement): Promise<void> {
 
 async function removeAccess(sender: HTMLButtonElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
-    const event = container.getElementsByClassName("event_name")[0]!.textContent!;
-    const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
+    const event = container.dataset["eventName"]!;
+    const mode = container.dataset["accessMode"] as AccessMode;
     const expression = sender.closest("li")!.dataset["expression"]!.trim();
 
     const acl: Access[] = accessControlList![event]![mode]!.slice();
@@ -433,8 +450,8 @@ async function removeAccess(sender: HTMLButtonElement): Promise<void> {
 
 async function setValidity(sender: HTMLSelectElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
-    const event: string = container.getElementsByClassName("event_name")[0]!.textContent!;
-    const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
+    const event = container.dataset["eventName"]!;
+    const mode = container.dataset["accessMode"] as AccessMode;
 
     const accessRow = sender.closest("li") as HTMLLIElement;
     const expression = accessRow.dataset["expression"]!.trim();
@@ -471,8 +488,8 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
 
 async function setExpires(sender: HTMLInputElement): Promise<void> {
     const container: HTMLElement = sender.closest(".event_access")!;
-    const event: string = container.getElementsByClassName("event_name")[0]!.textContent!;
-    const mode = container.getElementsByClassName("access_mode")[0]!.textContent! as AccessMode;
+    const event = container.dataset["eventName"]!;
+    const mode = container.dataset["accessMode"] as AccessMode;
 
     const accessRow = sender.closest("li") as HTMLLIElement;
     const expression = accessRow.dataset["expression"]!.trim();

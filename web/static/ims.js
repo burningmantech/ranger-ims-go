@@ -24,6 +24,7 @@ export let pathIds = {
     eventId: null,
     incidentNumber: null,
     fieldReportNumber: null,
+    stayNumber: null,
 };
 export let eventAccess = null;
 const accessTokenKey = "access_token";
@@ -56,6 +57,7 @@ function idsFromPath() {
         eventId: null,
         incidentNumber: parseInt10(tokenAfter("incidents")),
         fieldReportNumber: parseInt10(tokenAfter("field_reports")),
+        stayNumber: parseInt10(tokenAfter("stays")),
     };
 }
 //
@@ -427,8 +429,11 @@ function stateNameFromID(stateID) {
         case "dispatched": return "Dispatched";
         case "on_scene": return "On Scene";
         case "closed": return "Closed";
+        case "null":
+            console.warn(`Unknown incident state ID: ${stateID}`);
+            return "Unknown";
         default:
-            console.warn("Unknown incident state ID: " + stateID);
+            console.warn(`Unknown incident state ID: ${stateID}`);
             return "Unknown";
     }
 }
@@ -440,8 +445,11 @@ function stateSortKeyFromID(stateID) {
         case "dispatched": return 3;
         case "on_scene": return 4;
         case "closed": return 5;
+        case "null":
+            console.warn(`Unknown incident state ID: ${stateID}`);
+            return undefined;
         default:
-            console.warn("Unknown incident state ID: " + stateID);
+            console.warn(`Unknown incident state ID: ${stateID}`);
             return undefined;
     }
 }
@@ -472,10 +480,10 @@ export function concentricStreetFromID(streetID) {
 export function stateForIncident(incident) {
     // Data from 2014+ should have incident.state set.
     if (incident.state !== undefined) {
-        return incident.state;
+        return incident.state || 'null';
     }
     console.warn("Unknown state for incident: " + incident);
-    return "Unknown";
+    return 'null';
 }
 // Return a summary for a given incident.
 export function summarizeIncidentOrFR(ifr) {
@@ -523,6 +531,12 @@ export function fieldReportAsString(report) {
         return `New Field Report`;
     }
     return `FR #${report.number} (${fieldReportAuthor(report)}): ${summarizeIncidentOrFR(report)}`;
+}
+export function stayAsString(s) {
+    if (s.number == null) {
+        return "New Stay";
+    }
+    return `Stay #${s.number} (${s.guest_preferred_name})`;
 }
 // Return all user-entered report text for a given incident as a single string.
 export function reportTextFromIncident(incidentOrFR, eventFieldReports) {
@@ -1030,6 +1044,10 @@ export function newFieldReportChannel() {
     const fieldReportChannelName = "field_report_update";
     return new BroadcastChannel(fieldReportChannelName);
 }
+export function newStayChannel() {
+    const stayChannelName = "stay_update";
+    return new BroadcastChannel(stayChannelName);
+}
 //
 // EventSource
 //
@@ -1106,6 +1124,10 @@ function subscribeToUpdates(closed) {
     eventSource.addEventListener("FieldReport", function (e) {
         localStorage.setItem(lastSseIDKey, e.lastEventId);
         newFieldReportChannel().postMessage(JSON.parse(e.data));
+    });
+    eventSource.addEventListener("Stay", function (e) {
+        localStorage.setItem(lastSseIDKey, e.lastEventId);
+        newStayChannel().postMessage(JSON.parse(e.data));
     });
 }
 // Set the user-visible error information on the page to the provided string.
@@ -1282,6 +1304,41 @@ function cleanupOldCaches() {
     localStorage.removeItem("incidents_preferred_state");
 }
 cleanupOldCaches();
-export function newFlatpickr(selector, opts) {
+export function assertInstanceof(value, type, message) {
+    if (value instanceof type) {
+        return;
+    }
+    if (!message && value instanceof HTMLElement) {
+        message = `DOM element with id '${value.id}' has type ${value.constructor.name}, but wanted ${type.name || typeof type}`;
+    }
+    throw new Error(message || `Value ${value} is not of type ${type.name || typeof type}`);
+}
+export function typedElement(elementOrId, type, message) {
+    if (typeof elementOrId === "string") {
+        elementOrId = document.getElementById(elementOrId);
+    }
+    assertInstanceof(elementOrId, type, message);
+    return elementOrId;
+}
+function newFlatpickrInternal(selector, opts) {
     return flatpickr(selector, opts);
+}
+export function newFlatpickr(selector, altInputId, onChange) {
+    return newFlatpickrInternal(selector, {
+        altInput: true,
+        altFormat: 'D Y-m-d @ H:i',
+        enableTime: true,
+        allowInput: true,
+        dateFormat: 'Y-m-d H:i',
+        time_24hr: true,
+        minuteIncrement: 5,
+        onReady: function (_selectedDates, _dateStr, instance) {
+            instance.altInput.id = altInputId;
+        },
+        onChange: onChange,
+        // This lets us set the date even on manual data entry in the altInput field.
+        onClose: function (_selectedDates, _dateStr, instance) {
+            instance.setDate(instance.altInput.value, true, instance.config.altFormat);
+        },
+    });
 }

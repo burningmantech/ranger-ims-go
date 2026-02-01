@@ -339,6 +339,17 @@ where ID IN (
       and REPORT_ENTRY = ?
 );
 
+-- name: SetStayReportEntryStricken :exec
+update REPORT_ENTRY
+set STRICKEN = ?
+where ID IN (
+    select REPORT_ENTRY
+    from STAY__REPORT_ENTRY
+    where EVENT = ?
+      and STAY_NUMBER = ?
+      and REPORT_ENTRY = ?
+);
+
 -- name: AttachRangerHandleToIncident :exec
 insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE, ROLE)
 values (?, ?, ?, ?);

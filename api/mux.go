@@ -376,6 +376,16 @@ func AddToMux(
 		),
 	)
 
+	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}/report_entries/{reportEntryId}",
+		Adapt(
+			EditStayReportEntry{db, userStore, es, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
 	mux.Handle("GET /ims/api/events/{eventName}/destinations",
 		Adapt(
 			GetDestinations{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},

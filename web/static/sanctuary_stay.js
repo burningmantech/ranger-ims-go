@@ -24,6 +24,7 @@ let stay = null;
 const el = {
     stayNumber: ims.typedElement("stay_number", HTMLInputElement),
     parentIncident: ims.typedElement("parent_incident", HTMLInputElement),
+    parentIncidentLink: ims.typedElement("parent_incident_link", HTMLAnchorElement),
     guestPreferredName: ims.typedElement("guest_preferred_name", HTMLInputElement),
     guestLegalName: ims.typedElement("guest_legal_name", HTMLInputElement),
     guestDescription: ims.typedElement("guest_description", HTMLInputElement),
@@ -46,6 +47,7 @@ const el = {
     historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
     reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
     attachFile: ims.typedElement("attach_file", HTMLInputElement),
+    attachFileInput: ims.typedElement("attach_file_input", HTMLInputElement),
 };
 initSanctuaryStayPage();
 async function initSanctuaryStayPage() {
@@ -78,14 +80,18 @@ async function initSanctuaryStayPage() {
     window.editResourcePogs = editResourcePogs;
     window.editResourceFoodBev = editResourceFoodBev;
     window.editResourceOther = editResourceOther;
+    window.toggleShowHistory = ims.toggleShowHistory;
+    window.reportEntryEdited = ims.reportEntryEdited;
+    window.submitReportEntry = ims.submitReportEntry;
+    window.attachFile = attachFile;
     // TODO: load data from backend
     await loadStay();
-    const onChange = function (selectedDates, _dateStr, instance) {
-        instance.input.title = ims.longFormatDate(selectedDates[0]);
-        instance.altInput.title = ims.longFormatDate(selectedDates[0]);
-    };
+    // const onChange = function(selectedDates: Date[], _dateStr: string, instance: ims.Flatpickr): void {
+    //     instance.input!.title = ims.longFormatDate(selectedDates[0]!);
+    //     instance.altInput!.title = ims.longFormatDate(selectedDates[0]!);
+    // };
     ims.newFlatpickr(el.arrivalTime, "alt_arrival_time", editArrivalTime);
-    ims.newFlatpickr(el.departureTime, "alt_departure_time", onChange);
+    ims.newFlatpickr(el.departureTime, "alt_departure_time", editDepartureTime);
     ims.disableEditing();
     displayStay();
     if (stay == null) {
@@ -206,9 +212,15 @@ function displayStay() {
         return;
     }
     drawStayFields();
+    ims.toggleShowHistory();
+    ims.drawReportEntries(stay.report_entries ?? []);
     ims.clearErrorMessage();
+    el.reportEntryAdd.addEventListener("input", ims.reportEntryEdited);
     if (ims.eventAccess?.writeStays) {
         ims.enableEditing();
+    }
+    else {
+        ims.disableEditing();
     }
     if (ims.eventAccess?.attachFiles) {
         el.attachFile.classList.remove("hidden");
@@ -217,7 +229,13 @@ function displayStay() {
 function drawStayFields() {
     drawStayTitle("for_display");
     el.stayNumber.value = (stay?.number ?? "(new)").toString();
-    el.parentIncident.value = (stay?.incident_number?.toString()) ?? "";
+    if (stay?.incident_number) {
+        el.parentIncident.value = (stay.incident_number?.toString()) ?? "";
+        el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${stay.incident_number}`);
+    }
+    else {
+        el.parentIncident.placeholder = "(none)";
+    }
     el.guestPreferredName.value = (stay?.guest_preferred_name?.toString()) ?? "";
     el.guestLegalName.value = (stay?.guest_legal_name?.toString()) ?? "";
     el.guestDescription.value = (stay?.guest_description?.toString()) ?? "";
@@ -241,9 +259,6 @@ function drawStayFields() {
     el.resourcePogs.value = (stay?.resource_pogs?.toString()) ?? "";
     el.resourceFoodBev.value = (stay?.resource_food_bev?.toString()) ?? "";
     el.resourceOther.value = (stay?.resource_other?.toString()) ?? "";
-    ims.toggleShowHistory();
-    // drawMergedReportEntries();
-    el.reportEntryAdd.addEventListener("input", ims.reportEntryEdited);
 }
 function drawStayTitle(mode) {
     let newTitle = "";
@@ -335,16 +350,16 @@ async function editGuestCampAddress() {
 async function editGuestCampDescription() {
     await ims.editFromElement(el.guestCampDescription, "guest_camp_description");
 }
+const zeroTimeValue = "0001-01-01T00:00:00Z";
 async function editArrivalTime(selectedDates, _dateStr, sender) {
-    const prevDate = new Date(stay?.arrival_time ?? 0);
+    const prevDate = stay?.arrival_time ? new Date(stay.arrival_time) : undefined;
     const newDate = selectedDates[0];
-    if (!newDate || newDate.getTime() === prevDate.getTime()) {
-        // nothing to do
+    if (newDate?.getTime() === prevDate?.getTime()) {
+        // Either they're the same valid time, or neither is set, so there's nothing to do.
         return;
     }
-    await ims.editFromElement(sender.altInput, "arrival_time", (_) => {
-        return newDate.toISOString();
-    });
+    const newDateStr = () => (newDate?.toISOString()) || zeroTimeValue;
+    await ims.editFromElement(sender.altInput, "arrival_time", newDateStr);
 }
 async function editArrivalMethod() {
     await ims.editFromElement(el.arrivalMethod, "arrival_method");
@@ -357,6 +372,16 @@ async function editArrivalReason() {
 }
 async function editArrivalBelongings() {
     await ims.editFromElement(el.arrivalBelongings, "arrival_belongings");
+}
+async function editDepartureTime(selectedDates, _dateStr, sender) {
+    const prevDate = stay?.departure_time ? new Date(stay.departure_time) : undefined;
+    const newDate = selectedDates[0];
+    if (newDate?.getTime() === prevDate?.getTime()) {
+        // Either they're the same valid time, or neither is set, so there's nothing to do.
+        return;
+    }
+    const newDateStr = () => (newDate?.toISOString()) || zeroTimeValue;
+    await ims.editFromElement(sender.altInput, "departure_time", newDateStr);
 }
 async function editDepartureMethod() {
     await ims.editFromElement(el.departureMethod, "departure_method");
@@ -378,4 +403,37 @@ async function editResourceFoodBev() {
 }
 async function editResourceOther() {
     await ims.editFromElement(el.resourceOther, "resource_other");
+}
+// The success callback for a report entry strike call.
+async function onStrikeSuccess() {
+    await loadAndDisplayStay();
+    ims.clearErrorMessage();
+}
+ims.setOnStrikeSuccess(onStrikeSuccess);
+async function attachFile() {
+    if (ims.pathIds.stayNumber == null) {
+        // Stay doesn't exist yet. Create it first.
+        const { err } = await sendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
+    const formData = new FormData();
+    for (const f of el.attachFileInput.files ?? []) {
+        // this must match the key sought by the server
+        formData.append("imsAttachment", f);
+    }
+    const attachURL = ims.urlReplace(url_stayAttachments)
+        .replace("<stay_number>", (ims.pathIds.stayNumber ?? "").toString());
+    const { err } = await ims.fetchNoThrow(attachURL, {
+        body: formData
+    });
+    if (err != null) {
+        const message = `Failed to attach file: ${err}`;
+        ims.setErrorMessage(message);
+        return;
+    }
+    ims.clearErrorMessage();
+    el.attachFileInput.value = "";
+    await loadAndDisplayStay();
 }

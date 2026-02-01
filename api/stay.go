@@ -436,6 +436,9 @@ func updateStay(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newS
 
 	if newStay.ArrivalTime != nil {
 		update.ArrivalTime = conv.TimeToNullFloat(*newStay.ArrivalTime)
+		if update.ArrivalTime.Valid && update.DepartureTime.Valid && update.DepartureTime.Float64 < update.ArrivalTime.Float64 {
+			return herr.BadRequest("Arrival time cannot be after departure time", errors.New("arrival time cannot be after departure time"))
+		}
 		logs = append(logs, fmt.Sprintf("Changed ArrivalTime: %v", newStay.ArrivalTime.In(time.UTC).Format(time.RFC3339)))
 	}
 	if newStay.ArrivalMethod != nil {
@@ -457,6 +460,9 @@ func updateStay(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newS
 
 	if newStay.DepartureTime != nil {
 		update.DepartureTime = conv.TimeToNullFloat(*newStay.DepartureTime)
+		if update.ArrivalTime.Valid && update.DepartureTime.Valid && update.DepartureTime.Float64 < update.ArrivalTime.Float64 {
+			return herr.BadRequest("Departure time cannot be before arrival time", errors.New("departure time cannot be before arrival time"))
+		}
 		logs = append(logs, fmt.Sprintf("Changed DepartureTime: %v", newStay.DepartureTime.In(time.UTC).Format(time.RFC3339)))
 	}
 	if newStay.DepartureMethod != nil {

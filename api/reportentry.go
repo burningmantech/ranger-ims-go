@@ -201,6 +201,96 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 	return nil
 }
 
+type EditStayReportEntry struct {
+	imsDBQ      *store.DBQ
+	userStore   *directory.UserStore
+	eventSource *EventSourcerer
+	imsAdmins   []string
+}
+
+func (action EditStayReportEntry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	errHTTP := action.editStayReportEntry(req)
+	if errHTTP != nil {
+		errHTTP.From("[editStayReportEntry]").WriteResponse(w)
+		return
+	}
+	herr.WriteNoContentResponse(w, "Success")
+}
+
+func (action EditStayReportEntry) editStayReportEntry(req *http.Request) *herr.HTTPError {
+	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return errHTTP.From("[getEventPermissions]")
+	}
+	if eventPermissions&authz.EventWriteStays == 0 {
+		return herr.Forbidden("The requestor does not have permission to write Stays on this Event", nil)
+	}
+	ctx := req.Context()
+
+	author := jwtCtx.Claims.RangerHandle()
+
+	stayNumber, err := conv.ParseInt32(req.PathValue("stayNumber"))
+	if err != nil {
+		return herr.BadRequest("Failed to parse stayNumber", err).From("[ParseInt32]")
+	}
+	reportEntryId, err := conv.ParseInt32(req.PathValue("reportEntryId"))
+	if err != nil {
+		return herr.BadRequest("Failed to parse reportEntryId", err).From("[ParseInt32]")
+	}
+
+	re, errHTTP := readBodyAs[imsjson.ReportEntry](req)
+	if errHTTP != nil {
+		return errHTTP.From("[readBodyAs]")
+	}
+
+	_, err = action.imsDBQ.Stay(ctx, action.imsDBQ, imsdb.StayParams{
+		Event:  event.ID,
+		Number: stayNumber,
+	})
+	if err != nil {
+		return herr.NotFound("There is no Stay for the provided ID", err).From("[Stay]")
+	}
+
+	if re.Stricken == nil {
+		// Nothing to do if no Stricken value is set, since Stricken is the only field this endpoint can modify
+		return nil
+	}
+
+	txn, err := action.imsDBQ.Begin()
+	if err != nil {
+		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
+	}
+	defer rollback(txn)
+
+	err = action.imsDBQ.SetStayReportEntryStricken(ctx, txn,
+		imsdb.SetStayReportEntryStrickenParams{
+			Stricken:    *re.Stricken,
+			Event:       event.ID,
+			StayNumber:  stayNumber,
+			ReportEntry: reportEntryId,
+		},
+	)
+	if err != nil {
+		return herr.InternalServerError("Error setting stay report entry", err).From("[SetStayReportEntryStricken]")
+	}
+	struckVerb := "Struck"
+	if !*re.Stricken {
+		struckVerb = "Unstruck"
+	}
+	_, errHTTP = addStayReportEntry(ctx, action.imsDBQ, txn, event.ID, stayNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
+	if errHTTP != nil {
+		return errHTTP.From("[addStayReportEntry]")
+	}
+	err = txn.Commit()
+	if err != nil {
+		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
+	}
+
+	defer action.eventSource.notifyStayUpdate(event.ID, stayNumber)
+
+	return nil
+}
+
 func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.ReportEntry {
 	var attachment imsjson.Attachment
 	if attachmentsEnabled && re.AttachedFileOriginalName.Valid {

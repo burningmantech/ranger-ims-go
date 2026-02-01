@@ -24,8 +24,8 @@ declare global {
         editSummary: ()=>Promise<void>;
         toggleShowHistory: ()=>void;
         reportEntryEdited: ()=>void;
-        submitReportEntry: ()=>Promise<void>;
-        attachFile: ()=>Promise<void>;
+        submitReportEntry: ()=>void;
+        attachFile: ()=>void;
         updateIncident: (el: HTMLInputElement) => void;
     }
 }
@@ -280,7 +280,7 @@ function drawIncident(): void {
     const incNumLink = document.getElementById("incident_number_link") as HTMLAnchorElement;
     // New Field Report. There can be no Incident
     if (fieldReport!.number == null) {
-        incNum.placeholder = "(new FR)";
+        incNum.placeholder = "(none)";
         return;
     }
     // If there's an attached Incident, then show a link to it

@@ -232,7 +232,7 @@ function drawIncident() {
     const incNumLink = document.getElementById("incident_number_link");
     // New Field Report. There can be no Incident
     if (fieldReport.number == null) {
-        incNum.placeholder = "(new FR)";
+        incNum.placeholder = "(none)";
         return;
     }
     // If there's an attached Incident, then show a link to it

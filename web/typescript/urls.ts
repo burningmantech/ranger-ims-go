@@ -51,6 +51,7 @@ const url_stayNumber = "/ims/api/events/<event_id>/stays/<stay_number>";
 const url_stay_reportEntry = "/ims/api/events/<event_id>/stays/<stay_number>/report_entries/<report_entry_id>";
 const url_stayAttachments = "/ims/api/events/<event_id>/stays/<stay_number>/attachments";
 const url_stayAttachmentNumber = "/ims/api/events/<event_id>/stays/<stay_number>/attachments/<attachment_number>";
+const url_stayRanger = "/ims/api/events/<event_id>/stays/<stay_number>/rangers/<ranger_name>";
 const url_destinations = "/ims/api/events/<event_id>/destinations";
 const url_eventSource = "/ims/api/eventsource";
 const url_debugBuildInfo = "/ims/api/debug/buildinfo";

@@ -17,6 +17,7 @@
 "use strict";
 
 import * as ims from "./ims.ts";
+import {fetchPersonnel} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -42,6 +43,10 @@ declare global {
         editResourcePogs: () => void;
         editResourceFoodBev: () => void;
         editResourceOther: () => void;
+
+        addRanger: () => void;
+        removeRanger: (el: HTMLElement)=>void;
+        setRangerRole: (el: HTMLInputElement)=>void;
 
         toggleShowHistory: () => void;
         reportEntryEdited: ()=>void;
@@ -83,6 +88,9 @@ const el = {
     resourcePogs: ims.typedElement("resource_pogs", HTMLInputElement),
     resourceFoodBev: ims.typedElement("resource_food_bev", HTMLInputElement),
     resourceOther: ims.typedElement("resource_other", HTMLInputElement),
+
+    rangerHandles: ims.typedElement("ranger_handles", HTMLDataListElement),
+    addRanger: ims.typedElement("ranger_add", HTMLInputElement),
 
     historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
     reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
@@ -130,13 +138,20 @@ async function initSanctuaryStayPage(): Promise<void> {
     window.editResourceFoodBev = editResourceFoodBev;
     window.editResourceOther = editResourceOther;
 
+    window.addRanger = addRanger;
+    window.removeRanger = removeRanger;
+    window.setRangerRole = setRangerRole;
+
     window.toggleShowHistory = ims.toggleShowHistory;
     window.reportEntryEdited = ims.reportEntryEdited;
     window.submitReportEntry = ims.submitReportEntry;
     window.attachFile = attachFile;
 
-    // TODO: load data from backend
-    await loadStay();
+    // load everything from the APIs concurrently
+    await Promise.all([
+        await loadStay(),
+        await loadPersonnel(),
+    ])
 
     // const onChange = function(selectedDates: Date[], _dateStr: string, instance: ims.Flatpickr): void {
     //     instance.input!.title = ims.longFormatDate(selectedDates[0]!);
@@ -151,6 +166,9 @@ async function initSanctuaryStayPage(): Promise<void> {
     if (stay == null) {
         return;
     }
+
+    drawRangers();
+    drawRangersToAdd();
 
     // TODO: draw other fields
 
@@ -333,6 +351,8 @@ function drawStayFields(): void {
     el.resourcePogs.value = (stay?.resource_pogs?.toString())??"";
     el.resourceFoodBev.value = (stay?.resource_food_bev?.toString())??"";
     el.resourceOther.value = (stay?.resource_other?.toString())??"";
+
+    drawRangers();
 }
 
 function drawStayTitle(mode: "for_display"|"for_print_to_pdf"): void {
@@ -538,4 +558,188 @@ async function attachFile(): Promise<void> {
     ims.clearErrorMessage();
     el.attachFileInput.value = "";
     await loadAndDisplayStay();
+}
+
+let personnel: ims.PersonnelMap|null = null;
+
+async function loadPersonnel(): Promise<void> {
+    const res = await fetchPersonnel();
+    if (res.err != null || res.personnel == null) {
+        ims.setErrorMessage(res.err??"");
+    }
+    personnel = res.personnel;
+}
+
+function normalize(str: string): string {
+    return str.toLowerCase().trim();
+}
+
+async function addRanger(): Promise<void> {
+    let handle: string = el.addRanger.value;
+
+    // make a copy of the rangers
+    const rangers = (stay?.rangers??[]).slice();
+    const handles = rangers.map(r=>r.handle).filter(handle => handle != null);
+
+    // fuzzy-match on handle, to allow case insensitivity and
+    // leading/trailing whitespace.
+    if (!(handle in (personnel??[]))) {
+        const normalized = normalize(handle);
+        for (const validHandle in personnel) {
+            if (normalized === normalize(validHandle)) {
+                handle = validHandle;
+                break;
+            }
+        }
+    }
+    if (!(handle in (personnel??[]))) {
+        // Not a valid handle
+        el.addRanger.value = "";
+        return;
+    }
+
+    if (handles.indexOf(handle) !== -1) {
+        // Already in the list, so… move along.
+        el.addRanger.value = "";
+        return;
+    }
+
+    rangers.push({handle: handle});
+
+    el.addRanger.disabled = true;
+
+    const url = (
+        ims.urlReplace(url_stayRanger)
+            .replace("<stay_number>", ims.pathIds.stayNumber!.toString())
+            .replace("<ranger_name>", encodeURIComponent(handle))
+    );
+    const {err} = await ims.fetchNoThrow(url, {
+        body: JSON.stringify({
+            handle: handle,
+        }),
+    });
+    if (err !== null) {
+        ims.controlHasError(el.addRanger);
+        el.addRanger.value = "";
+        el.addRanger.disabled = false;
+        return;
+    }
+    el.addRanger.value = "";
+    el.addRanger.disabled = false;
+    ims.controlHasSuccess(el.addRanger);
+    el.addRanger.focus();
+}
+
+async function removeRanger(sender: HTMLElement): Promise<void> {
+    const parent = sender.parentElement as HTMLElement;
+    const rangerHandle = parent.dataset["rangerHandle"];
+    if (!rangerHandle) {
+        return;
+    }
+
+    const url = (
+        ims.urlReplace(url_stayRanger)
+            .replace("<stay_number>", ims.pathIds.stayNumber!.toString())
+            .replace("<ranger_name>", encodeURIComponent(rangerHandle))
+    );
+    await ims.fetchNoThrow(url, {
+        method: "DELETE",
+    });
+}
+
+
+async function setRangerRole(sender: HTMLInputElement): Promise<void> {
+    const handle = sender.closest("li")?.dataset["rangerHandle"];
+    if (!handle) {
+        console.log("no Ranger handle for element");
+        return;
+    }
+
+    const url = (
+        ims.urlReplace(url_stayRanger)
+            .replace("<stay_number>", ims.pathIds.stayNumber!.toString())
+            .replace("<ranger_name>", encodeURIComponent(handle))
+    );
+    const {err} = await ims.fetchNoThrow(url, {
+        body: JSON.stringify({
+            handle: handle,
+            role: sender.value,
+        }),
+    });
+    if (err !== null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender);
+
+    return;
+}
+
+function drawRangers() {
+    const rangers: ims.StayRanger[] = stay?.rangers??[];
+    rangers.sort((a: ims.StayRanger, b: ims.StayRanger) => (a.handle??"").localeCompare(b.handle??""));
+
+    const rangerItemTemplate = document.getElementById("stay_rangers_li_template") as HTMLTemplateElement;
+
+    const rangersElement: HTMLElement = document.getElementById("stay_rangers_list")!;
+    rangersElement.querySelectorAll("li").forEach((el: HTMLElement) => {el.remove()});
+
+    for (const ranger of rangers) {
+        if (!ranger.handle) {
+            continue;
+        }
+        const handle = ranger.handle;
+
+        const rangerFragment = rangerItemTemplate.content.cloneNode(true) as DocumentFragment;
+        const rangerLi = rangerFragment.querySelector("li")!;
+        rangerLi.classList.remove("hidden");
+        rangerLi.dataset["rangerHandle"] = handle;
+
+        const rangerName =  rangerLi.querySelector("span")!
+        if (personnel?.[handle] == null) {
+            rangerName.textContent = handle;
+        } else {
+            const person = personnel[handle];
+            const rangerLink = rangerName.querySelector("a")!;
+            rangerLink.textContent = person.handle;
+            if (person.directory_id != null) {
+                rangerLink.href = `${ims.clubhousePersonURL}/${person.directory_id}`;
+                rangerLink.target = "_blank";
+            }
+        }
+        const roleInput = rangerLi.querySelector("input")!;
+        roleInput.ariaLabel = `Ranger role for ${handle}`;
+        if (ranger.role) {
+            rangerLi.querySelector("input")!.value = ranger.role;
+        }
+
+        rangersElement.append(rangerFragment);
+    }
+}
+
+function drawRangersToAdd(): void {
+    const handles: string[] = [];
+    for (const handle in personnel) {
+        handles.push(handle);
+    }
+    handles.sort((a: string, b: string) => a.localeCompare(b));
+
+    el.rangerHandles.replaceChildren();
+    el.rangerHandles.append(document.createElement("option"));
+
+    if (personnel != null) {
+        for (const handle of handles) {
+            const ranger = personnel[handle];
+            if (ranger === undefined) {
+                console.error(`no record for personnel with handle ${handle}`);
+                continue;
+            }
+
+            const option: HTMLOptionElement = document.createElement("option");
+            option.value = handle;
+            option.text = ranger.handle;
+
+            el.rangerHandles.append(option);
+        }
+    }
 }

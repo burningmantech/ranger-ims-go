@@ -31,6 +31,7 @@ const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
+export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 //
 // HTML encoding
 //
@@ -475,6 +476,34 @@ export function concentricStreetFromID(streetID) {
         return "";
     }
     return name;
+}
+export async function fetchPersonnel() {
+    const { json, err } = await fetchNoThrow(urlReplace(url_personnel + "?event_id=<event_id>"), null);
+    if (err != null) {
+        const message = `Failed to load personnel: ${err}`;
+        console.error(message);
+        setErrorMessage(message);
+        return { personnel: null, err: message };
+    }
+    const personnel = {};
+    for (const record of json) {
+        switch (record.status) {
+            case "active":
+            case "alpha":
+            case "inactive":
+            case "inactive extension":
+            case "prospective":
+                personnel[record.handle] = record;
+                break;
+            case "auditor":
+                // Don't add auditors to the personnel list.
+                break;
+            default:
+                console.log(`unrecognized status: ${record.status}`);
+                break;
+        }
+    }
+    return { personnel: personnel, err: null };
 }
 // Return the state ID for a given incident.
 export function stateForIncident(incident) {

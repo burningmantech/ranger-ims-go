@@ -17,6 +17,7 @@
 "use strict";
 
 import * as ims from "./ims.ts";
+import {fetchPersonnel} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -28,14 +29,14 @@ declare global {
         editLocationAddressRadialMinute: ()=>Promise<void>;
         editLocationAddressConcentric: ()=>Promise<void>;
         editLocationDescription: ()=>Promise<void>;
-        removeRanger: (el: HTMLElement)=>Promise<void>;
-        setRangerRole: (el: HTMLInputElement)=>Promise<void>;
+        removeRanger: (el: HTMLElement)=>void;
+        setRangerRole: (el: HTMLInputElement)=>void;
         removeIncidentType: (el: HTMLElement)=>Promise<void>;
         detachFieldReport: (el: HTMLElement)=>Promise<void>;
         attachFieldReport: ()=>Promise<void>;
         unlinkIncident: (el: HTMLElement)=>Promise<void>;
         linkIncident: (el: HTMLInputElement)=>Promise<void>;
-        addRanger: ()=>Promise<void>;
+        addRanger: ()=>void;
         addIncidentType: ()=>Promise<void>;
         attachFile: ()=>void;
         drawMergedReportEntries: ()=>void;
@@ -44,8 +45,6 @@ declare global {
         submitReportEntry: ()=>void;
     }
 }
-
-const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 
 let incident: ims.Incident|null = null;
 
@@ -343,47 +342,14 @@ function renderFieldReportData(): void {
 // Load personnel
 //
 
-let personnel: PersonnelMap|null = null;
+let personnel: ims.PersonnelMap|null = null;
 
-interface Personnel {
-    handle: string;
-    directory_id?: number|null;
-    // These are only the statuses that IMS actually reads from Clubhouse.
-    // See https://github.com/burningmantech/ranger-ims-go/blob/master/directory/queries.sql
-    status: "active"|"alpha"|"auditor"|"inactive extension"|"inactive"|"prospective";
-}
-
-// key is Ranger handle
-type PersonnelMap = Record<string, Personnel>;
-
-async function loadPersonnel(): Promise<{err: string|null}> {
-    const {json, err} = await ims.fetchNoThrow<Personnel[]>(ims.urlReplace(url_personnel + "?event_id=<event_id>"), null);
-    if (err != null) {
-        const message = `Failed to load personnel: ${err}`;
-        console.error(message);
-        ims.setErrorMessage(message);
-        return {err: message};
+async function loadPersonnel(): Promise<void> {
+    const res = await fetchPersonnel();
+    if (res.err != null || res.personnel == null) {
+        ims.setErrorMessage(res.err??"");
     }
-    const _personnel: PersonnelMap = {};
-    for (const record of json!) {
-        switch (record.status) {
-            case "active":
-            case "alpha":
-            case "inactive":
-            case "inactive extension":
-            case "prospective":
-                _personnel[record.handle] = record;
-                break
-            case "auditor":
-                // Don't add auditors to the personnel list.
-                break;
-            default:
-                console.log(`unrecognized status: ${record.status satisfies never}`);
-                break;
-        }
-    }
-    personnel = _personnel;
-    return {err: null};
+    personnel = res.personnel;
 }
 
 //
@@ -725,9 +691,9 @@ function drawRangers() {
         } else {
             const person = personnel[handle];
             const rangerLink = rangerName.querySelector("a")!;
-            rangerLink.textContent = rangerAsString(person);
+            rangerLink.textContent = person.handle;
             if (person.directory_id != null) {
-                rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
+                rangerLink.href = `${ims.clubhousePersonURL}/${person.directory_id}`;
                 rangerLink.target = "_blank";
             }
         }
@@ -764,16 +730,11 @@ function drawRangersToAdd(): void {
 
             const option: HTMLOptionElement = document.createElement("option");
             option.value = handle;
-            option.text = rangerAsString(ranger);
+            option.text = ranger.handle;
 
             datalist.append(option);
         }
     }
-}
-
-
-function rangerAsString(ranger: Personnel): string {
-    return ranger.handle;
 }
 
 

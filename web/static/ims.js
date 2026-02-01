@@ -737,7 +737,7 @@ function reportEntryElement(entry) {
     else {
         entryContainer.classList.add("report_entry_user");
     }
-    if (entry.merged) {
+    if (entry.frNum || entry.stayNum) {
         entryContainer.classList.add("report_entry_merged");
     }
     // Add the timestamp and author, with a Strike/Unstrike button
@@ -749,11 +749,18 @@ function reportEntryElement(entry) {
         const entryStricken = entry.stricken;
         if (pathIds.incidentNumber != null) {
             // we're on the incident page
-            if (entry.merged) {
-                const entryMerged = entry.merged;
+            if (entry.frNum) {
+                const entryMerged = entry.frNum;
                 // this is an entry from a field report, as shown on the incident page
                 strikeContainer.onclick = async (_e) => {
                     await setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
+                };
+            }
+            else if (entry.stayNum) {
+                const entryMerged = entry.stayNum;
+                // this is an entry from a stay, as shown on the incident page
+                strikeContainer.onclick = async (_e) => {
+                    await setStrikeStayEntry(entryMerged, entryId, !entryStricken);
                 };
             }
             else {
@@ -771,6 +778,13 @@ function reportEntryElement(entry) {
                 await setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
             };
         }
+        else if (pathIds.stayNumber != null) {
+            // we're on the stay page
+            const stayNum = pathIds.stayNumber;
+            strikeContainer.onclick = async (_e) => {
+                await setStrikeStayEntry(stayNum, entryId, !entryStricken);
+            };
+        }
         strikeContainer.classList.add("badge", "btn", "btn-danger", "remove-badge", "float-end");
         strikeContainer.textContent = entry.stricken ? "Unstrike" : "Strike";
         metaDataContainer.append(strikeContainer);
@@ -782,11 +796,19 @@ function reportEntryElement(entry) {
     authorContainer.textContent = entry.author ?? "(unknown)";
     authorContainer.classList.add("report_entry_author");
     metaDataContainer.append(authorContainer);
-    if (entry.merged) {
+    if (entry.frNum) {
         metaDataContainer.append(" ");
         const link = document.createElement("a");
-        link.textContent = "field report #" + entry.merged;
-        link.href = `${urlReplace(url_viewFieldReports)}/${entry.merged}`;
+        link.textContent = "field report #" + entry.frNum;
+        link.href = `${urlReplace(url_viewFieldReports)}/${entry.frNum}`;
+        metaDataContainer.append("(via ", link, ")");
+        metaDataContainer.classList.add("report_entry_source");
+    }
+    else if (entry.stayNum) {
+        metaDataContainer.append(" ");
+        const link = document.createElement("a");
+        link.textContent = "stay #" + entry.stayNum;
+        link.href = `${urlReplace(url_viewStays)}/${entry.stayNum}`;
         metaDataContainer.append("(via ", link, ")");
         metaDataContainer.classList.add("report_entry_source");
     }
@@ -802,26 +824,41 @@ function reportEntryElement(entry) {
         textContainer.textContent = paragraph;
         entryContainer.append(textContainer);
     }
-    if (entry.attachment?.name && (pathIds.incidentNumber != null || pathIds.fieldReportNumber != null)) {
+    if (entry.attachment?.name && (pathIds.incidentNumber || pathIds.fieldReportNumber || pathIds.stayNumber)) {
         let url = "";
-        if (pathIds.incidentNumber != null && entry.merged == null) {
-            // incident attachment on incident page
-            url = urlReplace(url_incidentAttachmentNumber)
-                .replace("<incident_number>", pathIds.incidentNumber.toString())
-                .replace("<attachment_number>", entry.id.toString());
-        }
-        else if (pathIds.incidentNumber != null && entry.merged != null) {
-            // FR attachment on incident page
-            url = urlReplace(url_fieldReportAttachmentNumber)
-                .replace("<field_report_number>", entry.merged.toString())
-                .replace("<attachment_number>", entry.id.toString());
-        }
-        else {
+        if (pathIds.fieldReportNumber != null) {
             // FR attachment on FR page
             const frNum = (pathIds.fieldReportNumber ?? "wontHappen").toString();
             url = urlReplace(url_fieldReportAttachmentNumber)
                 .replace("<field_report_number>", frNum)
                 .replace("<attachment_number>", entry.id.toString());
+        }
+        else if (pathIds.stayNumber != null) {
+            // Stay attachment on stay page
+            url = urlReplace(url_stayAttachmentNumber)
+                .replace("<stay_number>", pathIds.stayNumber.toString())
+                .replace("<attachment_number>", entry.id.toString());
+        }
+        else if (pathIds.incidentNumber != null && entry.frNum == null) {
+            // incident attachment on incident page
+            url = urlReplace(url_incidentAttachmentNumber)
+                .replace("<incident_number>", pathIds.incidentNumber.toString())
+                .replace("<attachment_number>", entry.id.toString());
+        }
+        else if (pathIds.incidentNumber != null && entry.frNum != null) {
+            // FR attachment on incident page
+            url = urlReplace(url_fieldReportAttachmentNumber)
+                .replace("<field_report_number>", entry.frNum.toString())
+                .replace("<attachment_number>", entry.id.toString());
+        }
+        else if (pathIds.incidentNumber != null && entry.stayNum != null) {
+            // Stay attachment on incident page
+            url = urlReplace(url_stayAttachmentNumber)
+                .replace("<field_report_number>", entry.stayNum.toString())
+                .replace("<attachment_number>", entry.id.toString());
+        }
+        else {
+            throw new Error(`Unknown attachment source for entry: ${entry}`);
         }
         const downloadButt = createSvgTextButton("#download", "Download");
         downloadButt.onclick = async (e) => {
@@ -956,6 +993,20 @@ async function setStrikeFieldReportEntry(fieldReportNumber, reportEntryId, strik
         await strikeSuccessFunc();
     }
 }
+async function setStrikeStayEntry(stayNumber, reportEntryId, strike) {
+    const url = urlReplace(url_stay_reportEntry)
+        .replace("<stay_number>", stayNumber.toString())
+        .replace("<report_entry_id>", reportEntryId.toString());
+    const { err } = await fetchNoThrow(url, {
+        body: JSON.stringify({ "stricken": strike }),
+    });
+    if (err != null) {
+        onStrikeError(err);
+    }
+    else {
+        await strikeSuccessFunc();
+    }
+}
 // This is the function to call when edits are being sent to the server.
 // We need to be able to call either the incident.ts version or the field_report.ts
 // version, depending on the current page in scope. The ims.ts TypeScript file should
@@ -1023,7 +1074,7 @@ export async function editFromElement(element, jsonKey, transform) {
         current[path] = next;
         current = next;
     }
-    current[lastKey] = value ?? "null";
+    current[lastKey] = value ?? "";
     // Send request to server
     const { err } = await sendEditsFunc(edits);
     if (err != null) {

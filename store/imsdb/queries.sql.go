@@ -1617,6 +1617,35 @@ func (q *Queries) SetIncidentReportEntryStricken(ctx context.Context, db DBTX, a
 	return err
 }
 
+const setStayReportEntryStricken = `-- name: SetStayReportEntryStricken :exec
+update REPORT_ENTRY
+set STRICKEN = ?
+where ID IN (
+    select REPORT_ENTRY
+    from STAY__REPORT_ENTRY
+    where EVENT = ?
+      and STAY_NUMBER = ?
+      and REPORT_ENTRY = ?
+)
+`
+
+type SetStayReportEntryStrickenParams struct {
+	Stricken    bool
+	Event       int32
+	StayNumber  int32
+	ReportEntry int32
+}
+
+func (q *Queries) SetStayReportEntryStricken(ctx context.Context, db DBTX, arg SetStayReportEntryStrickenParams) error {
+	_, err := db.ExecContext(ctx, setStayReportEntryStricken,
+		arg.Stricken,
+		arg.Event,
+		arg.StayNumber,
+		arg.ReportEntry,
+	)
+	return err
+}
+
 const stay = `-- name: Stay :one
 select
     s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other

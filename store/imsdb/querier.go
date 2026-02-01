@@ -73,6 +73,7 @@ type Querier interface {
 	// the reportEntryID in question, and that's important for authorization purposes.
 	//
 	SetIncidentReportEntryStricken(ctx context.Context, db DBTX, arg SetIncidentReportEntryStrickenParams) error
+	SetStayReportEntryStricken(ctx context.Context, db DBTX, arg SetStayReportEntryStrickenParams) error
 	Stay(ctx context.Context, db DBTX, arg StayParams) (StayRow, error)
 	Stay_Rangers(ctx context.Context, db DBTX, arg Stay_RangersParams) ([]Stay_RangersRow, error)
 	Stay_ReportEntries(ctx context.Context, db DBTX, arg Stay_ReportEntriesParams) ([]Stay_ReportEntriesRow, error)

@@ -136,6 +136,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	createStay := MethodURL{http.MethodPost, eventPath + "/stays"}
 	updateStay := MethodURL{http.MethodPost, eventPath + "/stays/1"}
 	postStayAttachment := MethodURL{http.MethodPost, eventPath + "/stays/1/attachments"}
+	postStayRE := MethodURL{http.MethodPost, eventPath + "/stays/9999999/report_entries/2"}
 	postStayRanger := MethodURL{http.MethodPost, eventPath + "/stays/1/rangers/some_name"}
 	deleteStayRanger := MethodURL{http.MethodDelete, eventPath + "/stays/1/rangers/some_name"}
 	getDestinations := MethodURL{http.MethodGet, eventPath + "/destinations"}
@@ -163,6 +164,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		createStay,
 		updateStay,
 		postStayAttachment,
+		postStayRE,
 		postStayRanger,
 		deleteStayRanger,
 		getDestinations,
@@ -188,6 +190,9 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getStayAttachment,
 		getDestinations,
 	}
+
+	// TODO: section for stay writers?
+
 	// these are per-event endpoints that admins can access by virtue of being admins
 	adminGlobal := []MethodURL{
 		getDestinations,

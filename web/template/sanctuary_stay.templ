@@ -40,7 +40,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body">
-            <code>n</code>: create (n)ew Sanctuary Guest Stay<br/>
+            <code>n</code>: create (n)ew Sanctuary Stay<br/>
             <code>a</code>: jump to (a)dd new report text<br/>
             <code>h</code>: toggle showing system-generated (h)istory <br/>
           </div>
@@ -59,9 +59,10 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
       </div>
       <div class="col-sm-6 py-1">
         <div class="input-group">
-          <label for="parent_incident" class="control-label input-group-text">IMS #</label>
+          <a id="parent_incident_link" href="#" class="control-label input-group-text">IMS #</a>
           <input
               id="parent_incident"
+              aria-label="Parent Incident"
               type="text"
               class="form-control form-control-sm"
               placeholder="Enter IMS # or leave blank"

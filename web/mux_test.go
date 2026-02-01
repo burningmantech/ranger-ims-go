@@ -19,15 +19,16 @@ package web_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/conf"
-	"github.com/burningmantech/ranger-ims-go/web"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/web"
+	"github.com/stretchr/testify/require"
 )
 
 var templEndpoints = []string{
@@ -42,6 +43,8 @@ var templEndpoints = []string{
 	"/ims/app/events/SomeEvent/field_reports/123",
 	"/ims/app/events/SomeEvent/incidents",
 	"/ims/app/events/SomeEvent/incidents/123",
+	"/ims/app/events/SomeEvent/stays",
+	"/ims/app/events/SomeEvent/stays/123",
 	"/ims/app/settings",
 	"/ims/auth/login",
 	"/ims/auth/logout",

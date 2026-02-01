@@ -17,7 +17,7 @@
 //
 "use strict";
 import * as ims from "./ims.js";
-const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
+import { fetchPersonnel } from "./ims.js";
 let incident = null;
 let allIncidentTypes = [];
 let allEvents = null;
@@ -271,33 +271,11 @@ function renderFieldReportData() {
 //
 let personnel = null;
 async function loadPersonnel() {
-    const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_personnel + "?event_id=<event_id>"), null);
-    if (err != null) {
-        const message = `Failed to load personnel: ${err}`;
-        console.error(message);
-        ims.setErrorMessage(message);
-        return { err: message };
+    const res = await fetchPersonnel();
+    if (res.err != null || res.personnel == null) {
+        ims.setErrorMessage(res.err ?? "");
     }
-    const _personnel = {};
-    for (const record of json) {
-        switch (record.status) {
-            case "active":
-            case "alpha":
-            case "inactive":
-            case "inactive extension":
-            case "prospective":
-                _personnel[record.handle] = record;
-                break;
-            case "auditor":
-                // Don't add auditors to the personnel list.
-                break;
-            default:
-                console.log(`unrecognized status: ${record.status}`);
-                break;
-        }
-    }
-    personnel = _personnel;
-    return { err: null };
+    personnel = res.personnel;
 }
 //
 // Load all field reports and stays
@@ -582,9 +560,9 @@ function drawRangers() {
         else {
             const person = personnel[handle];
             const rangerLink = rangerName.querySelector("a");
-            rangerLink.textContent = rangerAsString(person);
+            rangerLink.textContent = person.handle;
             if (person.directory_id != null) {
-                rangerLink.href = `${clubhousePersonURL}/${person.directory_id}`;
+                rangerLink.href = `${ims.clubhousePersonURL}/${person.directory_id}`;
                 rangerLink.target = "_blank";
             }
         }
@@ -614,13 +592,10 @@ function drawRangersToAdd() {
             }
             const option = document.createElement("option");
             option.value = handle;
-            option.text = rangerAsString(ranger);
+            option.text = ranger.handle;
             datalist.append(option);
         }
     }
-}
-function rangerAsString(ranger) {
-    return ranger.handle;
 }
 //
 // Populate incident types list

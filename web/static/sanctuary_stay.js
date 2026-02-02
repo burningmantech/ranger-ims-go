@@ -240,9 +240,9 @@ function displayStay() {
 function drawStayFields() {
     drawStayTitle("for_display");
     el.stayNumber.value = (stay?.number ?? "(new)").toString();
-    if (stay?.incident_number) {
-        el.parentIncident.value = (stay.incident_number?.toString()) ?? "";
-        el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${stay.incident_number}`);
+    if (stay?.incident) {
+        el.parentIncident.value = (stay.incident?.toString()) ?? "";
+        el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${stay.incident}`);
     }
     else {
         el.parentIncident.placeholder = "(none)";

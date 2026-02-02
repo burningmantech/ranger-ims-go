@@ -359,6 +359,10 @@ h1 {
   cursor: pointer;
 }
 
+#stays_table>tbody>tr {
+  cursor: pointer;
+}
+
 #destinations_table>tbody>tr {
   cursor: pointer;
 }

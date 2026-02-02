@@ -173,7 +173,7 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
                 placeholder="Press &quot; ⁄ &quot; to search"
                 inputmode="latin"
                 autocomplete="off"
-                aria-controls="queue_table"
+                aria-controls="stays_table"
             />
           </div>
         </div>
@@ -181,30 +181,24 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
 
     </div>
 
-    <table id="queue_table" class="table table-striped table-hover">
+    <table id="stays_table" class="table table-striped table-hover">
       <thead>
       <tr>
-        <th><abbr title="SS#">#</abbr></th>
-        <th>Started</th>
-        <th>State</th>
-        <th>Summary</th>
-        <th>Types</th>
-        <th>Location</th>
-        <th>Rangers</th>
-        <th>Modified</th>
+        <th><abbr title="Stay#">#</abbr></th>
+        <th>IMS#</th>
+        <th>Arrived</th>
+        <th>Departed</th>
+        <th>Name</th>
       </tr>
       </thead>
       <tbody/>
       <tfoot>
       <tr>
-        <th><abbr title="IMS#">#</abbr></th>
-        <th>Started</th>
-        <th>State</th>
-        <th>Summary</th>
-        <th>Types</th>
-        <th>Location</th>
-        <th>Rangers</th>
-        <th>Modified</th>
+        <th><abbr title="Stay#">#</abbr></th>
+        <th>IMS#</th>
+        <th>Arrived</th>
+        <th>Departed</th>
+        <th>Name</th>
       </tr>
       </tfoot>
     </table>

@@ -381,6 +381,14 @@ function renderCommonPageItems(authInfo) {
                 activeEventFRs.classList.add("active");
             }
         }
+        const activeEventStays = document.getElementById("active-event-stays");
+        if (activeEventStays != null) {
+            activeEventStays.href = urlReplace(url_viewStays);
+            activeEventStays.classList.remove("hidden");
+            if (window.location.pathname.startsWith(urlReplace(url_viewStays))) {
+                activeEventStays.classList.add("active");
+            }
+        }
     }
 }
 function renderNavEvents(eds) {
@@ -643,6 +651,23 @@ export function renderFieldReportNumber(fieldReportNumber, type, _fieldReport) {
     }
     return undefined;
 }
+export function renderStayNumber(stayNumber, type, _stay) {
+    switch (type) {
+        case "display":
+            if (stayNumber == null) {
+                return null;
+            }
+            const link = document.createElement("a");
+            link.href = `${urlReplace(url_viewStays)}/${stayNumber.toString()}`;
+            link.text = stayNumber.toString();
+            return link.outerHTML;
+        case "filter":
+        case "type":
+        case "sort":
+            return stayNumber;
+    }
+    return undefined;
+}
 // e.g. "Wed, 8/28"
 export const shortDate = new Intl.DateTimeFormat(undefined, {
     weekday: "short",
@@ -701,6 +726,9 @@ export function localTimeHHMM(date) {
     return `${hours}:${minutes}`;
 }
 export function renderDate(date, type, _incident) {
+    if (date === undefined) {
+        return undefined;
+    }
     const d = Date.parse(date);
     const fullDate = longFormatDate(d);
     switch (type) {

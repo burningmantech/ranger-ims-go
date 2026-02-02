@@ -26,7 +26,7 @@ type Stay struct {
 	Number         int32     `json:"number"`
 	Created        time.Time `json:"created,omitzero"`
 	LastModified   time.Time `json:"last_modified,omitzero"`
-	IncidentNumber *int32    `json:"incident_number,omitzero"`
+	IncidentNumber *int32    `json:"incident,omitzero"`
 
 	GuestPreferredName   *string `json:"guest_preferred_name,omitzero"`
 	GuestLegalName       *string `json:"guest_legal_name,omitzero"`

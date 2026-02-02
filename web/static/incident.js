@@ -433,7 +433,7 @@ function loadAttachedStays() {
     }
     const newAttachedStays = [];
     for (const s of allStays ?? []) {
-        if (s.incident_number === ims.pathIds.incidentNumber) {
+        if (s.incident === ims.pathIds.incidentNumber) {
             newAttachedStays.push(s);
         }
     }

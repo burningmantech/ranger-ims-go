@@ -438,6 +438,16 @@ function renderCommonPageItems(authInfo: AuthInfo): void {
                 activeEventFRs.classList.add("active");
             }
         }
+
+        const activeEventStays = document.getElementById("active-event-stays") as HTMLAnchorElement|null;
+        if (activeEventStays != null) {
+            activeEventStays.href = urlReplace(url_viewStays);
+            activeEventStays.classList.remove("hidden");
+
+            if (window.location.pathname.startsWith(urlReplace(url_viewStays))) {
+                activeEventStays.classList.add("active");
+            }
+        }
     }
 }
 
@@ -753,6 +763,24 @@ export function renderFieldReportNumber(fieldReportNumber: number|null, type: st
     return undefined;
 }
 
+export function renderStayNumber(stayNumber: number|null, type: string, _stay: any): number|string|null|undefined {
+    switch (type) {
+        case "display":
+            if (stayNumber == null) {
+                return null;
+            }
+            const link = document.createElement("a");
+            link.href = `${urlReplace(url_viewStays)}/${stayNumber.toString()}`;
+            link.text = stayNumber.toString();
+            return link.outerHTML;
+        case "filter":
+        case "type":
+        case "sort":
+            return stayNumber;
+    }
+    return undefined;
+}
+
 // e.g. "Wed, 8/28"
 export const shortDate: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
     weekday: "short",
@@ -822,7 +850,10 @@ export function localTimeHHMM(date: Date): string {
     return `${hours}:${minutes}`;
 }
 
-export function renderDate(date: string, type: string, _incident: any): string|number|undefined {
+export function renderDate(date: string|undefined, type: string, _incident: any): string|number|undefined {
+    if (date === undefined) {
+        return undefined;
+    }
     const d = Date.parse(date);
     const fullDate = longFormatDate(d);
     switch (type) {
@@ -1699,7 +1730,7 @@ export type Stay = {
     event?: string|null;
     created?: string|null;
     last_modified?: string|null;
-    incident_number?: number|null;
+    incident?: number|null;
 
     guest_preferred_name?: string|null;
     guest_legal_name?: string|null;

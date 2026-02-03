@@ -32,10 +32,9 @@ repos:
 
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.8.0
-    hooks: []
-    # disabled until they support go 1.26
-    #  - id: golangci-lint-full
-    #    args: ["--config=.golangci.yml"]
+    hooks:
+      - id: golangci-lint-full
+        args: ["--config=.golangci.yml"]
 
   - repo: local
     hooks:

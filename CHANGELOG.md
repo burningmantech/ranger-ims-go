@@ -20,6 +20,8 @@ This page accounts for changes up until:
 https://github.com/burningmantech/ranger-ims-go/pull/528
 -->
 
+## 2026-02
+
 ## 2026-01
 
 ### Added

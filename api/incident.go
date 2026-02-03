@@ -807,6 +807,9 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	for _, inc := range updatedLinkedIncidents {
 		es.notifyIncidentUpdate(inc.EventID, inc.Number)
 	}
+	for _, s := range updatedStays {
+		es.notifyStayUpdate(newIncident.EventID, s)
+	}
 
 	return nil
 }

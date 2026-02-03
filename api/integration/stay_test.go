@@ -30,7 +30,7 @@ import (
 func sampleStay1(eventName string) imsjson.Stay {
 	return imsjson.Stay{
 		Event: eventName,
-		// IncidentNumber
+		// Incident
 
 		GuestPreferredName:   ptr("Buffy"),
 		GuestLegalName:       ptr("Jim"),
@@ -224,6 +224,9 @@ func TestCreateAndUpdateStay(t *testing.T) {
 	resp = apisAdmin.addStayWriter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+	resp = apisAdmin.addWriter(ctx, eventName, userAdminHandle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	// Use normal user to create a new Stay.
 	stayReq := sampleStay1(eventName)
@@ -252,7 +255,7 @@ func TestCreateAndUpdateStay(t *testing.T) {
 	updates = imsjson.Stay{
 		Event:                stayReq.Event,
 		Number:               num,
-		IncidentNumber:       ptr(int32(0)),
+		Incident:             ptr(int32(0)),
 		GuestPreferredName:   ptr(""),
 		GuestLegalName:       ptr(""),
 		GuestDescription:     ptr(""),
@@ -288,6 +291,39 @@ func TestCreateAndUpdateStay(t *testing.T) {
 		Rangers: &[]imsjson.StayRanger{},
 	}
 	requireEqualStay(t, expected, retrievedStayAfterUpdate)
+
+	// make an incident, then attach to it
+	incidentNumber := apisAdmin.newIncidentSuccess(ctx, imsjson.Incident{
+		Event: eventName,
+	})
+	resp = apisAdmin.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:  eventName,
+		Number: incidentNumber,
+		Stays:  &[]int32{num},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// check it attached
+	stayAfterAttach, resp := apisNonAdmin.getStay(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, incidentNumber, *stayAfterAttach.Incident)
+
+	// detach
+	resp = apisAdmin.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:  eventName,
+		Number: incidentNumber,
+		Stays:  &[]int32{},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// check it detached
+	stayAfterDetach, resp := apisNonAdmin.getStay(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Nil(t, stayAfterDetach.Incident)
 
 	// attach a Ranger
 	resp = apisNonAdmin.attachRangerToStay(ctx, eventName, num, "Some Dude")

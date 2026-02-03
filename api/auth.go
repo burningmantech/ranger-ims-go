@@ -32,6 +32,16 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 )
 
+type authError string
+
+func (e authError) Error() string {
+	return string(e)
+}
+
+const (
+	ErrLongPassword = authError("rejected very long password")
+)
+
 type PostAuth struct {
 	imsDBQ               *store.DBQ
 	userStore            *directory.UserStore
@@ -88,7 +98,10 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 	// See https://instatunnel.my/blog/the-1mb-password-crashing-backends-via-hashing-exhaustion
 	if len(vals.Password) > 256 {
-		return empty, nil, herr.BadRequest("Outrageously long passwords are disallowed", errors.New("rejected very long password"))
+		return empty, nil, herr.BadRequest(
+			"Outrageously long passwords are disallowed",
+			ErrLongPassword,
+		)
 	}
 
 	if matchedPerson == nil {

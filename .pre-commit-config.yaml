@@ -1,7 +1,8 @@
 ci:
   skip:
     - fetch-build-deps
-    - golangci-lint-full
+    # remove until they support go 1.26
+    # - golangci-lint-full
     - govulncheck
     - prepend-license
     - go-fmt
@@ -30,11 +31,12 @@ repos:
       # - id: no-commit-to-branch
       - id: trailing-whitespace
 
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v2.8.0
-    hooks:
-      - id: golangci-lint-full
-        args: ["--config=.golangci.yml"]
+  # skip until they support go 1.26
+  #- repo: https://github.com/golangci/golangci-lint
+  #  rev: v2.8.0
+  #  hooks:
+  #    - id: golangci-lint-full
+  #      args: ["--config=.golangci.yml"]
 
   - repo: local
     hooks:

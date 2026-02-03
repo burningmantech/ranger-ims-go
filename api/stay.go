@@ -247,12 +247,12 @@ func stayToJSON(storedRow imsdb.StayRow, stayRangers []imsdb.StayRanger,
 		}
 	}
 	resp = imsjson.Stay{
-		Event:          event.Name,
-		EventID:        event.ID,
-		Number:         storedRow.Stay.Number,
-		Created:        conv.FloatToTime(storedRow.Stay.Created),
-		LastModified:   lastModified,
-		IncidentNumber: conv.SqlToInt32(storedRow.Stay.IncidentNumber),
+		Event:        event.Name,
+		EventID:      event.ID,
+		Number:       storedRow.Stay.Number,
+		Created:      conv.FloatToTime(storedRow.Stay.Created),
+		LastModified: lastModified,
+		Incident:     conv.SqlToInt32(storedRow.Stay.IncidentNumber),
 
 		GuestPreferredName:   conv.SqlToString(storedRow.Stay.GuestPreferredName),
 		GuestLegalName:       conv.SqlToString(storedRow.Stay.GuestLegalName),
@@ -399,14 +399,14 @@ func updateStay(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newS
 
 	var logs []string
 
-	if newStay.IncidentNumber != nil {
+	if newStay.Incident != nil {
 		newIncNum := sql.NullInt32{
-			Int32: *newStay.IncidentNumber,
+			Int32: *newStay.Incident,
 			// we treat a value of 0 as unassigning the incident
-			Valid: *newStay.IncidentNumber != 0,
+			Valid: *newStay.Incident != 0,
 		}
 		update.IncidentNumber = newIncNum
-		logs = append(logs, fmt.Sprintf("Changed incident number: %v", newStay.IncidentNumber))
+		logs = append(logs, fmt.Sprintf("Changed incident number: %v", *newStay.Incident))
 	}
 
 	if newStay.GuestPreferredName != nil {

@@ -50,6 +50,7 @@ jobs:
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
             code.jquery.com:443
+            dl.google.com:443
             files.pythonhosted.org:443
             github.com:443
             go.dev:443
@@ -63,7 +64,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: "go.mod"
+          go-version: "1.26.0-rc.2"
+          # go-version-file: "go.mod"
 
       - name: Fetch external build dependencies
         run: go run bin/fetchbuilddeps/fetchbuilddeps.go
@@ -103,6 +105,7 @@ jobs:
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
             code.jquery.com:443
+            dl.google.com:443
             github.com:443
             go.dev:443
             golang.org:443
@@ -115,7 +118,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: "go.mod"
+          go-version: "1.26.0-rc.2"
+          # go-version-file: "go.mod"
 
       - name: Fetch external build dependencies
         run: go run bin/fetchbuilddeps/fetchbuilddeps.go

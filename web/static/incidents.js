@@ -130,12 +130,13 @@ async function initIncidentsPage() {
     });
 }
 //
-// Load event field reports
+// Load event field reports and stays
 //
 // Note that nothing from these data is displayed in the incidents table.
 // We do this fetch in order to make incidents searchable by text in their
 // attached field reports.
 let eventFieldReports = undefined;
+let eventStays = undefined;
 async function loadEventFieldReports() {
     const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_fieldReports + "?exclude_system_entries=true"), null);
     if (err != null) {
@@ -150,6 +151,22 @@ async function loadEventFieldReports() {
     }
     eventFieldReports = reports;
     console.log("Loaded event field reports");
+    return { err: null };
+}
+async function loadEventStays() {
+    const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_stays + "?exclude_system_entries=true"), null);
+    if (err != null) {
+        const message = `Failed to load event stays: ${err}`;
+        console.error(message);
+        ims.setErrorMessage(message);
+        return { err: message };
+    }
+    const stays = {};
+    for (const stay of json) {
+        stays[stay.number] = stay;
+    }
+    eventStays = stays;
+    console.log("Loaded event stays");
     return { err: null };
 }
 //
@@ -272,6 +289,7 @@ function initDataTables(tablePrereqs) {
                 await Promise.all([
                     tablePrereqs,
                     loadEventFieldReports(),
+                    loadEventStays(),
                     ims.fetchNoThrow(ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null).then(res => {
                         if (res.err != null || res.json == null) {
                             ims.setErrorMessage(`Failed to load table: ${res.err}`);
@@ -404,7 +422,7 @@ function renderSummary(_data, type, incident) {
         case "sort":
             return ims.summarizeIncidentOrFR(incident);
         case "filter":
-            return ims.reportTextFromIncident(incident, eventFieldReports);
+            return ims.reportTextFromIncident(incident, eventFieldReports, eventStays);
         case "type":
             return "";
     }

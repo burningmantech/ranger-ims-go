@@ -28,6 +28,17 @@ declare global {
 // Initialize UI
 //
 
+const el = {
+    destinationForm: ims.typedElement("destination-form", HTMLFormElement),
+    eventName: ims.typedElement("event-name", HTMLInputElement),
+    artData: ims.typedElement("art-data", HTMLTextAreaElement),
+    campData: ims.typedElement("camp-data", HTMLTextAreaElement),
+    otherData: ims.typedElement("other-data", HTMLTextAreaElement),
+    artDataLabel: ims.typedElement("art-data-label", HTMLLabelElement),
+    campDataLabel: ims.typedElement("camp-data-label", HTMLLabelElement),
+    otherDataLabel: ims.typedElement("other-data-label", HTMLLabelElement),
+};
+
 initAdminDestinationsPage();
 
 async function initAdminDestinationsPage(): Promise<void> {
@@ -37,8 +48,7 @@ async function initAdminDestinationsPage(): Promise<void> {
         return;
     }
     window.loadDestinations = loadDestinations;
-    const form = document.getElementById("destination-form") as HTMLFormElement;
-    form.addEventListener("submit", async (e: SubmitEvent): Promise<void> => {
+    el.destinationForm.addEventListener("submit", async (e: SubmitEvent): Promise<void> => {
         e.preventDefault();
         await submit();
     })
@@ -85,18 +95,15 @@ function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextA
 
 async function submit(): Promise<void> {
     ims.clearErrorMessage();
-    const artDataEl = document.getElementById("art-data") as HTMLTextAreaElement;
-    const campDataEl = document.getElementById("camp-data") as HTMLTextAreaElement;
-    const otherDataEl = document.getElementById("other-data") as HTMLTextAreaElement;
     let destinations: ims.Destinations|null = null;
     try {
-        destinations = parseDestinations(artDataEl, campDataEl, otherDataEl);
+        destinations = parseDestinations(el.artData, el.campData, el.otherData);
     } catch (e: any) {
         console.log(e);
         ims.setErrorMessage(e);
         return;
     }
-    const eventName = (document.getElementById("event-name") as HTMLInputElement).value;
+    const eventName = el.eventName.value;
 
     const {err} = await ims.fetchNoThrow(
         url_destinations.replace("<event_id>", eventName), {
@@ -106,19 +113,19 @@ async function submit(): Promise<void> {
         const message = `Failed to create destination: ${err}`;
         console.log(message);
         ims.setErrorMessage(message);
-        ims.controlHasError(artDataEl);
-        ims.controlHasError(campDataEl);
-        ims.controlHasError(otherDataEl);
+        ims.controlHasError(el.artData);
+        ims.controlHasError(el.campData);
+        ims.controlHasError(el.otherData);
         return;
     }
-    ims.controlHasSuccess(artDataEl);
-    ims.controlHasSuccess(campDataEl);
-    ims.controlHasSuccess(otherDataEl);
+    ims.controlHasSuccess(el.artData);
+    ims.controlHasSuccess(el.campData);
+    ims.controlHasSuccess(el.otherData);
 }
 
 async function loadDestinations(): Promise<void> {
     ims.clearErrorMessage();
-    const eventName = (document.getElementById("event-name") as HTMLInputElement).value;
+    const eventName = el.eventName.value;
 
     const {json, err} = await ims.fetchNoThrow<ims.Destinations>(
         url_destinations.replace("<event_id>", eventName), {
@@ -137,23 +144,23 @@ async function loadDestinations(): Promise<void> {
         for (const ed of json.art ?? []) {
             arts.push(ed.external_data! as ims.BMArt);
         }
-        (document.getElementById("art-data") as HTMLTextAreaElement).value = JSON.stringify(arts, null, 2);
-        (document.getElementById("art-data-label") as HTMLLabelElement).textContent = `JSON Data (${arts.length})`;
+        el.artData.value = JSON.stringify(arts, null, 2);
+        el.artDataLabel.textContent = `JSON Data (${arts.length})`;
     }
     {
         const camps: ims.BMCamp[] = [];
         for (const ed of json.camp ?? []) {
             camps.push(ed.external_data! as ims.BMCamp);
         }
-        (document.getElementById("camp-data") as HTMLTextAreaElement).value = JSON.stringify(camps, null, 2);
-        (document.getElementById("camp-data-label") as HTMLLabelElement).textContent = `JSON Data (${camps.length})`;
+        el.campData.value = JSON.stringify(camps, null, 2);
+        el.campDataLabel.textContent = `JSON Data (${camps.length})`;
     }
     {
         const others: ims.OtherDest[] = [];
         for (const ed of json.other ?? []) {
             others.push(ed.external_data! as ims.OtherDest);
         }
-        (document.getElementById("other-data") as HTMLTextAreaElement).value = JSON.stringify(others, null, 2);
-        (document.getElementById("other-data-label") as HTMLLabelElement).textContent = `JSON Data (${others.length})`;
+        el.otherData.value = JSON.stringify(others, null, 2);
+        el.otherDataLabel.textContent = `JSON Data (${others.length})`;
     }
 }

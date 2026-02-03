@@ -25,9 +25,38 @@ let destinations = {};
 //
 // Initialize UI
 //
-const inputIncidentSummary = ims.typedElement("incident_summary", HTMLInputElement);
-const selectIncidentState = ims.typedElement("incident_state", HTMLSelectElement);
-const textAreaReportEntryAdd = ims.typedElement("report_entry_add", HTMLTextAreaElement);
+const el = {
+    incidentNumber: ims.typedElement("incident_number", HTMLInputElement),
+    incidentSummary: ims.typedElement("incident_summary", HTMLInputElement),
+    incidentState: ims.typedElement("incident_state", HTMLSelectElement),
+    startedDatetime: ims.typedElement("started_datetime", HTMLInputElement),
+    startedDatetimeTz: ims.typedElement("started_datetime_tz", HTMLSpanElement),
+    locationName: ims.typedElement("incident_location_name", HTMLInputElement),
+    locationAddress: ims.typedElement("incident_location_address", HTMLInputElement),
+    locationDescription: ims.typedElement("incident_location_description", HTMLInputElement),
+    rangerAdd: ims.typedElement("ranger_add", HTMLInputElement),
+    rangerHandles: ims.typedElement("ranger_handles", HTMLDataListElement),
+    rangersList: ims.typedElement("incident_rangers_list", HTMLElement),
+    rangersLiTemplate: ims.typedElement("incident_rangers_li_template", HTMLTemplateElement),
+    incidentTypeAdd: ims.typedElement("incident_type_add", HTMLInputElement),
+    incidentTypes: ims.typedElement("incident_types", HTMLDataListElement),
+    incidentTypesList: ims.typedElement("incident_types_list", HTMLElement),
+    incidentTypesLiTemplate: ims.typedElement("incident_types_li_template", HTMLTemplateElement),
+    incidentTypeInfo: ims.typedElement("incident-type-info", HTMLUListElement),
+    incidentTypeInfoTemplate: ims.typedElement("incident-type-info-template", HTMLTemplateElement),
+    showIncidentTypeInfo: ims.typedElement("show-incident-type-info", HTMLElement),
+    destinationsList: ims.typedElement("destinations-list", HTMLDataListElement),
+    attachedFieldReportAddContainer: ims.typedElement("attached_field_report_add_container", HTMLDivElement),
+    attachedFieldReportAdd: ims.typedElement("attached_field_report_add", HTMLSelectElement),
+    attachedFieldReports: ims.typedElement("attached_field_reports", HTMLElement),
+    linkedIncidents: ims.typedElement("linked_incidents", HTMLElement),
+    historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
+    reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
+    reportEntrySubmit: ims.typedElement("report_entry_submit", HTMLElement),
+    attachFile: ims.typedElement("attach_file", HTMLInputElement),
+    attachFileInput: ims.typedElement("attach_file_input", HTMLInputElement),
+    helpModal: ims.typedElement("helpModal", HTMLDivElement),
+};
 initIncidentPage();
 async function initIncidentPage() {
     const initResult = await ims.commonPageInit();
@@ -44,9 +73,6 @@ async function initIncidentPage() {
     window.editIncidentSummary = editIncidentSummary;
     window.editLocationName = editLocationName;
     window.editLocationAddress = editLocationAddress;
-    window.editLocationAddressRadialHour = editLocationAddressRadialHour;
-    window.editLocationAddressRadialMinute = editLocationAddressRadialMinute;
-    window.editLocationAddressConcentric = editLocationAddressConcentric;
     window.editLocationDescription = editLocationDescription;
     window.removeRanger = removeRanger;
     window.setRangerRole = setRangerRole;
@@ -90,11 +116,11 @@ async function initIncidentPage() {
     ims.hideLoadingOverlay();
     // for a new incident, jump to summary field
     if (incident.number == null) {
-        inputIncidentSummary.focus();
+        el.incidentSummary.focus();
     }
     // Warn the user if they're about to navigate away with unsaved text.
     window.addEventListener("beforeunload", function (e) {
-        if (textAreaReportEntryAdd.value !== "") {
+        if (el.reportEntryAdd.value !== "") {
             e.preventDefault();
         }
     });
@@ -145,7 +171,7 @@ async function initIncidentPage() {
             return;
         }
     };
-    const helpModal = ims.bsModal(document.getElementById("helpModal"));
+    const helpModal = ims.bsModal(el.helpModal);
     const incidentTypeInfoModal = ims.bsModal(document.getElementById("incidentTypeInfoModal"));
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
@@ -165,19 +191,19 @@ async function initIncidentPage() {
         if (e.key === "a") {
             e.preventDefault();
             // Scroll to report_entry_add field
-            textAreaReportEntryAdd.focus();
-            textAreaReportEntryAdd.scrollIntoView(true);
+            el.reportEntryAdd.focus();
+            el.reportEntryAdd.scrollIntoView(true);
         }
         // h --> toggle showing system entries
         if (e.key.toLowerCase() === "h") {
-            document.getElementById("history_checkbox").click();
+            el.historyCheckbox.click();
         }
         // n --> new incident
         if (e.key.toLowerCase() === "n") {
             window.open("./new", '_blank').focus();
         }
     });
-    document.getElementById("helpModal").addEventListener("keydown", function (e) {
+    el.helpModal.addEventListener("keydown", function (e) {
         if (e.key === "?") {
             helpModal.toggle();
             // This is needed to prevent the document's listener for "?" to trigger the modal to
@@ -186,13 +212,13 @@ async function initIncidentPage() {
             e.stopPropagation();
         }
     });
-    textAreaReportEntryAdd.addEventListener("keydown", function (e) {
-        const submitEnabled = !document.getElementById("report_entry_submit").classList.contains("disabled");
+    el.reportEntryAdd.addEventListener("keydown", function (e) {
+        const submitEnabled = !el.reportEntrySubmit.classList.contains("disabled");
         if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
         }
     });
-    document.getElementById("show-incident-type-info").addEventListener("click", function (e) {
+    el.showIncidentTypeInfo.addEventListener("click", function (e) {
         e.preventDefault();
         incidentTypeInfoModal.show();
     });
@@ -254,7 +280,7 @@ function displayIncident() {
         ims.enableEditing();
     }
     if (ims.eventAccess?.attachFiles) {
-        document.getElementById("attach_file").classList.remove("hidden");
+        el.attachFile.classList.remove("hidden");
     }
 }
 // Do all the client-side rendering based on the state of allFieldReports.
@@ -456,7 +482,7 @@ function drawIncidentFields() {
     drawLocationDescription();
     ims.toggleShowHistory();
     drawMergedReportEntries();
-    textAreaReportEntryAdd.addEventListener("input", ims.reportEntryEdited);
+    el.reportEntryAdd.addEventListener("input", ims.reportEntryEdited);
 }
 //
 // Populate page title
@@ -487,13 +513,13 @@ function drawIncidentTitle(mode) {
 //
 function drawIncidentNumber() {
     const number = incident.number ?? "(new)";
-    document.getElementById("incident_number").value = number.toString();
+    el.incidentNumber.value = number.toString();
 }
 //
 // Populate incident state
 //
 function drawState() {
-    ims.selectOptionWithValue(selectIncidentState, ims.stateForIncident(incident));
+    ims.selectOptionWithValue(el.incidentState, ims.stateForIncident(incident));
 }
 //
 // Populate started datetime
@@ -505,11 +531,9 @@ function drawStarted() {
     }
     const dateNum = Date.parse(date);
     const dateDate = new Date(dateNum);
-    const startedElement = document.getElementById("started_datetime");
-    startedElement._flatpickr.setDate(date, false, "Z");
-    const tzInput = document.getElementById("started_datetime_tz");
-    tzInput.textContent = ims.localTzShortName(dateDate);
-    tzInput.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}\n\n` +
+    el.startedDatetime._flatpickr.setDate(date, false, "Z");
+    el.startedDatetimeTz.textContent = ims.localTzShortName(dateDate);
+    el.startedDatetimeTz.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}\n\n` +
         `All date and time fields in IMS use your computer's time zone, not necessarily Gerlach time.`;
 }
 //
@@ -527,13 +551,13 @@ function drawPriority() {
 // Populate incident summary
 //
 function drawIncidentSummary() {
-    inputIncidentSummary.placeholder = "One-line summary of incident";
+    el.incidentSummary.placeholder = "One-line summary of incident";
     if (incident.summary) {
-        inputIncidentSummary.value = incident.summary;
-        inputIncidentSummary.placeholder = "";
+        el.incidentSummary.value = incident.summary;
+        el.incidentSummary.placeholder = "";
         return;
     }
-    inputIncidentSummary.value = ims.summarizeIncidentOrFR(incident);
+    el.incidentSummary.value = ims.summarizeIncidentOrFR(incident);
 }
 //
 // Populate Rangers list
@@ -541,15 +565,13 @@ function drawIncidentSummary() {
 function drawRangers() {
     const rangers = incident?.rangers ?? [];
     rangers.sort((a, b) => (a.handle ?? "").localeCompare(b.handle ?? ""));
-    const rangerItemTemplate = document.getElementById("incident_rangers_li_template");
-    const rangersElement = document.getElementById("incident_rangers_list");
-    rangersElement.querySelectorAll("li").forEach((el) => { el.remove(); });
+    el.rangersList.querySelectorAll("li").forEach((li) => { li.remove(); });
     for (const ranger of rangers) {
         if (!ranger.handle) {
             continue;
         }
         const handle = ranger.handle;
-        const rangerFragment = rangerItemTemplate.content.cloneNode(true);
+        const rangerFragment = el.rangersLiTemplate.content.cloneNode(true);
         const rangerLi = rangerFragment.querySelector("li");
         rangerLi.classList.remove("hidden");
         rangerLi.dataset["rangerHandle"] = handle;
@@ -571,18 +593,17 @@ function drawRangers() {
         if (ranger.role) {
             rangerLi.querySelector("input").value = ranger.role;
         }
-        rangersElement.append(rangerFragment);
+        el.rangersList.append(rangerFragment);
     }
 }
 function drawRangersToAdd() {
-    const datalist = document.getElementById("ranger_handles");
     const handles = [];
     for (const handle in personnel) {
         handles.push(handle);
     }
     handles.sort((a, b) => a.localeCompare(b));
-    datalist.replaceChildren();
-    datalist.append(document.createElement("option"));
+    el.rangerHandles.replaceChildren();
+    el.rangerHandles.append(document.createElement("option"));
     if (personnel != null) {
         for (const handle of handles) {
             const ranger = personnel[handle];
@@ -593,7 +614,7 @@ function drawRangersToAdd() {
             const option = document.createElement("option");
             option.value = handle;
             option.text = ranger.handle;
-            datalist.append(option);
+            el.rangerHandles.append(option);
         }
     }
 }
@@ -601,55 +622,49 @@ function drawRangersToAdd() {
 // Populate incident types list
 //
 function drawIncidentTypes() {
-    const typeItemTemplate = document.getElementById("incident_types_li_template");
-    const typesElement = document.getElementById("incident_types_list");
-    typesElement.querySelectorAll("li").forEach((el) => { el.remove(); });
+    el.incidentTypesList.querySelectorAll("li").forEach((li) => { li.remove(); });
     for (const validType of allIncidentTypes) {
         if ((incident.incident_type_ids ?? []).includes(validType.id ?? -1)) {
-            const fragment = typeItemTemplate.content.cloneNode(true);
+            const fragment = el.incidentTypesLiTemplate.content.cloneNode(true);
             const item = fragment.querySelector("li");
             item.classList.remove("hidden");
             const typeSpan = document.createElement("span");
             typeSpan.textContent = validType.name ?? "";
             item.append(typeSpan);
             item.dataset["incidentTypeId"] = (validType.id ?? -1).toString();
-            typesElement.append(fragment);
+            el.incidentTypesList.append(fragment);
         }
     }
 }
 function drawIncidentTypesToAdd() {
-    const datalist = document.getElementById("incident_types");
-    datalist.replaceChildren();
-    datalist.append(document.createElement("option"));
+    el.incidentTypes.replaceChildren();
+    el.incidentTypes.append(document.createElement("option"));
     for (const incidentType of allIncidentTypes) {
         if (incidentType.hidden || !incidentType.name) {
             continue;
         }
         const option = document.createElement("option");
         option.value = incidentType.name;
-        datalist.append(option);
+        el.incidentTypes.append(option);
     }
 }
 function drawIncidentTypeInfo() {
-    const infosUL = document.getElementById("incident-type-info");
-    const typeInfoTemplate = document.getElementById("incident-type-info-template");
     for (const incidentType of allIncidentTypes) {
         if (incidentType.hidden) {
             continue;
         }
-        const frag = typeInfoTemplate.content.cloneNode(true);
+        const frag = el.incidentTypeInfoTemplate.content.cloneNode(true);
         frag.querySelector(".type-name").textContent = incidentType.name ?? "";
         frag.querySelector(".type-description").textContent = incidentType.description ?? "";
-        infosUL.append(frag);
+        el.incidentTypeInfo.append(frag);
     }
 }
 //
 // Populate location
 //
 function drawLocationName() {
-    if (incident.location?.name) {
-        const locName = document.getElementById("incident_location_name");
-        locName.value = incident.location.name;
+    if (incident?.location?.name) {
+        el.locationName.value = incident.location.name;
     }
 }
 async function loadDestinations() {
@@ -663,9 +678,8 @@ async function loadDestinations() {
     destinations = json;
 }
 function drawDestinationsList() {
-    const datalist = document.getElementById("destinations-list");
-    datalist.replaceChildren();
-    datalist.append(document.createElement("option"));
+    el.destinationsList.replaceChildren();
+    el.destinationsList.append(document.createElement("option"));
     const newOptions = [];
     for (const d of destinations.art ?? []) {
         const option = document.createElement("option");
@@ -692,20 +706,18 @@ function drawDestinationsList() {
         newOptions.push(option);
     }
     newOptions.sort((a, b) => a.value.localeCompare(b.value));
-    datalist.append(...newOptions);
+    el.destinationsList.append(...newOptions);
 }
 function drawLocationAddress() {
-    const locAddr = document.getElementById("incident_location_address");
     if (!incident || !incident.location) {
-        locAddr.value = "";
+        el.locationAddress.value = "";
         return;
     }
-    locAddr.value = incident.location.address ?? "";
+    el.locationAddress.value = incident.location.address ?? "";
 }
 function drawLocationDescription() {
     if (incident.location?.description) {
-        const description = document.getElementById("incident_location_description");
-        description.value = incident.location.description;
+        el.locationDescription.value = incident.location.description;
     }
 }
 //
@@ -731,8 +743,7 @@ function drawMergedReportEntries() {
 let _reportsItem = null;
 function drawAttachedFieldReports() {
     if (_reportsItem == null) {
-        const elements = document.getElementById("attached_field_reports")
-            .getElementsByClassName("list-group-item");
+        const elements = el.attachedFieldReports.getElementsByClassName("list-group-item");
         if (elements.length === 0) {
             console.error("found no reportsItem");
             return;
@@ -741,8 +752,7 @@ function drawAttachedFieldReports() {
     }
     const reports = attachedFieldReports ?? [];
     reports.sort();
-    const container = document.getElementById("attached_field_reports");
-    container.replaceChildren();
+    el.attachedFieldReports.replaceChildren();
     for (const report of reports) {
         const link = document.createElement("a");
         link.href = `${ims.urlReplace(url_viewFieldReports)}/${report.number}`;
@@ -751,14 +761,13 @@ function drawAttachedFieldReports() {
         item.classList.remove("hidden");
         item.append(link);
         item.dataset["frNumber"] = report.number.toString();
-        container.append(item);
+        el.attachedFieldReports.append(item);
     }
 }
 let _linkedIncidentsItem = null;
 function drawLinkedIncidents() {
     if (_linkedIncidentsItem == null) {
-        const elements = document.getElementById("linked_incidents")
-            .getElementsByClassName("list-group-item");
+        const elements = el.linkedIncidents.getElementsByClassName("list-group-item");
         if (elements.length === 0) {
             console.error("found no linkedIncidents");
             return;
@@ -772,8 +781,7 @@ function drawLinkedIncidents() {
         }
         return (a.event_name ?? "").localeCompare(b.event_name ?? "");
     });
-    const container = document.getElementById("linked_incidents");
-    container.replaceChildren();
+    el.linkedIncidents.replaceChildren();
     for (const linked of linkedIncidents) {
         const link = document.createElement("a");
         link.href = url_viewIncidentNumber
@@ -790,21 +798,19 @@ function drawLinkedIncidents() {
         item.dataset["eventId"] = linked.event_id?.toString();
         item.dataset["eventName"] = linked.event_name?.toString();
         item.dataset["incidentNumber"] = linked.number?.toString();
-        container.append(item);
+        el.linkedIncidents.append(item);
     }
 }
 function drawFieldReportsToAttach() {
-    const container = document.getElementById("attached_field_report_add_container");
-    const select = document.getElementById("attached_field_report_add");
-    select.replaceChildren();
-    select.append(document.createElement("option"));
+    el.attachedFieldReportAdd.replaceChildren();
+    el.attachedFieldReportAdd.append(document.createElement("option"));
     if (!allFieldReports) {
-        container.classList.add("hidden");
+        el.attachedFieldReportAddContainer.classList.add("hidden");
     }
     else {
         const unattachedGroup = document.createElement("optgroup");
         unattachedGroup.label = "Unattached to any incident";
-        select.append(unattachedGroup);
+        el.attachedFieldReportAdd.append(unattachedGroup);
         for (const report of allFieldReports) {
             // Skip field reports that *are* attached to an incident
             if (report.incident != null) {
@@ -813,11 +819,11 @@ function drawFieldReportsToAttach() {
             const option = document.createElement("option");
             option.value = report.number.toString();
             option.text = ims.fieldReportAsString(report);
-            select.append(option);
+            el.attachedFieldReportAdd.append(option);
         }
         const attachedGroup = document.createElement("optgroup");
         attachedGroup.label = "Attached to another incident";
-        select.append(attachedGroup);
+        el.attachedFieldReportAdd.append(attachedGroup);
         for (const report of allFieldReports) {
             // Skip field reports that *are not* attached to an incident
             if (report.incident == null) {
@@ -830,10 +836,10 @@ function drawFieldReportsToAttach() {
             const option = document.createElement("option");
             option.value = report.number.toString();
             option.text = ims.fieldReportAsString(report);
-            select.append(option);
+            el.attachedFieldReportAdd.append(option);
         }
-        select.append(document.createElement("optgroup"));
-        container.classList.remove("hidden");
+        el.attachedFieldReportAdd.append(document.createElement("optgroup"));
+        el.attachedFieldReportAddContainer.classList.remove("hidden");
     }
 }
 //
@@ -898,7 +904,7 @@ async function sendEdits(edits) {
 }
 ims.setSendEdits(sendEdits);
 async function editState() {
-    if (selectIncidentState.value === "closed" && (incident.incident_type_ids ?? []).length === 0) {
+    if (el.incidentState.value === "closed" && (incident.incident_type_ids ?? []).length === 0) {
         window.alert("Closing out this incident?\n" +
             "Please add an incident type!\n\n" +
             "Special cases:\n" +
@@ -906,7 +912,7 @@ async function editState() {
             "    Admin: for administrative information, i.e. not Incidents at all\n\n" +
             "See the Incident Types help link for more details.\n");
     }
-    await ims.editFromElement(selectIncidentState, "state");
+    await ims.editFromElement(el.incidentState, "state");
 }
 async function setStartDatetime(selectedDates, _dateStr, sender) {
     const prevDate = new Date(incident?.started ?? 0);
@@ -920,18 +926,16 @@ async function setStartDatetime(selectedDates, _dateStr, sender) {
     });
 }
 async function editIncidentSummary() {
-    await ims.editFromElement(inputIncidentSummary, "summary");
+    await ims.editFromElement(el.incidentSummary, "summary");
 }
 async function editLocationName() {
-    const locNameInput = document.getElementById("incident_location_name");
-    const destination = document.querySelector(`option[value='${CSS.escape(locNameInput.value)}']`);
+    const destination = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`);
     if (destination) {
-        return await setLocationFromDestination(locNameInput, destination);
+        return await setLocationFromDestination(destination);
     }
-    await ims.editFromElement(locNameInput, "location.name");
+    await ims.editFromElement(el.locationName, "location.name");
 }
-async function setLocationFromDestination(locNameInput, knownLoc) {
-    const locAddressInput = document.getElementById("incident_location_address");
+async function setLocationFromDestination(knownLoc) {
     const nameSuffix = knownLoc.dataset["type"] === "Art" ? ` (${knownLoc.dataset["type"]})` : "";
     const edits = {
         location: {
@@ -941,35 +945,18 @@ async function setLocationFromDestination(locNameInput, knownLoc) {
     };
     const { err } = await sendEdits(edits);
     if (err != null) {
-        ims.controlHasError(locNameInput);
+        ims.controlHasError(el.locationName);
     }
     else {
-        ims.controlHasSuccess(locNameInput);
-        ims.controlHasSuccess(locAddressInput);
+        ims.controlHasSuccess(el.locationName);
+        ims.controlHasSuccess(el.locationAddress);
     }
 }
 async function editLocationAddress() {
-    const input = document.getElementById("incident_location_address");
-    await ims.editFromElement(input, "location.address");
-}
-function transformAddressInteger(value) {
-    return ims.parseInt10(value)?.toString() ?? null;
-}
-async function editLocationAddressRadialHour() {
-    const hourInput = document.getElementById("incident_location_address_radial_hour");
-    await ims.editFromElement(hourInput, "location.radial_hour", transformAddressInteger);
-}
-async function editLocationAddressRadialMinute() {
-    const minuteInput = document.getElementById("incident_location_address_radial_minute");
-    await ims.editFromElement(minuteInput, "location.radial_minute", transformAddressInteger);
-}
-async function editLocationAddressConcentric() {
-    const concentricInput = document.getElementById("incident_location_address_concentric");
-    await ims.editFromElement(concentricInput, "location.concentric");
+    await ims.editFromElement(el.locationAddress, "location.address");
 }
 async function editLocationDescription() {
-    const descriptionInput = document.getElementById("incident_location_description");
-    await ims.editFromElement(descriptionInput, "location.description");
+    await ims.editFromElement(el.locationDescription, "location.description");
 }
 async function removeRanger(sender) {
     const parent = sender.parentElement;
@@ -1017,8 +1004,7 @@ function normalize(str) {
     return str.toLowerCase().trim();
 }
 async function addRanger() {
-    const addRanger = document.getElementById("ranger_add");
-    let handle = addRanger.value;
+    let handle = el.rangerAdd.value;
     // make a copy of the rangers
     const rangers = (incident.rangers ?? []).slice();
     const handles = rangers.map(r => r.handle).filter(handle => handle != null);
@@ -1035,16 +1021,16 @@ async function addRanger() {
     }
     if (!(handle in (personnel ?? []))) {
         // Not a valid handle
-        addRanger.value = "";
+        el.rangerAdd.value = "";
         return;
     }
     if (handles.indexOf(handle) !== -1) {
         // Already in the list, so… move along.
-        addRanger.value = "";
+        el.rangerAdd.value = "";
         return;
     }
     rangers.push({ handle: handle });
-    addRanger.disabled = true;
+    el.rangerAdd.disabled = true;
     const url = (ims.urlReplace(url_incidentRanger)
         .replace("<incident_number>", ims.pathIds.incidentNumber.toString())
         .replace("<ranger_name>", encodeURIComponent(handle)));
@@ -1054,19 +1040,18 @@ async function addRanger() {
         }),
     });
     if (err !== null) {
-        ims.controlHasError(addRanger);
-        addRanger.value = "";
-        addRanger.disabled = false;
+        ims.controlHasError(el.rangerAdd);
+        el.rangerAdd.value = "";
+        el.rangerAdd.disabled = false;
         return;
     }
-    addRanger.value = "";
-    addRanger.disabled = false;
-    ims.controlHasSuccess(addRanger);
-    addRanger.focus();
+    el.rangerAdd.value = "";
+    el.rangerAdd.disabled = false;
+    ims.controlHasSuccess(el.rangerAdd);
+    el.rangerAdd.focus();
 }
 async function addIncidentType() {
-    const addType = document.getElementById("incident_type_add");
-    let typeInput = addType.value;
+    let typeInput = el.incidentTypeAdd.value;
     // make a copy of the incident types
     const currentIncidentTypes = (incident.incident_type_ids ?? []).slice();
     // fuzzy-match on incidentType, to allow case insensitivity and
@@ -1082,27 +1067,27 @@ async function addIncidentType() {
     }
     if (validTypeInputId == null) {
         // Not a valid incident type
-        addType.value = "";
+        el.incidentTypeAdd.value = "";
         return;
     }
     if (currentIncidentTypes.indexOf(validTypeInputId) !== -1) {
         // Already in the list, so… move along.
-        addType.value = "";
+        el.incidentTypeAdd.value = "";
         return;
     }
     currentIncidentTypes.push(validTypeInputId);
-    addType.disabled = true;
+    el.incidentTypeAdd.disabled = true;
     const { err } = await sendEdits({ "incident_type_ids": currentIncidentTypes });
     if (err != null) {
-        ims.controlHasError(addType);
-        addType.value = "";
-        addType.disabled = false;
+        ims.controlHasError(el.incidentTypeAdd);
+        el.incidentTypeAdd.value = "";
+        el.incidentTypeAdd.disabled = false;
         return;
     }
-    addType.value = "";
-    addType.disabled = false;
-    ims.controlHasSuccess(addType);
-    addType.focus();
+    el.incidentTypeAdd.value = "";
+    el.incidentTypeAdd.disabled = false;
+    ims.controlHasSuccess(el.incidentTypeAdd);
+    el.incidentTypeAdd.focus();
 }
 async function detachFieldReport(sender) {
     const parent = sender.parentElement;
@@ -1133,8 +1118,7 @@ async function attachFieldReport() {
             return;
         }
     }
-    const select = document.getElementById("attached_field_report_add");
-    const fieldReportNumber = select.value;
+    const fieldReportNumber = el.attachedFieldReportAdd.value;
     const url = (`${ims.urlReplace(url_fieldReports)}/${fieldReportNumber}` +
         `?action=attach&incident=${ims.pathIds.incidentNumber}`);
     const { err } = await ims.fetchNoThrow(url, {
@@ -1147,13 +1131,13 @@ async function attachFieldReport() {
         await loadAllFieldReports();
         renderFieldReportData();
         ims.setErrorMessage(message);
-        ims.controlHasError(select);
+        ims.controlHasError(el.attachedFieldReportAdd);
         return;
     }
     await loadAllStays();
     await loadAllFieldReports();
     renderFieldReportData();
-    ims.controlHasSuccess(select);
+    ims.controlHasSuccess(el.attachedFieldReportAdd);
 }
 async function unlinkIncident(sender) {
     const parent = sender.parentElement;
@@ -1255,9 +1239,8 @@ async function attachFile() {
             return;
         }
     }
-    const attachFile = document.getElementById("attach_file_input");
     const formData = new FormData();
-    for (const f of attachFile.files ?? []) {
+    for (const f of el.attachFileInput.files ?? []) {
         // this must match the key sought by the server
         formData.append("imsAttachment", f);
     }
@@ -1272,6 +1255,6 @@ async function attachFile() {
         return;
     }
     ims.clearErrorMessage();
-    attachFile.value = "";
+    el.attachFileInput.value = "";
     await loadAndDisplayIncident();
 }

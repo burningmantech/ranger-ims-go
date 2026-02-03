@@ -38,6 +38,13 @@ let filterPath: string|null = null;
 // Initialize UI
 //
 
+const el = {
+    filterMinTime: ims.typedElement("filter_min_time", HTMLInputElement),
+    filterMaxTime: ims.typedElement("filter_max_time", HTMLInputElement),
+    filterUserName: ims.typedElement("filter_user_name", HTMLInputElement),
+    filterPath: ims.typedElement("filter_path", HTMLInputElement),
+};
+
 initAdminActionLogsPage();
 
 declare let DataTable: any;
@@ -51,12 +58,11 @@ async function initAdminActionLogsPage(): Promise<void> {
         return;
     }
 
-    window.fetchActionLogs = fetchActionLogs;
     window.updateTable = updateTable;
 
     const yesterday: Date = new Date();
     yesterday.setDate(new Date().getDate() - 1);
-    (document.getElementById("filter_min_time") as HTMLInputElement).value = nerdDateTime.format(yesterday);
+    el.filterMinTime.value = nerdDateTime.format(yesterday);
     updateFilters();
 
     // DataTable.ext.errMode = "none";
@@ -199,19 +205,6 @@ function renderPage(pagePath: string|null, type: string, _data: any): string|und
     return undefined;
 }
 
-async function fetchActionLogs(): Promise<void> {
-    const {json, err} = await ims.fetchNoThrow<ActionLog>(url_actionlogs, {});
-    if (err != null) {
-        throw err;
-    }
-    const actionLogsText = JSON.stringify(json, null, 2);
-    const targetPre = document.getElementById("action-logs") as HTMLPreElement
-    targetPre.textContent = actionLogsText;
-
-    const targetDiv = document.getElementById("show-action-logs-div") as HTMLParagraphElement;
-    targetDiv.style.display = "";
-}
-
 async function updateTable(_el: HTMLElement): Promise<void> {
     updateFilters();
     actionLogsTable!.ajax.reload();
@@ -219,23 +212,18 @@ async function updateTable(_el: HTMLElement): Promise<void> {
 }
 
 function updateFilters(): void {
-    const filterMinTimeInput = document.getElementById("filter_min_time") as HTMLInputElement;
-    const filterMaxTimeInput = document.getElementById("filter_max_time") as HTMLInputElement;
-    const filterUserNameInput = document.getElementById("filter_user_name") as HTMLInputElement;
-    const filterPathInput = document.getElementById("filter_path") as HTMLInputElement;
-
-    if (filterMinTimeInput.value) {
-        filterMinTime = new Date(filterMinTimeInput.value);
+    if (el.filterMinTime.value) {
+        filterMinTime = new Date(el.filterMinTime.value);
     } else {
         filterMinTime = null;
     }
-    if (filterMaxTimeInput.value) {
-        filterMaxTime = new Date(filterMaxTimeInput.value);
+    if (el.filterMaxTime.value) {
+        filterMaxTime = new Date(el.filterMaxTime.value);
     } else {
         filterMaxTime = null;
     }
-    filterUserName = filterUserNameInput.value ? filterUserNameInput.value : null;
-    filterPath = filterPathInput.value ? filterPathInput.value : null;
+    filterUserName = el.filterUserName.value ? el.filterUserName.value : null;
+    filterPath = el.filterPath.value ? el.filterPath.value : null;
 }
 
 const nerdDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat("sv-SE", {

@@ -29,6 +29,13 @@ declare global {
 // Initialize UI
 //
 
+const el = {
+    loginForm: ims.typedElement("login_form", HTMLFormElement),
+    usernameInput: ims.typedElement("username_input", HTMLInputElement),
+    passwordInput: ims.typedElement("password_input", HTMLInputElement),
+    passwordShowHide: ims.typedElement("password_show_hide", HTMLButtonElement),
+};
+
 initLoginPage();
 
 async function initLoginPage(): Promise<void> {
@@ -37,28 +44,26 @@ async function initLoginPage(): Promise<void> {
     window.login = login;
     window.toggleShowPassword = toggleShowPassword;
 
-    document.getElementById("login_form")!.addEventListener("submit", (e: SubmitEvent): void => {
+    el.loginForm.addEventListener("submit", (e: SubmitEvent): void => {
         e.preventDefault();
         login();
     });
-    document.getElementById("username_input")?.focus();
+    el.usernameInput.focus();
 }
 
 function toggleShowPassword(): void {
-    const showHideButt = document.getElementById("password_show_hide") as HTMLButtonElement;
-    const passwordInput = document.getElementById("password_input") as HTMLInputElement;
-    if (showHideButt.textContent === "Show") {
-        showHideButt.textContent = "Hide";
-        passwordInput.type = "text";
+    if (el.passwordShowHide.textContent === "Show") {
+        el.passwordShowHide.textContent = "Hide";
+        el.passwordInput.type = "text";
     } else {
-        showHideButt.textContent = "Show";
-        passwordInput.type = "password";
+        el.passwordShowHide.textContent = "Show";
+        el.passwordInput.type = "password";
     }
 }
 
 async function login(): Promise<void> {
-    const username = (document.getElementById("username_input") as HTMLInputElement).value;
-    const password = (document.getElementById("password_input") as HTMLInputElement).value;
+    const username = el.usernameInput.value;
+    const password = el.passwordInput.value;
     const {json, err} = await ims.fetchNoThrow<AuthResponse>(url_auth, {
         body: JSON.stringify({
             "identification": username,

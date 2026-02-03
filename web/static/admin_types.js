@@ -20,6 +20,13 @@ import * as ims from "./ims.js";
 //
 // Initialize UI
 //
+const el = {
+    incidentTypes: ims.typedElement("incident_types", HTMLElement),
+    typeLiTemplate: ims.typedElement("type_li_template", HTMLTemplateElement),
+    editIncidentTypeModal: ims.typedElement("editIncidentTypeModal", HTMLElement),
+    editIncidentTypeName: ims.typedElement("edit_incident_type_name", HTMLInputElement),
+    editIncidentTypeDescription: ims.typedElement("edit_incident_type_description", HTMLTextAreaElement),
+};
 initAdminTypesPage();
 async function initAdminTypesPage() {
     const initResult = await ims.commonPageInit();
@@ -59,15 +66,12 @@ async function loadAllIncidentTypes() {
 function drawAllIncidentTypes() {
     updateIncidentTypes();
 }
-const editModalElement = document.getElementById("editIncidentTypeModal");
 function updateIncidentTypes() {
-    const incidentTypesElement = document.getElementById("incident_types");
-    const entryContainer = incidentTypesElement.querySelector("ul");
+    const entryContainer = el.incidentTypes.querySelector("ul");
     entryContainer.querySelectorAll("li").forEach(entry => { entry.remove(); });
-    const editIncidentTypeModal = ims.bsModal(editModalElement);
-    const typeLiTemplate = document.getElementById("type_li_template");
+    const editIncidentTypeModal = ims.bsModal(el.editIncidentTypeModal);
     for (const incidentType of adminIncidentTypes ?? []) {
-        const entryItemFrag = typeLiTemplate.content.cloneNode(true);
+        const entryItemFrag = el.typeLiTemplate.content.cloneNode(true);
         const entryItem = entryItemFrag.querySelector("li");
         if (incidentType.hidden) {
             entryItem.classList.add("item-hidden");
@@ -82,9 +86,9 @@ function updateIncidentTypes() {
         entryItem.dataset["incidentTypeId"] = incidentType.id?.toString();
         const showEditModal = entryItem.querySelector(".show-edit-modal");
         showEditModal.addEventListener("click", function (_e) {
-            editModalElement.dataset["incidentTypeId"] = incidentType.id?.toString();
-            document.getElementById("edit_incident_type_name").value = incidentType.name ?? "";
-            document.getElementById("edit_incident_type_description").value = incidentType.description ?? "";
+            el.editIncidentTypeModal.dataset["incidentTypeId"] = incidentType.id?.toString();
+            el.editIncidentTypeName.value = incidentType.name ?? "";
+            el.editIncidentTypeDescription.value = incidentType.description ?? "";
             editIncidentTypeModal.show();
         });
         entryContainer.append(entryItemFrag);
@@ -123,7 +127,7 @@ async function hideIncidentType(sender) {
     await loadAndDrawIncidentTypes();
 }
 async function setIncidentTypeName(sender) {
-    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    const id = ims.parseInt10(el.editIncidentTypeModal.dataset["incidentTypeId"]);
     if (id == null || !sender.value) {
         return;
     }
@@ -139,7 +143,7 @@ async function setIncidentTypeName(sender) {
     await loadAndDrawIncidentTypes();
 }
 async function setIncidentTypeDescription(sender) {
-    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    const id = ims.parseInt10(el.editIncidentTypeModal.dataset["incidentTypeId"]);
     if (id == null || !sender.value) {
         return;
     }

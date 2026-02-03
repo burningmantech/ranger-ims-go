@@ -28,6 +28,15 @@ const frDefaultRows = "25";
 //
 // Initialize UI
 //
+const el = {
+    searchInput: ims.typedElement("search_input", HTMLInputElement),
+    newFieldReport: ims.typedElement("new_field_report", HTMLButtonElement),
+    showDaysMenu: ims.typedElement("show_days", HTMLButtonElement),
+    showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
+    helpModal: ims.typedElement("helpModal", HTMLElement),
+    multisearchModal: ims.typedElement("multisearchModal", HTMLElement),
+    multisearchEventsList: ims.typedElement("multisearch-events-list", HTMLUListElement),
+};
 initFieldReportsPage();
 async function initFieldReportsPage() {
     const initResult = await ims.commonPageInit();
@@ -44,23 +53,22 @@ async function initFieldReportsPage() {
     window.frShowRows = frShowRows;
     ims.disableEditing();
     initFieldReportsTable();
-    const helpModal = ims.bsModal(document.getElementById("helpModal"));
-    const multisearchModal = ims.bsModal(document.getElementById("multisearchModal"));
+    const helpModal = ims.bsModal(el.helpModal);
+    const multisearchModal = ims.bsModal(el.multisearchModal);
     const eventDatas = ((await initResult.eventDatas) ?? []).toReversed();
     window.toggleMultisearchModal = function (e) {
         // Don't follow a href
         e?.preventDefault();
         multisearchModal.toggle();
-        const list = document.getElementById("multisearch-events-list");
-        list.querySelectorAll("li").forEach((el) => { el.remove(); });
+        el.multisearchEventsList.querySelectorAll("li").forEach((li) => { li.remove(); });
         const hashParams = ims.windowFragmentParams();
-        const liTemplate = list.querySelector("template");
+        const liTemplate = el.multisearchEventsList.querySelector("template");
         for (const eventData of eventDatas) {
             const liFrag = liTemplate.content.cloneNode(true);
             const eventLink = liFrag.querySelector("a");
             eventLink.textContent = eventData.name;
             eventLink.href = `${url_viewFieldReports.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
-            list.append(liFrag);
+            el.multisearchEventsList.append(liFrag);
         }
     };
     // Keyboard shortcuts
@@ -81,18 +89,18 @@ async function initFieldReportsPage() {
         if (e.key === "/") {
             // don't immediately input a "/" into the search box
             e.preventDefault();
-            document.getElementById("search_input").focus();
+            el.searchInput.focus();
         }
         // n --> new incident
         if (e.key.toLowerCase() === "n") {
-            document.getElementById("new_field_report").click();
+            el.newFieldReport.click();
         }
         // m -> multi-search
         if (e.key.toLowerCase() === "m") {
             window.toggleMultisearchModal();
         }
     });
-    document.getElementById("helpModal").addEventListener("keydown", function (e) {
+    el.helpModal.addEventListener("keydown", function (e) {
         if (e.key === "?") {
             helpModal.toggle();
             // This is needed to prevent the document's listener for "?" to trigger the modal to
@@ -290,10 +298,9 @@ function frInitTableButtons() {
 //
 function frInitSearchField() {
     // Search field handling
-    const searchInput = document.getElementById("search_input");
     function searchAndDraw() {
         frReplaceWindowState();
-        let q = searchInput.value;
+        let q = el.searchInput.value;
         let isRegex = false;
         let smartSearch = true;
         if (q.startsWith("/") && q.endsWith("/")) {
@@ -307,10 +314,10 @@ function frInitSearchField() {
     const fragmentParams = ims.windowFragmentParams();
     const queryString = fragmentParams.get("q");
     if (queryString) {
-        searchInput.value = queryString;
+        el.searchInput.value = queryString;
         searchAndDraw();
     }
-    searchInput.addEventListener("input", function (_) {
+    el.searchInput.addEventListener("input", function (_) {
         // Delay the search in case the user is still typing.
         // This reduces perceived lag, since searching can be
         // very slow, and it's super annoying for a user when
@@ -318,7 +325,7 @@ function frInitSearchField() {
         clearTimeout(_frSearchDelayTimer);
         _frSearchDelayTimer = setTimeout(searchAndDraw, _frSearchDelayMs);
     });
-    searchInput.addEventListener("keydown", function (e) {
+    el.searchInput.addEventListener("keydown", function (e) {
         // No shortcuts when ctrl, alt, or meta is being held down
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
@@ -327,11 +334,11 @@ function frInitSearchField() {
         if (e.key === "Enter") {
             // If the value in the search box is an integer, assume it's an FR number and go to it.
             // This will work regardless of whether that FR is visible with the current filters.
-            const val = searchInput.value;
+            const val = el.searchInput.value;
             if (ims.integerRegExp.test(val)) {
                 // Open the Field Report
                 window.location.href = `${ims.urlReplace(url_viewFieldReports)}/${val}`;
-                searchInput.value = "";
+                el.searchInput.value = "";
                 return;
             }
             // Otherwise, search immediately on Enter.
@@ -372,8 +379,7 @@ function frShowDays(daysBackToShow, replaceState) {
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0].textContent;
     // Update menu title to reflect selected item
-    const menu = document.getElementById("show_days");
-    menu.getElementsByClassName("selection")[0].textContent = selection;
+    el.showDaysMenu.getElementsByClassName("selection")[0].textContent = selection;
     if (daysBackToShow === "all") {
         _frShowModifiedAfter = null;
     }
@@ -400,8 +406,7 @@ function frShowRows(rowsToShow, replaceState) {
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0].textContent;
     // Update menu title to reflect selected item
-    const menu = document.getElementById("show_rows");
-    menu.getElementsByClassName("selection")[0].textContent = selection;
+    el.showRowsMenu.getElementsByClassName("selection")[0].textContent = selection;
     if (rowsToShow === "all") {
         rowsToShow = "-1";
     }
@@ -416,7 +421,7 @@ function frShowRows(rowsToShow, replaceState) {
 //
 function frReplaceWindowState() {
     const newParams = [];
-    const searchVal = document.getElementById("search_input").value;
+    const searchVal = el.searchInput.value;
     if (searchVal) {
         newParams.push(["q", searchVal]);
     }

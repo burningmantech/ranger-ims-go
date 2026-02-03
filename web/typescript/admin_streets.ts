@@ -29,6 +29,10 @@ declare global {
 // Initialize UI
 //
 
+const el = {
+    eventStreetsContainer: ims.typedElement("event_streets_container", HTMLElement),
+};
+
 initAdminStreetsPage();
 
 async function initAdminStreetsPage(): Promise<void> {
@@ -70,13 +74,12 @@ let _streetsTemplate: HTMLDivElement|null = null;
 let _streetsEntryTemplate: HTMLLIElement |null = null;
 
 function drawStreets(): void {
-    const container: HTMLElement = document.getElementById("event_streets_container")!;
     if (_streetsTemplate == null) {
-        _streetsTemplate = container.querySelectorAll<HTMLDivElement>(".event_streets")[0]!;
+        _streetsTemplate = el.eventStreetsContainer.querySelectorAll<HTMLDivElement>(".event_streets")[0]!;
         _streetsEntryTemplate = _streetsTemplate.querySelector("ul")!.querySelector("li");
     }
 
-    container.replaceChildren();
+    el.eventStreetsContainer.replaceChildren();
 
     for (const eventIDStr in streets!) {
         const eventID = ims.parseInt10(eventIDStr);
@@ -91,7 +94,7 @@ function drawStreets(): void {
         eventStreets.id = `event_streets_${eventID.toString()}`;
 
         // Add to container
-        container.append(eventStreets);
+        el.eventStreetsContainer.append(eventStreets);
 
         updateEventStreets(eventID);
     }

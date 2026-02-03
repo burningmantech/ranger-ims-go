@@ -34,9 +34,13 @@ async function initRootPage(): Promise<void> {
         window.history.replaceState(null, "", url_app);
     }
     const result = await ims.commonPageInit();
+
+    const currentYearLink = document.getElementById("current-year-link");
+    const loginButton = document.getElementById("login-button");
+
     if (result.authInfo.authenticated) {
-        document.getElementById("current-year-link")?.focus();
+        currentYearLink?.focus();
     } else {
-        document.getElementById("login-button")?.focus();
+        loginButton?.focus();
     }
 }

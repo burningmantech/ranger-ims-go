@@ -29,6 +29,16 @@ declare global {
 // Initialize UI
 //
 
+const el = {
+    buildInfo: ims.typedElement("build-info", HTMLPreElement),
+    buildInfoP: ims.typedElement("build-info-p", HTMLParagraphElement),
+    buildInfoDiv: ims.typedElement("build-info-div", HTMLDivElement),
+    runtimeMetrics: ims.typedElement("runtime-metrics", HTMLPreElement),
+    runtimeMetricsDiv: ims.typedElement("runtime-metrics-div", HTMLDivElement),
+    gc: ims.typedElement("gc", HTMLPreElement),
+    gcDiv: ims.typedElement("gc-div", HTMLDivElement),
+};
+
 initAdminDebugPage();
 
 async function initAdminDebugPage(): Promise<void> {
@@ -49,18 +59,15 @@ async function fetchBuildInfo(): Promise<void> {
         throw err;
     }
     const buildInfoText = await resp.text();
-    const targetPre = document.getElementById("build-info") as HTMLPreElement
-    targetPre.textContent = buildInfoText;
+    el.buildInfo.textContent = buildInfoText;
 
     const ref = substringBetween(buildInfoText, "build\tvcs.revision=", "\n")
     const dirty = buildInfoText.indexOf("vcs.modified=true") >= 0;
-    const targetP = document.getElementById("build-info-p") as HTMLParagraphElement;
     const link = document.createElement("a");
     link.text = `The server was built at revision ${ref.substring(0,12)} ${dirty ? " (dirty)" : ""}`;
     link.href = `https://github.com/burningmantech/ranger-ims-go/tree/${ref}`;
-    targetP.replaceChildren(link);
-    const targetDiv = document.getElementById("build-info-div") as HTMLParagraphElement;
-    targetDiv.style.display = "";
+    el.buildInfoP.replaceChildren(link);
+    el.buildInfoDiv.style.display = "";
 }
 
 function substringBetween(s: string, start: string, end: string): string {
@@ -81,10 +88,8 @@ async function fetchRuntimeMetrics(): Promise<void> {
     if (err != null || resp == null) {
         throw err;
     }
-    const targetPre = document.getElementById("runtime-metrics") as HTMLPreElement
-    targetPre.textContent = await resp.text();
-    const targetDiv = document.getElementById("runtime-metrics-div") as HTMLParagraphElement;
-    targetDiv.style.display = "";
+    el.runtimeMetrics.textContent = await resp.text();
+    el.runtimeMetricsDiv.style.display = "";
 }
 
 async function performGC(): Promise<void> {
@@ -92,8 +97,6 @@ async function performGC(): Promise<void> {
     if (err != null || resp == null) {
         throw err;
     }
-    const targetPre = document.getElementById("gc") as HTMLPreElement
-    targetPre.textContent = await resp.text();
-    const targetDiv = document.getElementById("gc-div") as HTMLParagraphElement;
-    targetDiv.style.display = "";
+    el.gc.textContent = await resp.text();
+    el.gcDiv.style.display = "";
 }

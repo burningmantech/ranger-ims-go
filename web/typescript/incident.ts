@@ -25,9 +25,6 @@ declare global {
         editIncidentSummary: ()=>Promise<void>;
         editLocationName: ()=>Promise<void>;
         editLocationAddress: ()=>Promise<void>;
-        editLocationAddressRadialHour: ()=>Promise<void>;
-        editLocationAddressRadialMinute: ()=>Promise<void>;
-        editLocationAddressConcentric: ()=>Promise<void>;
         editLocationDescription: ()=>Promise<void>;
         removeRanger: (el: HTMLElement)=>void;
         setRangerRole: (el: HTMLInputElement)=>void;
@@ -58,9 +55,46 @@ let destinations: ims.Destinations = {};
 // Initialize UI
 //
 
-const inputIncidentSummary = ims.typedElement("incident_summary", HTMLInputElement);
-const selectIncidentState = ims.typedElement("incident_state", HTMLSelectElement);
-const textAreaReportEntryAdd = ims.typedElement("report_entry_add", HTMLTextAreaElement);
+const el = {
+    incidentNumber: ims.typedElement("incident_number", HTMLInputElement),
+    incidentSummary: ims.typedElement("incident_summary", HTMLInputElement),
+    incidentState: ims.typedElement("incident_state", HTMLSelectElement),
+    startedDatetime: ims.typedElement("started_datetime", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
+    startedDatetimeTz: ims.typedElement("started_datetime_tz", HTMLSpanElement),
+
+    locationName: ims.typedElement("incident_location_name", HTMLInputElement),
+    locationAddress: ims.typedElement("incident_location_address", HTMLInputElement),
+    locationDescription: ims.typedElement("incident_location_description", HTMLInputElement),
+
+    rangerAdd: ims.typedElement("ranger_add", HTMLInputElement),
+    rangerHandles: ims.typedElement("ranger_handles", HTMLDataListElement),
+    rangersList: ims.typedElement("incident_rangers_list", HTMLElement),
+    rangersLiTemplate: ims.typedElement("incident_rangers_li_template", HTMLTemplateElement),
+
+    incidentTypeAdd: ims.typedElement("incident_type_add", HTMLInputElement),
+    incidentTypes: ims.typedElement("incident_types", HTMLDataListElement),
+    incidentTypesList: ims.typedElement("incident_types_list", HTMLElement),
+    incidentTypesLiTemplate: ims.typedElement("incident_types_li_template", HTMLTemplateElement),
+    incidentTypeInfo: ims.typedElement("incident-type-info", HTMLUListElement),
+    incidentTypeInfoTemplate: ims.typedElement("incident-type-info-template", HTMLTemplateElement),
+    showIncidentTypeInfo: ims.typedElement("show-incident-type-info", HTMLElement),
+
+    destinationsList: ims.typedElement("destinations-list", HTMLDataListElement),
+
+    attachedFieldReportAddContainer: ims.typedElement("attached_field_report_add_container", HTMLDivElement),
+    attachedFieldReportAdd: ims.typedElement("attached_field_report_add", HTMLSelectElement),
+    attachedFieldReports: ims.typedElement("attached_field_reports", HTMLElement),
+
+    linkedIncidents: ims.typedElement("linked_incidents", HTMLElement),
+
+    historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
+    reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
+    reportEntrySubmit: ims.typedElement("report_entry_submit", HTMLElement),
+    attachFile: ims.typedElement("attach_file", HTMLInputElement),
+    attachFileInput: ims.typedElement("attach_file_input", HTMLInputElement),
+
+    helpModal: ims.typedElement("helpModal", HTMLDivElement),
+};
 
 initIncidentPage();
 
@@ -82,9 +116,6 @@ async function initIncidentPage(): Promise<void> {
     window.editIncidentSummary = editIncidentSummary;
     window.editLocationName = editLocationName;
     window.editLocationAddress = editLocationAddress;
-    window.editLocationAddressRadialHour = editLocationAddressRadialHour;
-    window.editLocationAddressRadialMinute = editLocationAddressRadialMinute;
-    window.editLocationAddressConcentric = editLocationAddressConcentric;
     window.editLocationDescription = editLocationDescription;
     window.removeRanger = removeRanger;
     window.setRangerRole = setRangerRole;
@@ -136,12 +167,12 @@ async function initIncidentPage(): Promise<void> {
 
     // for a new incident, jump to summary field
     if (incident!.number == null) {
-        inputIncidentSummary.focus();
+        el.incidentSummary.focus();
     }
 
     // Warn the user if they're about to navigate away with unsaved text.
     window.addEventListener("beforeunload", function (e: BeforeUnloadEvent): void {
-        if (textAreaReportEntryAdd.value !== "") {
+        if (el.reportEntryAdd.value !== "") {
             e.preventDefault();
         }
     });
@@ -200,7 +231,7 @@ async function initIncidentPage(): Promise<void> {
         }
     }
 
-    const helpModal = ims.bsModal(document.getElementById("helpModal")!);
+    const helpModal = ims.bsModal(el.helpModal);
 
     const incidentTypeInfoModal = ims.bsModal(document.getElementById("incidentTypeInfoModal")!);
 
@@ -222,19 +253,19 @@ async function initIncidentPage(): Promise<void> {
         if (e.key === "a") {
             e.preventDefault();
             // Scroll to report_entry_add field
-            textAreaReportEntryAdd.focus();
-            textAreaReportEntryAdd.scrollIntoView(true);
+            el.reportEntryAdd.focus();
+            el.reportEntryAdd.scrollIntoView(true);
         }
         // h --> toggle showing system entries
         if (e.key.toLowerCase() === "h") {
-            (document.getElementById("history_checkbox") as HTMLInputElement).click();
+            el.historyCheckbox.click();
         }
         // n --> new incident
         if (e.key.toLowerCase() === "n") {
             (window.open("./new", '_blank') as Window).focus();
         }
     });
-    (document.getElementById("helpModal") as HTMLDivElement).addEventListener("keydown", function(e: KeyboardEvent): void {
+    el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
             // This is needed to prevent the document's listener for "?" to trigger the modal to
@@ -243,13 +274,13 @@ async function initIncidentPage(): Promise<void> {
             e.stopPropagation();
         }
     });
-    textAreaReportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
-        const submitEnabled = !document.getElementById("report_entry_submit")!.classList.contains("disabled");
+    el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
+        const submitEnabled = !el.reportEntrySubmit.classList.contains("disabled");
         if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
         }
     });
-    document.getElementById("show-incident-type-info")!.addEventListener(
+    el.showIncidentTypeInfo.addEventListener(
         "click",
         function (e: MouseEvent): void {
             e.preventDefault();
@@ -323,7 +354,7 @@ function displayIncident(): void {
     }
 
     if (ims.eventAccess?.attachFiles) {
-        (document.getElementById("attach_file") as HTMLInputElement).classList.remove("hidden");
+        el.attachFile.classList.remove("hidden");
     }
 }
 
@@ -556,7 +587,7 @@ function drawIncidentFields() {
     ims.toggleShowHistory();
     drawMergedReportEntries();
 
-    textAreaReportEntryAdd.addEventListener("input", ims.reportEntryEdited);
+    el.reportEntryAdd.addEventListener("input", ims.reportEntryEdited);
 }
 
 
@@ -592,7 +623,7 @@ function drawIncidentTitle(mode: "for_display"|"for_print_to_pdf"): void {
 
 function drawIncidentNumber(): void {
     const number: number|string = incident!.number??"(new)";
-    (document.getElementById("incident_number") as HTMLInputElement).value = number.toString();
+    el.incidentNumber.value = number.toString();
 }
 
 
@@ -602,7 +633,7 @@ function drawIncidentNumber(): void {
 
 function drawState(): void {
     ims.selectOptionWithValue(
-        selectIncidentState,
+        el.incidentState,
         ims.stateForIncident(incident!)
     );
 }
@@ -619,12 +650,10 @@ function drawStarted(): void {
     }
     const dateNum: number = Date.parse(date);
     const dateDate: Date = new Date(dateNum);
-    const startedElement = document.getElementById("started_datetime") as ims.FlatpickrHTMLInputElement;
-    startedElement._flatpickr.setDate(date, false, "Z");
+    el.startedDatetime._flatpickr.setDate(date, false, "Z");
 
-    const tzInput = document.getElementById("started_datetime_tz") as HTMLSpanElement;
-    tzInput.textContent = ims.localTzShortName(dateDate);
-    tzInput.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}\n\n` +
+    el.startedDatetimeTz.textContent = ims.localTzShortName(dateDate);
+    el.startedDatetimeTz.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}\n\n` +
         `All date and time fields in IMS use your computer's time zone, not necessarily Gerlach time.`;
 }
 
@@ -650,14 +679,14 @@ function drawPriority(): void {
 //
 
 function drawIncidentSummary(): void {
-    inputIncidentSummary.placeholder = "One-line summary of incident";
+    el.incidentSummary.placeholder = "One-line summary of incident";
     if (incident!.summary) {
-        inputIncidentSummary.value = incident!.summary;
-        inputIncidentSummary.placeholder = "";
+        el.incidentSummary.value = incident!.summary;
+        el.incidentSummary.placeholder = "";
         return;
     }
 
-    inputIncidentSummary.value = ims.summarizeIncidentOrFR(incident!);
+    el.incidentSummary.value = ims.summarizeIncidentOrFR(incident!);
 }
 
 
@@ -669,10 +698,7 @@ function drawRangers() {
     const rangers: ims.IncidentRanger[] = incident?.rangers??[];
     rangers.sort((a: ims.IncidentRanger, b: ims.IncidentRanger) => (a.handle??"").localeCompare(b.handle??""));
 
-    const rangerItemTemplate = document.getElementById("incident_rangers_li_template") as HTMLTemplateElement;
-
-    const rangersElement: HTMLElement = document.getElementById("incident_rangers_list")!;
-    rangersElement.querySelectorAll("li").forEach((el: HTMLElement) => {el.remove()});
+    el.rangersList.querySelectorAll("li").forEach((li: HTMLElement) => {li.remove()});
 
     for (const ranger of rangers) {
         if (!ranger.handle) {
@@ -680,7 +706,7 @@ function drawRangers() {
         }
         const handle = ranger.handle;
 
-        const rangerFragment = rangerItemTemplate.content.cloneNode(true) as DocumentFragment;
+        const rangerFragment = el.rangersLiTemplate.content.cloneNode(true) as DocumentFragment;
         const rangerLi = rangerFragment.querySelector("li")!;
         rangerLi.classList.remove("hidden");
         rangerLi.dataset["rangerHandle"] = handle;
@@ -703,22 +729,20 @@ function drawRangers() {
             rangerLi.querySelector("input")!.value = ranger.role;
         }
 
-        rangersElement.append(rangerFragment);
+        el.rangersList.append(rangerFragment);
     }
 }
 
 
 function drawRangersToAdd(): void {
-    const datalist = document.getElementById("ranger_handles") as HTMLDataListElement;
-
     const handles: string[] = [];
     for (const handle in personnel) {
         handles.push(handle);
     }
     handles.sort((a: string, b: string) => a.localeCompare(b));
 
-    datalist.replaceChildren();
-    datalist.append(document.createElement("option"));
+    el.rangerHandles.replaceChildren();
+    el.rangerHandles.append(document.createElement("option"));
 
     if (personnel != null) {
         for (const handle of handles) {
@@ -732,7 +756,7 @@ function drawRangersToAdd(): void {
             option.value = handle;
             option.text = ranger.handle;
 
-            datalist.append(option);
+            el.rangerHandles.append(option);
         }
     }
 }
@@ -743,51 +767,45 @@ function drawRangersToAdd(): void {
 //
 
 function drawIncidentTypes() {
-    const typeItemTemplate = document.getElementById("incident_types_li_template") as HTMLTemplateElement;
-
-    const typesElement: HTMLElement = document.getElementById("incident_types_list")!;
-    typesElement.querySelectorAll("li").forEach((el: HTMLElement) => {el.remove()});
+    el.incidentTypesList.querySelectorAll("li").forEach((li: HTMLElement) => {li.remove()});
 
     for (const validType of allIncidentTypes) {
         if ((incident!.incident_type_ids??[]).includes(validType.id??-1)) {
-            const fragment = typeItemTemplate.content.cloneNode(true) as DocumentFragment;
+            const fragment = el.incidentTypesLiTemplate.content.cloneNode(true) as DocumentFragment;
             const item = fragment.querySelector("li")!;
             item.classList.remove("hidden");
             const typeSpan = document.createElement("span");
             typeSpan.textContent = validType.name??"";
             item.append(typeSpan);
             item.dataset["incidentTypeId"] = (validType.id??-1).toString();
-            typesElement.append(fragment);
+            el.incidentTypesList.append(fragment);
         }
     }
 }
 
 
 function drawIncidentTypesToAdd() {
-    const datalist = document.getElementById("incident_types") as HTMLDataListElement;
-    datalist.replaceChildren();
-    datalist.append(document.createElement("option"));
+    el.incidentTypes.replaceChildren();
+    el.incidentTypes.append(document.createElement("option"));
     for (const incidentType of allIncidentTypes) {
         if (incidentType.hidden || !incidentType.name) {
             continue;
         }
         const option: HTMLOptionElement = document.createElement("option");
         option.value = incidentType.name;
-        datalist.append(option);
+        el.incidentTypes.append(option);
     }
 }
 
 function drawIncidentTypeInfo(): void {
-    const infosUL = document.getElementById("incident-type-info") as HTMLUListElement;
-    const typeInfoTemplate = document.getElementById("incident-type-info-template") as HTMLTemplateElement;
     for (const incidentType of allIncidentTypes) {
         if (incidentType.hidden) {
             continue;
         }
-        const frag = typeInfoTemplate.content.cloneNode(true) as DocumentFragment;
+        const frag = el.incidentTypeInfoTemplate.content.cloneNode(true) as DocumentFragment;
         frag.querySelector(".type-name")!.textContent = incidentType.name??"";
         frag.querySelector(".type-description")!.textContent = incidentType.description??"";
-        infosUL.append(frag);
+        el.incidentTypeInfo.append(frag);
     }
 }
 
@@ -797,9 +815,8 @@ function drawIncidentTypeInfo(): void {
 //
 
 function drawLocationName() {
-    if (incident!.location?.name) {
-        const locName = document.getElementById("incident_location_name") as HTMLInputElement;
-        locName.value = incident!.location.name;
+    if (incident?.location?.name) {
+        el.locationName.value = incident.location.name;
     }
 }
 
@@ -818,9 +835,8 @@ async function loadDestinations(): Promise<void> {
 }
 
 function drawDestinationsList(): void {
-    const datalist = document.getElementById("destinations-list") as HTMLDataListElement;
-    datalist.replaceChildren();
-    datalist.append(document.createElement("option"));
+    el.destinationsList.replaceChildren();
+    el.destinationsList.append(document.createElement("option"));
 
     const newOptions: HTMLOptionElement[] = [];
     for (const d of destinations.art??[]) {
@@ -848,22 +864,20 @@ function drawDestinationsList(): void {
         newOptions.push(option);
     }
     newOptions.sort((a: HTMLOptionElement, b: HTMLOptionElement): number => a.value.localeCompare(b.value));
-    datalist.append(...newOptions);
+    el.destinationsList.append(...newOptions);
 }
 
 function drawLocationAddress() {
-    const locAddr = document.getElementById("incident_location_address") as HTMLInputElement;
     if (!incident || !incident.location) {
-        locAddr.value = "";
+        el.locationAddress.value = "";
         return;
     }
-    locAddr.value = incident.location.address??"";
+    el.locationAddress.value = incident.location.address??"";
 }
 
 function drawLocationDescription() {
     if (incident!.location?.description) {
-        const description = document.getElementById("incident_location_description") as HTMLInputElement;
-        description.value = incident!.location.description;
+        el.locationDescription.value = incident!.location.description;
     }
 }
 
@@ -899,8 +913,7 @@ let _reportsItem: HTMLElement|null = null;
 
 function drawAttachedFieldReports() {
     if (_reportsItem == null) {
-         const elements = document.getElementById("attached_field_reports")!
-            .getElementsByClassName("list-group-item");
+         const elements = el.attachedFieldReports.getElementsByClassName("list-group-item");
         if (elements.length === 0) {
             console.error("found no reportsItem");
             return;
@@ -911,8 +924,7 @@ function drawAttachedFieldReports() {
     const reports = attachedFieldReports??[];
     reports.sort();
 
-    const container = document.getElementById("attached_field_reports")!;
-    container.replaceChildren();
+    el.attachedFieldReports.replaceChildren();
 
     for (const report of reports) {
         const link: HTMLAnchorElement = document.createElement("a");
@@ -924,7 +936,7 @@ function drawAttachedFieldReports() {
         item.append(link);
         item.dataset["frNumber"] = report.number!.toString();
 
-        container.append(item);
+        el.attachedFieldReports.append(item);
     }
 }
 
@@ -932,8 +944,7 @@ let _linkedIncidentsItem: HTMLElement|null = null;
 
 function drawLinkedIncidents(): void {
     if (_linkedIncidentsItem == null) {
-        const elements = document.getElementById("linked_incidents")!
-            .getElementsByClassName("list-group-item");
+        const elements = el.linkedIncidents.getElementsByClassName("list-group-item");
         if (elements.length === 0) {
             console.error("found no linkedIncidents");
             return;
@@ -949,8 +960,7 @@ function drawLinkedIncidents(): void {
         return (a.event_name??"").localeCompare(b.event_name??"");
     });
 
-    const container = document.getElementById("linked_incidents")!;
-    container.replaceChildren();
+    el.linkedIncidents.replaceChildren();
 
     for (const linked of linkedIncidents) {
         const link: HTMLAnchorElement = document.createElement("a");
@@ -973,24 +983,21 @@ function drawLinkedIncidents(): void {
         item.dataset["eventName"] = linked.event_name?.toString();
         item.dataset["incidentNumber"] = linked.number?.toString();
 
-        container.append(item);
+        el.linkedIncidents.append(item);
     }
 }
 
 
 function drawFieldReportsToAttach() {
-    const container = document.getElementById("attached_field_report_add_container") as HTMLDivElement;
-    const select = document.getElementById("attached_field_report_add") as HTMLSelectElement;
-
-    select.replaceChildren();
-    select.append(document.createElement("option"));
+    el.attachedFieldReportAdd.replaceChildren();
+    el.attachedFieldReportAdd.append(document.createElement("option"));
 
     if (!allFieldReports) {
-        container.classList.add("hidden");
+        el.attachedFieldReportAddContainer.classList.add("hidden");
     } else {
         const unattachedGroup: HTMLOptGroupElement = document.createElement("optgroup");
         unattachedGroup.label = "Unattached to any incident";
-        select.append(unattachedGroup);
+        el.attachedFieldReportAdd.append(unattachedGroup);
         for (const report of allFieldReports) {
             // Skip field reports that *are* attached to an incident
             if (report.incident != null) {
@@ -999,11 +1006,11 @@ function drawFieldReportsToAttach() {
             const option: HTMLOptionElement = document.createElement("option");
             option.value = report.number!.toString();
             option.text = ims.fieldReportAsString(report);
-            select.append(option);
+            el.attachedFieldReportAdd.append(option);
         }
         const attachedGroup: HTMLOptGroupElement = document.createElement("optgroup");
         attachedGroup.label = "Attached to another incident";
-        select.append(attachedGroup);
+        el.attachedFieldReportAdd.append(attachedGroup);
         for (const report of allFieldReports) {
             // Skip field reports that *are not* attached to an incident
             if (report.incident == null) {
@@ -1016,11 +1023,11 @@ function drawFieldReportsToAttach() {
             const option: HTMLOptionElement = document.createElement("option");
             option.value = report.number!.toString();
             option.text = ims.fieldReportAsString(report);
-            select.append(option);
+            el.attachedFieldReportAdd.append(option);
         }
-        select.append(document.createElement("optgroup"));
+        el.attachedFieldReportAdd.append(document.createElement("optgroup"));
 
-        container.classList.remove("hidden");
+        el.attachedFieldReportAddContainer.classList.remove("hidden");
     }
 }
 
@@ -1100,7 +1107,7 @@ async function sendEdits(edits: ims.Incident): Promise<{err:string|null}> {
 ims.setSendEdits(sendEdits);
 
 async function editState(): Promise<void> {
-    if (selectIncidentState.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
+    if (el.incidentState.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
         window.alert(
             "Closing out this incident?\n"+
             "Please add an incident type!\n\n" +
@@ -1111,7 +1118,7 @@ async function editState(): Promise<void> {
         );
     }
 
-    await ims.editFromElement(selectIncidentState, "state");
+    await ims.editFromElement(el.incidentState, "state");
 }
 
 async function setStartDatetime(selectedDates: Date[], _dateStr: string, sender: ims.Flatpickr): Promise<void> {
@@ -1128,21 +1135,19 @@ async function setStartDatetime(selectedDates: Date[], _dateStr: string, sender:
 }
 
 async function editIncidentSummary(): Promise<void> {
-    await ims.editFromElement(inputIncidentSummary, "summary");
+    await ims.editFromElement(el.incidentSummary, "summary");
 }
 
 
 async function editLocationName(): Promise<void> {
-    const locNameInput = document.getElementById("incident_location_name") as HTMLInputElement;
-    const destination = document.querySelector(`option[value='${CSS.escape(locNameInput.value)}']`) as HTMLOptionElement|null;
+    const destination = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`) as HTMLOptionElement|null;
     if (destination) {
-        return await setLocationFromDestination(locNameInput, destination);
+        return await setLocationFromDestination(destination);
     }
-    await ims.editFromElement(locNameInput, "location.name");
+    await ims.editFromElement(el.locationName, "location.name");
 }
 
-async function setLocationFromDestination(locNameInput: HTMLInputElement, knownLoc: HTMLOptionElement): Promise<void> {
-    const locAddressInput = document.getElementById("incident_location_address") as HTMLInputElement;
+async function setLocationFromDestination(knownLoc: HTMLOptionElement): Promise<void> {
     const nameSuffix: string = knownLoc.dataset["type"] === "Art" ? ` (${knownLoc.dataset["type"]})` : "";
     const edits: ims.Incident = {
         location: {
@@ -1152,46 +1157,20 @@ async function setLocationFromDestination(locNameInput: HTMLInputElement, knownL
     }
     const {err} = await sendEdits!(edits);
     if (err != null) {
-        ims.controlHasError(locNameInput);
+        ims.controlHasError(el.locationName);
     } else {
-        ims.controlHasSuccess(locNameInput);
-        ims.controlHasSuccess(locAddressInput);
+        ims.controlHasSuccess(el.locationName);
+        ims.controlHasSuccess(el.locationAddress);
     }
 }
 
 async function editLocationAddress(): Promise<void> {
-    const input = document.getElementById("incident_location_address") as HTMLInputElement;
-    await ims.editFromElement(input, "location.address");
+    await ims.editFromElement(el.locationAddress, "location.address");
 }
-
-function transformAddressInteger(value: string): string|null {
-    return ims.parseInt10(value)?.toString()??null;
-}
-
-
-async function editLocationAddressRadialHour(): Promise<void> {
-    const hourInput = document.getElementById("incident_location_address_radial_hour") as HTMLInputElement;
-    await ims.editFromElement(hourInput, "location.radial_hour", transformAddressInteger);
-}
-
-
-async function editLocationAddressRadialMinute(): Promise<void> {
-    const minuteInput = document.getElementById("incident_location_address_radial_minute") as HTMLInputElement;
-    await ims.editFromElement(minuteInput, "location.radial_minute", transformAddressInteger);
-}
-
-
-async function editLocationAddressConcentric(): Promise<void> {
-    const concentricInput = document.getElementById("incident_location_address_concentric") as HTMLSelectElement;
-    await ims.editFromElement(concentricInput, "location.concentric");
-}
-
 
 async function editLocationDescription(): Promise<void> {
-    const descriptionInput = document.getElementById("incident_location_description") as HTMLInputElement;
-    await ims.editFromElement(descriptionInput, "location.description");
+    await ims.editFromElement(el.locationDescription, "location.description");
 }
-
 
 async function removeRanger(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
@@ -1253,8 +1232,7 @@ function normalize(str: string): string {
 }
 
 async function addRanger(): Promise<void> {
-    const addRanger = document.getElementById("ranger_add") as HTMLInputElement;
-    let handle: string = addRanger.value;
+    let handle: string = el.rangerAdd.value;
 
     // make a copy of the rangers
     const rangers = (incident!.rangers??[]).slice();
@@ -1273,19 +1251,19 @@ async function addRanger(): Promise<void> {
     }
     if (!(handle in (personnel??[]))) {
         // Not a valid handle
-        addRanger.value = "";
+        el.rangerAdd.value = "";
         return;
     }
 
     if (handles.indexOf(handle) !== -1) {
         // Already in the list, so… move along.
-        addRanger.value = "";
+        el.rangerAdd.value = "";
         return;
     }
 
     rangers.push({handle: handle});
 
-    addRanger.disabled = true;
+    el.rangerAdd.disabled = true;
 
     const url = (
         ims.urlReplace(url_incidentRanger)
@@ -1298,21 +1276,20 @@ async function addRanger(): Promise<void> {
         }),
     });
     if (err !== null) {
-        ims.controlHasError(addRanger);
-        addRanger.value = "";
-        addRanger.disabled = false;
+        ims.controlHasError(el.rangerAdd);
+        el.rangerAdd.value = "";
+        el.rangerAdd.disabled = false;
         return;
     }
-    addRanger.value = "";
-    addRanger.disabled = false;
-    ims.controlHasSuccess(addRanger);
-    addRanger.focus();
+    el.rangerAdd.value = "";
+    el.rangerAdd.disabled = false;
+    ims.controlHasSuccess(el.rangerAdd);
+    el.rangerAdd.focus();
 }
 
 
 async function addIncidentType(): Promise<void> {
-    const addType = document.getElementById("incident_type_add") as HTMLInputElement;
-    let typeInput = addType.value;
+    let typeInput = el.incidentTypeAdd.value;
 
     // make a copy of the incident types
     const currentIncidentTypes = (incident!.incident_type_ids??[]).slice();
@@ -1330,30 +1307,30 @@ async function addIncidentType(): Promise<void> {
     }
     if (validTypeInputId == null) {
         // Not a valid incident type
-        addType.value = "";
+        el.incidentTypeAdd.value = "";
         return;
     }
 
     if (currentIncidentTypes.indexOf(validTypeInputId) !== -1) {
         // Already in the list, so… move along.
-        addType.value = "";
+        el.incidentTypeAdd.value = "";
         return;
     }
 
     currentIncidentTypes.push(validTypeInputId);
 
-    addType.disabled = true;
+    el.incidentTypeAdd.disabled = true;
     const {err} = await sendEdits({"incident_type_ids": currentIncidentTypes});
     if (err != null) {
-        ims.controlHasError(addType);
-        addType.value = "";
-        addType.disabled = false;
+        ims.controlHasError(el.incidentTypeAdd);
+        el.incidentTypeAdd.value = "";
+        el.incidentTypeAdd.disabled = false;
         return;
     }
-    addType.value = "";
-    addType.disabled = false;
-    ims.controlHasSuccess(addType);
-    addType.focus();
+    el.incidentTypeAdd.value = "";
+    el.incidentTypeAdd.disabled = false;
+    ims.controlHasSuccess(el.incidentTypeAdd);
+    el.incidentTypeAdd.focus();
 }
 
 
@@ -1392,8 +1369,7 @@ async function attachFieldReport(): Promise<void> {
         }
     }
 
-    const select = document.getElementById("attached_field_report_add") as HTMLSelectElement;
-    const fieldReportNumber = select.value;
+    const fieldReportNumber = el.attachedFieldReportAdd.value;
 
     const url = (
         `${ims.urlReplace(url_fieldReports)}/${fieldReportNumber}` +
@@ -1409,13 +1385,13 @@ async function attachFieldReport(): Promise<void> {
         await loadAllFieldReports();
         renderFieldReportData();
         ims.setErrorMessage(message);
-        ims.controlHasError(select);
+        ims.controlHasError(el.attachedFieldReportAdd);
         return;
     }
     await loadAllStays();
     await loadAllFieldReports();
     renderFieldReportData();
-    ims.controlHasSuccess(select);
+    ims.controlHasSuccess(el.attachedFieldReportAdd);
 }
 
 async function unlinkIncident(sender: HTMLElement): Promise<void> {
@@ -1531,10 +1507,9 @@ async function attachFile(): Promise<void> {
             return;
         }
     }
-    const attachFile = document.getElementById("attach_file_input") as HTMLInputElement;
     const formData = new FormData();
 
-    for (const f of attachFile.files??[]) {
+    for (const f of el.attachFileInput.files??[]) {
         // this must match the key sought by the server
         formData.append("imsAttachment", f);
     }
@@ -1550,6 +1525,6 @@ async function attachFile(): Promise<void> {
         return;
     }
     ims.clearErrorMessage();
-    attachFile.value = "";
+    el.attachFileInput.value = "";
     await loadAndDisplayIncident();
 }

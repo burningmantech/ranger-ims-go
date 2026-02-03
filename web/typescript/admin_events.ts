@@ -32,11 +32,20 @@ declare global {
 
 let explainModal: ims.bootstrap.Modal|null = null;
 let editEventModal: ims.bootstrap.Modal|null = null;
-let editEventModalElement = document.getElementById("editEventModal") as HTMLElement;
 
 //
 // Initialize UI
 //
+
+const el = {
+    browserTz: ims.typedElement("browser_tz", HTMLElement),
+    explainModal: ims.typedElement("explainModal", HTMLElement),
+    editEventModal: ims.typedElement("editEventModal", HTMLElement),
+    eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
+    eventAccessTemplate: ims.typedElement("event_access_template", HTMLTemplateElement),
+    eventAccessModeTemplate: ims.typedElement("event_access_mode_template", HTMLTemplateElement),
+    permissionTemplate: ims.typedElement("permission_template", HTMLTemplateElement),
+};
 
 initAdminEventsPage();
 
@@ -55,13 +64,13 @@ async function initAdminEventsPage(): Promise<void> {
     window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
 
-    document.getElementById("browser_tz")!.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     await loadAccessControlList();
     drawAccess();
 
-    explainModal = ims.bsModal(document.getElementById("explainModal")!);
-    editEventModal = ims.bsModal(editEventModalElement);
+    explainModal = ims.bsModal(el.explainModal);
+    editEventModal = ims.bsModal(el.editEventModal);
 
     ims.hideLoadingOverlay();
     ims.enableEditing();
@@ -131,17 +140,14 @@ async function loadAccessControlList() : Promise<{err: string|null}> {
 }
 
 function drawAccess(): void {
-    const container: HTMLElement = document.getElementById("event_access_container")!;
-    container.replaceChildren();
+    el.eventAccessContainer.replaceChildren();
 
     if (accessControlList == null) {
         return;
     }
-    const accessTemplate = document.getElementById("event_access_template") as HTMLTemplateElement;
-    const accessModeTemplate = document.getElementById("event_access_mode_template") as HTMLTemplateElement;
 
     for (const event of sortedEvents) {
-        const eventAccessFrag = accessTemplate.content.cloneNode(true) as DocumentFragment;
+        const eventAccessFrag = el.eventAccessTemplate.content.cloneNode(true) as DocumentFragment;
 
         let eventWithGroupName: string = event.name;
         if (event.is_group) {
@@ -158,14 +164,14 @@ function drawAccess(): void {
 
         const editButton = eventAccessFrag.querySelector(".show-edit-modal") as HTMLButtonElement;
         editButton.addEventListener("click", (_e: MouseEvent): void => {
-            editEventModalElement.querySelector(".modal-title")!.textContent = event.name;
-            editEventModalElement.dataset["eventId"] = event.id.toString();
+            el.editEventModal.querySelector(".modal-title")!.textContent = event.name;
+            el.editEventModal.dataset["eventId"] = event.id.toString();
 
-            const isGroupInput = editEventModalElement.querySelector("#is_group") as HTMLInputElement;
+            const isGroupInput = el.editEventModal.querySelector("#is_group") as HTMLInputElement;
             isGroupInput.disabled = true;
             isGroupInput.value = (event.is_group??false).toString();
 
-            const parentGroupInput = editEventModalElement.querySelector("#edit_parent_group") as HTMLInputElement;
+            const parentGroupInput = el.editEventModal.querySelector("#edit_parent_group") as HTMLInputElement;
 
             // groups can't have parent groups
             parentGroupInput.disabled = event.is_group??false;
@@ -176,7 +182,7 @@ function drawAccess(): void {
         })
 
         for (const mode of allAccessModes) {
-            const eventModeAccessFrag = accessModeTemplate.content.cloneNode(true) as DocumentFragment;
+            const eventModeAccessFrag = el.eventAccessModeTemplate.content.cloneNode(true) as DocumentFragment;
             const eventAccess = eventModeAccessFrag.querySelector("div")!;
             // Add an id to the element for future reference
             eventAccess.id = eventAccessContainerId(event.name, mode);
@@ -185,7 +191,7 @@ function drawAccess(): void {
             eventAccessFrag.append(eventModeAccessFrag);
         }
 
-        container.append(eventAccessFrag);
+        el.eventAccessContainer.append(eventAccessFrag);
 
         for (const mode of allAccessModes) {
             updateEventAccess(event.name, mode);
@@ -231,13 +237,11 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
     entryContainer.replaceChildren();
 
-    const entryTemplate = document.getElementById("permission_template") as HTMLTemplateElement;
-
     let explainMsgs: string[] = [];
     const indent = "    ";
     const accessEntries = (eventACL[mode]??[]).toSorted((a, b) => a.expression.localeCompare(b.expression));
     for (const accessEntry of accessEntries) {
-        const entryItemFrag = entryTemplate.content.cloneNode(true) as DocumentFragment;
+        const entryItemFrag = el.permissionTemplate.content.cloneNode(true) as DocumentFragment;
         const entryItem = entryItemFrag.querySelector("li")!;
 
         entryItem.append(accessEntry.expression);
@@ -301,12 +305,11 @@ function updateEventAccess(event: string, mode: AccessMode): void {
 
     const explainButton = eventAccess.getElementsByClassName("explain_button")[0] as HTMLButtonElement;
     explainButton.addEventListener("click", (_e: MouseEvent): void => {
-        const modal = document.getElementById("explainModal")!;
-        modal.querySelector(".modal-title")!.textContent = `Current ${event} ${mode}`;
+        el.explainModal.querySelector(".modal-title")!.textContent = `Current ${event} ${mode}`;
         if (explainMsgs.length === 0) {
             explainMsgs.push("No permissions");
         }
-        const modalBody = modal.querySelector(".modal-body")!;
+        const modalBody = el.explainModal.querySelector(".modal-body")!;
         modalBody.textContent = explainMsgs.join("\n");
         const eventData = sortedEvents.find(value => {return value.name === event});
         if (eventData && eventData.is_group) {
@@ -553,7 +556,7 @@ async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {
 }
 
 async function setParentGroup(sender: HTMLInputElement): Promise<void> {
-    const eventId = ims.parseInt10(editEventModalElement.dataset["eventId"])!;
+    const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"])!;
 
     const requestBod: ims.EventData = {
         id: eventId,

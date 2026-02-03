@@ -67,12 +67,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/static/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
-			// Cache IMS's internal JS and CSS for a shorter duration than external JS/CSS
-			// and logos, since we want updates to these files to get sent out to users
-			// somewhat soon after deployment to production. If we don't do some custom
-			// overriding here, then Cloudflare sets a 4-hour Cache-Control header.
-			CacheControl(cfg.Core.CacheControlShort),
-			CdnCacheControlOff(),
+			CacheControl(cfg.Core.CacheControlLong),
 		),
 	)
 	mux.Handle("GET /ims/app",
@@ -212,6 +207,12 @@ func CacheControl(maxAge time.Duration) Adapter {
 	}
 }
 
+// CdnCacheControlOff prevents Cloudflare from caching a resource. An agent can still cache
+// the file locally based on Cache-Control. This setting just stops Cloudflare from doing
+// its additional level of caching.
+//
+// Prior to 2026-02, we used this Adapter on every handler serving IMS JavaScript files. Now
+// that we append "?v=${gitRef}" to all requests for JS files, that should be unnecessary.
 func CdnCacheControlOff() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

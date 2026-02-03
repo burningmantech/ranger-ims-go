@@ -244,7 +244,7 @@ func incidentToJSON(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inciden
 		}
 	}
 
-	incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedRow)
+	incidentTypeIDs, fieldReportNumbers, stayNumbers, err := readExtraIncidentRowFields(storedRow)
 	if err != nil {
 		return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -276,6 +276,7 @@ func incidentToJSON(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inciden
 		},
 		IncidentTypeIDs: &incidentTypeIDs,
 		FieldReports:    &fieldReportNumbers,
+		Stays:           &stayNumbers,
 		Rangers:         &rangersJson,
 		ReportEntries:   resultEntries,
 		LinkedIncidents: &linkedIncidentJson,
@@ -423,16 +424,20 @@ func unmarshalByteSlice[T any](isByteSlice any) (T, error) {
 	return result, nil
 }
 
-func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeIDs, fieldReportNumbers []int32, err error) {
+func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeIDs, fieldReportNumbers, stayNumbers []int32, err error) {
 	incidentTypeIDs, err = unmarshalByteSlice[[]int32](row.IncidentTypeIds)
 	if err != nil {
-		return nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
 	fieldReportNumbers, err = unmarshalByteSlice[[]int32](row.FieldReportNumbers)
 	if err != nil {
-		return nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
-	return incidentTypeIDs, fieldReportNumbers, nil
+	stayNumbers, err = unmarshalByteSlice[[]int32](row.StayNumbers)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
+	}
+	return incidentTypeIDs, fieldReportNumbers, stayNumbers, nil
 }
 
 func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
@@ -474,7 +479,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to fetch linked incidents", err)
 	}
 
-	incidentTypeIDs, fieldReportNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
+	incidentTypeIDs, fieldReportNumbers, stayNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	if err != nil {
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -631,6 +636,44 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 				)
 				if err != nil {
 					return herr.InternalServerError("Failed to detach Field Report", err).From("[AttachFieldReportToIncident]")
+				}
+			}
+		}
+	}
+	var updatedStays []int32
+	if newIncident.Stays != nil {
+		add := sliceSubtract(*newIncident.Stays, stayNumbers)
+		sub := sliceSubtract(stayNumbers, *newIncident.Stays)
+		updatedStays = append(updatedStays, add...)
+		updatedStays = append(updatedStays, sub...)
+
+		if len(add) > 0 {
+			logs = append(logs, fmt.Sprintf("Stay added: %v", add))
+			for _, stayNum := range add {
+				err = imsDBQ.AttachStayToIncident(ctx, txn,
+					imsdb.AttachStayToIncidentParams{
+						Event:          newIncident.EventID,
+						Number:         stayNum,
+						IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
+					},
+				)
+				if err != nil {
+					return herr.InternalServerError("Failed to attach Stay", err).From("[AttachStayToIncidentParams]")
+				}
+			}
+		}
+		if len(sub) > 0 {
+			logs = append(logs, fmt.Sprintf("Stay removed: %v", sub))
+			for _, stayNum := range sub {
+				err = imsDBQ.AttachStayToIncident(ctx, txn,
+					imsdb.AttachStayToIncidentParams{
+						Event:          newIncident.EventID,
+						Number:         stayNum,
+						IncidentNumber: sql.NullInt32{},
+					},
+				)
+				if err != nil {
+					return herr.InternalServerError("Failed to detach Stay", err).From("[AttachStayToIncident]")
 				}
 			}
 		}

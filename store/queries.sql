@@ -106,7 +106,13 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
           and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS
+    ) as FIELD_REPORT_NUMBERS,
+    (
+        select coalesce(json_arrayagg(stay.NUMBER), "[]")
+        from STAY stay
+        where i.EVENT = stay.EVENT
+          and i.NUMBER = stay.INCIDENT_NUMBER
+    ) as STAY_NUMBERS
 from INCIDENT i
 where i.EVENT = ?
     and i.NUMBER = ?;
@@ -125,7 +131,13 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
             and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS
+    ) as FIELD_REPORT_NUMBERS,
+    (
+        select coalesce(json_arrayagg(stay.NUMBER), "[]")
+        from STAY stay
+        where i.EVENT = stay.EVENT
+          and i.NUMBER = stay.INCIDENT_NUMBER
+    ) as STAY_NUMBERS
 from
     INCIDENT i
 where
@@ -309,6 +321,12 @@ insert into STAY__REPORT_ENTRY (
 ) values (
     ?, ?, ?
 );
+
+-- name: AttachStayToIncident :exec
+update STAY
+set INCIDENT_NUMBER = ?
+where EVENT = ? and NUMBER = ?
+;
 
 --
 -- The "stricken" queries seem bloated at first blush, because the whole

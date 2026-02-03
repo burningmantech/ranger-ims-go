@@ -274,6 +274,23 @@ func (q *Queries) AttachReportEntryToStay(ctx context.Context, db DBTX, arg Atta
 	return err
 }
 
+const attachStayToIncident = `-- name: AttachStayToIncident :exec
+update STAY
+set INCIDENT_NUMBER = ?
+where EVENT = ? and NUMBER = ?
+`
+
+type AttachStayToIncidentParams struct {
+	IncidentNumber sql.NullInt32
+	Event          int32
+	Number         int32
+}
+
+func (q *Queries) AttachStayToIncident(ctx context.Context, db DBTX, arg AttachStayToIncidentParams) error {
+	_, err := db.ExecContext(ctx, attachStayToIncident, arg.IncidentNumber, arg.Event, arg.Number)
+	return err
+}
+
 const clearEventAccessForExpression = `-- name: ClearEventAccessForExpression :exec
 delete from EVENT_ACCESS
 where EVENT = ? and EXPRESSION = ?
@@ -997,7 +1014,13 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
           and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS
+    ) as FIELD_REPORT_NUMBERS,
+    (
+        select coalesce(json_arrayagg(stay.NUMBER), "[]")
+        from STAY stay
+        where i.EVENT = stay.EVENT
+          and i.NUMBER = stay.INCIDENT_NUMBER
+    ) as STAY_NUMBERS
 from INCIDENT i
 where i.EVENT = ?
     and i.NUMBER = ?
@@ -1012,6 +1035,7 @@ type IncidentRow struct {
 	Incident           Incident
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
+	StayNumbers        interface{}
 }
 
 func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error) {
@@ -1034,6 +1058,7 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.LocationDescription,
 		&i.IncidentTypeIds,
 		&i.FieldReportNumbers,
+		&i.StayNumbers,
 	)
 	return i, err
 }
@@ -1274,7 +1299,13 @@ select
         from FIELD_REPORT irep
         where i.EVENT = irep.EVENT
             and i.NUMBER = irep.INCIDENT_NUMBER
-    ) as FIELD_REPORT_NUMBERS
+    ) as FIELD_REPORT_NUMBERS,
+    (
+        select coalesce(json_arrayagg(stay.NUMBER), "[]")
+        from STAY stay
+        where i.EVENT = stay.EVENT
+          and i.NUMBER = stay.INCIDENT_NUMBER
+    ) as STAY_NUMBERS
 from
     INCIDENT i
 where
@@ -1287,6 +1318,7 @@ type IncidentsRow struct {
 	Incident           Incident
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
+	StayNumbers        interface{}
 }
 
 func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error) {
@@ -1315,6 +1347,7 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.LocationDescription,
 			&i.IncidentTypeIds,
 			&i.FieldReportNumbers,
+			&i.StayNumbers,
 		); err != nil {
 			return nil, err
 		}

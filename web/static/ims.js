@@ -576,12 +576,21 @@ export function stayAsString(s) {
     return `Stay #${s.number} (${s.guest_preferred_name})`;
 }
 // Return all user-entered report text for a given incident as a single string.
-export function reportTextFromIncident(incidentOrFR, eventFieldReports) {
+export function reportTextFromIncident(incidentFROrStay, eventFieldReports, eventStays) {
     const texts = [];
-    if (incidentOrFR.summary != null) {
-        texts.push(incidentOrFR.summary);
+    if ("summary" in incidentFROrStay) {
+        texts.push(incidentFROrStay.summary || "");
     }
-    for (const reportEntry of incidentOrFR.report_entries ?? []) {
+    if ("guest_preferred_name" in incidentFROrStay) {
+        texts.push(incidentFROrStay.guest_preferred_name || "");
+    }
+    if ("guest_legal_name" in incidentFROrStay) {
+        texts.push(incidentFROrStay.guest_legal_name || "");
+    }
+    if ("guest_description" in incidentFROrStay) {
+        texts.push(incidentFROrStay.guest_description || "");
+    }
+    for (const reportEntry of incidentFROrStay.report_entries ?? []) {
         // Skip system entries
         if (reportEntry.system_entry) {
             continue;
@@ -591,10 +600,18 @@ export function reportTextFromIncident(incidentOrFR, eventFieldReports) {
         }
     }
     // Incidents page loads all field reports for the event
-    if (eventFieldReports != null && "field_reports" in incidentOrFR) {
-        for (const reportNumber of incidentOrFR.field_reports ?? []) {
+    if (eventFieldReports != null && "field_reports" in incidentFROrStay) {
+        for (const reportNumber of incidentFROrStay.field_reports ?? []) {
             const report = eventFieldReports[reportNumber];
             const reportText = reportTextFromIncident(report);
+            texts.push(reportText);
+        }
+    }
+    // Incidents page also loads all stays for the event
+    if (eventStays != null && "stays" in incidentFROrStay) {
+        for (const stayNumber of incidentFROrStay.stays ?? []) {
+            const stay = eventStays[stayNumber];
+            const reportText = reportTextFromIncident(stay);
             texts.push(reportText);
         }
     }

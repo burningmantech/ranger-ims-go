@@ -225,7 +225,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	// check it attached
+	// check it detached
 	fieldReportAfterDetach, resp = apisAlice.getFieldReport(ctx, eventName, num)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

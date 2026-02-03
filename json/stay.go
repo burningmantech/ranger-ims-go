@@ -21,12 +21,12 @@ import "time"
 type Stays []Stay
 
 type Stay struct {
-	Event          string    `json:"event"`
-	EventID        int32     `json:"event_id"`
-	Number         int32     `json:"number"`
-	Created        time.Time `json:"created,omitzero"`
-	LastModified   time.Time `json:"last_modified,omitzero"`
-	IncidentNumber *int32    `json:"incident,omitzero"`
+	Event        string    `json:"event"`
+	EventID      int32     `json:"event_id"`
+	Number       int32     `json:"number"`
+	Created      time.Time `json:"created,omitzero"`
+	LastModified time.Time `json:"last_modified,omitzero"`
+	Incident     *int32    `json:"incident,omitzero"`
 
 	GuestPreferredName   *string `json:"guest_preferred_name,omitzero"`
 	GuestLegalName       *string `json:"guest_legal_name,omitzero"`

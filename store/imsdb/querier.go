@@ -19,6 +19,7 @@ type Querier interface {
 	AttachReportEntryToFieldReport(ctx context.Context, db DBTX, arg AttachReportEntryToFieldReportParams) error
 	AttachReportEntryToIncident(ctx context.Context, db DBTX, arg AttachReportEntryToIncidentParams) error
 	AttachReportEntryToStay(ctx context.Context, db DBTX, arg AttachReportEntryToStayParams) error
+	AttachStayToIncident(ctx context.Context, db DBTX, arg AttachStayToIncidentParams) error
 	ClearEventAccessForExpression(ctx context.Context, db DBTX, arg ClearEventAccessForExpressionParams) error
 	ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error
 	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)

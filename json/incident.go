@@ -54,6 +54,7 @@ type Incident struct {
 	Location        Location          `json:"location"`
 	IncidentTypeIDs *[]int32          `json:"incident_type_ids"`
 	FieldReports    *[]int32          `json:"field_reports"`
+	Stays           *[]int32          `json:"stays"`
 	Rangers         *[]IncidentRanger `json:"rangers"`
 	LinkedIncidents *[]LinkedIncident `json:"linked_incidents,omitzero"`
 	ReportEntries   []ReportEntry     `json:"report_entries"`

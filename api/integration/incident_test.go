@@ -42,6 +42,7 @@ func sampleIncident1(eventName string) imsjson.Incident {
 		},
 		IncidentTypeIDs: &[]int32{1, 2},
 		FieldReports:    &[]int32{},
+		Stays:           &[]int32{},
 		Rangers:         &[]imsjson.IncidentRanger{{Handle: "SomeOne"}, {Handle: "SomeTwo"}},
 		ReportEntries: []imsjson.ReportEntry{
 			{Text: "This is some report text lol"},
@@ -277,6 +278,7 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		Location:        imsjson.Location{},
 		IncidentTypeIDs: &[]int32{},
 		FieldReports:    &[]int32{},
+		Stays:           &[]int32{},
 		Rangers:         &[]imsjson.IncidentRanger{},
 		LinkedIncidents: &[]imsjson.LinkedIncident{},
 	}

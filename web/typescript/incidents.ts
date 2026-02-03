@@ -166,13 +166,14 @@ async function initIncidentsPage(): Promise<void> {
 
 
 //
-// Load event field reports
+// Load event field reports and stays
 //
 // Note that nothing from these data is displayed in the incidents table.
 // We do this fetch in order to make incidents searchable by text in their
 // attached field reports.
 
 let eventFieldReports: ims.FieldReportsByNumber|undefined = undefined;
+let eventStays: ims.StaysByNumber|undefined = undefined;
 
 async function loadEventFieldReports(): Promise<{err: string|null}> {
     const {json, err} = await ims.fetchNoThrow<ims.FieldReport[]>(
@@ -193,6 +194,28 @@ async function loadEventFieldReports(): Promise<{err: string|null}> {
     eventFieldReports = reports;
 
     console.log("Loaded event field reports");
+    return {err: null};
+}
+
+async function loadEventStays(): Promise<{err: string|null}> {
+    const {json, err} = await ims.fetchNoThrow<ims.Stay[]>(
+        ims.urlReplace(url_stays + "?exclude_system_entries=true"), null,
+    );
+    if (err != null) {
+        const message = `Failed to load event stays: ${err}`;
+        console.error(message);
+        ims.setErrorMessage(message);
+        return {err: message};
+    }
+    const stays: ims.StaysByNumber = {};
+
+    for (const stay of json!) {
+        stays[stay.number!] = stay;
+    }
+
+    eventStays = stays;
+
+    console.log("Loaded event stays");
     return {err: null};
 }
 
@@ -332,6 +355,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 await Promise.all([
                     tablePrereqs,
                     loadEventFieldReports(),
+                    loadEventStays(),
                     ims.fetchNoThrow<ims.Incident[]>(
                         ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null,
                     ).then(res => {
@@ -469,7 +493,7 @@ function renderSummary(_data: string|null, type: string, incident: ims.Incident)
         case "sort":
             return ims.summarizeIncidentOrFR(incident);
         case "filter":
-            return ims.reportTextFromIncident(incident, eventFieldReports);
+            return ims.reportTextFromIncident(incident, eventFieldReports, eventStays);
         case "type":
             return "";
     }

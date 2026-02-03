@@ -342,7 +342,7 @@ async function editParentIncident() {
         }
         return ims.parseInt10(value);
     };
-    await ims.editFromElement(el.parentIncident, "incident_number", transform);
+    await ims.editFromElement(el.parentIncident, "incident", transform);
 }
 async function editGuestPreferredName() {
     await ims.editFromElement(el.guestPreferredName, "guest_preferred_name");

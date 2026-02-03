@@ -20,6 +20,9 @@ import * as ims from "./ims.js";
 //
 // Initialize UI
 //
+const el = {
+    eventStreetsContainer: ims.typedElement("event_streets_container", HTMLElement),
+};
 initAdminStreetsPage();
 async function initAdminStreetsPage() {
     const initResult = await ims.commonPageInit();
@@ -52,12 +55,11 @@ async function loadStreets() {
 let _streetsTemplate = null;
 let _streetsEntryTemplate = null;
 function drawStreets() {
-    const container = document.getElementById("event_streets_container");
     if (_streetsTemplate == null) {
-        _streetsTemplate = container.querySelectorAll(".event_streets")[0];
+        _streetsTemplate = el.eventStreetsContainer.querySelectorAll(".event_streets")[0];
         _streetsEntryTemplate = _streetsTemplate.querySelector("ul").querySelector("li");
     }
-    container.replaceChildren();
+    el.eventStreetsContainer.replaceChildren();
     for (const eventIDStr in streets) {
         const eventID = ims.parseInt10(eventIDStr);
         if (eventID == null) {
@@ -68,7 +70,7 @@ function drawStreets() {
         // Add an id to the element for future reference
         eventStreets.id = `event_streets_${eventID.toString()}`;
         // Add to container
-        container.append(eventStreets);
+        el.eventStreetsContainer.append(eventStreets);
         updateEventStreets(eventID);
     }
 }

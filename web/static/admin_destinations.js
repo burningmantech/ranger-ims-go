@@ -20,6 +20,16 @@ import * as ims from "./ims.js";
 //
 // Initialize UI
 //
+const el = {
+    destinationForm: ims.typedElement("destination-form", HTMLFormElement),
+    eventName: ims.typedElement("event-name", HTMLInputElement),
+    artData: ims.typedElement("art-data", HTMLTextAreaElement),
+    campData: ims.typedElement("camp-data", HTMLTextAreaElement),
+    otherData: ims.typedElement("other-data", HTMLTextAreaElement),
+    artDataLabel: ims.typedElement("art-data-label", HTMLLabelElement),
+    campDataLabel: ims.typedElement("camp-data-label", HTMLLabelElement),
+    otherDataLabel: ims.typedElement("other-data-label", HTMLLabelElement),
+};
 initAdminDestinationsPage();
 async function initAdminDestinationsPage() {
     const initResult = await ims.commonPageInit();
@@ -28,8 +38,7 @@ async function initAdminDestinationsPage() {
         return;
     }
     window.loadDestinations = loadDestinations;
-    const form = document.getElementById("destination-form");
-    form.addEventListener("submit", async (e) => {
+    el.destinationForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         await submit();
     });
@@ -74,19 +83,16 @@ function parseDestinations(artDataEl, campDataEl, otherDataEl) {
 }
 async function submit() {
     ims.clearErrorMessage();
-    const artDataEl = document.getElementById("art-data");
-    const campDataEl = document.getElementById("camp-data");
-    const otherDataEl = document.getElementById("other-data");
     let destinations = null;
     try {
-        destinations = parseDestinations(artDataEl, campDataEl, otherDataEl);
+        destinations = parseDestinations(el.artData, el.campData, el.otherData);
     }
     catch (e) {
         console.log(e);
         ims.setErrorMessage(e);
         return;
     }
-    const eventName = document.getElementById("event-name").value;
+    const eventName = el.eventName.value;
     const { err } = await ims.fetchNoThrow(url_destinations.replace("<event_id>", eventName), {
         body: JSON.stringify(destinations),
     });
@@ -94,18 +100,18 @@ async function submit() {
         const message = `Failed to create destination: ${err}`;
         console.log(message);
         ims.setErrorMessage(message);
-        ims.controlHasError(artDataEl);
-        ims.controlHasError(campDataEl);
-        ims.controlHasError(otherDataEl);
+        ims.controlHasError(el.artData);
+        ims.controlHasError(el.campData);
+        ims.controlHasError(el.otherData);
         return;
     }
-    ims.controlHasSuccess(artDataEl);
-    ims.controlHasSuccess(campDataEl);
-    ims.controlHasSuccess(otherDataEl);
+    ims.controlHasSuccess(el.artData);
+    ims.controlHasSuccess(el.campData);
+    ims.controlHasSuccess(el.otherData);
 }
 async function loadDestinations() {
     ims.clearErrorMessage();
-    const eventName = document.getElementById("event-name").value;
+    const eventName = el.eventName.value;
     const { json, err } = await ims.fetchNoThrow(url_destinations.replace("<event_id>", eventName), {
         headers: { "Cache-Control": "no-cache" },
     });
@@ -120,23 +126,23 @@ async function loadDestinations() {
         for (const ed of json.art ?? []) {
             arts.push(ed.external_data);
         }
-        document.getElementById("art-data").value = JSON.stringify(arts, null, 2);
-        document.getElementById("art-data-label").textContent = `JSON Data (${arts.length})`;
+        el.artData.value = JSON.stringify(arts, null, 2);
+        el.artDataLabel.textContent = `JSON Data (${arts.length})`;
     }
     {
         const camps = [];
         for (const ed of json.camp ?? []) {
             camps.push(ed.external_data);
         }
-        document.getElementById("camp-data").value = JSON.stringify(camps, null, 2);
-        document.getElementById("camp-data-label").textContent = `JSON Data (${camps.length})`;
+        el.campData.value = JSON.stringify(camps, null, 2);
+        el.campDataLabel.textContent = `JSON Data (${camps.length})`;
     }
     {
         const others = [];
         for (const ed of json.other ?? []) {
             others.push(ed.external_data);
         }
-        document.getElementById("other-data").value = JSON.stringify(others, null, 2);
-        document.getElementById("other-data-label").textContent = `JSON Data (${others.length})`;
+        el.otherData.value = JSON.stringify(others, null, 2);
+        el.otherDataLabel.textContent = `JSON Data (${others.length})`;
     }
 }

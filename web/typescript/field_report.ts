@@ -36,6 +36,22 @@ let fieldReport: ims.FieldReport|null = null;
 // Initialize UI
 //
 
+const el = {
+    fieldReportNumber: ims.typedElement("field_report_number", HTMLInputElement),
+    fieldReportSummary: ims.typedElement("field_report_summary", HTMLInputElement),
+    incidentNumber: ims.typedElement("incident_number", HTMLInputElement),
+    incidentNumberLink: ims.typedElement("incident_number_link", HTMLAnchorElement),
+    createIncident: ims.typedElement("create_incident", HTMLElement),
+
+    historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
+    reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
+    reportEntrySubmit: ims.typedElement("report_entry_submit", HTMLElement),
+    attachFile: ims.typedElement("attach_file", HTMLInputElement),
+    attachFileInput: ims.typedElement("attach_file_input", HTMLInputElement),
+
+    helpModal: ims.typedElement("helpModal", HTMLDivElement),
+};
+
 initFieldReportPage();
 
 async function initFieldReportPage(): Promise<void> {
@@ -75,12 +91,12 @@ async function initFieldReportPage(): Promise<void> {
         if (!ims.eventAccess?.readIncidents && !ims.eventAccess?.writeIncidents) {
             document.getElementById("fr-instructions")!.click();
         }
-        document.getElementById("field_report_summary")!.focus();
+        el.fieldReportSummary.focus();
     }
 
     // Warn the user if they're about to navigate away with unsaved text.
     window.addEventListener("beforeunload", function (e: BeforeUnloadEvent): void {
-        if ((document.getElementById("report_entry_add") as HTMLTextAreaElement).value !== "") {
+        if (el.reportEntryAdd.value !== "") {
             e.preventDefault();
         }
     });
@@ -98,7 +114,7 @@ async function initFieldReportPage(): Promise<void> {
         }
     };
 
-    const helpModal = ims.bsModal(document.getElementById("helpModal")!);
+    const helpModal = ims.bsModal(el.helpModal);
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -119,19 +135,19 @@ async function initFieldReportPage(): Promise<void> {
         if (e.key === "a") {
             e.preventDefault();
             // Scroll to report_entry_add field
-            document.getElementById("report_entry_add")!.focus();
-            document.getElementById("report_entry_add")!.scrollIntoView(true);
+            el.reportEntryAdd.focus();
+            el.reportEntryAdd.scrollIntoView(true);
         }
         // h --> toggle showing system entries
         if (e.key.toLowerCase() === "h") {
-            (document.getElementById("history_checkbox") as HTMLInputElement).click();
+            el.historyCheckbox.click();
         }
         // n --> new field report
         if (e.key.toLowerCase() === "n") {
             (window.open("./new", '_blank') as Window).focus();
         }
     });
-    (document.getElementById("helpModal") as HTMLDivElement).addEventListener("keydown", function(e: KeyboardEvent): void {
+    el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
             // This is needed to prevent the document's listener for "?" to trigger the modal to
@@ -140,8 +156,8 @@ async function initFieldReportPage(): Promise<void> {
             e.stopPropagation();
         }
     });
-    document.getElementById("report_entry_add")!.addEventListener("keydown", function (e: KeyboardEvent): void {
-        const submitEnabled = !document.getElementById("report_entry_submit")!.classList.contains("disabled");
+    el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
+        const submitEnabled = !el.reportEntrySubmit.classList.contains("disabled");
         if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
         }
@@ -200,7 +216,7 @@ async function loadAndDisplayFieldReport(): Promise<void> {
     ims.drawReportEntries(fieldReport.report_entries??[]);
     ims.clearErrorMessage();
 
-    document.getElementById("report_entry_add")!.addEventListener("input", ims.reportEntryEdited);
+    el.reportEntryAdd.addEventListener("input", ims.reportEntryEdited);
 
     if (ims.eventAccess?.writeFieldReports) {
         ims.enableEditing();
@@ -209,7 +225,7 @@ async function loadAndDisplayFieldReport(): Promise<void> {
     }
 
     if (ims.eventAccess?.attachFiles) {
-        (document.getElementById("attach_file") as HTMLInputElement).classList.remove("hidden");
+        el.attachFile.classList.remove("hidden");
     }
 }
 
@@ -267,7 +283,7 @@ function drawTitle(): void {
 
 function drawNumber(): void {
     const number: number|string = fieldReport!.number??"(new)";
-    (document.getElementById("field_report_number") as HTMLInputElement).value = number.toString();
+    el.fieldReportNumber.value = number.toString();
 }
 
 //
@@ -275,32 +291,30 @@ function drawNumber(): void {
 //
 
 function drawIncident(): void {
-    const incNum = document.getElementById("incident_number")! as HTMLInputElement;
-    incNum.value = "";
-    const incNumLink = document.getElementById("incident_number_link") as HTMLAnchorElement;
+    el.incidentNumber.value = "";
     // New Field Report. There can be no Incident
     if (fieldReport!.number == null) {
-        incNum.placeholder = "(none)";
+        el.incidentNumber.placeholder = "(none)";
         return;
     }
     // If there's an attached Incident, then show a link to it
     const incident = fieldReport!.incident;
     if (incident != null) {
         const incidentURL = ims.urlReplace(url_viewIncidentNumber).replace("<number>", incident.toString());
-        incNum.value = incident.toString();
-        incNumLink.href = incidentURL;
+        el.incidentNumber.value = incident.toString();
+        el.incidentNumberLink.href = incidentURL;
     }
-    incNum.placeholder = "(none)";
+    el.incidentNumber.placeholder = "(none)";
     // If there's no attached Incident, show a button for making
     // a new Incident
     if (incident == null && ims.eventAccess?.writeIncidents) {
-        document.getElementById("create_incident")!.classList.remove("hidden");
+        el.createIncident.classList.remove("hidden");
     } else {
-        document.getElementById("create_incident")!.classList.add("hidden");
+        el.createIncident.classList.add("hidden");
     }
     if (ims.eventAccess?.writeIncidents) {
-        incNum.readOnly = false;
-        incNum.classList.remove("form-control-static");
+        el.incidentNumber.readOnly = false;
+        el.incidentNumber.classList.remove("form-control-static");
     }
 }
 
@@ -310,15 +324,14 @@ function drawIncident(): void {
 //
 
 function drawSummary(): void {
-    const summaryInput = document.getElementById("field_report_summary") as HTMLInputElement;
-    summaryInput.placeholder = "One-line summary. **Pretty-please include an IMS# here**";
+    el.fieldReportSummary.placeholder = "One-line summary. **Pretty-please include an IMS# here**";
     if (fieldReport!.summary) {
-        summaryInput.value = fieldReport!.summary;
-        summaryInput.placeholder = "";
+        el.fieldReportSummary.value = fieldReport!.summary;
+        el.fieldReportSummary.placeholder = "";
         return;
     }
 
-    summaryInput.value = ims.summarizeIncidentOrFR(fieldReport!);
+    el.fieldReportSummary.value = ims.summarizeIncidentOrFR(fieldReport!);
 }
 
 
@@ -389,8 +402,7 @@ async function frSendEdits(edits: ims.FieldReport): Promise<{err:string|null}> {
 ims.setSendEdits(frSendEdits);
 
 async function editSummary(): Promise<void> {
-    const summaryInput = document.getElementById("field_report_summary") as HTMLInputElement;
-    await ims.editFromElement(summaryInput, "summary");
+    await ims.editFromElement(el.fieldReportSummary, "summary");
 }
 
 //
@@ -461,10 +473,9 @@ async function attachFile(): Promise<void> {
             return;
         }
     }
-    const attachFile = document.getElementById("attach_file_input") as HTMLInputElement;
     const formData = new FormData();
 
-    for (const f of attachFile.files??[]) {
+    for (const f of el.attachFileInput.files??[]) {
         // this must match the key sought by the server
         formData.append("imsAttachment", f);
     }
@@ -480,6 +491,6 @@ async function attachFile(): Promise<void> {
         return;
     }
     ims.clearErrorMessage();
-    attachFile.value = "";
+    el.attachFileInput.value = "";
     await loadAndDisplayFieldReport();
 }

@@ -36,6 +36,14 @@ const destDefaultRows = "25";
 // Initialize UI
 //
 
+const el = {
+    searchInput: ims.typedElement("search_input", HTMLInputElement),
+    showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
+    destinationInfoModal: ims.typedElement("destinationInfoModal", HTMLElement),
+    destinationInfoModalLabel: ims.typedElement("destinationInfoModalLabel", HTMLParagraphElement),
+    destinationBody: ims.typedElement("destinationBody", HTMLElement),
+};
+
 initDestinationsPage();
 
 
@@ -73,7 +81,7 @@ async function initDestinationsPage(): Promise<void> {
         if (e.key === "/") {
             // don't immediately input a "/" into the search box
             e.preventDefault();
-            document.getElementById("search_input")!.focus();
+            el.searchInput.focus();
         }
     });
 }
@@ -98,7 +106,7 @@ declare let DataTable: any;
 //
 
 function destInitDataTables() {
-    const destinationInfoModal = ims.bsModal(document.getElementById("destinationInfoModal")!);
+    const destinationInfoModal = ims.bsModal(el.destinationInfoModal);
 
     DataTable.ext.errMode = "none";
     destinationsTable = new DataTable("#destinations_table", {
@@ -188,8 +196,8 @@ function destInitDataTables() {
 
         "createdRow": function (row: HTMLElement, destination: ims.Destination, _index: number) {
             const openLink = function(_e: MouseEvent): void {
-                (document.getElementById("destinationInfoModalLabel") as HTMLParagraphElement).textContent = destination.name??"(unnamed destination)";
-                document.getElementById("destinationBody")!.replaceChildren(destinationToHTML(destination));
+                el.destinationInfoModalLabel.textContent = destination.name??"(unnamed destination)";
+                el.destinationBody.replaceChildren(destinationToHTML(destination));
                 destinationInfoModal.toggle();
             }
             row.addEventListener("click", openLink);
@@ -338,11 +346,9 @@ function destInitTableButtons() {
 
 function destInitSearchField(): void {
     // Search field handling
-    const searchInput = document.getElementById("search_input") as HTMLInputElement;
-
     function searchAndDraw(): void {
         destReplaceWindowState();
-        let q = searchInput.value;
+        let q = el.searchInput.value;
         let isRegex = false;
         let smartSearch = true;
         if (q.startsWith("/") && q.endsWith("/")) {
@@ -357,11 +363,11 @@ function destInitSearchField(): void {
     const fragmentParams: URLSearchParams = ims.windowFragmentParams();
     const queryString: string|null = fragmentParams.get("q");
     if (queryString) {
-        searchInput.value = queryString;
+        el.searchInput.value = queryString;
         searchAndDraw();
     }
 
-    searchInput.addEventListener("input",
+    el.searchInput.addEventListener("input",
         function (_: Event): void {
             // Delay the search in case the user is still typing.
             // This reduces perceived lag, since searching can be
@@ -371,7 +377,7 @@ function destInitSearchField(): void {
             _destSearchDelayTimer = setTimeout(searchAndDraw, _destSearchDelayMs);
         }
     );
-    searchInput.addEventListener("keydown",
+    el.searchInput.addEventListener("keydown",
         function (e: KeyboardEvent): void {
             // No shortcuts when ctrl, alt, or meta is being held down
             if (e.altKey || e.ctrlKey || e.metaKey) {
@@ -404,8 +410,7 @@ function destShowRows(rowsToShow: string, replaceState: boolean) {
     const selection = item.getElementsByClassName("name")[0]!.textContent;
 
     // Update menu title to reflect selected item
-    const menu = document.getElementById("show_rows") as HTMLButtonElement;
-    menu.getElementsByClassName("selection")[0]!.textContent = selection
+    el.showRowsMenu.getElementsByClassName("selection")[0]!.textContent = selection
 
     if (rowsToShow === "all") {
         rowsToShow = "-1";
@@ -426,7 +431,7 @@ function destShowRows(rowsToShow: string, replaceState: boolean) {
 function destReplaceWindowState(): void {
     const newParams: [string, string][] = [];
 
-    const searchVal = (document.getElementById("search_input") as HTMLInputElement).value;
+    const searchVal = el.searchInput.value;
     if (searchVal) {
         newParams.push(["q", searchVal]);
     }

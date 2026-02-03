@@ -33,6 +33,14 @@ declare global {
 // Initialize UI
 //
 
+const el = {
+    incidentTypes: ims.typedElement("incident_types", HTMLElement),
+    typeLiTemplate: ims.typedElement("type_li_template", HTMLTemplateElement),
+    editIncidentTypeModal: ims.typedElement("editIncidentTypeModal", HTMLElement),
+    editIncidentTypeName: ims.typedElement("edit_incident_type_name", HTMLInputElement),
+    editIncidentTypeDescription: ims.typedElement("edit_incident_type_description", HTMLTextAreaElement),
+};
+
 initAdminTypesPage();
 
 async function initAdminTypesPage(): Promise<void> {
@@ -83,20 +91,14 @@ function drawAllIncidentTypes(): void {
     updateIncidentTypes();
 }
 
-const editModalElement: HTMLElement = document.getElementById("editIncidentTypeModal")!;
-
 function updateIncidentTypes(): void {
-    const incidentTypesElement: HTMLElement = document.getElementById("incident_types")!;
-
-    const entryContainer = incidentTypesElement.querySelector("ul")!;
+    const entryContainer = el.incidentTypes.querySelector("ul")!;
     entryContainer.querySelectorAll("li")!.forEach(entry => {entry.remove()});
 
-    const editIncidentTypeModal = ims.bsModal(editModalElement);
-
-    const typeLiTemplate = document.getElementById("type_li_template") as HTMLTemplateElement;
+    const editIncidentTypeModal = ims.bsModal(el.editIncidentTypeModal);
 
     for (const incidentType of adminIncidentTypes??[]) {
-        const entryItemFrag = typeLiTemplate.content.cloneNode(true) as DocumentFragment;
+        const entryItemFrag = el.typeLiTemplate.content.cloneNode(true) as DocumentFragment;
         const entryItem = entryItemFrag.querySelector("li")!;
 
         if (incidentType.hidden) {
@@ -116,9 +118,9 @@ function updateIncidentTypes(): void {
         const showEditModal: HTMLElement = entryItem.querySelector(".show-edit-modal")!;
         showEditModal.addEventListener("click",
             function (_e: MouseEvent): void  {
-                editModalElement.dataset["incidentTypeId"] = incidentType.id?.toString();
-                (document.getElementById("edit_incident_type_name") as HTMLInputElement).value = incidentType.name??"";
-                (document.getElementById("edit_incident_type_description") as HTMLTextAreaElement).value = incidentType.description??"";
+                el.editIncidentTypeModal.dataset["incidentTypeId"] = incidentType.id?.toString();
+                el.editIncidentTypeName.value = incidentType.name??"";
+                el.editIncidentTypeDescription.value = incidentType.description??"";
                 editIncidentTypeModal.show();
             },
         );
@@ -168,7 +170,7 @@ async function hideIncidentType(sender: HTMLElement): Promise<void> {
 }
 
 async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
-    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    const id = ims.parseInt10(el.editIncidentTypeModal.dataset["incidentTypeId"]);
     if (id == null || !sender.value) {
         return;
     }
@@ -185,7 +187,7 @@ async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
 }
 
 async function setIncidentTypeDescription(sender: HTMLTextAreaElement): Promise<void> {
-    const id = ims.parseInt10(editModalElement.dataset["incidentTypeId"]);
+    const id = ims.parseInt10(el.editIncidentTypeModal.dataset["incidentTypeId"]);
     if (id == null || !sender.value) {
         return;
     }

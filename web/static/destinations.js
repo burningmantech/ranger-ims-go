@@ -25,6 +25,13 @@ const destDefaultRows = "25";
 //
 // Initialize UI
 //
+const el = {
+    searchInput: ims.typedElement("search_input", HTMLInputElement),
+    showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
+    destinationInfoModal: ims.typedElement("destinationInfoModal", HTMLElement),
+    destinationInfoModalLabel: ims.typedElement("destinationInfoModalLabel", HTMLParagraphElement),
+    destinationBody: ims.typedElement("destinationBody", HTMLElement),
+};
 initDestinationsPage();
 async function initDestinationsPage() {
     const initResult = await ims.commonPageInit();
@@ -54,7 +61,7 @@ async function initDestinationsPage() {
         if (e.key === "/") {
             // don't immediately input a "/" into the search box
             e.preventDefault();
-            document.getElementById("search_input").focus();
+            el.searchInput.focus();
         }
     });
 }
@@ -72,7 +79,7 @@ function initDestinationsTable() {
 // Initialize DataTables
 //
 function destInitDataTables() {
-    const destinationInfoModal = ims.bsModal(document.getElementById("destinationInfoModal"));
+    const destinationInfoModal = ims.bsModal(el.destinationInfoModal);
     DataTable.ext.errMode = "none";
     destinationsTable = new DataTable("#destinations_table", {
         // Save table state to SessionStorage (-1). This tells DataTables to save state
@@ -158,8 +165,8 @@ function destInitDataTables() {
         ],
         "createdRow": function (row, destination, _index) {
             const openLink = function (_e) {
-                document.getElementById("destinationInfoModalLabel").textContent = destination.name ?? "(unnamed destination)";
-                document.getElementById("destinationBody").replaceChildren(destinationToHTML(destination));
+                el.destinationInfoModalLabel.textContent = destination.name ?? "(unnamed destination)";
+                el.destinationBody.replaceChildren(destinationToHTML(destination));
                 destinationInfoModal.toggle();
             };
             row.addEventListener("click", openLink);
@@ -293,10 +300,9 @@ function destInitTableButtons() {
 //
 function destInitSearchField() {
     // Search field handling
-    const searchInput = document.getElementById("search_input");
     function searchAndDraw() {
         destReplaceWindowState();
-        let q = searchInput.value;
+        let q = el.searchInput.value;
         let isRegex = false;
         let smartSearch = true;
         if (q.startsWith("/") && q.endsWith("/")) {
@@ -310,10 +316,10 @@ function destInitSearchField() {
     const fragmentParams = ims.windowFragmentParams();
     const queryString = fragmentParams.get("q");
     if (queryString) {
-        searchInput.value = queryString;
+        el.searchInput.value = queryString;
         searchAndDraw();
     }
-    searchInput.addEventListener("input", function (_) {
+    el.searchInput.addEventListener("input", function (_) {
         // Delay the search in case the user is still typing.
         // This reduces perceived lag, since searching can be
         // very slow, and it's super annoying for a user when
@@ -321,7 +327,7 @@ function destInitSearchField() {
         clearTimeout(_destSearchDelayTimer);
         _destSearchDelayTimer = setTimeout(searchAndDraw, _destSearchDelayMs);
     });
-    searchInput.addEventListener("keydown", function (e) {
+    el.searchInput.addEventListener("keydown", function (e) {
         // No shortcuts when ctrl, alt, or meta is being held down
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
@@ -343,8 +349,7 @@ function destShowRows(rowsToShow, replaceState) {
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0].textContent;
     // Update menu title to reflect selected item
-    const menu = document.getElementById("show_rows");
-    menu.getElementsByClassName("selection")[0].textContent = selection;
+    el.showRowsMenu.getElementsByClassName("selection")[0].textContent = selection;
     if (rowsToShow === "all") {
         rowsToShow = "-1";
     }
@@ -359,7 +364,7 @@ function destShowRows(rowsToShow, replaceState) {
 //
 function destReplaceWindowState() {
     const newParams = [];
-    const searchVal = document.getElementById("search_input").value;
+    const searchVal = el.searchInput.value;
     if (searchVal) {
         newParams.push(["q", searchVal]);
     }

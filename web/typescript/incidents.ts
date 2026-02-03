@@ -61,6 +61,23 @@ let visibleIncidentTypeIds: number[] = [];
 // Initialize UI
 //
 
+const el = {
+    searchInput: ims.typedElement("search_input", HTMLInputElement),
+    newIncident: ims.typedElement("new_incident", HTMLElement),
+
+    showState: ims.typedElement("show_state", HTMLButtonElement),
+    showDays: ims.typedElement("show_days", HTMLButtonElement),
+    showType: ims.typedElement("show_type", HTMLElement),
+    showRows: ims.typedElement("show_rows", HTMLButtonElement),
+
+    ulShowType: ims.typedElement("ul_show_type", HTMLUListElement),
+    showTypeTemplate: ims.typedElement("show_type_template", HTMLTemplateElement),
+
+    helpModal: ims.typedElement("helpModal", HTMLElement),
+    multisearchModal: ims.typedElement("multisearchModal", HTMLElement),
+    multisearchEventsList: ims.typedElement("multisearch-events-list", HTMLUListElement),
+};
+
 initIncidentsPage();
 
 async function initIncidentsPage(): Promise<void> {
@@ -96,9 +113,9 @@ async function initIncidentsPage(): Promise<void> {
 
     await initIncidentsTable();
 
-    const helpModal = ims.bsModal(document.getElementById("helpModal")!);
+    const helpModal = ims.bsModal(el.helpModal);
 
-    const multisearchModal = ims.bsModal(document.getElementById("multisearchModal")!);
+    const multisearchModal = ims.bsModal(el.multisearchModal);
 
     const eventDatas = ((await initResult.eventDatas)??[]).toReversed();
 
@@ -108,17 +125,16 @@ async function initIncidentsPage(): Promise<void> {
 
         multisearchModal.toggle();
 
-        const list = document.getElementById("multisearch-events-list") as HTMLUListElement;
-        list.querySelectorAll("li").forEach((el) => {el.remove()});
+        el.multisearchEventsList.querySelectorAll("li").forEach((li) => {li.remove()});
 
         const hashParams = ims.windowFragmentParams();
-        const liTemplate = list.querySelector("template")!;
+        const liTemplate = el.multisearchEventsList.querySelector("template")!;
         for (const eventData of eventDatas) {
             const liFrag = liTemplate.content.cloneNode(true) as DocumentFragment;
             const eventLink = liFrag.querySelector("a")!;
             eventLink.textContent = eventData.name;
             eventLink.href = `${url_viewIncidents.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
-            list.append(liFrag);
+            el.multisearchEventsList.append(liFrag);
         }
     }
 
@@ -140,11 +156,11 @@ async function initIncidentsPage(): Promise<void> {
         if (e.key === "/") {
             // don't immediately input a "/" into the search box
             e.preventDefault();
-            document.getElementById("search_input")!.focus();
+            el.searchInput.focus();
         }
         // n --> new incident
         if (e.key.toLowerCase() === "n") {
-            document.getElementById("new_incident")!.click();
+            el.newIncident.click();
         }
         // m -> multi-search
         if (e.key.toLowerCase() === "m") {
@@ -152,7 +168,7 @@ async function initIncidentsPage(): Promise<void> {
         }
     });
 
-    document.getElementById("helpModal")!.addEventListener("keydown", function(e: KeyboardEvent): void {
+    el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
             // This is needed to prevent the document's listener for "?" to trigger the modal to
@@ -507,15 +523,13 @@ function renderSummary(_data: string|null, type: string, incident: ims.Incident)
 
 function initTableButtons(): void {
 
-    const typeFilter = document.getElementById("ul_show_type") as HTMLUListElement;
     for (const type of visibleIncidentTypes) {
-        const template = document.getElementById("show_type_template") as HTMLTemplateElement;
-        const newLi = template.content.cloneNode(true) as DocumentFragment;
+        const newLi = el.showTypeTemplate.content.cloneNode(true) as DocumentFragment;
 
         const newLink = newLi.querySelector("a")!;
         newLink.dataset["incidentTypeId"] = type.id?.toString();
         newLink.textContent = type.name??"";
-        typeFilter.append(newLi);
+        el.ulShowType.append(newLi);
     }
 
     for (const el of document.getElementsByClassName("dropdown-item-checkable")) {
@@ -582,11 +596,9 @@ function initTableButtons(): void {
 
 function initSearchField() {
     // Search field handling
-    const searchInput = document.getElementById("search_input") as HTMLInputElement;
-
     function searchAndDraw(): void {
         replaceWindowState();
-        let q = searchInput.value;
+        let q = el.searchInput.value;
         let isRegex = false;
         let smartSearch = true;
         if (q.startsWith("/") && q.endsWith("/")) {
@@ -601,11 +613,11 @@ function initSearchField() {
     const fragmentParams: URLSearchParams = ims.windowFragmentParams();
     const queryString = fragmentParams.get("q");
     if (queryString) {
-        searchInput.value = queryString;
+        el.searchInput.value = queryString;
         searchAndDraw();
     }
 
-    searchInput.addEventListener("input",
+    el.searchInput.addEventListener("input",
         function (_: Event): void {
             // Delay the search in case the user is still typing.
             // This reduces perceived lag, since searching can be
@@ -615,7 +627,7 @@ function initSearchField() {
             _searchDelayTimer = setTimeout(searchAndDraw, _searchDelayMs);
         }
     );
-    searchInput.addEventListener("keydown",
+    el.searchInput.addEventListener("keydown",
         function (e: KeyboardEvent): void {
             // No shortcuts when ctrl, alt, or meta is being held down
             if (e.altKey || e.ctrlKey || e.metaKey) {
@@ -625,11 +637,11 @@ function initSearchField() {
             if (e.key === "Enter") {
                 // If the value in the search box is an integer, assume it's an IMS number and go to it.
                 // This will work regardless of whether that incident is visible with the current filters.
-                const val = searchInput.value;
+                const val = el.searchInput.value;
                 if (ims.integerRegExp.test(val)) {
                     // Open the Incident
                     window.location.href = `${ims.urlReplace(url_viewIncidents)}/${val}`;
-                    searchInput.value = "";
+                    el.searchInput.value = "";
                     return;
                 }
                 // Otherwise, search immediately on Enter.
@@ -710,8 +722,7 @@ function showState(stateToShow: ims.IncidentsTableState, replaceState: boolean) 
     const selection = item.getElementsByClassName("name")[0]!.textContent;
 
     // Update menu title to reflect selected item
-    const menu = document.getElementById("show_state") as HTMLButtonElement;
-    menu.getElementsByClassName("selection")[0]!.textContent = selection;
+    el.showState.getElementsByClassName("selection")[0]!.textContent = selection;
 
     _showState = stateToShow;
 
@@ -737,8 +748,7 @@ function showDays(daysBackToShow: number|string, replaceState: boolean): void {
     const selection = item.getElementsByClassName("name")[0]!.textContent;
 
     // Update menu title to reflect selected item
-    const menu = document.getElementById("show_days") as HTMLButtonElement;
-    menu.getElementsByClassName("selection")[0]!.textContent = selection
+    el.showDays.getElementsByClassName("selection")[0]!.textContent = selection
 
     if (daysBackToShow === "all") {
         _showModifiedAfter = null;
@@ -826,7 +836,7 @@ function showCheckedTypes(replaceState: boolean): void {
         }
     }
 
-    document.getElementById("show_type")!.textContent = showTypeText;
+    el.showType.textContent = showTypeText;
 
     if (replaceState) {
         replaceWindowState();
@@ -849,8 +859,7 @@ function showRows(rowsToShow: string, replaceState: boolean): void {
     const selection = item.getElementsByClassName("name")[0]!.textContent;
 
     // Update menu title to reflect selected item
-    const menu = document.getElementById("show_rows") as HTMLButtonElement;
-    menu.getElementsByClassName("selection")[0]!.textContent = selection
+    el.showRows.getElementsByClassName("selection")[0]!.textContent = selection
 
     if (rowsToShow === "all") {
         rowsToShow = "-1";
@@ -871,7 +880,7 @@ function showRows(rowsToShow: string, replaceState: boolean): void {
 function replaceWindowState(): void {
     const newParams: [string, string][] = [];
 
-    const searchVal = (document.getElementById("search_input") as HTMLInputElement).value;
+    const searchVal = el.searchInput.value;
     if (searchVal) {
         newParams.push(["q", searchVal]);
     }

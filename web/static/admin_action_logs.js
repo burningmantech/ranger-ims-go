@@ -27,6 +27,12 @@ let filterPath = null;
 //
 // Initialize UI
 //
+const el = {
+    filterMinTime: ims.typedElement("filter_min_time", HTMLInputElement),
+    filterMaxTime: ims.typedElement("filter_max_time", HTMLInputElement),
+    filterUserName: ims.typedElement("filter_user_name", HTMLInputElement),
+    filterPath: ims.typedElement("filter_path", HTMLInputElement),
+};
 initAdminActionLogsPage();
 let actionLogsTable = null;
 async function initAdminActionLogsPage() {
@@ -35,11 +41,10 @@ async function initAdminActionLogsPage() {
         await ims.redirectToLogin();
         return;
     }
-    window.fetchActionLogs = fetchActionLogs;
     window.updateTable = updateTable;
     const yesterday = new Date();
     yesterday.setDate(new Date().getDate() - 1);
-    document.getElementById("filter_min_time").value = nerdDateTime.format(yesterday);
+    el.filterMinTime.value = nerdDateTime.format(yesterday);
     updateFilters();
     // DataTable.ext.errMode = "none";
     actionLogsTable = new DataTable("#action_logs_table", {
@@ -173,41 +178,26 @@ function renderPage(pagePath, type, _data) {
     }
     return undefined;
 }
-async function fetchActionLogs() {
-    const { json, err } = await ims.fetchNoThrow(url_actionlogs, {});
-    if (err != null) {
-        throw err;
-    }
-    const actionLogsText = JSON.stringify(json, null, 2);
-    const targetPre = document.getElementById("action-logs");
-    targetPre.textContent = actionLogsText;
-    const targetDiv = document.getElementById("show-action-logs-div");
-    targetDiv.style.display = "";
-}
 async function updateTable(_el) {
     updateFilters();
     actionLogsTable.ajax.reload();
     actionLogsTable.draw();
 }
 function updateFilters() {
-    const filterMinTimeInput = document.getElementById("filter_min_time");
-    const filterMaxTimeInput = document.getElementById("filter_max_time");
-    const filterUserNameInput = document.getElementById("filter_user_name");
-    const filterPathInput = document.getElementById("filter_path");
-    if (filterMinTimeInput.value) {
-        filterMinTime = new Date(filterMinTimeInput.value);
+    if (el.filterMinTime.value) {
+        filterMinTime = new Date(el.filterMinTime.value);
     }
     else {
         filterMinTime = null;
     }
-    if (filterMaxTimeInput.value) {
-        filterMaxTime = new Date(filterMaxTimeInput.value);
+    if (el.filterMaxTime.value) {
+        filterMaxTime = new Date(el.filterMaxTime.value);
     }
     else {
         filterMaxTime = null;
     }
-    filterUserName = filterUserNameInput.value ? filterUserNameInput.value : null;
-    filterPath = filterPathInput.value ? filterPathInput.value : null;
+    filterUserName = el.filterUserName.value ? el.filterUserName.value : null;
+    filterPath = el.filterPath.value ? el.filterPath.value : null;
 }
 const nerdDateTime = new Intl.DateTimeFormat("sv-SE", {
     // weekday: "short",

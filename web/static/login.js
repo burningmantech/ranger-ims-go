@@ -20,32 +20,36 @@ import * as ims from "./ims.js";
 //
 // Initialize UI
 //
+const el = {
+    loginForm: ims.typedElement("login_form", HTMLFormElement),
+    usernameInput: ims.typedElement("username_input", HTMLInputElement),
+    passwordInput: ims.typedElement("password_input", HTMLInputElement),
+    passwordShowHide: ims.typedElement("password_show_hide", HTMLButtonElement),
+};
 initLoginPage();
 async function initLoginPage() {
     await ims.commonPageInit();
     window.login = login;
     window.toggleShowPassword = toggleShowPassword;
-    document.getElementById("login_form").addEventListener("submit", (e) => {
+    el.loginForm.addEventListener("submit", (e) => {
         e.preventDefault();
         login();
     });
-    document.getElementById("username_input")?.focus();
+    el.usernameInput.focus();
 }
 function toggleShowPassword() {
-    const showHideButt = document.getElementById("password_show_hide");
-    const passwordInput = document.getElementById("password_input");
-    if (showHideButt.textContent === "Show") {
-        showHideButt.textContent = "Hide";
-        passwordInput.type = "text";
+    if (el.passwordShowHide.textContent === "Show") {
+        el.passwordShowHide.textContent = "Hide";
+        el.passwordInput.type = "text";
     }
     else {
-        showHideButt.textContent = "Show";
-        passwordInput.type = "password";
+        el.passwordShowHide.textContent = "Show";
+        el.passwordInput.type = "password";
     }
 }
 async function login() {
-    const username = document.getElementById("username_input").value;
-    const password = document.getElementById("password_input").value;
+    const username = el.usernameInput.value;
+    const password = el.passwordInput.value;
     const { json, err } = await ims.fetchNoThrow(url_auth, {
         body: JSON.stringify({
             "identification": username,

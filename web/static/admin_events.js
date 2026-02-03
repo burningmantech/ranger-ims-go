@@ -19,10 +19,18 @@
 import * as ims from "./ims.js";
 let explainModal = null;
 let editEventModal = null;
-let editEventModalElement = document.getElementById("editEventModal");
 //
 // Initialize UI
 //
+const el = {
+    browserTz: ims.typedElement("browser_tz", HTMLElement),
+    explainModal: ims.typedElement("explainModal", HTMLElement),
+    editEventModal: ims.typedElement("editEventModal", HTMLElement),
+    eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
+    eventAccessTemplate: ims.typedElement("event_access_template", HTMLTemplateElement),
+    eventAccessModeTemplate: ims.typedElement("event_access_mode_template", HTMLTemplateElement),
+    permissionTemplate: ims.typedElement("permission_template", HTMLTemplateElement),
+};
 initAdminEventsPage();
 async function initAdminEventsPage() {
     const initResult = await ims.commonPageInit();
@@ -37,11 +45,11 @@ async function initAdminEventsPage() {
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
-    document.getElementById("browser_tz").textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
     await loadAccessControlList();
     drawAccess();
-    explainModal = ims.bsModal(document.getElementById("explainModal"));
-    editEventModal = ims.bsModal(editEventModalElement);
+    explainModal = ims.bsModal(el.explainModal);
+    editEventModal = ims.bsModal(el.editEventModal);
     ims.hideLoadingOverlay();
     ims.enableEditing();
 }
@@ -87,15 +95,12 @@ async function loadAccessControlList() {
     return { err: null };
 }
 function drawAccess() {
-    const container = document.getElementById("event_access_container");
-    container.replaceChildren();
+    el.eventAccessContainer.replaceChildren();
     if (accessControlList == null) {
         return;
     }
-    const accessTemplate = document.getElementById("event_access_template");
-    const accessModeTemplate = document.getElementById("event_access_mode_template");
     for (const event of sortedEvents) {
-        const eventAccessFrag = accessTemplate.content.cloneNode(true);
+        const eventAccessFrag = el.eventAccessTemplate.content.cloneNode(true);
         let eventWithGroupName = event.name;
         if (event.is_group) {
             eventWithGroupName = `Group: ${eventWithGroupName}`;
@@ -109,12 +114,12 @@ function drawAccess() {
         eventAccessFrag.querySelector(".event_name").textContent = eventWithGroupName;
         const editButton = eventAccessFrag.querySelector(".show-edit-modal");
         editButton.addEventListener("click", (_e) => {
-            editEventModalElement.querySelector(".modal-title").textContent = event.name;
-            editEventModalElement.dataset["eventId"] = event.id.toString();
-            const isGroupInput = editEventModalElement.querySelector("#is_group");
+            el.editEventModal.querySelector(".modal-title").textContent = event.name;
+            el.editEventModal.dataset["eventId"] = event.id.toString();
+            const isGroupInput = el.editEventModal.querySelector("#is_group");
             isGroupInput.disabled = true;
             isGroupInput.value = (event.is_group ?? false).toString();
-            const parentGroupInput = editEventModalElement.querySelector("#edit_parent_group");
+            const parentGroupInput = el.editEventModal.querySelector("#edit_parent_group");
             // groups can't have parent groups
             parentGroupInput.disabled = event.is_group ?? false;
             const currentParent = sortedEvents.find(value => { return value.id === event.parent_group; });
@@ -122,7 +127,7 @@ function drawAccess() {
             editEventModal?.show();
         });
         for (const mode of allAccessModes) {
-            const eventModeAccessFrag = accessModeTemplate.content.cloneNode(true);
+            const eventModeAccessFrag = el.eventAccessModeTemplate.content.cloneNode(true);
             const eventAccess = eventModeAccessFrag.querySelector("div");
             // Add an id to the element for future reference
             eventAccess.id = eventAccessContainerId(event.name, mode);
@@ -130,7 +135,7 @@ function drawAccess() {
             eventAccess.dataset["eventName"] = event.name;
             eventAccessFrag.append(eventModeAccessFrag);
         }
-        container.append(eventAccessFrag);
+        el.eventAccessContainer.append(eventAccessFrag);
         for (const mode of allAccessModes) {
             updateEventAccess(event.name, mode);
         }
@@ -167,12 +172,11 @@ function updateEventAccess(event, mode) {
     eventAccess.getElementsByClassName("access_mode")[0].textContent = displayMode(mode);
     const entryContainer = eventAccess.getElementsByClassName("list-group")[0];
     entryContainer.replaceChildren();
-    const entryTemplate = document.getElementById("permission_template");
     let explainMsgs = [];
     const indent = "    ";
     const accessEntries = (eventACL[mode] ?? []).toSorted((a, b) => a.expression.localeCompare(b.expression));
     for (const accessEntry of accessEntries) {
-        const entryItemFrag = entryTemplate.content.cloneNode(true);
+        const entryItemFrag = el.permissionTemplate.content.cloneNode(true);
         const entryItem = entryItemFrag.querySelector("li");
         entryItem.append(accessEntry.expression);
         entryItem.dataset["expression"] = accessEntry.expression;
@@ -234,12 +238,11 @@ function updateEventAccess(event, mode) {
     }
     const explainButton = eventAccess.getElementsByClassName("explain_button")[0];
     explainButton.addEventListener("click", (_e) => {
-        const modal = document.getElementById("explainModal");
-        modal.querySelector(".modal-title").textContent = `Current ${event} ${mode}`;
+        el.explainModal.querySelector(".modal-title").textContent = `Current ${event} ${mode}`;
         if (explainMsgs.length === 0) {
             explainMsgs.push("No permissions");
         }
-        const modalBody = modal.querySelector(".modal-body");
+        const modalBody = el.explainModal.querySelector(".modal-body");
         modalBody.textContent = explainMsgs.join("\n");
         const eventData = sortedEvents.find(value => { return value.name === event; });
         if (eventData && eventData.is_group) {
@@ -444,7 +447,7 @@ async function sendACL(edits) {
     return { err: err };
 }
 async function setParentGroup(sender) {
-    const eventId = ims.parseInt10(editEventModalElement.dataset["eventId"]);
+    const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"]);
     const requestBod = {
         id: eventId,
         // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.

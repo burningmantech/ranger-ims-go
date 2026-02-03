@@ -29,6 +29,11 @@ declare global {
 // Initialize UI
 //
 
+const el = {
+    preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
+    preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
+};
+
 initSettingsPage();
 
 async function initSettingsPage(): Promise<void> {
@@ -39,13 +44,11 @@ async function initSettingsPage(): Promise<void> {
     }
     const preferredState = ims.getIncidentsPreferredState();
     if (preferredState) {
-        const stateSelect = document.getElementById("preferred_state") as HTMLSelectElement;
-        stateSelect.value = preferredState;
+        el.preferredState.value = preferredState;
     }
     const preferredRowsPerPage = ims.getPreferredTableRowsPerPage();
     if (preferredRowsPerPage) {
-        const rowsPerPageSelect = document.getElementById("preferred_rows_per_page") as HTMLSelectElement;
-        rowsPerPageSelect.value = preferredRowsPerPage;
+        el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
     window.setPreferredState = setPreferredState;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;

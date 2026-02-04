@@ -245,8 +245,9 @@ function drawStayFields() {
         el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${stay.incident}`);
     }
     else {
-        el.parentIncident.placeholder = "(none)";
+        el.parentIncident.value = "";
     }
+    el.parentIncident.placeholder = "(none)";
     el.guestPreferredName.value = (stay?.guest_preferred_name?.toString()) ?? "";
     el.guestLegalName.value = (stay?.guest_legal_name?.toString()) ?? "";
     el.guestDescription.value = (stay?.guest_description?.toString()) ?? "";
@@ -488,6 +489,13 @@ async function addRanger() {
     }
     rangers.push({ handle: handle });
     el.addRanger.disabled = true;
+    if (ims.pathIds.stayNumber == null) {
+        // Stay doesn't exist yet. Create it first.
+        const { err } = await sendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
     const url = (ims.urlReplace(url_stayRanger)
         .replace("<stay_number>", ims.pathIds.stayNumber.toString())
         .replace("<ranger_name>", encodeURIComponent(handle)));

@@ -322,8 +322,9 @@ function drawStayFields(): void {
         el.parentIncident.value = (stay.incident?.toString())??"";
         el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${stay.incident}`);
     } else {
-        el.parentIncident.placeholder = "(none)";
+        el.parentIncident.value = "";
     }
+    el.parentIncident.placeholder = "(none)";
 
     el.guestPreferredName.value = (stay?.guest_preferred_name?.toString())??"";
     el.guestLegalName.value = (stay?.guest_legal_name?.toString())??"";
@@ -607,6 +608,14 @@ async function addRanger(): Promise<void> {
     rangers.push({handle: handle});
 
     el.addRanger.disabled = true;
+
+    if (ims.pathIds.stayNumber == null) {
+        // Stay doesn't exist yet. Create it first.
+        const {err} = await sendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
 
     const url = (
         ims.urlReplace(url_stayRanger)

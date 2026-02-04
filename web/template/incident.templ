@@ -267,14 +267,16 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
     <div class="row py-2">
       <div class="col-sm-6">
         <div class="card">
-          <label class="control-label card-header">Attached Field Reports</label>
+          <label class="control-label card-header">Attached Field Reports/Stays</label>
           <ul id="attached_field_reports" class="list-group list-group-small card-body list-group-flush">
-            <li class="list-group-item ps-3 hidden">
-              <button class="badge btn btn-danger remove-badge float-end"
-                      onclick="detachFieldReport(this)">
-                X
-              </button>
-            </li>
+            <template id="attached_field_report_li_template">
+              <li class="list-group-item ps-3 hidden">
+                <button class="badge btn btn-danger remove-badge float-end"
+                        onclick="detachFieldReport(this)">
+                  X
+                </button>
+              </li>
+            </template>
           </ul>
           <div id="attached_field_report_add_container" class="flex-input-container card-footer no-print">
             <label for="attached_field_report_add" class="control-label">Add:</label>

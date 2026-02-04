@@ -402,11 +402,15 @@ func updateStay(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newS
 	if newStay.Incident != nil {
 		newIncNum := sql.NullInt32{
 			Int32: *newStay.Incident,
-			// we treat a value of 0 as unassigning the incident
-			Valid: *newStay.Incident != 0,
+			// nonpositive numbers unassign the Stay from the Incident
+			Valid: *newStay.Incident > 0,
 		}
 		update.IncidentNumber = newIncNum
-		logs = append(logs, fmt.Sprintf("Changed incident number: %v", *newStay.Incident))
+		if newIncNum.Valid {
+			logs = append(logs, fmt.Sprintf("Changed incident number: %v", *newStay.Incident))
+		} else {
+			logs = append(logs, "Changed incident number: (unassigned)")
+		}
 	}
 
 	if newStay.GuestPreferredName != nil {

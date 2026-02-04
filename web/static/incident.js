@@ -40,15 +40,16 @@ const el = {
     rangersLiTemplate: ims.typedElement("incident_rangers_li_template", HTMLTemplateElement),
     incidentTypeAdd: ims.typedElement("incident_type_add", HTMLInputElement),
     incidentTypes: ims.typedElement("incident_types", HTMLDataListElement),
-    incidentTypesList: ims.typedElement("incident_types_list", HTMLElement),
+    incidentTypesList: ims.typedElement("incident_types_list", HTMLUListElement),
     incidentTypesLiTemplate: ims.typedElement("incident_types_li_template", HTMLTemplateElement),
     incidentTypeInfo: ims.typedElement("incident-type-info", HTMLUListElement),
     incidentTypeInfoTemplate: ims.typedElement("incident-type-info-template", HTMLTemplateElement),
     showIncidentTypeInfo: ims.typedElement("show-incident-type-info", HTMLElement),
     destinationsList: ims.typedElement("destinations-list", HTMLDataListElement),
+    attachedFieldReportLiTemplate: ims.typedElement("attached_field_report_li_template", HTMLTemplateElement),
     attachedFieldReportAddContainer: ims.typedElement("attached_field_report_add_container", HTMLDivElement),
     attachedFieldReportAdd: ims.typedElement("attached_field_report_add", HTMLSelectElement),
-    attachedFieldReports: ims.typedElement("attached_field_reports", HTMLElement),
+    attachedFieldReports: ims.typedElement("attached_field_reports", HTMLUListElement),
     linkedIncidents: ims.typedElement("linked_incidents", HTMLElement),
     historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
     reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
@@ -289,7 +290,7 @@ function renderFieldReportData() {
     loadAttachedStays();
     drawFieldReportsToAttach();
     drawMergedReportEntries();
-    drawAttachedFieldReports();
+    drawAttachedFieldReportsStays();
     drawLinkedIncidents();
 }
 //
@@ -740,27 +741,31 @@ function drawMergedReportEntries() {
     entries.sort(ims.compareReportEntries);
     ims.drawReportEntries(entries);
 }
-let _reportsItem = null;
-function drawAttachedFieldReports() {
-    if (_reportsItem == null) {
-        const elements = el.attachedFieldReports.getElementsByClassName("list-group-item");
-        if (elements.length === 0) {
-            console.error("found no reportsItem");
-            return;
-        }
-        _reportsItem = elements[0];
-    }
+function drawAttachedFieldReportsStays() {
+    el.attachedFieldReports.querySelectorAll("li").forEach((li) => { li.remove(); });
     const reports = attachedFieldReports ?? [];
-    reports.sort();
+    const stays = attachedStays ?? [];
     el.attachedFieldReports.replaceChildren();
     for (const report of reports) {
+        const fragment = el.attachedFieldReportLiTemplate.content.cloneNode(true);
+        const item = fragment.querySelector("li");
         const link = document.createElement("a");
         link.href = `${ims.urlReplace(url_viewFieldReports)}/${report.number}`;
         link.innerText = ims.fieldReportAsString(report);
-        const item = _reportsItem.cloneNode(true);
         item.classList.remove("hidden");
         item.append(link);
         item.dataset["frNumber"] = report.number.toString();
+        el.attachedFieldReports.append(item);
+    }
+    for (const stay of stays) {
+        const fragment = el.attachedFieldReportLiTemplate.content.cloneNode(true);
+        const item = fragment.querySelector("li");
+        const link = document.createElement("a");
+        link.href = `${ims.urlReplace(url_viewStays)}/${stay.number}`;
+        link.innerText = ims.stayAsString(stay);
+        item.classList.remove("hidden");
+        item.append(link);
+        item.dataset["stayNumber"] = stay.number.toString();
         el.attachedFieldReports.append(item);
     }
 }
@@ -804,43 +809,62 @@ function drawLinkedIncidents() {
 function drawFieldReportsToAttach() {
     el.attachedFieldReportAdd.replaceChildren();
     el.attachedFieldReportAdd.append(document.createElement("option"));
-    if (!allFieldReports) {
-        el.attachedFieldReportAddContainer.classList.add("hidden");
-    }
-    else {
-        const unattachedGroup = document.createElement("optgroup");
-        unattachedGroup.label = "Unattached to any incident";
-        el.attachedFieldReportAdd.append(unattachedGroup);
-        for (const report of allFieldReports) {
-            // Skip field reports that *are* attached to an incident
-            if (report.incident != null) {
-                continue;
-            }
-            const option = document.createElement("option");
-            option.value = report.number.toString();
-            option.text = ims.fieldReportAsString(report);
-            el.attachedFieldReportAdd.append(option);
+    const unattachedGroup = document.createElement("optgroup");
+    unattachedGroup.label = "Unattached to any incident";
+    el.attachedFieldReportAdd.append(unattachedGroup);
+    for (const report of allFieldReports ?? []) {
+        // Skip field reports that *are* attached to an incident
+        if (report.incident != null) {
+            continue;
         }
-        const attachedGroup = document.createElement("optgroup");
-        attachedGroup.label = "Attached to another incident";
-        el.attachedFieldReportAdd.append(attachedGroup);
-        for (const report of allFieldReports) {
-            // Skip field reports that *are not* attached to an incident
-            if (report.incident == null) {
-                continue;
-            }
-            // Skip field reports that are already attached this incident
-            if (report.incident === ims.pathIds.incidentNumber) {
-                continue;
-            }
-            const option = document.createElement("option");
-            option.value = report.number.toString();
-            option.text = ims.fieldReportAsString(report);
-            el.attachedFieldReportAdd.append(option);
-        }
-        el.attachedFieldReportAdd.append(document.createElement("optgroup"));
-        el.attachedFieldReportAddContainer.classList.remove("hidden");
+        const option = document.createElement("option");
+        option.value = `FR#${report.number.toString()}`;
+        option.text = ims.fieldReportAsString(report);
+        el.attachedFieldReportAdd.append(option);
     }
+    for (const stay of allStays ?? []) {
+        // Skip stays that *are* attached to an incident
+        if (stay.incident != null) {
+            continue;
+        }
+        const option = document.createElement("option");
+        option.value = `Stay#${stay.number.toString()}`;
+        option.text = ims.stayAsString(stay);
+        el.attachedFieldReportAdd.append(option);
+    }
+    const attachedGroup = document.createElement("optgroup");
+    attachedGroup.label = "Attached to another incident";
+    el.attachedFieldReportAdd.append(attachedGroup);
+    for (const report of allFieldReports ?? []) {
+        // Skip field reports that *are not* attached to an incident
+        if (report.incident == null) {
+            continue;
+        }
+        // Skip field reports that are already attached this incident
+        if (report.incident === ims.pathIds.incidentNumber) {
+            continue;
+        }
+        const option = document.createElement("option");
+        option.value = `FR#${report.number.toString()}`;
+        option.text = ims.fieldReportAsString(report);
+        el.attachedFieldReportAdd.append(option);
+    }
+    for (const stay of allStays ?? []) {
+        // Skip stays that *are not* attached to an incident
+        if (stay.incident == null) {
+            continue;
+        }
+        // Skip stays that are already attached this incident
+        if (stay.incident === ims.pathIds.incidentNumber) {
+            continue;
+        }
+        const option = document.createElement("option");
+        option.value = `Stay#${stay.number.toString()}`;
+        option.text = ims.stayAsString(stay);
+        el.attachedFieldReportAdd.append(option);
+    }
+    el.attachedFieldReportAdd.append(document.createElement("optgroup"));
+    el.attachedFieldReportAddContainer.classList.remove("hidden");
 }
 //
 // Editing
@@ -1031,6 +1055,13 @@ async function addRanger() {
     }
     rangers.push({ handle: handle });
     el.rangerAdd.disabled = true;
+    if (ims.pathIds.incidentNumber == null) {
+        // Incident doesn't exist yet. Create it first.
+        const { err } = await sendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
     const url = (ims.urlReplace(url_incidentRanger)
         .replace("<incident_number>", ims.pathIds.incidentNumber.toString())
         .replace("<ranger_name>", encodeURIComponent(handle)));
@@ -1091,12 +1122,27 @@ async function addIncidentType() {
 }
 async function detachFieldReport(sender) {
     const parent = sender.parentElement;
-    const frNumber = parent.dataset["frNumber"];
-    const url = (`${ims.urlReplace(url_fieldReports)}/${frNumber}` +
-        `?action=detach&incident=${ims.pathIds.incidentNumber}`);
-    const { err } = await ims.fetchNoThrow(url, {
-        body: JSON.stringify({}),
-    });
+    const frNumber = parent.dataset["frNumber"] || null;
+    const stayNumber = parent.dataset["stayNumber"] || null;
+    let err = null;
+    if (frNumber) {
+        const url = (`${ims.urlReplace(url_fieldReports)}/${frNumber}` +
+            `?action=detach&incident=${ims.pathIds.incidentNumber}`);
+        ({ err } = await ims.fetchNoThrow(url, {
+            body: JSON.stringify({}),
+        }));
+    }
+    else if (stayNumber) {
+        const url = `${ims.urlReplace(url_stays)}/${stayNumber}`;
+        const stay = {
+            event: ims.pathIds.eventName,
+            number: ims.parseInt10(stayNumber),
+            incident: 0,
+        };
+        ({ err } = await ims.fetchNoThrow(url, {
+            body: JSON.stringify(stay),
+        }));
+    }
     if (err != null) {
         const message = `Failed to detach field report ${err}`;
         console.log(message);
@@ -1118,14 +1164,29 @@ async function attachFieldReport() {
             return;
         }
     }
-    const fieldReportNumber = el.attachedFieldReportAdd.value;
-    const url = (`${ims.urlReplace(url_fieldReports)}/${fieldReportNumber}` +
-        `?action=attach&incident=${ims.pathIds.incidentNumber}`);
-    const { err } = await ims.fetchNoThrow(url, {
-        body: JSON.stringify({}),
-    });
+    let err = null;
+    if (el.attachedFieldReportAdd.value.startsWith("FR#")) {
+        const fieldReportNumber = el.attachedFieldReportAdd.value.substring("FR#".length);
+        const url = (`${ims.urlReplace(url_fieldReports)}/${fieldReportNumber}` +
+            `?action=attach&incident=${ims.pathIds.incidentNumber}`);
+        ({ err } = await ims.fetchNoThrow(url, {
+            body: JSON.stringify({}),
+        }));
+    }
+    else if (el.attachedFieldReportAdd.value.startsWith("Stay#")) {
+        const stayNumber = el.attachedFieldReportAdd.value.substring("Stay#".length);
+        const url = `${ims.urlReplace(url_stays)}/${stayNumber}`;
+        const stay = {
+            event: ims.pathIds.eventName,
+            number: ims.parseInt10(stayNumber),
+            incident: ims.pathIds.incidentNumber,
+        };
+        ({ err } = await ims.fetchNoThrow(url, {
+            body: JSON.stringify(stay),
+        }));
+    }
     if (err != null) {
-        const message = `Failed to attach field report: ${err}`;
+        const message = `Failed to attach: ${err}`;
         console.log(message);
         await loadAllStays();
         await loadAllFieldReports();

@@ -573,7 +573,8 @@ export function stayAsString(s) {
     if (s.number == null) {
         return "New Stay";
     }
-    return `Stay #${s.number} (${s.guest_preferred_name})`;
+    const reason = s.arrival_reason ? ` - ${s.arrival_reason}` : "";
+    return `Stay #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}${reason}`;
 }
 // Return all user-entered report text for a given incident as a single string.
 export function reportTextFromIncident(incidentFROrStay, eventFieldReports, eventStays) {

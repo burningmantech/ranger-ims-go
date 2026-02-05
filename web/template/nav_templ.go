@@ -121,7 +121,7 @@ func Nav(eventName string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " href=\"\">Field Reports</a></li><li class=\"nav-item hidden\"><a id=\"active-event-stays\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " href=\"\">Field Reports</a></li><li class=\"nav-item\"><a id=\"active-event-stays\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

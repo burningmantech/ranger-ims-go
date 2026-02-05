@@ -45,8 +45,6 @@ const defaultRows = "25";
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     newStay: ims.typedElement("new_stay", HTMLButtonElement),
-
-    showDaysMenu: ims.typedElement("show_days", HTMLButtonElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
 
     helpModal: ims.typedElement("helpModal", HTMLDivElement),
@@ -70,7 +68,6 @@ async function initSanctuaryStaysPage(): Promise<void> {
         return;
     }
 
-    window.showDays = showDays;
     window.showRows = showRows;
 
     ims.disableEditing();
@@ -333,8 +330,6 @@ function initTableButtons() {
 
     // Set button defaults
 
-    showDays(fragmentParams.get("days")??defaultDaysBack, false);
-
     showRows(fragmentParams.get("rows")??defaultRows, false);
 
     showRows(
@@ -436,42 +431,6 @@ function initSearch() {
         },
     );
 }
-
-
-//
-// Show days button handling
-//
-
-function showDays(daysBackToShow: number|string, replaceState: boolean): void {
-    const id: string = daysBackToShow.toString();
-    _showDaysBack = daysBackToShow;
-
-    const item = document.getElementById("show_days_" + id) as HTMLLIElement;
-
-    // Get title from selected item
-    const selection = item.getElementsByClassName("name")[0]!.textContent;
-
-    // Update menu title to reflect selected item
-    el.showDaysMenu.getElementsByClassName("selection")[0]!.textContent = selection
-
-    if (daysBackToShow === "all")  {
-        _showModifiedAfter = null;
-    } else {
-        const after = new Date();
-        after.setHours(0);
-        after.setMinutes(0);
-        after.setSeconds(0);
-        after.setDate(after.getDate()-Number(daysBackToShow));
-        _showModifiedAfter = after;
-    }
-
-    if (replaceState) {
-        replaceWindowState();
-    }
-
-    staysTable!.draw();
-}
-
 
 //
 // Show rows button handling

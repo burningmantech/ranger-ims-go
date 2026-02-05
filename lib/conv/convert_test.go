@@ -79,15 +79,11 @@ func TestMustInt(t *testing.T) {
 func TestStringToSql(t *testing.T) {
 	t.Parallel()
 	assert.Zero(t, StringToSql(nil, 0))
-	assert.Equal(t, sql.NullString{String: "BRC", Valid: true}, StringToSql(ptr("BRC"), 0))
-	assert.Equal(t, sql.NullString{String: "abcd", Valid: true}, StringToSql(ptr("abcdefgh"), 4))
-	assert.Equal(t, sql.NullString{String: "😊", Valid: true}, StringToSql(ptr("😊😂"), 4))
+	assert.Equal(t, sql.NullString{String: "BRC", Valid: true}, StringToSql(new("BRC"), 0))
+	assert.Equal(t, sql.NullString{String: "abcd", Valid: true}, StringToSql(new("abcdefgh"), 4))
+	assert.Equal(t, sql.NullString{String: "😊", Valid: true}, StringToSql(new("😊😂"), 4))
 
-	input := ptr("successful round trip conversion?")
+	input := new("successful round trip conversion?")
 	assert.Equal(t, *input, *SqlToString(StringToSql(input, 0)))
 	assert.Nil(t, SqlToString(StringToSql(nil, 1)))
-}
-
-func ptr[T any](s T) *T {
-	return &s
 }

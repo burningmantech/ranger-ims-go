@@ -395,9 +395,8 @@ func (action EditFieldReport) handleLinkToIncident(
 		const mySQLErNoReferencedRow2 = 1452
 		if errors.As(err, &mysqlErr) && mysqlErr.Number == mySQLErNoReferencedRow2 {
 			return herr.NotFound("No such Incident", err).From("[AttachFieldReportToIncident]")
-		} else {
-			return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
 		}
+		return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
 	}
 	_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, actor, entryText, true, "", "", "")
 	if errHTTP != nil {

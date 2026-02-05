@@ -33,6 +33,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"github.com/go-sql-driver/mysql"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -402,7 +403,7 @@ func updateStay(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newS
 	if newStay.Incident != nil {
 		newIncNum := sql.NullInt32{
 			Int32: *newStay.Incident,
-			// nonpositive numbers unassign the Stay from the Incident
+			// Nonpositive numbers unassign the Stay from the Incident
 			Valid: *newStay.Incident > 0,
 		}
 		update.IncidentNumber = newIncNum
@@ -501,6 +502,13 @@ func updateStay(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newS
 
 	err = imsDBQ.UpdateStay(ctx, txn, update)
 	if err != nil {
+		var mysqlErr *mysql.MySQLError
+		const mySQLErNoReferencedRow2 = 1452
+		if errors.As(err, &mysqlErr) && mysqlErr.Number == mySQLErNoReferencedRow2 {
+			// This is probably the source of the error, because there are no other foreign
+			// keys updates within this function.
+			return herr.NotFound("No such Incident", err).From("[UpdateStay]")
+		}
 		return herr.InternalServerError("Failed to update stay", err).From("[UpdateStay]")
 	}
 

@@ -21,12 +21,7 @@ services:
     #  docker compose -f docker-compose.dev.yml build --no-cache
     build:
       context: .
-      dockerfile_inline: |
-        FROM golang:1.26-rc-alpine
-        RUN apk add --no-cache git
-        RUN go install github.com/air-verse/air@v1.64.0
-        WORKDIR /src
-        ENTRYPOINT ["air"]
+      dockerfile: dev.Dockerfile
     image: "ims-go-air"
     container_name: "ranger-ims-go"
 

@@ -75,58 +75,6 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
         </div>
         { }
         <button
-            id="show_state"
-            type="button"
-            class="btn btn-light btn-sm dropdown-toggle"
-            data-bs-toggle="dropdown"
-        >
-
-          <span class="selection">Open</span>
-        </button>
-        <ul class="dropdown-menu">
-          <li id="show_state_all" title="New, dispatched, on-scene, on-hold, or closed">
-            <a href="#" class="name dropdown-item" onclick="showState('all', true); return false;">All States</a>
-          </li>
-          <li id="show_state_open" title="New, dispatched, on-scene, or on-hold">
-            <a href="#" class="name dropdown-item" onclick="showState('open', true); return false;">Open</a>
-          </li>
-          <li id="show_state_active" title="New, dispatched, or on-scene">
-            <a href="#" class="name dropdown-item" onclick="showState('active', true); return false;">Active</a>
-          </li>
-          <li class="border-top">
-            <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
-          </li>
-        </ul>
-        { }
-        <button
-                id="show_days"
-                type="button"
-                title="Filter by last modified date"
-                class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
-        >
-
-          <span class="selection">All Days</span>
-        </button>
-        <ul class="dropdown-menu">
-          <li id="show_days_all" onclick="showDays('all', true); return false;">
-            <a href="#" class="name dropdown-item">All Days</a>
-          </li>
-          <li id="show_days_0" onclick="showDays(0, true); return false;">
-            <a href="#" class="name dropdown-item">Today</a>
-          </li>
-          <li id="show_days_1" onclick="showDays(1, true); return false;">
-            <a href="#" class="name dropdown-item">Last 2 Days</a>
-          </li>
-          <li id="show_days_2" onclick="showDays(2, true); return false;">
-            <a href="#" class="name dropdown-item">Last 3 Days</a>
-          </li>
-          <li id="show_days_3" onclick="showDays(3, true); return false;">
-            <a href="#" class="name dropdown-item">Last 4 Days</a>
-          </li>
-        </ul>
-        { }
-        <button
             id="show_rows"
             type="button"
             class="btn btn-light btn-sm dropdown-toggle"

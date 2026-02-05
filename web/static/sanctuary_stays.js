@@ -31,7 +31,6 @@ const defaultRows = "25";
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     newStay: ims.typedElement("new_stay", HTMLButtonElement),
-    showDaysMenu: ims.typedElement("show_days", HTMLButtonElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
     helpModal: ims.typedElement("helpModal", HTMLDivElement),
     multisearchModal: ims.typedElement("multisearchModal", HTMLElement),
@@ -49,7 +48,6 @@ async function initSanctuaryStaysPage() {
         ims.hideLoadingOverlay();
         return;
     }
-    window.showDays = showDays;
     window.showRows = showRows;
     ims.disableEditing();
     initStaysTable();
@@ -283,7 +281,6 @@ function renderName(_data, type, stay) {
 function initTableButtons() {
     const fragmentParams = ims.windowFragmentParams();
     // Set button defaults
-    showDays(fragmentParams.get("days") ?? defaultDaysBack, false);
     showRows(fragmentParams.get("rows") ?? defaultRows, false);
     showRows(ims.coalesceRowsPerPage(fragmentParams.get("rows"), ims.getPreferredTableRowsPerPage(), defaultRows), false);
 }
@@ -362,33 +359,6 @@ function initSearch() {
         return !(_showModifiedAfter != null &&
             !modifiedAfter(stay, _showModifiedAfter));
     });
-}
-//
-// Show days button handling
-//
-function showDays(daysBackToShow, replaceState) {
-    const id = daysBackToShow.toString();
-    _showDaysBack = daysBackToShow;
-    const item = document.getElementById("show_days_" + id);
-    // Get title from selected item
-    const selection = item.getElementsByClassName("name")[0].textContent;
-    // Update menu title to reflect selected item
-    el.showDaysMenu.getElementsByClassName("selection")[0].textContent = selection;
-    if (daysBackToShow === "all") {
-        _showModifiedAfter = null;
-    }
-    else {
-        const after = new Date();
-        after.setHours(0);
-        after.setMinutes(0);
-        after.setSeconds(0);
-        after.setDate(after.getDate() - Number(daysBackToShow));
-        _showModifiedAfter = after;
-    }
-    if (replaceState) {
-        replaceWindowState();
-    }
-    staysTable.draw();
 }
 //
 // Show rows button handling

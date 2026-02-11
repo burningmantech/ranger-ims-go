@@ -32,13 +32,13 @@ func sampleIncident1(eventName string) imsjson.Incident {
 		Event:    eventName,
 		State:    "new",
 		Priority: 5,
-		Summary:  ptr("my summary!"),
+		Summary:  new("my summary!"),
 		Location: imsjson.Location{
-			Name:         ptr("Zeroth Camp"),
-			Address:      ptr("10:05 & W"),
-			RadialHour:   ptr("10"),
-			RadialMinute: ptr("5"),
-			Description:  ptr("unknown"),
+			Name:         new("Zeroth Camp"),
+			Address:      new("10:05 & W"),
+			RadialHour:   new("10"),
+			RadialMinute: new("5"),
+			Description:  new("unknown"),
 		},
 		IncidentTypeIDs: &[]int32{1, 2},
 		FieldReports:    &[]int32{},
@@ -176,7 +176,7 @@ func TestCreateAndGetIncident(t *testing.T) {
 		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
 		retrievedUserEntry.Created = time.Time{}
 		entryReq.Author = userAliceHandle
-		entryReq.Stricken = ptr(false)
+		entryReq.Stricken = new(false)
 		require.Equal(t, entryReq, retrievedUserEntry)
 		requireEqualIncident(t, incidentReq, retrievedIncident)
 	}
@@ -247,14 +247,14 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 		// need to send some time for this other than zero for the time to update
 		Started:  time.UnixMilli(1),
 		Priority: 1,
-		Summary:  ptr(""),
+		Summary:  new(""),
 		Location: imsjson.Location{
-			Name:         ptr(""),
-			Address:      ptr(""),
-			Concentric:   ptr(""),
-			RadialHour:   ptr(""),
-			RadialMinute: ptr(""),
-			Description:  ptr(""),
+			Name:         new(""),
+			Address:      new(""),
+			Concentric:   new(""),
+			RadialHour:   new(""),
+			RadialMinute: new(""),
+			Description:  new(""),
 		},
 		IncidentTypeIDs: &[]int32{},
 		FieldReports:    &[]int32{},
@@ -459,8 +459,4 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	before.ReportEntries, after.ReportEntries = nil, nil
 
 	require.Equal(t, before, after)
-}
-
-func ptr[T any](s T) *T {
-	return &s
 }

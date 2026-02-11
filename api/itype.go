@@ -70,9 +70,9 @@ func (action GetIncidentTypes) getIncidentTypes(req *http.Request) (imsjson.Inci
 		t := typeRow.IncidentType
 		response = append(response, imsjson.IncidentType{
 			ID:          t.ID,
-			Name:        ptr(t.Name),
+			Name:        new(t.Name),
 			Description: conv.SqlToString(t.Description),
-			Hidden:      ptr(t.Hidden),
+			Hidden:      new(t.Hidden),
 		})
 	}
 	slices.SortFunc(response, func(a, b imsjson.IncidentType) int {

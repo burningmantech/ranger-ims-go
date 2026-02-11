@@ -30,7 +30,7 @@ import (
 func sampleFieldReport1(eventName string) imsjson.FieldReport {
 	return imsjson.FieldReport{
 		Event:   eventName,
-		Summary: ptr("my summary!"),
+		Summary: new("my summary!"),
 		ReportEntries: []imsjson.ReportEntry{
 			{Text: "This is some report text lol"},
 			{Text: ""},
@@ -76,7 +76,7 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
 		retrievedUserEntry.Created = time.Time{}
 		entryReq.Author = userAliceHandle
-		entryReq.Stricken = ptr(false)
+		entryReq.Stricken = new(false)
 		require.Equal(t, entryReq, retrievedUserEntry)
 	}
 
@@ -133,7 +133,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	updates := imsjson.FieldReport{
 		Event:    fieldReportReq.Event,
 		Number:   num,
-		Incident: ptr(int32(12345)),
+		Incident: new(int32(12345)),
 		ReportEntries: []imsjson.ReportEntry{
 			{
 				Text: "new details!",
@@ -157,7 +157,7 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 	updates = imsjson.FieldReport{
 		Event:         fieldReportReq.Event,
 		Number:        num,
-		Summary:       ptr(""),
+		Summary:       new(""),
 		Incident:      nil,
 		ReportEntries: []imsjson.ReportEntry{},
 	}

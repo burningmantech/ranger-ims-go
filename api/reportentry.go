@@ -303,11 +303,7 @@ func reportEntryToJSON(re imsdb.ReportEntry, attachmentsEnabled bool) imsjson.Re
 		Author:      re.Author,
 		SystemEntry: re.Generated,
 		Text:        re.Text,
-		Stricken:    ptr(re.Stricken),
+		Stricken:    new(re.Stricken),
 		Attachment:  attachment,
 	}
-}
-
-func ptr[T any](s T) *T {
-	return &s
 }

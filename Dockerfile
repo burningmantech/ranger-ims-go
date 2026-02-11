@@ -3,7 +3,7 @@
 # -----------------
 # Build image stage
 # -----------------
-FROM golang:1.26-rc-alpine AS build
+FROM golang:alpine AS build
 
 # Used for setcap below
 RUN apk add --no-cache libcap

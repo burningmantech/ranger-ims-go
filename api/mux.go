@@ -599,7 +599,7 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 			var positionName sql.NullString
 			jwtCtx, _ := r.Context().Value(JWTContextKey).(JWTContext)
 			if jwtCtx.Claims != nil {
-				username = conv.StringToSql(ptr(jwtCtx.Claims.RangerHandle()), 128)
+				username = conv.StringToSql(new(jwtCtx.Claims.RangerHandle()), 128)
 				userID = sql.NullInt64{Int64: jwtCtx.Claims.DirectoryID(), Valid: true}
 				if posID := jwtCtx.Claims.RangerOnDutyPosition(); posID != nil {
 					positionID = sql.NullInt64{Int64: *posID, Valid: true}

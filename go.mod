@@ -1,6 +1,6 @@
 module github.com/burningmantech/ranger-ims-go
 
-go 1.26rc3
+go 1.26.0
 
 require (
 	github.com/a-h/templ v0.3.977

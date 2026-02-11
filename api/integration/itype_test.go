@@ -46,12 +46,12 @@ func TestCreateIncidentTypes(t *testing.T) {
 	typesResp, resp := apis.getTypes(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeAID, Name: &typeA, Hidden: ptr(false)})
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeBID, Name: &typeB, Hidden: ptr(false)})
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeCID, Name: &typeC, Hidden: ptr(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeAID, Name: &typeA, Hidden: new(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeBID, Name: &typeB, Hidden: new(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeCID, Name: &typeC, Hidden: new(false)})
 
 	// Hide one of those types
-	hideOne := imsjson.IncidentType{ID: *typeAID, Hidden: ptr(true)}
+	hideOne := imsjson.IncidentType{ID: *typeAID, Hidden: new(true)}
 	_, resp = apis.editType(ctx, hideOne)
 	require.NoError(t, resp.Body.Close())
 
@@ -59,19 +59,19 @@ func TestCreateIncidentTypes(t *testing.T) {
 	typesResp, resp = apis.getTypes(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeAID, Name: &typeA, Hidden: ptr(true)})
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeBID, Name: &typeB, Hidden: ptr(false)})
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeCID, Name: &typeC, Hidden: ptr(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeAID, Name: &typeA, Hidden: new(true)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeBID, Name: &typeB, Hidden: new(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeCID, Name: &typeC, Hidden: new(false)})
 
 	// Unhide that type we previously hid
-	showItAgain := imsjson.IncidentType{ID: *typeAID, Hidden: ptr(false)}
+	showItAgain := imsjson.IncidentType{ID: *typeAID, Hidden: new(false)}
 	_, resp = apis.editType(ctx, showItAgain)
 	require.NoError(t, resp.Body.Close())
 	// and see that it's no longer hidden
 	typesResp, resp = apis.getTypes(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeAID, Name: &typeA, Hidden: ptr(false)})
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeBID, Name: &typeB, Hidden: ptr(false)})
-	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeCID, Name: &typeC, Hidden: ptr(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeAID, Name: &typeA, Hidden: new(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeBID, Name: &typeB, Hidden: new(false)})
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeCID, Name: &typeC, Hidden: new(false)})
 }

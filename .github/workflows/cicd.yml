@@ -64,8 +64,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26.0-rc.3"
-          # go-version-file: "go.mod"
+          go-version-file: "go.mod"
 
       - name: Fetch external build dependencies
         run: go run bin/fetchbuilddeps/fetchbuilddeps.go
@@ -118,8 +117,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26.0-rc.3"
-          # go-version-file: "go.mod"
+          go-version-file: "go.mod"
 
       - name: Fetch external build dependencies
         run: go run bin/fetchbuilddeps/fetchbuilddeps.go

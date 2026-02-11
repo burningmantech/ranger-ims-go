@@ -56,8 +56,8 @@ func (c *S3Client) UploadToS3(ctx context.Context, bucketName, objectName string
 	_, err := c.S3Funcs.PutObject(
 		ctx,
 		&s3.PutObjectInput{
-			Bucket: ptr(bucketName),
-			Key:    ptr(objectName),
+			Bucket: new(bucketName),
+			Key:    new(objectName),
 			Body:   file,
 		},
 	)
@@ -73,8 +73,8 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 	output, err := c.S3Funcs.GetObject(
 		ctx,
 		&s3.GetObjectInput{
-			Bucket: ptr(bucketName),
-			Key:    ptr(objectName),
+			Bucket: new(bucketName),
+			Key:    new(objectName),
 		},
 	)
 	if err != nil {
@@ -97,10 +97,6 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 		return nil, herr.InternalServerError("Failed to read attachment", err).From("[io.Copy]")
 	}
 	return bytes.NewReader(buf.Bytes()), nil
-}
-
-func ptr[T any](s T) *T {
-	return &s
 }
 
 func shut(c io.Closer) {

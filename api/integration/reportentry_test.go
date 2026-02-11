@@ -58,7 +58,7 @@ func TestEditIncidentReportEntry(t *testing.T) {
 	require.Equal(t, entryReq.Text, reportEntry.Text)
 
 	// Strike that report entry
-	reportEntry.Stricken = ptr(true)
+	reportEntry.Stricken = new(true)
 	resp = apisNonAdmin.updateIncidentReportEntry(ctx, eventName, num, reportEntry)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -72,7 +72,7 @@ func TestEditIncidentReportEntry(t *testing.T) {
 	require.True(t, *reportEntry.Stricken)
 
 	// Unstrike that report entry
-	reportEntry.Stricken = ptr(false)
+	reportEntry.Stricken = new(false)
 	resp = apisNonAdmin.updateIncidentReportEntry(ctx, eventName, num, reportEntry)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -125,7 +125,7 @@ func TestEditFieldReportReportEntry(t *testing.T) {
 	require.Equal(t, entryReq.Text, reportEntry.Text)
 
 	// Strike that report entry
-	reportEntry.Stricken = ptr(true)
+	reportEntry.Stricken = new(true)
 	resp = apisNonAdmin.updateFieldReportReportEntry(ctx, eventName, num, reportEntry)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -139,7 +139,7 @@ func TestEditFieldReportReportEntry(t *testing.T) {
 	require.True(t, *reportEntry.Stricken)
 
 	// Unstrike that report entry
-	reportEntry.Stricken = ptr(false)
+	reportEntry.Stricken = new(false)
 	resp = apisNonAdmin.updateFieldReportReportEntry(ctx, eventName, num, reportEntry)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

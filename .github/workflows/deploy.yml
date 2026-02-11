@@ -34,7 +34,7 @@ jobs:
     steps:
 
       - name: Harden CI
-        uses: step-security/harden-runner@v2.14.1
+        uses: step-security/harden-runner@v2.14.2
         with:
           disable-sudo: true
           egress-policy: block
@@ -47,7 +47,7 @@ jobs:
         run: false
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE }}

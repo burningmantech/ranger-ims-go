@@ -349,6 +349,7 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	}
 
 	newFileName := fmt.Sprintf("event_%05d_incident_%05d_%v%v", event.ID, incidentNumber, rand.Text(), mtype.Extension())
+	// #nosec G706 // log injection
 	slog.Info("User uploaded an incident attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,
@@ -460,6 +461,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	}
 
 	newFileName := fmt.Sprintf("event_%05d_fieldreport_%05d_%v%v", event.ID, fieldReportNumber, rand.Text(), mtype.Extension())
+	// #nosec G706 // log injection
 	slog.Info("User uploaded a Field Report attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,
@@ -595,6 +597,7 @@ func (action AttachToStay) attachToStay(req *http.Request) (int32, *herr.HTTPErr
 	}
 
 	newFileName := fmt.Sprintf("event_%05d_stay_%05d_%v%v", event.ID, stayNumber, rand.Text(), mtype.Extension())
+	// #nosec G706 // log injection
 	slog.Info("User uploaded a stay attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,

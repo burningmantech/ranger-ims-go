@@ -67,6 +67,7 @@ func TestTemplEndpoints(t *testing.T) {
 	for _, endpoint := range templEndpoints {
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, serverURL.JoinPath(endpoint).String(), nil)
 		require.NoError(t, err)
+		// #nosec G704 // SSRF via taint analysis. This test controls the URLs.
 		resp, err := client.Do(httpReq)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -97,6 +98,7 @@ func TestRedirects(t *testing.T) {
 	path := serverURL.JoinPath("/ims/app/events/SomeEvent/incidents/")
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err := client.Do(httpReq)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -108,6 +110,7 @@ func TestRedirects(t *testing.T) {
 	path = serverURL.JoinPath("/ims/app/events/SomeEvent")
 	httpReq, err = http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err = client.Do(httpReq)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -118,6 +121,7 @@ func TestRedirects(t *testing.T) {
 	path = serverURL.JoinPath("/ims/app/events/SomeEvent/book_reports")
 	httpReq, err = http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err = client.Do(httpReq)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)

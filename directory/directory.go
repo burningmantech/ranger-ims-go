@@ -34,11 +34,12 @@ type UserStore struct {
 }
 
 type User struct {
-	ID                 int64
-	Handle             string
-	Email              string
-	Status             string
-	Onsite             bool
+	ID     int64
+	Handle string
+	Email  string
+	Status string
+	Onsite bool
+	// #nosec G117 // Exported secret struct field
 	Password           string
 	PositionIDs        []int64
 	PositionNames      []string

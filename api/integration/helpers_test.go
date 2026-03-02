@@ -69,9 +69,11 @@ func (a ApiHelper) refreshAccessToken(ctx context.Context, refreshCookie *http.C
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
 	httpPost.AddCookie(refreshCookie)
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 
@@ -396,6 +398,7 @@ func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, i
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 
@@ -427,6 +430,7 @@ func (a ApiHelper) attachFileToStay(ctx context.Context, eventName string, stay 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 
@@ -470,6 +474,7 @@ func (a ApiHelper) attachFileToFieldReport(ctx context.Context, eventName string
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 
@@ -499,6 +504,7 @@ func (a ApiHelper) imsPost(ctx context.Context, body any, path string) *http.Res
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp
@@ -533,6 +539,7 @@ func (a ApiHelper) imsDoNoReqBody(ctx context.Context, method, path string, resp
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	// #nosec G704 // SSRF via taint analysis.
 	get, err := client.Do(httpReq)
 	require.NoError(a.t, err)
 	b, err := io.ReadAll(get.Body)

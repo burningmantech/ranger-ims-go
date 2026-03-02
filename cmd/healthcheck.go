@@ -19,13 +19,14 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/spf13/cobra"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 var healthCheckCmd = &cobra.Command{
@@ -57,6 +58,7 @@ func runHealthCheckInternal(ctx context.Context, serverURL string) int {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, nil)
 	must(err)
 
+	// #nosec G704 // SSRF via taint analysis. The URL is hardcoded.
 	resp, err := client.Do(req)
 	must(err)
 

@@ -22,14 +22,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"io"
-	"log/slog"
-	"net/http"
 )
 
 func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
@@ -86,6 +87,7 @@ func mustWriteJSON(w http.ResponseWriter, req *http.Request, resp any) (success 
 		return false
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// #nosec G705 // XSS via taint analysis
 	_, err = w.Write(marshalled)
 	if err != nil {
 		herr.InternalServerError("Failed to write JSON", err).From("[Write]").WriteResponse(w)

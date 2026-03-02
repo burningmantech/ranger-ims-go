@@ -20,9 +20,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/lib/redact"
 	"os"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/lib/redact"
 )
 
 // mib is the number of bytes in 1 MiB.
@@ -208,8 +209,9 @@ type ConfigCore struct {
 	RefreshTokenLifetime time.Duration
 	Admins               []string
 	MasterKey            string `redact:"true"`
-	JWTSecret            string `redact:"true"`
-	Deployment           DeploymentType
+	// #nosec G117 // Exported secret struct field
+	JWTSecret  string `redact:"true"`
+	Deployment DeploymentType
 
 	// CacheControlShort is the duration we set in various responses' Cache-Control headers
 	// for resources that aren't expected to change often, but still do change (e.g. the list of
@@ -238,10 +240,11 @@ type DBStore struct {
 }
 
 type DBStoreMaria struct {
-	HostName     string
-	HostPort     int32
-	Database     string
-	Username     string
+	HostName string
+	HostPort int32
+	Database string
+	Username string
+	// #nosec G117 // Exported secret struct field
 	Password     string `redact:"true"`
 	MaxOpenConns int32
 }
@@ -259,9 +262,10 @@ type AttachmentsStore struct {
 }
 
 type ClubhouseDB struct {
-	Hostname     string
-	Database     string
-	Username     string
+	Hostname string
+	Database string
+	Username string
+	// #nosec G117 // Exported secret struct field
 	Password     string `redact:"true"`
 	MaxOpenConns int32
 }

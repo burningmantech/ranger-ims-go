@@ -52,7 +52,8 @@ type PostAuth struct {
 
 type PostAuthRequest struct {
 	Identification string `json:"identification"`
-	Password       string `json:"password"`
+	// #nosec G117 // Exported secret field
+	Password string `json:"password"`
 }
 type PostAuthResponse struct {
 	Token         string `json:"token"`
@@ -304,6 +305,7 @@ func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshA
 		return empty, herr.Unauthorized("Failed to authenticate refresh token", err).From("[AuthenticateRefreshToken]")
 	}
 
+	// #nosec G706 // log injection
 	slog.Info("Refreshing access token", "ranger", jwt.RangerHandle())
 	rangers, err := action.userStore.GetAllUsers(req.Context())
 	if err != nil {

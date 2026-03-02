@@ -637,6 +637,7 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 					})
 			}
 
+			// #nosec G706 // log injection
 			slog.Debug(fmt.Sprintf("Served request for: %v %v ", r.Method, r.URL.Path),
 				"duration", fmt.Sprintf("%.3fms", float64(time.Since(start).Microseconds())/1000.0),
 				"method", r.Method,

@@ -170,6 +170,7 @@ func existOrFetch(ctx context.Context, dir *os.Root, basename, url, tegridy stri
 		if err != nil {
 			return fmt.Errorf("[NewRequestWithContext]: %w", err)
 		}
+		// #nosec G704 // SSRF via taint analysis. The URLs all come from code in the repo.
 		resp, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("[Get]: %w", err)

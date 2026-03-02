@@ -404,6 +404,7 @@ func (action EditFieldReport) handleLinkToIncident(
 	}
 	defer action.eventSource.notifyFieldReportUpdate(event.ID, fieldReportNumber)
 	defer action.eventSource.notifyIncidentUpdates(event.ID, previousIncident.Int32, newIncident.Int32)
+	// #nosec G706 // log injection
 	slog.Info("Attached Field Report to newIncident",
 		"event", event.ID,
 		"newIncident", newIncident.Int32,

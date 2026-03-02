@@ -19,6 +19,17 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime/debug"
+	"strings"
+	"syscall"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -30,16 +41,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/spf13/cobra"
-	"log/slog"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"runtime/debug"
-	"strings"
-	"syscall"
-	"time"
 )
 
 const (
@@ -177,6 +178,7 @@ func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printC
 //	like a container memory limit).
 func tuneMemoryLimit(cgroupMemStatFile string) {
 	if os.Getenv("GOMEMLIMIT") != "" {
+		// #nosec G706 // log injection
 		slog.Info("GOMEMLIMIT was set in the environment, so we won't override it", "GOMEMLIMIT", os.Getenv("GOMEMLIMIT"))
 		return
 	}

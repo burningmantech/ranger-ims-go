@@ -320,6 +320,7 @@ func TestEventSource_RequiresNoAuthn(t *testing.T) {
 	require.NoError(t, err)
 	client := http.Client{Timeout: 10 * time.Second}
 
+	// #nosec G704 // SSRF via taint analysis.
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)

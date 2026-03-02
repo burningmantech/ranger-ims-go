@@ -158,6 +158,7 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		if err != nil {
 			return nil, herr.InternalServerError("Failed to create event", err).From("[CreateEvent]")
 		}
+		// #nosec G706 // log injection
 		slog.Info("Created event", "eventName", *editRequest.Name, "id", id)
 		newID := conv.MustInt32(id)
 		editRequest.ID = newID

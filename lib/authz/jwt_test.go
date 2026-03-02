@@ -67,6 +67,7 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		require.Contains(t, err.Error(), "expired")
 	}
 	{
+		// #nosec G101 // Potential hardcoded credentials
 		signedWithDifferentKeyJWT, err := authz.JWTer{SecretKey: "some-other-secret"}.CreateAccessToken(
 			"Hardware",
 			1,

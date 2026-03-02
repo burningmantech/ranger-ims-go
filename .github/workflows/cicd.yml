@@ -180,7 +180,7 @@ jobs:
         run: docker image save ranger-ims-go | gzip -9 > docker_image.tgz
 
       - name: Upload Docker image artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: docker
           path: docker_image.tgz

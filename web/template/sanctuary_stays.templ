@@ -75,6 +75,26 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
         </div>
         { }
         <button
+            id="show_status"
+            type="button"
+            class="btn btn-light btn-sm dropdown-toggle"
+            data-bs-toggle="dropdown"
+        >
+          <span class="selection">Current</span>
+        </button>
+        <ul class="dropdown-menu">
+          <li id="show_status_all" title="All stays, including departed guests">
+            <a href="#" class="name dropdown-item" onclick="showStatus('all', true); return false;">All Statuses</a>
+          </li>
+          <li id="show_status_current" title="Only stays where the guest has not departed">
+            <a href="#" class="name dropdown-item" onclick="showStatus('current', true); return false;">Current</a>
+          </li>
+          <li class="border-top">
+            <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
+          </li>
+        </ul>
+        { }
+        <button
             id="show_rows"
             type="button"
             class="btn btn-light btn-sm dropdown-toggle"

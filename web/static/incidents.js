@@ -355,16 +355,7 @@ function initDataTables(tablePrereqs) {
                 "className": "incident_types",
                 "data": "incident_type_ids",
                 "defaultContent": "",
-                "render": function (ids, _type, _incident) {
-                    const vals = [];
-                    // render hidden incident types too here
-                    for (const it of allIncidentTypes) {
-                        if (ids.includes(it.id ?? -1) && it.name) {
-                            vals.push(it.name);
-                        }
-                    }
-                    return ims.renderSafeSorted(vals);
-                },
+                "render": renderIncidentTypes,
                 "responsivePriority": 4,
             },
             {
@@ -431,14 +422,39 @@ function renderSummary(_data, type, incident) {
             // XSS prevention
             return DataTable.render.text().display(summarized);
         }
-        case "sort":
-            return ims.summarizeIncidentOrFR(incident);
         case "filter":
             return ims.reportTextFromIncident(incident, eventFieldReports, eventStays);
+        case "sort":
         case "type":
-            return "";
+        case undefined:
+            return DataTable.render.text().display(ims.summarizeIncidentOrFR(incident));
+        default:
+            return undefined;
     }
-    return undefined;
+}
+function renderIncidentTypes(ids, type, _incident) {
+    if (ids == null) {
+        return undefined;
+    }
+    // vals is a list of all the names of incident types on this Incident.
+    const vals = [];
+    // render hidden incident types too here
+    for (const it of allIncidentTypes) {
+        if (ids.includes(it.id ?? -1) && it.name) {
+            vals.push(it.name);
+        }
+    }
+    switch (type) {
+        case "display":
+            return ims.renderSortedSpan(vals);
+        case "filter":
+        case "sort":
+        case "type":
+        case undefined:
+            return vals.toSorted((a, b) => a.localeCompare(b)).join(", ");
+        default:
+            return undefined;
+    }
 }
 //
 // Initialize table buttons

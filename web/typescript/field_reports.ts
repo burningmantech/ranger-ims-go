@@ -319,14 +319,15 @@ function renderSummary(_data: string|null, type: string, fieldReport: ims.FieldR
         case "display":
             // XSS prevention
             return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport)) as string;
-        case "sort":
-            return ims.summarizeIncidentOrFR(fieldReport);
         case "filter":
             return ims.reportTextFromIncident(fieldReport);
+        case "sort":
         case "type":
-            return "";
+        case undefined:
+            return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport)) as string;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 
 //

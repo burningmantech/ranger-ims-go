@@ -125,7 +125,7 @@ function initStaysTable() {
     staysTable.on("init", function () {
         console.log("Table initialized. Requesting EventSource lock");
         ims.requestEventSourceLock();
-        ims.newFieldReportChannel().onmessage = function (e) {
+        ims.newStayChannel().onmessage = function (e) {
             if (e.data.update_all) {
                 console.log("Reloading the whole table to be cautious, as an SSE was missed");
                 staysTable.ajax.reload();
@@ -137,7 +137,7 @@ function initStaysTable() {
             if (eventId !== ims.pathIds.eventId) {
                 return;
             }
-            console.log(`Got field report update: ${number}`);
+            console.log(`Got stay update: ${number}`);
             // TODO: could just replace the row that's updated (assuming not update_all).
             staysTable.ajax.reload(null, false);
             ims.clearErrorMessage();
@@ -197,7 +197,7 @@ function initDataTables() {
         "columns": [
             {
                 "name": "stay_number",
-                "className": "stay_number text-right all",
+                "className": "stay_number dt-body-right text-right all",
                 "data": "number",
                 "defaultContent": null,
                 "render": ims.renderStayNumber,
@@ -262,18 +262,20 @@ function initDataTables() {
     });
 }
 function renderName(_data, type, stay) {
+    const guestName = stay.guest_preferred_name || stay.guest_legal_name || "Someone";
     switch (type) {
         case "display":
-            // XSS prevention
-            return DataTable.render.text().display(stay.guest_preferred_name || stay.guest_legal_name || "Someone");
+            const sp = document.createElement("span");
+            sp.textContent = guestName;
+            return sp;
         case "sort":
-            return stay.guest_preferred_name || stay.guest_legal_name || "Someone";
         case "filter":
-            return stay.guest_preferred_name || stay.guest_legal_name || "Someone";
         case "type":
-            return "";
+        case undefined:
+            return guestName;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 //
 // Initialize table buttons

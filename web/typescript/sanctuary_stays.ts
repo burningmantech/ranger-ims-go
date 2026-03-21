@@ -17,6 +17,7 @@
 "use strict";
 
 import * as ims from "./ims.ts";
+import {RenderValue} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -160,7 +161,7 @@ function initStaysTable() {
         console.log("Table initialized. Requesting EventSource lock");
         ims.requestEventSourceLock();
 
-        ims.newFieldReportChannel().onmessage = function (e: MessageEvent<ims.StayBroadcast>): void {
+        ims.newStayChannel().onmessage = function (e: MessageEvent<ims.StayBroadcast>): void {
             if (e.data.update_all) {
                 console.log("Reloading the whole table to be cautious, as an SSE was missed");
                 staysTable!.ajax.reload();
@@ -173,7 +174,7 @@ function initStaysTable() {
             if (eventId !== ims.pathIds.eventId) {
                 return;
             }
-            console.log(`Got field report update: ${number}`);
+            console.log(`Got stay update: ${number}`);
             // TODO: could just replace the row that's updated (assuming not update_all).
             staysTable!.ajax.reload(null, false);
             ims.clearErrorMessage();
@@ -239,7 +240,7 @@ function initDataTables() {
         "columns": [
             {   // 0
                 "name": "stay_number",
-                "className": "stay_number text-right all",
+                "className": "stay_number dt-body-right text-right all",
                 "data": "number",
                 "defaultContent": null,
                 "render": ims.renderStayNumber,
@@ -306,19 +307,21 @@ function initDataTables() {
     });
 }
 
-function renderName(_data: string|null, type: string, stay: ims.Stay): string|undefined {
+function renderName(_data: string|null, type: string, stay: ims.Stay): RenderValue {
+    const guestName = stay.guest_preferred_name || stay.guest_legal_name || "Someone";
     switch (type) {
         case "display":
-            // XSS prevention
-            return DataTable.render.text().display(stay.guest_preferred_name || stay.guest_legal_name || "Someone") as string;
+            const sp = document.createElement("span");
+            sp.textContent = guestName;
+            return sp;
         case "sort":
-            return stay.guest_preferred_name || stay.guest_legal_name || "Someone";
         case "filter":
-            return stay.guest_preferred_name || stay.guest_legal_name || "Someone";
         case "type":
-            return "";
+        case undefined:
+            return guestName;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 
 //

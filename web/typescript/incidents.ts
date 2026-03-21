@@ -427,16 +427,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 "className": "incident_types",
                 "data": "incident_type_ids",
                 "defaultContent": "",
-                "render": function(ids: number[], _type: string, _incident: ims.Incident) {
-                    const vals: string[] = [];
-                    // render hidden incident types too here
-                    for (const it of allIncidentTypes) {
-                        if (ids.includes(it.id??-1) && it.name) {
-                            vals.push(it.name);
-                        }
-                    }
-                    return ims.renderSafeSorted(vals);
-                },
+                "render": renderIncidentTypes,
                 "responsivePriority": 4,
             },
             {   // 5
@@ -495,7 +486,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
     });
 }
 
-function renderSummary(_data: string|null, type: string, incident: ims.Incident): string|undefined {
+function renderSummary(_data: string|null, type: ims.RenderType, incident: ims.Incident): ims.RenderValue {
     switch (type) {
         case "display": {
             const maxDisplayLength = 250;
@@ -506,14 +497,40 @@ function renderSummary(_data: string|null, type: string, incident: ims.Incident)
             // XSS prevention
             return DataTable.render.text().display(summarized) as string;
         }
-        case "sort":
-            return ims.summarizeIncidentOrFR(incident);
         case "filter":
             return ims.reportTextFromIncident(incident, eventFieldReports, eventStays);
+        case "sort":
         case "type":
-            return "";
+        case undefined:
+            return DataTable.render.text().display(ims.summarizeIncidentOrFR(incident)) as string;
+        default:
+            return undefined;
     }
-    return undefined;
+}
+
+function renderIncidentTypes(ids: number[], type: ims.RenderType, _incident: ims.Incident): ims.RenderValue {
+    if (ids == null) {
+        return undefined;
+    }
+    // vals is a list of all the names of incident types on this Incident.
+    const vals: string[] = [];
+    // render hidden incident types too here
+    for (const it of allIncidentTypes) {
+        if (ids.includes(it.id ?? -1) && it.name) {
+            vals.push(it.name);
+        }
+    }
+    switch (type) {
+        case "display":
+            return ims.renderSortedSpan(vals);
+        case "filter":
+        case "sort":
+        case "type":
+        case undefined:
+            return vals.toSorted((a, b) => a.localeCompare(b)).join(", ");
+        default:
+            return undefined;
+    }
 }
 
 

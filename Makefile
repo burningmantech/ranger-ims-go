@@ -44,6 +44,7 @@ compose/live:
 ## upgrade-deps: upgrade all Go deps
 .PHONY: upgrade-deps
 upgrade-deps:
+	go get tool
 	go get -t -u ./...
 	go mod tidy
 

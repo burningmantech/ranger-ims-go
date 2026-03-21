@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "esnext",
     "outDir": "web/static",
+    "rootDir": "web/typescript",
     "allowJs": true,
     "checkJs": true,
     "allowImportingTsExtensions": true,

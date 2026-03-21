@@ -22,6 +22,7 @@ import * as ims from "./ims.js";
 //
 const el = {
     preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
+    preferredStaysStatus: ims.typedElement("preferred_stays_status", HTMLSelectElement),
     preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
 };
 initSettingsPage();
@@ -35,11 +36,16 @@ async function initSettingsPage() {
     if (preferredState) {
         el.preferredState.value = preferredState;
     }
+    const preferredStaysStatus = ims.getStaysPreferredStatus();
+    if (preferredStaysStatus) {
+        el.preferredStaysStatus.value = preferredStaysStatus;
+    }
     const preferredRowsPerPage = ims.getPreferredTableRowsPerPage();
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
     window.setPreferredState = setPreferredState;
+    window.setPreferredStaysStatus = setPreferredStaysStatus;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;
 }
 async function setPreferredState(el) {
@@ -48,6 +54,15 @@ async function setPreferredState(el) {
     }
     else {
         ims.setIncidentsPreferredState(null);
+    }
+    ims.controlHasSuccess(el);
+}
+async function setPreferredStaysStatus(el) {
+    if (ims.isValidStaysTableStatus(el.value)) {
+        ims.setStaysPreferredStatus(el.value);
+    }
+    else {
+        ims.setStaysPreferredStatus(null);
     }
     ims.controlHasSuccess(el);
 }

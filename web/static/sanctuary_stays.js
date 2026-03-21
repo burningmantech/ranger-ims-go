@@ -25,6 +25,8 @@ const searchDelayMs = 250;
 let searchDelayTimer = undefined;
 let _showRows = null;
 const defaultRows = "25";
+let _showStatus = "current";
+const defaultStatus = "current";
 //
 // Initialize UI
 //
@@ -32,6 +34,7 @@ const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     newStay: ims.typedElement("new_stay", HTMLButtonElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
+    showStatusMenu: ims.typedElement("show_status", HTMLButtonElement),
     helpModal: ims.typedElement("helpModal", HTMLDivElement),
     multisearchModal: ims.typedElement("multisearchModal", HTMLElement),
     multisearchEventsList: ims.typedElement("multisearch-events-list", HTMLUListElement),
@@ -49,6 +52,7 @@ async function initSanctuaryStaysPage() {
         return;
     }
     window.showRows = showRows;
+    window.showStatus = showStatus;
     ims.disableEditing();
     initStaysTable();
     const helpModal = ims.bsModal(el.helpModal);
@@ -285,6 +289,14 @@ function initTableButtons() {
     // Set button defaults
     showRows(fragmentParams.get("rows") ?? defaultRows, false);
     showRows(ims.coalesceRowsPerPage(fragmentParams.get("rows"), ims.getPreferredTableRowsPerPage(), defaultRows), false);
+    const statusStr = fragmentParams.get("status");
+    if (statusStr === "all" || statusStr === "current") {
+        showStatus(statusStr, false);
+    }
+    else {
+        const preferredStatus = ims.getStaysPreferredStatus();
+        showStatus(preferredStatus ?? defaultStatus, false);
+    }
 }
 //
 // Initialize search field
@@ -361,6 +373,14 @@ function initSearch() {
         return !(_showModifiedAfter != null &&
             !modifiedAfter(stay, _showModifiedAfter));
     });
+    staysTable.search.fixed("status", function (_searchStr, _rowData, rowIndex) {
+        if (_showStatus === "all") {
+            return true;
+        }
+        // "current" means no departure time
+        const stay = staysTable.data()[rowIndex];
+        return stay.departure_time == null || stay.departure_time === "";
+    });
 }
 //
 // Show rows button handling
@@ -383,6 +403,19 @@ function showRows(rowsToShow, replaceState) {
     staysTable.draw();
 }
 //
+// Show status button handling
+//
+function showStatus(statusToShow, replaceState) {
+    const item = document.getElementById("show_status_" + statusToShow);
+    const selection = item.getElementsByClassName("name")[0].textContent;
+    el.showStatusMenu.getElementsByClassName("selection")[0].textContent = selection;
+    _showStatus = statusToShow;
+    if (replaceState) {
+        replaceWindowState();
+    }
+    staysTable.draw();
+}
+//
 // Update the page URL based on the search input and other filters.
 //
 function replaceWindowState() {
@@ -396,6 +429,9 @@ function replaceWindowState() {
     }
     if (_showRows != null && _showRows !== defaultRows) {
         newParams.push(["rows", _showRows.toString()]);
+    }
+    if (_showStatus != null && _showStatus !== defaultStatus) {
+        newParams.push(["status", _showStatus]);
     }
     // Next step is to create search params for the other filters too
     const newURL = `${ims.urlReplace(url_viewStays)}#${new URLSearchParams(newParams).toString()}`;

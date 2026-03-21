@@ -21,6 +21,7 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         setPreferredState: (el: HTMLSelectElement) => Promise<void>;
+        setPreferredStaysStatus: (el: HTMLSelectElement) => Promise<void>;
         setPreferredRowsPerPage: (el: HTMLSelectElement) => Promise<void>;
     }
 }
@@ -31,6 +32,7 @@ declare global {
 
 const el = {
     preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
+    preferredStaysStatus: ims.typedElement("preferred_stays_status", HTMLSelectElement),
     preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
 };
 
@@ -46,11 +48,16 @@ async function initSettingsPage(): Promise<void> {
     if (preferredState) {
         el.preferredState.value = preferredState;
     }
+    const preferredStaysStatus = ims.getStaysPreferredStatus();
+    if (preferredStaysStatus) {
+        el.preferredStaysStatus.value = preferredStaysStatus;
+    }
     const preferredRowsPerPage = ims.getPreferredTableRowsPerPage();
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
     window.setPreferredState = setPreferredState;
+    window.setPreferredStaysStatus = setPreferredStaysStatus;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;
 }
 
@@ -59,6 +66,15 @@ async function setPreferredState(el: HTMLSelectElement): Promise<void> {
         ims.setIncidentsPreferredState(el.value);
     } else {
         ims.setIncidentsPreferredState(null);
+    }
+    ims.controlHasSuccess(el);
+}
+
+async function setPreferredStaysStatus(el: HTMLSelectElement): Promise<void> {
+    if (ims.isValidStaysTableStatus(el.value)) {
+        ims.setStaysPreferredStatus(el.value);
+    } else {
+        ims.setStaysPreferredStatus(null);
     }
     ims.controlHasSuccess(el);
 }

@@ -52,6 +52,23 @@ templ Settings(deployment, versionName, versionRef string) {
     <div class="input-group mb-1 flex-nowrap">
     <label
       class="control-label input-group-text"
+      for="preferred_stays_status"
+      title="The default filter view for the Sanctuary Stays table"
+    >Stay Status</label>
+    <select
+      id="preferred_stays_status"
+      class="form-control form-select form-select-sm"
+      onchange="setPreferredStaysStatus(this)"
+      style="max-width: 150px;"
+    >
+      <option value="none" selected>Use Default</option>
+      <option value="all">All</option>
+      <option value="current">Current</option>
+    </select>
+    </div>
+    <div class="input-group mb-1 flex-nowrap">
+    <label
+      class="control-label input-group-text"
       for="preferred_rows_per_page"
       title="The default maximum number of rows to display per page in tables"
     >Rows Per Page</label>

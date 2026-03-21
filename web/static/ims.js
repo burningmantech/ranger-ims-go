@@ -31,6 +31,7 @@ const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
+const staysPreferredStatusKey = "preferred_stays_status";
 export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 //
 // HTML encoding
@@ -1355,6 +1356,28 @@ export function isValidIncidentsTableState(value) {
     }
     return false;
 }
+export const staysStatusValues = ["all", "current"];
+export function isValidStaysTableStatus(value) {
+    if (value) {
+        return staysStatusValues.includes(value);
+    }
+    return false;
+}
+export function setStaysPreferredStatus(status) {
+    if (status) {
+        localStorage.setItem(staysPreferredStatusKey, status);
+    }
+    else {
+        localStorage.removeItem(staysPreferredStatusKey);
+    }
+}
+export function getStaysPreferredStatus() {
+    const pref = localStorage.getItem(staysPreferredStatusKey);
+    if (isValidStaysTableStatus(pref)) {
+        return pref;
+    }
+    return null;
+}
 export function setIncidentsPreferredState(state) {
     if (state) {
         localStorage.setItem(incidentsPreferredStateKey, state);
@@ -1404,6 +1427,7 @@ export function clearLocalStorage() {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
+    localStorage.removeItem(staysPreferredStatusKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
 }
 export function clearSessionStorage() {

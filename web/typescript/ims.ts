@@ -41,6 +41,7 @@ const accessTokenRefreshAfterKey = "access_token_refresh_after";
 
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
+const staysPreferredStatusKey = "preferred_stays_status";
 
 export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 
@@ -1566,6 +1567,31 @@ export function isValidIncidentsTableState(value: string|null): value is Inciden
     return false;
 }
 
+export const staysStatusValues = ["all", "current"] as const;
+export type StaysTableStatus = typeof staysStatusValues[number];
+export function isValidStaysTableStatus(value: string|null): value is StaysTableStatus {
+    if (value) {
+        return staysStatusValues.includes(value as StaysTableStatus);
+    }
+    return false;
+}
+
+export function setStaysPreferredStatus(status: StaysTableStatus|null): void {
+    if (status) {
+        localStorage.setItem(staysPreferredStatusKey, status);
+    } else {
+        localStorage.removeItem(staysPreferredStatusKey);
+    }
+}
+
+export function getStaysPreferredStatus(): StaysTableStatus|null {
+    const pref = localStorage.getItem(staysPreferredStatusKey);
+    if (isValidStaysTableStatus(pref)) {
+        return pref;
+    }
+    return null;
+}
+
 export function setIncidentsPreferredState(state: IncidentsTableState|null): void {
     if (state) {
         localStorage.setItem(incidentsPreferredStateKey, state);
@@ -1620,6 +1646,7 @@ export function clearLocalStorage(): void {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
+    localStorage.removeItem(staysPreferredStatusKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
 }
 

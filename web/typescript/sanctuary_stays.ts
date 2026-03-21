@@ -17,12 +17,12 @@
 "use strict";
 
 import * as ims from "./ims.ts";
-import {RenderValue} from "./ims.ts";
 
 declare global {
     interface Window {
         showDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
         showRows: (rowsToShow: string, replaceState: boolean)=>void;
+        showStatus: (statusToShow: string, replaceState: boolean)=>void;
         toggleMultisearchModal: (e?: MouseEvent)=>void;
     }
 }
@@ -39,6 +39,10 @@ let searchDelayTimer: number|undefined = undefined;
 let _showRows: string|null = null;
 const defaultRows = "25";
 
+type StaysFilterStatus = "all" | "current";
+let _showStatus: StaysFilterStatus = "current";
+const defaultStatus: StaysFilterStatus = "current";
+
 //
 // Initialize UI
 //
@@ -47,6 +51,7 @@ const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     newStay: ims.typedElement("new_stay", HTMLButtonElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
+    showStatusMenu: ims.typedElement("show_status", HTMLButtonElement),
 
     helpModal: ims.typedElement("helpModal", HTMLDivElement),
     multisearchModal: ims.typedElement("multisearchModal", HTMLElement),
@@ -70,6 +75,7 @@ async function initSanctuaryStaysPage(): Promise<void> {
     }
 
     window.showRows = showRows;
+    window.showStatus = showStatus;
 
     ims.disableEditing();
     initStaysTable();
@@ -307,7 +313,7 @@ function initDataTables() {
     });
 }
 
-function renderName(_data: string|null, type: string, stay: ims.Stay): RenderValue {
+function renderName(_data: string|null, type: string, stay: ims.Stay): ims.RenderValue {
     const guestName = stay.guest_preferred_name || stay.guest_legal_name || "Someone";
     switch (type) {
         case "display":
@@ -341,6 +347,14 @@ function initTableButtons() {
             ims.getPreferredTableRowsPerPage(),
             defaultRows,
         ), false);
+
+    const statusStr = fragmentParams.get("status");
+    if (statusStr === "all" || statusStr === "current") {
+        showStatus(statusStr, false);
+    } else {
+        const preferredStatus = ims.getStaysPreferredStatus();
+        showStatus(preferredStatus ?? defaultStatus, false);
+    }
 }
 
 
@@ -427,10 +441,21 @@ function initSearch() {
 
     staysTable!.search.fixed("modification_date",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
-            const stay = staysTable!.data()[rowIndex]!;
+            const stay: ims.Stay = staysTable!.data()[rowIndex]!;
             return !(_showModifiedAfter != null &&
                 !modifiedAfter(stay, _showModifiedAfter));
 
+        },
+    );
+
+    staysTable!.search.fixed("status",
+        function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
+            if (_showStatus === "all") {
+                return true;
+            }
+            // "current" means no departure time
+            const stay: ims.Stay = staysTable!.data()[rowIndex]!;
+            return stay.departure_time == null || stay.departure_time === "";
         },
     );
 }
@@ -465,6 +490,24 @@ function showRows(rowsToShow: string, replaceState: boolean) {
 
 
 //
+// Show status button handling
+//
+
+function showStatus(statusToShow: string, replaceState: boolean): void {
+    const item = document.getElementById("show_status_" + statusToShow) as HTMLLIElement;
+    const selection = item.getElementsByClassName("name")[0]!.textContent;
+    el.showStatusMenu.getElementsByClassName("selection")[0]!.textContent = selection;
+    _showStatus = statusToShow as StaysFilterStatus;
+
+    if (replaceState) {
+        replaceWindowState();
+    }
+
+    staysTable!.draw();
+}
+
+
+//
 // Update the page URL based on the search input and other filters.
 //
 
@@ -480,6 +523,9 @@ function replaceWindowState(): void {
     }
     if (_showRows != null && _showRows !== defaultRows) {
         newParams.push(["rows", _showRows.toString()]);
+    }
+    if (_showStatus != null && _showStatus !== defaultStatus) {
+        newParams.push(["status", _showStatus]);
     }
 
     // Next step is to create search params for the other filters too

@@ -108,7 +108,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                     <input
                         id="guest_description" class="form-control form-control-sm"
                         type="text" inputmode="latin-prose" autocomplete="off"
-                        placeholder="e.g. 60ish Hispanic woman with pink hair"
+                        placeholder="Physical traits, gender, languages, etc."
                         onchange="editGuestDescription()"
                     />
                   </div>
@@ -117,14 +117,14 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                   <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
                   <label class="col-sm-2 col-form-label control-label" for="alt_arrival_time">Arrival time:</label>
                   <div class="col-sm-10">
-                    <input id="arrival_time" type="text" class="form-control" />
+                    <input id="arrival_time" type="text" class="form-control form-control-sm" />
                   </div>
                 </div>
                 <div class="input-group row align-items-center">
                   <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
                   <label class="col-sm-2 col-form-label control-label" for="alt_departure_time">Departure time:</label>
                   <div class="col-sm-10">
-                    <input id="departure_time" type="text" class="form-control" />
+                    <input id="departure_time" type="text" class="form-control form-control-sm" />
                   </div>
                 </div>
               </form>
@@ -246,7 +246,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
           <label class="control-label card-header">Guest camp information</label>
           <div class="card-body">
             <form class="form-horizontal">
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="guest_camp_name" class="col-sm-2 col-form-label control-label">Camp name:</label>
                 <div class="col-sm-10">
                   <input
@@ -259,7 +259,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="guest_camp_address" class="col-sm-2 col-form-label control-label">Address:</label>
                 <div class="col-sm-10">
                   <input
@@ -272,7 +272,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="guest_camp_description" class="col-sm-2 col-form-label control-label">Description:</label>
                 <div class="col-sm-10">
                   <input
@@ -338,7 +338,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
           <label class="control-label card-header">Sanctuary resources</label>
           <div class="card-body">
             <form class="form-horizontal">
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="resource_rest" class="col-sm-2 col-form-label control-label">Rest details:</label>
                 <div class="col-sm-10">
                   <input
@@ -351,7 +351,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="resource_clothes" class="col-sm-2 col-form-label control-label">Clothes given:</label>
                 <div class="col-sm-10">
                   <input
@@ -364,7 +364,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="resource_pogs" class="col-sm-2 col-form-label control-label">Meal pogs:</label>
                 <div class="col-sm-10">
                   <input
@@ -377,7 +377,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="resource_food_bev" class="col-sm-2 col-form-label control-label">Food/bev given:</label>
                 <div class="col-sm-10">
                   <input
@@ -390,7 +390,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center mb-2">
+              <div class="input-group row align-items-center">
                 <label for="resource_other" class="col-sm-2 col-form-label control-label">Other resources:</label>
                 <div class="col-sm-10">
                   <input

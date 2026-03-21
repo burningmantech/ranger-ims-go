@@ -17,7 +17,6 @@
 "use strict";
 
 import * as ims from "./ims.ts";
-import {fetchPersonnel} from "./ims.ts";
 
 declare global {
     interface Window {
@@ -335,6 +334,9 @@ function drawStayFields(): void {
 
     if (stay?.arrival_time) {
         el.arrivalTime._flatpickr.setDate(stay.arrival_time, false, "Z");
+        const fullDate = ims.longFormatDate(new Date(stay.arrival_time));
+        el.arrivalTime._flatpickr.input!.title = fullDate;
+        el.arrivalTime._flatpickr.altInput!.title = fullDate;
     }
     el.arrivalMethod.value = (stay?.arrival_method?.toString())??"";
     el.arrivalState.value = (stay?.arrival_state?.toString())??"";
@@ -343,6 +345,9 @@ function drawStayFields(): void {
 
     if (stay?.departure_time) {
         el.departureTime._flatpickr.setDate(stay.departure_time, false, "Z");
+        const fullDate = ims.longFormatDate(new Date(stay.departure_time));
+        el.departureTime._flatpickr.input!.title = fullDate;
+        el.departureTime._flatpickr.altInput!.title = fullDate;
     }
     el.departureMethod.value = (stay?.departure_method?.toString())??"";
     el.departureState.value = (stay?.departure_state?.toString())??"";
@@ -564,7 +569,7 @@ async function attachFile(): Promise<void> {
 let personnel: ims.PersonnelMap|null = null;
 
 async function loadPersonnel(): Promise<void> {
-    const res = await fetchPersonnel();
+    const res = await ims.fetchPersonnel();
     if (res.err != null || res.personnel == null) {
         ims.setErrorMessage(res.err??"");
     }

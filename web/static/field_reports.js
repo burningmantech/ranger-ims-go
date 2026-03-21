@@ -274,14 +274,15 @@ function renderSummary(_data, type, fieldReport) {
         case "display":
             // XSS prevention
             return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport));
-        case "sort":
-            return ims.summarizeIncidentOrFR(fieldReport);
         case "filter":
             return ims.reportTextFromIncident(fieldReport);
+        case "sort":
         case "type":
-            return "";
+        case undefined:
+            return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport));
+        default:
+            return undefined;
     }
-    return undefined;
 }
 //
 // Initialize table buttons

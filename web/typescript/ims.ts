@@ -736,7 +736,18 @@ function safeShortDescribeLocation(location: EventLocation): string {
     if (locAddr) {
         locAddr = `(${locAddr})`;
     }
-    return [locName, locAddr].join(" <wbr />");
+    return [locName, locAddr].join(" ");
+}
+
+// Return a short description for a given location.
+function shortDescribeLocation(location: EventLocation): HTMLSpanElement {
+    const sp = document.createElement("span");
+    sp.append(location.name??"");
+    if (location.address) {
+        sp.append(document.createElement("wbr"));
+        sp.append(` (${location.address})`);
+    }
+    return sp;
 }
 
 
@@ -744,13 +755,23 @@ function safeShortDescribeLocation(location: EventLocation): string {
 // DataTables rendering
 //
 
-export function renderSafeSorted(strings: string[]): string {
+export type RenderValue = number|string|Node|null|undefined;
+
+export function renderSortedSpan(strings: string[]): Node {
     const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
-    const safeSorted = sortedCopy.map((a): string => DataTable.render.text().display(a));
-    return safeSorted.join(", <wbr />");
+
+    const sp = document.createElement("span");
+    for (const [i, s] of sortedCopy.entries()) {
+        if (i === sortedCopy.length - 1) {
+            sp.append(s);
+        } else {
+            sp.append(s + ", ", document.createElement("wbr"));
+        }
+    }
+    return sp;
 }
 
-export function renderIncidentNumber(incidentNumber: number|null, type: string, _incident: any): number|string|null|undefined {
+export function renderIncidentNumber(incidentNumber: number|null, type: string, _incidentOrFROrStay: any): RenderValue {
     switch (type) {
         case "display":
             if (incidentNumber == null) {
@@ -759,16 +780,18 @@ export function renderIncidentNumber(incidentNumber: number|null, type: string, 
             const link = document.createElement("a");
             link.href = urlReplace(url_viewIncidentNumber).replace("<number>", incidentNumber.toString());
             link.text = incidentNumber.toString();
-            return link.outerHTML;
+            return link;
         case "filter":
         case "type":
         case "sort":
+        case undefined:
             return incidentNumber;
+        default:
+            return undefined
     }
-    return undefined;
 }
 
-export function renderFieldReportNumber(fieldReportNumber: number|null, type: string, _fieldReport: any): number|string|null|undefined {
+export function renderFieldReportNumber(fieldReportNumber: number|null, type: string, _fieldReport: any): RenderValue {
     switch (type) {
         case "display":
             if (fieldReportNumber == null) {
@@ -777,16 +800,18 @@ export function renderFieldReportNumber(fieldReportNumber: number|null, type: st
             const link = document.createElement("a");
             link.href = urlReplace(url_viewFieldReportNumber).replace("<number>", fieldReportNumber.toString());
             link.text = fieldReportNumber.toString();
-            return link.outerHTML;
+            return link;
         case "filter":
         case "type":
         case "sort":
+        case undefined:
             return fieldReportNumber;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 
-export function renderStayNumber(stayNumber: number|null, type: string, _stay: any): number|string|null|undefined {
+export function renderStayNumber(stayNumber: number|null, type: string, _stay: any): RenderValue {
     switch (type) {
         case "display":
             if (stayNumber == null) {
@@ -795,13 +820,15 @@ export function renderStayNumber(stayNumber: number|null, type: string, _stay: a
             const link = document.createElement("a");
             link.href = `${urlReplace(url_viewStays)}/${stayNumber.toString()}`;
             link.text = stayNumber.toString();
-            return link.outerHTML;
+            return link;
         case "filter":
-        case "type":
         case "sort":
+        case "type":
+        case undefined:
             return stayNumber;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 
 // e.g. "Wed, 8/28"
@@ -873,7 +900,7 @@ export function localTimeHHMM(date: Date): string {
     return `${hours}:${minutes}`;
 }
 
-export function renderDate(date: string|undefined, type: string, _incident: any): string|number|undefined {
+export function renderDate(date: string|undefined, type: string, _incidentOrFROrStay: any): RenderValue {
     if (date === undefined) {
         return undefined;
     }
@@ -881,17 +908,22 @@ export function renderDate(date: string|undefined, type: string, _incident: any)
     const fullDate = longFormatDate(d);
     switch (type) {
         case "display":
-            return `<span title="${fullDate}">${shortDate.format(d)}<br />${shortTime.format(d)}</span>`;
+            const dateSpan = document.createElement("span");
+            dateSpan.title = fullDate;
+            dateSpan.append(shortDate.format(d), document.createElement("br"), shortTime.format(d));
+            return dateSpan;
         case "filter":
             return shortDate.format(d) + " " + shortTime.format(d);
         case "type":
         case "sort":
+        case undefined:
             return d;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 
-export function renderState(state: IncidentState, type: string, incident: Incident): string|number|undefined {
+export function renderState(state: IncidentState, type: string, incident: Incident): RenderValue {
     if (state == null) {
         state = stateForIncident(incident);
     }
@@ -899,35 +931,51 @@ export function renderState(state: IncidentState, type: string, incident: Incide
     switch (type) {
         case "display":
         case "filter":
-            return stateNameFromID(state);
         case "type":
-            return state;
+        case undefined:
+            return stateNameFromID(state);
         case "sort":
             return stateSortKeyFromID(state);
+        default:
+            return undefined;
     }
-    return undefined;
 }
 
-export function renderLocation(data: EventLocation|null, type: string, _incident: Incident): string|undefined {
+export type RenderType = "filter"|"display"|"type"|"sort"|undefined;
+
+export function renderLocation(data: EventLocation|null, type: RenderType, _incident: Incident): RenderValue {
     if (data == null) {
         return undefined;
     }
     switch (type) {
+        case "display":
+            return shortDescribeLocation(data);
         case "filter":
         case "sort":
-        case "display":
-            return safeShortDescribeLocation(data)??"";
         case "type":
-            return "";
+        case undefined:
+            return safeShortDescribeLocation(data)??"";
+        default:
+            return undefined;
     }
-    return undefined;
 }
 
-export function renderRangerHandles(data: IncidentRanger[]|null, _type: string, _incident: Incident): string|undefined {
+export function renderRangerHandles(data: IncidentRanger[]|null, type: RenderType, _incident: Incident): RenderValue {
     if (data == null) {
         return undefined;
     }
-    return renderSafeSorted(data.map(r=>r.handle).filter(r=>r!=null));
+    const handles = data.map(r=>r.handle).filter(r=>r!=null);
+    switch (type) {
+        case "display":
+            return renderSortedSpan(handles);
+        case "filter":
+        case "sort":
+        case "type":
+        case undefined:
+            return handles.toSorted((a, b) => a.localeCompare(b)).join(", ");
+        default:
+            return undefined;
+    }
 }
 
 //

@@ -625,17 +625,32 @@ function safeShortDescribeLocation(location) {
     if (locAddr) {
         locAddr = `(${locAddr})`;
     }
-    return [locName, locAddr].join(" <wbr />");
+    return [locName, locAddr].join(" ");
 }
-//
-// DataTables rendering
-//
-export function renderSafeSorted(strings) {
+// Return a short description for a given location.
+function shortDescribeLocation(location) {
+    const sp = document.createElement("span");
+    sp.append(location.name ?? "");
+    if (location.address) {
+        sp.append(document.createElement("wbr"));
+        sp.append(` (${location.address})`);
+    }
+    return sp;
+}
+export function renderSortedSpan(strings) {
     const sortedCopy = strings.toSorted((a, b) => a.localeCompare(b));
-    const safeSorted = sortedCopy.map((a) => DataTable.render.text().display(a));
-    return safeSorted.join(", <wbr />");
+    const sp = document.createElement("span");
+    for (const [i, s] of sortedCopy.entries()) {
+        if (i === sortedCopy.length - 1) {
+            sp.append(s);
+        }
+        else {
+            sp.append(s + ", ", document.createElement("wbr"));
+        }
+    }
+    return sp;
 }
-export function renderIncidentNumber(incidentNumber, type, _incident) {
+export function renderIncidentNumber(incidentNumber, type, _incidentOrFROrStay) {
     switch (type) {
         case "display":
             if (incidentNumber == null) {
@@ -644,13 +659,15 @@ export function renderIncidentNumber(incidentNumber, type, _incident) {
             const link = document.createElement("a");
             link.href = urlReplace(url_viewIncidentNumber).replace("<number>", incidentNumber.toString());
             link.text = incidentNumber.toString();
-            return link.outerHTML;
+            return link;
         case "filter":
         case "type":
         case "sort":
+        case undefined:
             return incidentNumber;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 export function renderFieldReportNumber(fieldReportNumber, type, _fieldReport) {
     switch (type) {
@@ -661,13 +678,15 @@ export function renderFieldReportNumber(fieldReportNumber, type, _fieldReport) {
             const link = document.createElement("a");
             link.href = urlReplace(url_viewFieldReportNumber).replace("<number>", fieldReportNumber.toString());
             link.text = fieldReportNumber.toString();
-            return link.outerHTML;
+            return link;
         case "filter":
         case "type":
         case "sort":
+        case undefined:
             return fieldReportNumber;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 export function renderStayNumber(stayNumber, type, _stay) {
     switch (type) {
@@ -678,13 +697,15 @@ export function renderStayNumber(stayNumber, type, _stay) {
             const link = document.createElement("a");
             link.href = `${urlReplace(url_viewStays)}/${stayNumber.toString()}`;
             link.text = stayNumber.toString();
-            return link.outerHTML;
+            return link;
         case "filter":
-        case "type":
         case "sort":
+        case "type":
+        case undefined:
             return stayNumber;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 // e.g. "Wed, 8/28"
 export const shortDate = new Intl.DateTimeFormat(undefined, {
@@ -743,7 +764,7 @@ export function localTimeHHMM(date) {
     const minutes = date.getMinutes().toString().padStart(2, "0");
     return `${hours}:${minutes}`;
 }
-export function renderDate(date, type, _incident) {
+export function renderDate(date, type, _incidentOrFROrStay) {
     if (date === undefined) {
         return undefined;
     }
@@ -751,14 +772,19 @@ export function renderDate(date, type, _incident) {
     const fullDate = longFormatDate(d);
     switch (type) {
         case "display":
-            return `<span title="${fullDate}">${shortDate.format(d)}<br />${shortTime.format(d)}</span>`;
+            const dateSpan = document.createElement("span");
+            dateSpan.title = fullDate;
+            dateSpan.append(shortDate.format(d), document.createElement("br"), shortTime.format(d));
+            return dateSpan;
         case "filter":
             return shortDate.format(d) + " " + shortTime.format(d);
         case "type":
         case "sort":
+        case undefined:
             return d;
+        default:
+            return undefined;
     }
-    return undefined;
 }
 export function renderState(state, type, incident) {
     if (state == null) {
@@ -767,33 +793,47 @@ export function renderState(state, type, incident) {
     switch (type) {
         case "display":
         case "filter":
-            return stateNameFromID(state);
         case "type":
-            return state;
+        case undefined:
+            return stateNameFromID(state);
         case "sort":
             return stateSortKeyFromID(state);
+        default:
+            return undefined;
     }
-    return undefined;
 }
 export function renderLocation(data, type, _incident) {
     if (data == null) {
         return undefined;
     }
     switch (type) {
+        case "display":
+            return shortDescribeLocation(data);
         case "filter":
         case "sort":
-        case "display":
-            return safeShortDescribeLocation(data) ?? "";
         case "type":
-            return "";
+        case undefined:
+            return safeShortDescribeLocation(data) ?? "";
+        default:
+            return undefined;
     }
-    return undefined;
 }
-export function renderRangerHandles(data, _type, _incident) {
+export function renderRangerHandles(data, type, _incident) {
     if (data == null) {
         return undefined;
     }
-    return renderSafeSorted(data.map(r => r.handle).filter(r => r != null));
+    const handles = data.map(r => r.handle).filter(r => r != null);
+    switch (type) {
+        case "display":
+            return renderSortedSpan(handles);
+        case "filter":
+        case "sort":
+        case "type":
+        case undefined:
+            return handles.toSorted((a, b) => a.localeCompare(b)).join(", ");
+        default:
+            return undefined;
+    }
 }
 //
 // Populate report entry text

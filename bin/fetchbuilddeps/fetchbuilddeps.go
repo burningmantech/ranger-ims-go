@@ -59,12 +59,12 @@ func main() {
 	groupCtx := ctx
 
 	// https://jquery.com/download/
-	jqueryVersion := "3.7.1"
+	jqueryVersion := "4.0.0"
 	{
 		g.Go(existOrFetch(groupCtx, staticExtRoot,
 			"jquery.min.js",
 			"https://code.jquery.com/jquery-"+jqueryVersion+".min.js",
-			"sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=",
+			"sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=",
 		))
 	}
 	// https://getbootstrap.com/docs/5.3/getting-started/download/#cdn-via-jsdelivr

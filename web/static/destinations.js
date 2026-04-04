@@ -128,6 +128,11 @@ function destInitDataTables() {
                     camp.description = camp.external_data.description;
                     destinations.push(camp);
                 }
+                for (const mv of json.mv ?? []) {
+                    mv.type = "mv";
+                    mv.description = mv.external_data.description;
+                    destinations.push(mv);
+                }
                 for (const other of json.other ?? []) {
                     other.type = "other";
                     destinations.push(other);
@@ -264,6 +269,39 @@ function destinationToHTML(destination) {
             artEl.getElementById("hometown").textContent = art.hometown ?? "None provided";
             artEl.getElementById("uid").textContent = art.uid ?? "None";
             return artEl;
+        }
+        case "mv": {
+            const mv = destination.external_data;
+            const template = document.getElementById("mv_template");
+            // Clone the new row and insert it into the table
+            const mvEl = template.content.cloneNode(true);
+            mvEl.getElementById("mv_name").textContent = mv.name;
+            mvEl.getElementById("description").textContent = mv.description ?? "None provided";
+            mvEl.getElementById("artist").textContent = mv.artist ?? "None provided";
+            let imageURL = mv.images?.find((value) => {
+                return "thumbnail_url" in value;
+            })?.thumbnail_url;
+            setImageDetails(mvEl.getElementById("image_dd"), imageURL);
+            if (mv.contact_email) {
+                const emailLink = mvEl.getElementById("email_link");
+                emailLink.href = `mailto:${mv.contact_email}`;
+                emailLink.textContent = mv.contact_email;
+            }
+            else {
+                mvEl.getElementById("email_dd").textContent = "None provided";
+            }
+            if (mv.url) {
+                const websiteLink = mvEl.getElementById("website_url");
+                websiteLink.href = mv.url;
+                websiteLink.textContent = mv.url;
+            }
+            else {
+                mvEl.getElementById("website_dd").textContent = "None provided";
+            }
+            mvEl.getElementById("hometown").textContent = mv.hometown ?? "None provided";
+            mvEl.getElementById("uid").textContent = mv.uid ?? "None";
+            mvEl.getElementById("tags").textContent = (mv.tags ?? []).join(", ");
+            return mvEl;
         }
         default:
             throw new Error("Found no destination type");

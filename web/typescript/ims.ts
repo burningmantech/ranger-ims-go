@@ -1890,12 +1890,12 @@ export interface IncidentType {
     description?: string|null;
 }
 
-type DestinationType = "art"|"camp"|"other";
+type DestinationType = "art"|"camp"|"other"|"mv";
 
 export type Destination = {
     name?: string|null;
     location_string?: string|null;
-    external_data?: BMArt|BMCamp|OtherDest|null;
+    external_data?: BMArt|BMCamp|BMMV|OtherDest|null;
 
     type?: DestinationType|null;
     description?: string|null;
@@ -1938,6 +1938,20 @@ export type BMCamp = {
     // https://api.burningman.org/docs#operation/get_camp
 }
 
+export type BMMV = {
+    artist: string|null;
+    contact_email: string|null;
+    description: string|null;
+    donation_link: string|null;
+    hometown: string|null;
+    images: BMMVImage[]|null;
+    name: string;
+    tags: string[]|null;
+    uid: string;
+    url: string|null;
+    year: number;
+}
+
 export type BMArtLocation = {
     hour: number|null;
     minute: number|null;
@@ -1960,6 +1974,10 @@ export type BMArtImage = {
 }
 
 export type BMCampImage = {
+    thumbnail_url: string|null;
+}
+
+export type BMMVImage = {
     thumbnail_url: string|null;
 }
 

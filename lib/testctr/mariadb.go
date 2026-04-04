@@ -18,9 +18,10 @@ package testctr
 
 import (
 	"context"
+	"log/slog"
+
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"log/slog"
 )
 
 const (
@@ -72,6 +73,6 @@ func MariaDBContainer(ctx context.Context, database, username, password string) 
 		cleanup()
 		return nil, func() {}, 0, err
 	}
-	dbHostPort := int32(natPort.Int())
+	dbHostPort := int32(natPort.Num())
 	return ctr, cleanup, dbHostPort, nil
 }

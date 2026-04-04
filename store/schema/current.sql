@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (27);
+insert into SCHEMA_INFO (VERSION) values (28);
 
 
 create table `EVENT` (
@@ -222,7 +222,7 @@ create table `ACTION_LOG` (
 
 create table `DESTINATION` (
     `EVENT`             integer not null,
-    `TYPE`              enum('camp', 'art', 'other') not null,
+    `TYPE`              enum('camp', 'art', 'other', 'mv') not null,
     `NUMBER`            integer not null,
     `NAME`              varchar(1024) not null,
     `LOCATION_STRING`   varchar(1024) not null,

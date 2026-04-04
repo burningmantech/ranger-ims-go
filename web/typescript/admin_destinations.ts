@@ -33,9 +33,11 @@ const el = {
     eventName: ims.typedElement("event-name", HTMLInputElement),
     artData: ims.typedElement("art-data", HTMLTextAreaElement),
     campData: ims.typedElement("camp-data", HTMLTextAreaElement),
+    mvData: ims.typedElement("mv-data", HTMLTextAreaElement),
     otherData: ims.typedElement("other-data", HTMLTextAreaElement),
     artDataLabel: ims.typedElement("art-data-label", HTMLLabelElement),
     campDataLabel: ims.typedElement("camp-data-label", HTMLLabelElement),
+    mvDataLabel: ims.typedElement("mv-data-label", HTMLLabelElement),
     otherDataLabel: ims.typedElement("other-data-label", HTMLLabelElement),
 };
 
@@ -54,11 +56,12 @@ async function initAdminDestinationsPage(): Promise<void> {
     })
 }
 
-function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextAreaElement, otherDataEl: HTMLTextAreaElement): ims.Destinations {
+function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextAreaElement, mvDataEl: HTMLTextAreaElement, otherDataEl: HTMLTextAreaElement): ims.Destinations {
     const destinations: ims.Destinations = {
         art: [],
         camp: [],
         other: [],
+        mv: [],
     }
     {
         const artExtDatas = JSON.parse(artDataEl.value) as ims.BMArt[];
@@ -81,6 +84,15 @@ function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextA
         }
     }
     {
+        const mvExtDatas = JSON.parse(mvDataEl.value) as ims.BMMV[];
+        for (const ed of mvExtDatas) {
+            destinations.mv!.push({
+                name: ed.name,
+                external_data: ed,
+            });
+        }
+    }
+    {
         const otherExtDatas = JSON.parse(otherDataEl.value) as ims.OtherDest[];
         for (const ed of otherExtDatas) {
             destinations.other!.push({
@@ -97,7 +109,7 @@ async function submit(): Promise<void> {
     ims.clearErrorMessage();
     let destinations: ims.Destinations|null = null;
     try {
-        destinations = parseDestinations(el.artData, el.campData, el.otherData);
+        destinations = parseDestinations(el.artData, el.campData, el.mvData, el.otherData);
     } catch (e: any) {
         console.log(e);
         ims.setErrorMessage(e);
@@ -115,11 +127,13 @@ async function submit(): Promise<void> {
         ims.setErrorMessage(message);
         ims.controlHasError(el.artData);
         ims.controlHasError(el.campData);
+        ims.controlHasError(el.mvData);
         ims.controlHasError(el.otherData);
         return;
     }
     ims.controlHasSuccess(el.artData);
     ims.controlHasSuccess(el.campData);
+    ims.controlHasSuccess(el.mvData);
     ims.controlHasSuccess(el.otherData);
 }
 
@@ -154,6 +168,14 @@ async function loadDestinations(): Promise<void> {
         }
         el.campData.value = JSON.stringify(camps, null, 2);
         el.campDataLabel.textContent = `JSON Data (${camps.length})`;
+    }
+    {
+        const mvs: ims.BMMV[] = [];
+        for (const ed of json.mv ?? []) {
+            mvs.push(ed.external_data! as ims.BMMV);
+        }
+        el.mvData.value = JSON.stringify(mvs, null, 2);
+        el.mvDataLabel.textContent = `JSON Data (${mvs.length})`;
     }
     {
         const others: ims.OtherDest[] = [];

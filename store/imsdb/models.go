@@ -17,6 +17,7 @@ const (
 	DestinationTypeCamp  DestinationType = "camp"
 	DestinationTypeArt   DestinationType = "art"
 	DestinationTypeOther DestinationType = "other"
+	DestinationTypeMv    DestinationType = "mv"
 )
 
 func (e *DestinationType) Scan(src interface{}) error {
@@ -58,7 +59,8 @@ func (e DestinationType) Valid() bool {
 	switch e {
 	case DestinationTypeCamp,
 		DestinationTypeArt,
-		DestinationTypeOther:
+		DestinationTypeOther,
+		DestinationTypeMv:
 		return true
 	}
 	return false
@@ -69,6 +71,7 @@ func AllDestinationTypeValues() []DestinationType {
 		DestinationTypeCamp,
 		DestinationTypeArt,
 		DestinationTypeOther,
+		DestinationTypeMv,
 	}
 }
 

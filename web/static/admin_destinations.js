@@ -25,9 +25,11 @@ const el = {
     eventName: ims.typedElement("event-name", HTMLInputElement),
     artData: ims.typedElement("art-data", HTMLTextAreaElement),
     campData: ims.typedElement("camp-data", HTMLTextAreaElement),
+    mvData: ims.typedElement("mv-data", HTMLTextAreaElement),
     otherData: ims.typedElement("other-data", HTMLTextAreaElement),
     artDataLabel: ims.typedElement("art-data-label", HTMLLabelElement),
     campDataLabel: ims.typedElement("camp-data-label", HTMLLabelElement),
+    mvDataLabel: ims.typedElement("mv-data-label", HTMLLabelElement),
     otherDataLabel: ims.typedElement("other-data-label", HTMLLabelElement),
 };
 initAdminDestinationsPage();
@@ -43,11 +45,12 @@ async function initAdminDestinationsPage() {
         await submit();
     });
 }
-function parseDestinations(artDataEl, campDataEl, otherDataEl) {
+function parseDestinations(artDataEl, campDataEl, mvDataEl, otherDataEl) {
     const destinations = {
         art: [],
         camp: [],
         other: [],
+        mv: [],
     };
     {
         const artExtDatas = JSON.parse(artDataEl.value);
@@ -70,6 +73,15 @@ function parseDestinations(artDataEl, campDataEl, otherDataEl) {
         }
     }
     {
+        const mvExtDatas = JSON.parse(mvDataEl.value);
+        for (const ed of mvExtDatas) {
+            destinations.mv.push({
+                name: ed.name,
+                external_data: ed,
+            });
+        }
+    }
+    {
         const otherExtDatas = JSON.parse(otherDataEl.value);
         for (const ed of otherExtDatas) {
             destinations.other.push({
@@ -85,7 +97,7 @@ async function submit() {
     ims.clearErrorMessage();
     let destinations = null;
     try {
-        destinations = parseDestinations(el.artData, el.campData, el.otherData);
+        destinations = parseDestinations(el.artData, el.campData, el.mvData, el.otherData);
     }
     catch (e) {
         console.log(e);
@@ -102,11 +114,13 @@ async function submit() {
         ims.setErrorMessage(message);
         ims.controlHasError(el.artData);
         ims.controlHasError(el.campData);
+        ims.controlHasError(el.mvData);
         ims.controlHasError(el.otherData);
         return;
     }
     ims.controlHasSuccess(el.artData);
     ims.controlHasSuccess(el.campData);
+    ims.controlHasSuccess(el.mvData);
     ims.controlHasSuccess(el.otherData);
 }
 async function loadDestinations() {
@@ -136,6 +150,14 @@ async function loadDestinations() {
         }
         el.campData.value = JSON.stringify(camps, null, 2);
         el.campDataLabel.textContent = `JSON Data (${camps.length})`;
+    }
+    {
+        const mvs = [];
+        for (const ed of json.mv ?? []) {
+            mvs.push(ed.external_data);
+        }
+        el.mvData.value = JSON.stringify(mvs, null, 2);
+        el.mvDataLabel.textContent = `JSON Data (${mvs.length})`;
     }
     {
         const others = [];

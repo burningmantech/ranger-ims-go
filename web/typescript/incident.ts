@@ -842,7 +842,7 @@ function drawDestinationsList(): void {
     const newOptions: HTMLOptionElement[] = [];
     for (const d of destinations.art??[]) {
         const option: HTMLOptionElement = document.createElement("option");
-        option.value = `${d.name} (Art) (${d.location_string})`;
+        option.value = `${d.name} (Art) (${d.location_string ?? 'Unknown address'})`;
         option.dataset["name"] = d.name??"";
         option.dataset["address"] = d.location_string??"";
         option.dataset["type"] = "Art";
@@ -850,15 +850,22 @@ function drawDestinationsList(): void {
     }
     for (const d of destinations.camp??[]) {
         const option: HTMLOptionElement = document.createElement("option");
-        option.value = `${d.name} (${d.location_string})`;
+        option.value = `${d.name} (${d.location_string ?? 'Unknown address'})`;
         option.dataset["name"] = d.name??"";
         option.dataset["address"] = d.location_string??"";
         option.dataset["type"] = "Camp";
         newOptions.push(option);
     }
+    for (const d of destinations.mv??[]) {
+        const option: HTMLOptionElement = document.createElement("option");
+        option.value = `${d.name} (MV)`;
+        option.dataset["name"] = d.name??"";
+        option.dataset["type"] = "MV";
+        newOptions.push(option);
+    }
     for (const d of destinations.other??[]) {
         const option: HTMLOptionElement = document.createElement("option");
-        option.value = `${d.name} (${d.location_string})`;
+        option.value = `${d.name} (${d.location_string ?? 'Unknown address'})`;
         option.dataset["name"] = d.name??"";
         option.dataset["address"] = d.location_string??"";
         option.dataset["type"] = "Other";
@@ -1175,19 +1182,36 @@ async function editLocationName(): Promise<void> {
 }
 
 async function setLocationFromDestination(knownLoc: HTMLOptionElement): Promise<void> {
-    const nameSuffix: string = knownLoc.dataset["type"] === "Art" ? ` (${knownLoc.dataset["type"]})` : "";
-    const edits: ims.Incident = {
-        location: {
-            name: ((knownLoc.dataset["name"]??"") + nameSuffix).trim(),
-            address: (knownLoc.dataset["address"]??"").trim(),
-        },
+    let nameSuffix: string = "";
+    switch (knownLoc.dataset["type"]) {
+        case "Art":
+            nameSuffix = " (Art)";
+            break;
+        case "MV":
+            nameSuffix = " (MV)";
+            break;
+        case "Camp":
+        case "Other":
+        default:
+            break;
+    }
+
+    const edits: ims.Incident = {};
+    edits.location = {};
+    if (knownLoc.dataset["name"]) {
+        edits.location.name = (knownLoc.dataset["name"] + nameSuffix).trim();
+    }
+    if (knownLoc.dataset["address"]) {
+        edits.location.address = knownLoc.dataset["address"].trim();
     }
     const {err} = await sendEdits!(edits);
     if (err != null) {
         ims.controlHasError(el.locationName);
     } else {
         ims.controlHasSuccess(el.locationName);
-        ims.controlHasSuccess(el.locationAddress);
+        if (edits.location.address) {
+            ims.controlHasSuccess(el.locationAddress);
+        }
     }
 }
 

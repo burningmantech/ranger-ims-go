@@ -21,7 +21,7 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         setPreferredState: (el: HTMLSelectElement) => Promise<void>;
-        setPreferredStaysStatus: (el: HTMLSelectElement) => Promise<void>;
+        setPreferredVisitsStatus: (el: HTMLSelectElement) => Promise<void>;
         setPreferredRowsPerPage: (el: HTMLSelectElement) => Promise<void>;
     }
 }
@@ -32,7 +32,7 @@ declare global {
 
 const el = {
     preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
-    preferredStaysStatus: ims.typedElement("preferred_stays_status", HTMLSelectElement),
+    preferredVisitsStatus: ims.typedElement("preferred_visits_status", HTMLSelectElement),
     preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
 };
 
@@ -48,16 +48,16 @@ async function initSettingsPage(): Promise<void> {
     if (preferredState) {
         el.preferredState.value = preferredState;
     }
-    const preferredStaysStatus = ims.getStaysPreferredStatus();
-    if (preferredStaysStatus) {
-        el.preferredStaysStatus.value = preferredStaysStatus;
+    const preferredVisitsStatus = ims.getVisitsPreferredStatus();
+    if (preferredVisitsStatus) {
+        el.preferredVisitsStatus.value = preferredVisitsStatus;
     }
     const preferredRowsPerPage = ims.getPreferredTableRowsPerPage();
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
     window.setPreferredState = setPreferredState;
-    window.setPreferredStaysStatus = setPreferredStaysStatus;
+    window.setPreferredVisitsStatus = setPreferredVisitsStatus;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;
 }
 
@@ -70,11 +70,11 @@ async function setPreferredState(el: HTMLSelectElement): Promise<void> {
     ims.controlHasSuccess(el);
 }
 
-async function setPreferredStaysStatus(el: HTMLSelectElement): Promise<void> {
-    if (ims.isValidStaysTableStatus(el.value)) {
-        ims.setStaysPreferredStatus(el.value);
+async function setPreferredVisitsStatus(el: HTMLSelectElement): Promise<void> {
+    if (ims.isValidVisitsTableStatus(el.value)) {
+        ims.setVisitsPreferredStatus(el.value);
     } else {
-        ims.setStaysPreferredStatus(null);
+        ims.setVisitsPreferredStatus(null);
     }
     ims.controlHasSuccess(el);
 }

@@ -26,10 +26,10 @@ import (
 var testAdmins = []string{"AdminCat", "AdminDog"}
 
 const (
-	readerPerm             = EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadStays | EventReadDestinations
-	writerPerm             = EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadStays | EventWriteStays | EventReadDestinations
+	readerPerm             = EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadVisits | EventReadDestinations
+	writerPerm             = EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadVisits | EventWriteVisits | EventReadDestinations
 	reporterPerm           = EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations
-	stayWriterPerm         = EventReadEventName | EventReadStays | EventWriteStays | EventReadDestinations
+	visitWriterPerm        = EventReadEventName | EventReadVisits | EventWriteVisits | EventReadDestinations
 	authenticatedUserPerms = GlobalListEvents | GlobalReadIncidentTypes | GlobalReadPersonnel | GlobalReadStreets
 	adminGlobalPerms       = GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministrateDebugging | GlobalAdministrateStreets | GlobalAdministrateDestinations
 )
@@ -52,7 +52,7 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 	addPerm(accessByEvent, 123, "person:EventReaderGuy", modeRead, validityAlways)
 	addPerm(accessByEvent, 123, "person:EventWriterGal", modeWrite, validityAlways)
 	addPerm(accessByEvent, 123, "person:EventReporterPerson", modeReport, validityAlways)
-	addPerm(accessByEvent, 123, "person:EventStayWriterPerson", modeWriteStays, validityAlways)
+	addPerm(accessByEvent, 123, "person:EventVisitWriterPerson", modeWriteVisits, validityAlways)
 
 	permissions, globalPermissions := ManyEventPermissions(
 		accessByEvent,
@@ -96,14 +96,14 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 	permissions, globalPermissions = ManyEventPermissions(
 		accessByEvent,
 		testAdmins,
-		"EventStayWriterPerson",
+		"EventVisitWriterPerson",
 		true,
 		[]string{},
 		[]string{},
 		"",
 	)
 	require.Equal(t, EventNoPermissions, permissions[999])
-	require.Equal(t, stayWriterPerm, permissions[123])
+	require.Equal(t, visitWriterPerm, permissions[123])
 	require.Equal(t, authenticatedUserPerms, globalPermissions)
 
 	permissions, globalPermissions = ManyEventPermissions(

@@ -130,15 +130,15 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	updateFieldReport := MethodURL{http.MethodPost, eventPath + "/field_reports/9999999"}
 	postFieldReportAttachment := MethodURL{http.MethodPost, eventPath + "/field_reports/9999999/attachments"}
 	postFieldReportRE := MethodURL{http.MethodPost, eventPath + "/field_reports/9999999/report_entries/2"}
-	getStays := MethodURL{http.MethodGet, eventPath + "/stays"}
-	getStay := MethodURL{http.MethodGet, eventPath + "/stays/1"}
-	getStayAttachment := MethodURL{http.MethodGet, eventPath + "/stays/1/attachments/1"}
-	createStay := MethodURL{http.MethodPost, eventPath + "/stays"}
-	updateStay := MethodURL{http.MethodPost, eventPath + "/stays/1"}
-	postStayAttachment := MethodURL{http.MethodPost, eventPath + "/stays/1/attachments"}
-	postStayRE := MethodURL{http.MethodPost, eventPath + "/stays/9999999/report_entries/2"}
-	postStayRanger := MethodURL{http.MethodPost, eventPath + "/stays/1/rangers/some_name"}
-	deleteStayRanger := MethodURL{http.MethodDelete, eventPath + "/stays/1/rangers/some_name"}
+	getVisits := MethodURL{http.MethodGet, eventPath + "/visits"}
+	getVisit := MethodURL{http.MethodGet, eventPath + "/visits/1"}
+	getVisitAttachment := MethodURL{http.MethodGet, eventPath + "/visits/1/attachments/1"}
+	createVisit := MethodURL{http.MethodPost, eventPath + "/visits"}
+	updateVisit := MethodURL{http.MethodPost, eventPath + "/visits/1"}
+	postVisitAttachment := MethodURL{http.MethodPost, eventPath + "/visits/1/attachments"}
+	postVisitRE := MethodURL{http.MethodPost, eventPath + "/visits/9999999/report_entries/2"}
+	postVisitRanger := MethodURL{http.MethodPost, eventPath + "/visits/1/rangers/some_name"}
+	deleteVisitRanger := MethodURL{http.MethodDelete, eventPath + "/visits/1/rangers/some_name"}
 	getDestinations := MethodURL{http.MethodGet, eventPath + "/destinations"}
 
 	allPerms := []MethodURL{
@@ -158,15 +158,15 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		updateFieldReport,
 		postFieldReportAttachment,
 		postFieldReportRE,
-		getStays,
-		getStay,
-		getStayAttachment,
-		createStay,
-		updateStay,
-		postStayAttachment,
-		postStayRE,
-		postStayRanger,
-		deleteStayRanger,
+		getVisits,
+		getVisit,
+		getVisitAttachment,
+		createVisit,
+		updateVisit,
+		postVisitAttachment,
+		postVisitRE,
+		postVisitRanger,
+		deleteVisitRanger,
 		getDestinations,
 	}
 	reporter := []MethodURL{
@@ -185,13 +185,13 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getFieldReports,
 		getFieldReport,
 		getFieldReportAttachment,
-		getStays,
-		getStay,
-		getStayAttachment,
+		getVisits,
+		getVisit,
+		getVisitAttachment,
 		getDestinations,
 	}
 
-	// TODO: section for stay writers?
+	// TODO: section for visit writers?
 
 	// these are per-event endpoints that admins can access by virtue of being admins
 	adminGlobal := []MethodURL{

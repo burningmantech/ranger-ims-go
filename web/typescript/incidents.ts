@@ -182,14 +182,14 @@ async function initIncidentsPage(): Promise<void> {
 
 
 //
-// Load event field reports and stays
+// Load event field reports and visits
 //
 // Note that nothing from these data is displayed in the incidents table.
 // We do this fetch in order to make incidents searchable by text in their
 // attached field reports.
 
 let eventFieldReports: ims.FieldReportsByNumber|undefined = undefined;
-let eventStays: ims.StaysByNumber|undefined = undefined;
+let eventVisits: ims.VisitsByNumber|undefined = undefined;
 
 async function loadEventFieldReports(): Promise<{err: string|null}> {
     const {json, err} = await ims.fetchNoThrow<ims.FieldReport[]>(
@@ -213,25 +213,25 @@ async function loadEventFieldReports(): Promise<{err: string|null}> {
     return {err: null};
 }
 
-async function loadEventStays(): Promise<{err: string|null}> {
-    const {json, err} = await ims.fetchNoThrow<ims.Stay[]>(
-        ims.urlReplace(url_stays + "?exclude_system_entries=true"), null,
+async function loadEventVisits(): Promise<{err: string|null}> {
+    const {json, err} = await ims.fetchNoThrow<ims.Visit[]>(
+        ims.urlReplace(url_visits + "?exclude_system_entries=true"), null,
     );
     if (err != null) {
-        const message = `Failed to load event stays: ${err}`;
+        const message = `Failed to load event visits: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);
         return {err: message};
     }
-    const stays: ims.StaysByNumber = {};
+    const visits: ims.VisitsByNumber = {};
 
-    for (const stay of json!) {
-        stays[stay.number!] = stay;
+    for (const visit of json!) {
+        visits[visit.number!] = visit;
     }
 
-    eventStays = stays;
+    eventVisits = visits;
 
-    console.log("Loaded event stays");
+    console.log("Loaded event visits");
     return {err: null};
 }
 
@@ -371,7 +371,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 await Promise.all([
                     tablePrereqs,
                     loadEventFieldReports(),
-                    loadEventStays(),
+                    loadEventVisits(),
                     ims.fetchNoThrow<ims.Incident[]>(
                         ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null,
                     ).then(res => {
@@ -498,7 +498,7 @@ function renderSummary(_data: string|null, type: ims.RenderType, incident: ims.I
             return DataTable.render.text().display(summarized) as string;
         }
         case "filter":
-            return ims.reportTextFromIncident(incident, eventFieldReports, eventStays);
+            return ims.reportTextFromIncident(incident, eventFieldReports, eventVisits);
         case "sort":
         case "type":
         case undefined:

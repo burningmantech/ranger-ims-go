@@ -108,11 +108,11 @@ select
           and i.NUMBER = irep.INCIDENT_NUMBER
     ) as FIELD_REPORT_NUMBERS,
     (
-        select coalesce(json_arrayagg(stay.NUMBER), "[]")
-        from STAY stay
-        where i.EVENT = stay.EVENT
-          and i.NUMBER = stay.INCIDENT_NUMBER
-    ) as STAY_NUMBERS
+        select coalesce(json_arrayagg(visit.NUMBER), "[]")
+        from VISIT visit
+        where i.EVENT = visit.EVENT
+          and i.NUMBER = visit.INCIDENT_NUMBER
+    ) as VISIT_NUMBERS
 from INCIDENT i
 where i.EVENT = ?
     and i.NUMBER = ?;
@@ -133,11 +133,11 @@ select
             and i.NUMBER = irep.INCIDENT_NUMBER
     ) as FIELD_REPORT_NUMBERS,
     (
-        select coalesce(json_arrayagg(stay.NUMBER), "[]")
-        from STAY stay
-        where i.EVENT = stay.EVENT
-          and i.NUMBER = stay.INCIDENT_NUMBER
-    ) as STAY_NUMBERS
+        select coalesce(json_arrayagg(visit.NUMBER), "[]")
+        from VISIT visit
+        where i.EVENT = visit.EVENT
+          and i.NUMBER = visit.INCIDENT_NUMBER
+    ) as VISIT_NUMBERS
 from
     INCIDENT i
 where
@@ -315,15 +315,15 @@ insert into INCIDENT__REPORT_ENTRY (
     ?, ?, ?
 );
 
--- name: AttachReportEntryToStay :exec
-insert into STAY__REPORT_ENTRY (
-    EVENT, STAY_NUMBER, REPORT_ENTRY
+-- name: AttachReportEntryToVisit :exec
+insert into VISIT__REPORT_ENTRY (
+    EVENT, VISIT_NUMBER, REPORT_ENTRY
 ) values (
     ?, ?, ?
 );
 
--- name: AttachStayToIncident :exec
-update STAY
+-- name: AttachVisitToIncident :exec
+update VISIT
 set INCIDENT_NUMBER = ?
 where EVENT = ? and NUMBER = ?
 ;
@@ -357,14 +357,14 @@ where ID IN (
       and REPORT_ENTRY = ?
 );
 
--- name: SetStayReportEntryStricken :exec
+-- name: SetVisitReportEntryStricken :exec
 update REPORT_ENTRY
 set STRICKEN = ?
 where ID IN (
     select REPORT_ENTRY
-    from STAY__REPORT_ENTRY
+    from VISIT__REPORT_ENTRY
     where EVENT = ?
-      and STAY_NUMBER = ?
+      and VISIT_NUMBER = ?
       and REPORT_ENTRY = ?
 );
 
@@ -473,11 +473,11 @@ where
     EVENT = ?
 ;
 
--- name: CreateStay :execlastid
-insert into STAY (`EVENT`, NUMBER, CREATED) values (?, ?, ?);
+-- name: CreateVisit :execlastid
+insert into VISIT (`EVENT`, NUMBER, CREATED) values (?, ?, ?);
 
--- name: UpdateStay :exec
-update STAY set
+-- name: UpdateVisit :exec
+update VISIT set
     -- CREATED should be immutable, so it's not present in this UPDATE query
     INCIDENT_NUMBER = ?,
     GUEST_PREFERRED_NAME = ?,
@@ -507,73 +507,73 @@ where
     and NUMBER = ?
 ;
 
--- name: Stay :one
+-- name: Visit :one
 select
     sqlc.embed(s)
 from
-    STAY s
+    VISIT s
 where
     s.EVENT = ?
     and s.NUMBER = ?;
 
--- name: Stays :many
+-- name: Visits :many
 select
     sqlc.embed(s)
 from
-    STAY s
+    VISIT s
 where
     s.EVENT = ?
 group by
     s.NUMBER;
 
--- name: Stays_Rangers :many
+-- name: Visits_Rangers :many
 select
     sqlc.embed(sr)
 from
-    STAY__RANGER sr
+    VISIT__RANGER sr
 where
     sr.EVENT = ?;
 
--- name: Stay_Rangers :many
+-- name: Visit_Rangers :many
 select
     sqlc.embed(sr)
 from
-    STAY__RANGER sr
+    VISIT__RANGER sr
 where
     sr.EVENT = ?
-    and sr.STAY_NUMBER = ?;
+    and sr.VISIT_NUMBER = ?;
 
--- name: AttachRangerToStay :exec
-insert into STAY__RANGER (EVENT, STAY_NUMBER, RANGER_HANDLE, ROLE)
+-- name: AttachRangerToVisit :exec
+insert into VISIT__RANGER (EVENT, VISIT_NUMBER, RANGER_HANDLE, ROLE)
 values (?, ?, ?, ?);
 
--- name: DetachRangerFromStay :exec
-delete from STAY__RANGER
+-- name: DetachRangerFromVisit :exec
+delete from VISIT__RANGER
 where
     EVENT = ?
-    and STAY_NUMBER = ?
+    and VISIT_NUMBER = ?
     and RANGER_HANDLE = ?
 ;
 
--- name: Stay_ReportEntries :many
+-- name: Visit_ReportEntries :many
 select
-    sre.STAY_NUMBER,
+    sre.VISIT_NUMBER,
     sqlc.embed(re)
 from
-    STAY__REPORT_ENTRY sre
+    VISIT__REPORT_ENTRY sre
         join REPORT_ENTRY re
              on re.ID = sre.REPORT_ENTRY
 where
     sre.EVENT = ?
-    and sre.STAY_NUMBER = ?
+    and sre.VISIT_NUMBER = ?
 ;
 
--- name: Stays_ReportEntries :many
+-- name: Visits_ReportEntries :many
 select
-    sre.STAY_NUMBER,
+    sre.VISIT_NUMBER,
     sqlc.embed(re)
 from
-    STAY__REPORT_ENTRY sre
+    VISIT__REPORT_ENTRY sre
         join REPORT_ENTRY re
              on re.ID = sre.REPORT_ENTRY
 where
@@ -582,9 +582,9 @@ where
 ;
 
 -- This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
--- name: NextStayNumber :one
+-- name: NextVisitNumber :one
 select NUMBER + 1 as NEXT_ID
-from STAY
+from VISIT
 where EVENT = ?
 union
 select 1

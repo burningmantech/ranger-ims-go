@@ -152,8 +152,8 @@ func TestGetAuthWithEvent(t *testing.T) {
 				ReadIncidents:     true,
 				WriteIncidents:    false,
 				WriteFieldReports: false,
-				ReadStays:         true,
-				WriteStays:        false,
+				ReadVisits:        true,
+				WriteVisits:       false,
 				AttachFiles:       true,
 			},
 		},
@@ -176,8 +176,8 @@ func TestGetAuthWithBadEventNames(t *testing.T) {
 		ReadIncidents:     false,
 		WriteIncidents:    false,
 		WriteFieldReports: false,
-		ReadStays:         false,
-		WriteStays:        false,
+		ReadVisits:        false,
+		WriteVisits:       false,
 		AttachFiles:       false,
 	}, gar.EventAccess["ThisEventDoesNotExist"])
 

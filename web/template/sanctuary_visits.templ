@@ -16,10 +16,10 @@
 
 package template
 
-templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
+templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Sanctuary Stays | " + eventName, "sanctuary_stays.js", true, versionRef)
+@Head("Sanctuary Visits | " + eventName, "sanctuary_visits.js", true, versionRef)
 
 <body>
 <div class="container-fluid">
@@ -27,29 +27,29 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
 @Nav(eventName)
 
 <div class="d-flex justify-content-between">
-  <h1 id="doc-title">Sanctuary Stays</h1>
+  <h1 id="doc-title">Sanctuary Visits</h1>
 </div>
 
 @ErrorInfo()
 
-    <!-- Help modal for stays page -->
+    <!-- Help modal for visits page -->
     <div class="modal no-print" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <p class="modal-title fs-5" id="helpModalLabel">Sanctuary Stays help</p>
+            <p class="modal-title fs-5" id="helpModalLabel">Sanctuary Visits help</p>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body">
             <p class="mt-2 mb-0">Keyboard shortcuts</p>
             <ul>
-              <li><code>n</code>: create (n)ew Stay <br /></li>
+              <li><code>n</code>: create (n)ew Visit <br /></li>
               <li><code>/</code>: jump to search field <br /></li>
               <li><code>m</code>: (m)ulti-search <br /></li>
             </ul>
             <p class="mt-2 mb-0">In the search field</p>
             <ul>
-              <li>Type a Stay number then press <code>⏎</code> to be redirected to that Stay</li>
+              <li>Type a Visit number then press <code>⏎</code> to be redirected to that Visit</li>
               <li>Search by regular expression by enclosing a pattern with slashes, e.g. <code>/r.nger/</code> or <code>/\b(dog|cat)\b/</code></li>
               <li>All searches are case-insensitive</li>
             </ul>
@@ -62,10 +62,10 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
 
     <div class="row">
       <div class="col-sm-7">
-        <div class="btn-group new_stay no-print">
-          <a href="./stays/new">
+        <div class="btn-group new_visit no-print">
+          <a href="./visits/new">
             <button
-                id="new_stay"
+                id="new_visit"
                 type="button"
                 class="btn btn-sm btn-default btn-primary"
             >
@@ -83,10 +83,10 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
           <span class="selection">Current</span>
         </button>
         <ul class="dropdown-menu">
-          <li id="show_status_all" title="All stays, including departed guests">
+          <li id="show_status_all" title="All visits, including departed guests">
             <a href="#" class="name dropdown-item" onclick="showStatus('all', true); return false;">All Statuses</a>
           </li>
-          <li id="show_status_current" title="Only stays where the guest has not departed">
+          <li id="show_status_current" title="Only visits where the guest has not departed">
             <a href="#" class="name dropdown-item" onclick="showStatus('current', true); return false;">Current</a>
           </li>
           <li class="border-top">
@@ -141,7 +141,7 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
                 placeholder="Press &quot; ⁄ &quot; to search"
                 inputmode="latin"
                 autocomplete="off"
-                aria-controls="stays_table"
+                aria-controls="visits_table"
             />
           </div>
         </div>
@@ -149,10 +149,10 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
 
     </div>
 
-    <table id="stays_table" class="table table-striped table-hover">
+    <table id="visits_table" class="table table-striped table-hover">
       <thead>
       <tr>
-        <th><abbr title="Stay#">#</abbr></th>
+        <th><abbr title="VS#">#</abbr></th>
         <th>IMS#</th>
         <th>Arrived</th>
         <th>Departed</th>
@@ -162,7 +162,7 @@ templ SanctuaryStays(deployment, versionName, versionRef, eventName string) {
       <tbody/>
       <tfoot>
       <tr>
-        <th><abbr title="Stay#">#</abbr></th>
+        <th><abbr title="VS#">#</abbr></th>
         <th>IMS#</th>
         <th>Arrived</th>
         <th>Departed</th>

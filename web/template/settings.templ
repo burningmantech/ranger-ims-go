@@ -52,13 +52,13 @@ templ Settings(deployment, versionName, versionRef string) {
     <div class="input-group mb-1 flex-nowrap">
     <label
       class="control-label input-group-text"
-      for="preferred_stays_status"
-      title="The default filter view for the Sanctuary Stays table"
-    >Stay Status</label>
+      for="preferred_visits_status"
+      title="The default filter view for the Sanctuary Visits table"
+    >Visit Status</label>
     <select
-      id="preferred_stays_status"
+      id="preferred_visits_status"
       class="form-control form-select form-select-sm"
-      onchange="setPreferredStaysStatus(this)"
+      onchange="setPreferredVisitsStatus(this)"
       style="max-width: 150px;"
     >
       <option value="none" selected>Use Default</option>

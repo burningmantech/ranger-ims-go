@@ -218,16 +218,16 @@ func (a ApiHelper) newIncidentSuccess(ctx context.Context, incidentReq imsjson.I
 	return num
 }
 
-func (a ApiHelper) newStay(ctx context.Context, req imsjson.Stay) *http.Response {
+func (a ApiHelper) newVisit(ctx context.Context, req imsjson.Visit) *http.Response {
 	a.t.Helper()
-	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/stays").String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/visits").String())
 }
 
-func (a ApiHelper) newStaySuccess(ctx context.Context, stayReq imsjson.Stay) (stayNumber int32) {
+func (a ApiHelper) newVisitSuccess(ctx context.Context, visitReq imsjson.Visit) (visitNumber int32) {
 	a.t.Helper()
-	resp := a.newStay(ctx, stayReq)
+	resp := a.newVisit(ctx, visitReq)
 	require.Equal(a.t, http.StatusCreated, resp.StatusCode)
-	numStr := resp.Header.Get("IMS-Stay-Number")
+	numStr := resp.Header.Get("IMS-Visit-Number")
 	require.NoError(a.t, resp.Body.Close())
 	require.NotEmpty(a.t, numStr)
 	num, err := conv.ParseInt32(numStr)
@@ -243,11 +243,11 @@ func (a ApiHelper) getIncident(ctx context.Context, eventName string, incident i
 	return *bod.(*imsjson.Incident), resp
 }
 
-func (a ApiHelper) getStay(ctx context.Context, eventName string, stay int32) (imsjson.Stay, *http.Response) {
+func (a ApiHelper) getVisit(ctx context.Context, eventName string, visit int32) (imsjson.Visit, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/stays/", strconv.Itoa(int(stay))).String()
-	bod, resp := a.imsGet(ctx, path, &imsjson.Stay{})
-	return *bod.(*imsjson.Stay), resp
+	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit))).String()
+	bod, resp := a.imsGet(ctx, path, &imsjson.Visit{})
+	return *bod.(*imsjson.Visit), resp
 }
 
 func (a ApiHelper) updateIncident(ctx context.Context, eventName string, incident int32, req imsjson.Incident) *http.Response {
@@ -255,9 +255,9 @@ func (a ApiHelper) updateIncident(ctx context.Context, eventName string, inciden
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String())
 }
 
-func (a ApiHelper) updateStay(ctx context.Context, eventName string, stay int32, req imsjson.Stay) *http.Response {
+func (a ApiHelper) updateVisit(ctx context.Context, eventName string, visit int32, req imsjson.Visit) *http.Response {
 	a.t.Helper()
-	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/stays/", strconv.Itoa(int(stay))).String())
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit))).String())
 }
 
 func (a ApiHelper) attachRangerToIncident(ctx context.Context, eventName string, incident int32, handle string) *http.Response {
@@ -266,10 +266,10 @@ func (a ApiHelper) attachRangerToIncident(ctx context.Context, eventName string,
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident)), "/rangers/", handle).String())
 }
 
-func (a ApiHelper) attachRangerToStay(ctx context.Context, eventName string, stay int32, handle string) *http.Response {
+func (a ApiHelper) attachRangerToVisit(ctx context.Context, eventName string, visit int32, handle string) *http.Response {
 	a.t.Helper()
-	req := imsjson.StayRanger{Handle: handle}
-	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/stays/", strconv.Itoa(int(stay)), "/rangers/", handle).String())
+	req := imsjson.VisitRanger{Handle: handle}
+	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit)), "/rangers/", handle).String())
 }
 
 func (a ApiHelper) detachRangerFromIncident(ctx context.Context, eventName string, incident int32, handle string) *http.Response {
@@ -278,9 +278,9 @@ func (a ApiHelper) detachRangerFromIncident(ctx context.Context, eventName strin
 	return resp
 }
 
-func (a ApiHelper) detachRangerFromStay(ctx context.Context, eventName string, stay int32, handle string) *http.Response {
+func (a ApiHelper) detachRangerFromVisit(ctx context.Context, eventName string, visit int32, handle string) *http.Response {
 	a.t.Helper()
-	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/events/", eventName, "/stays/", strconv.Itoa(int(stay)), "/rangers/", handle).String(), nil)
+	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit)), "/rangers/", handle).String(), nil)
 	return resp
 }
 
@@ -291,11 +291,11 @@ func (a ApiHelper) getIncidents(ctx context.Context, eventName string) (imsjson.
 	return *bod.(*imsjson.Incidents), resp
 }
 
-func (a ApiHelper) getStays(ctx context.Context, eventName string) (imsjson.Stays, *http.Response) {
+func (a ApiHelper) getVisits(ctx context.Context, eventName string) (imsjson.Visits, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/stays")).String()
-	bod, resp := a.imsGet(ctx, path, &imsjson.Stays{})
-	return *bod.(*imsjson.Stays), resp
+	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/visits")).String()
+	bod, resp := a.imsGet(ctx, path, &imsjson.Visits{})
+	return *bod.(*imsjson.Visits), resp
 }
 
 func (a ApiHelper) updateIncidentReportEntry(ctx context.Context, eventName string, incident int32, req imsjson.ReportEntry) *http.Response {
@@ -352,11 +352,11 @@ func (a ApiHelper) addReporter(ctx context.Context, eventName, handle string) *h
 	})
 }
 
-func (a ApiHelper) addStayWriter(ctx context.Context, eventName, handle string) *http.Response {
+func (a ApiHelper) addVisitWriter(ctx context.Context, eventName, handle string) *http.Response {
 	a.t.Helper()
 	return a.editAccess(ctx, imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
-			StayWriters: []imsjson.AccessRule{{
+			VisitWriters: []imsjson.AccessRule{{
 				Expression: "person:" + handle,
 				Validity:   "always",
 			}},
@@ -407,10 +407,10 @@ func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, i
 	return reID, resp
 }
 
-func (a ApiHelper) attachFileToStay(ctx context.Context, eventName string, stay int32, fileBytes []byte) (int32, *http.Response) {
+func (a ApiHelper) attachFileToVisit(ctx context.Context, eventName string, visit int32, fileBytes []byte) (int32, *http.Response) {
 	a.t.Helper()
 
-	path := a.serverURL.JoinPath("/ims/api/events", eventName, "stays", conv.FormatInt(stay), "attachments")
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "visits", conv.FormatInt(visit), "attachments")
 
 	// Create a `multipart/form-data`-encoded request, with a single form file inside
 	var requestBody bytes.Buffer
@@ -445,9 +445,9 @@ func (a ApiHelper) getIncidentAttachment(ctx context.Context, eventName string, 
 	return a.imsGetBodyBytes(ctx, path)
 }
 
-func (a ApiHelper) getStayAttachment(ctx context.Context, eventName string, stay, reID int32) ([]byte, *http.Response) {
+func (a ApiHelper) getVisitAttachment(ctx context.Context, eventName string, visit, reID int32) ([]byte, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath("/ims/api/events", eventName, "stays", conv.FormatInt(stay), "attachments", conv.FormatInt(reID)).String()
+	path := a.serverURL.JoinPath("/ims/api/events", eventName, "visits", conv.FormatInt(visit), "attachments", conv.FormatInt(reID)).String()
 	return a.imsGetBodyBytes(ctx, path)
 }
 

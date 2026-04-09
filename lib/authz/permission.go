@@ -37,18 +37,18 @@ const (
 )
 
 const (
-	modeRead       = imsdb.EventAccessModeRead
-	modeWrite      = imsdb.EventAccessModeWrite
-	modeReport     = imsdb.EventAccessModeReport
-	modeWriteStays = imsdb.EventAccessModeWriteStays
+	modeRead        = imsdb.EventAccessModeRead
+	modeWrite       = imsdb.EventAccessModeWrite
+	modeReport      = imsdb.EventAccessModeReport
+	modeWriteVisits = imsdb.EventAccessModeWriteVisits
 )
 
 var (
 	modeToRole = map[imsdb.EventAccessMode]Role{
-		modeRead:       EventReader,
-		modeWrite:      EventWriter,
-		modeReport:     EventReporter,
-		modeWriteStays: EventStayWriter,
+		modeRead:        EventReader,
+		modeWrite:       EventWriter,
+		modeReport:      EventReporter,
+		modeWriteVisits: EventVisitWriter,
 	}
 )
 
@@ -57,7 +57,7 @@ const (
 	EventReporter        Role = "EventReporter"
 	EventReader          Role = "EventReader"
 	EventWriter          Role = "EventWriter"
-	EventStayWriter      Role = "EventStayWriter"
+	EventVisitWriter     Role = "EventVisitWriter"
 	Administrator        Role = "Administrator"
 )
 
@@ -80,8 +80,8 @@ const (
 	EventWriteOwnFieldReports
 	EventReadEventName
 	EventReadDestinations
-	EventReadStays
-	EventWriteStays
+	EventReadVisits
+	EventWriteVisits
 )
 
 const (
@@ -104,10 +104,10 @@ var RolesToGlobalPerms = map[Role]GlobalPermissionMask{
 }
 
 var RolesToEventPerms = map[Role]EventPermissionMask{
-	EventReporter:   EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
-	EventReader:     EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadStays | EventReadDestinations,
-	EventWriter:     EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadStays | EventWriteStays | EventReadDestinations,
-	EventStayWriter: EventReadEventName | EventReadStays | EventWriteStays | EventReadDestinations,
+	EventReporter:    EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
+	EventReader:      EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadVisits | EventReadDestinations,
+	EventWriter:      EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadVisits | EventWriteVisits | EventReadDestinations,
+	EventVisitWriter: EventReadEventName | EventReadVisits | EventWriteVisits | EventReadDestinations,
 }
 
 func EventPermissions(

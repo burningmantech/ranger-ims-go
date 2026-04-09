@@ -18,9 +18,9 @@ package json
 
 import "time"
 
-type Stays []Stay
+type Visits []Visit
 
-type Stay struct {
+type Visit struct {
 	Event        string    `json:"event"`
 	EventID      int32     `json:"event_id"`
 	Number       int32     `json:"number"`
@@ -51,11 +51,11 @@ type Stay struct {
 	ResourceFoodBev *string `json:"resource_food_bev,omitzero"`
 	ResourceOther   *string `json:"resource_other,omitzero"`
 
-	Rangers       *[]StayRanger `json:"rangers"`
-	ReportEntries []ReportEntry `json:"report_entries"`
+	Rangers       *[]VisitRanger `json:"rangers"`
+	ReportEntries []ReportEntry  `json:"report_entries"`
 }
 
-type StayRanger struct {
+type VisitRanger struct {
 	Handle string  `json:"handle,omitempty"`
 	Role   *string `json:"role,omitempty"`
 }

@@ -64,7 +64,7 @@ async function addEvent(page: Page, eventName: string): Promise<void> {
   await expect(page.getByText(`Full readers for ${eventName}`)).toBeVisible();
   await expect(page.getByText(`Full writers for ${eventName}`)).toBeVisible();
   await expect(page.getByText(`Reporters for ${eventName}`)).toBeVisible();
-  await expect(page.getByText(`Stay writers for ${eventName}`)).toBeVisible();
+  await expect(page.getByText(`Visit writers for ${eventName}`)).toBeVisible();
 }
 
 async function addWriter(page: Page, eventName: string, writer: string): Promise<void> {

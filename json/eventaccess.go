@@ -37,8 +37,8 @@ type AccessRule struct {
 }
 
 type EventAccess struct {
-	Readers     []AccessRule `json:"readers"`
-	Writers     []AccessRule `json:"writers"`
-	Reporters   []AccessRule `json:"reporters"`
-	StayWriters []AccessRule `json:"stay_writers"`
+	Readers      []AccessRule `json:"readers"`
+	Writers      []AccessRule `json:"writers"`
+	Reporters    []AccessRule `json:"reporters"`
+	VisitWriters []AccessRule `json:"visit_writers"`
 }

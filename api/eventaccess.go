@@ -110,10 +110,10 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 
 	for _, e := range storedEvents {
 		ea := imsjson.EventAccess{
-			Readers:     []imsjson.AccessRule{},
-			Writers:     []imsjson.AccessRule{},
-			Reporters:   []imsjson.AccessRule{},
-			StayWriters: []imsjson.AccessRule{},
+			Readers:      []imsjson.AccessRule{},
+			Writers:      []imsjson.AccessRule{},
+			Reporters:    []imsjson.AccessRule{},
+			VisitWriters: []imsjson.AccessRule{},
 		}
 		for _, accessRow := range accessRowByEventID[e.ID] {
 			access := accessRow
@@ -155,8 +155,8 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 				ea.Writers = append(ea.Writers, rule)
 			case imsdb.EventAccessModeReport:
 				ea.Reporters = append(ea.Reporters, rule)
-			case imsdb.EventAccessModeWriteStays:
-				ea.StayWriters = append(ea.StayWriters, rule)
+			case imsdb.EventAccessModeWriteVisits:
+				ea.VisitWriters = append(ea.VisitWriters, rule)
 			}
 		}
 		result[e.Name] = ea
@@ -231,7 +231,7 @@ func (action PostEventAccess) postEventAccess(req *http.Request) *herr.HTTPError
 		if errHTTP != nil {
 			return errHTTP.From("[maybeSetAccess] EventAccessModeReport")
 		}
-		errHTTP = action.maybeSetAccess(ctx, event, access.StayWriters, imsdb.EventAccessModeWriteStays)
+		errHTTP = action.maybeSetAccess(ctx, event, access.VisitWriters, imsdb.EventAccessModeWriteVisits)
 		if errHTTP != nil {
 			return errHTTP.From("[maybeSetAccess] EventAccessModeReport")
 		}

@@ -142,13 +142,13 @@ async function initIncidentsPage() {
     });
 }
 //
-// Load event field reports and stays
+// Load event field reports and visits
 //
 // Note that nothing from these data is displayed in the incidents table.
 // We do this fetch in order to make incidents searchable by text in their
 // attached field reports.
 let eventFieldReports = undefined;
-let eventStays = undefined;
+let eventVisits = undefined;
 async function loadEventFieldReports() {
     const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_fieldReports + "?exclude_system_entries=true"), null);
     if (err != null) {
@@ -165,20 +165,20 @@ async function loadEventFieldReports() {
     console.log("Loaded event field reports");
     return { err: null };
 }
-async function loadEventStays() {
-    const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_stays + "?exclude_system_entries=true"), null);
+async function loadEventVisits() {
+    const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_visits + "?exclude_system_entries=true"), null);
     if (err != null) {
-        const message = `Failed to load event stays: ${err}`;
+        const message = `Failed to load event visits: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);
         return { err: message };
     }
-    const stays = {};
-    for (const stay of json) {
-        stays[stay.number] = stay;
+    const visits = {};
+    for (const visit of json) {
+        visits[visit.number] = visit;
     }
-    eventStays = stays;
-    console.log("Loaded event stays");
+    eventVisits = visits;
+    console.log("Loaded event visits");
     return { err: null };
 }
 //
@@ -301,7 +301,7 @@ function initDataTables(tablePrereqs) {
                 await Promise.all([
                     tablePrereqs,
                     loadEventFieldReports(),
-                    loadEventStays(),
+                    loadEventVisits(),
                     ims.fetchNoThrow(ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null).then(res => {
                         if (res.err != null || res.json == null) {
                             ims.setErrorMessage(`Failed to load table: ${res.err}`);
@@ -423,7 +423,7 @@ function renderSummary(_data, type, incident) {
             return DataTable.render.text().display(summarized);
         }
         case "filter":
-            return ims.reportTextFromIncident(incident, eventFieldReports, eventStays);
+            return ims.reportTextFromIncident(incident, eventFieldReports, eventVisits);
         case "sort":
         case "type":
         case undefined:

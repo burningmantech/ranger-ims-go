@@ -201,37 +201,37 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 	return nil
 }
 
-type EditStayReportEntry struct {
+type EditVisitReportEntry struct {
 	imsDBQ      *store.DBQ
 	userStore   *directory.UserStore
 	eventSource *EventSourcerer
 	imsAdmins   []string
 }
 
-func (action EditStayReportEntry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	errHTTP := action.editStayReportEntry(req)
+func (action EditVisitReportEntry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	errHTTP := action.editVisitReportEntry(req)
 	if errHTTP != nil {
-		errHTTP.From("[editStayReportEntry]").WriteResponse(w)
+		errHTTP.From("[editVisitReportEntry]").WriteResponse(w)
 		return
 	}
 	herr.WriteNoContentResponse(w, "Success")
 }
 
-func (action EditStayReportEntry) editStayReportEntry(req *http.Request) *herr.HTTPError {
+func (action EditVisitReportEntry) editVisitReportEntry(req *http.Request) *herr.HTTPError {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getEventPermissions]")
 	}
-	if eventPermissions&authz.EventWriteStays == 0 {
-		return herr.Forbidden("The requestor does not have permission to write Stays on this Event", nil)
+	if eventPermissions&authz.EventWriteVisits == 0 {
+		return herr.Forbidden("The requestor does not have permission to write Visits on this Event", nil)
 	}
 	ctx := req.Context()
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	stayNumber, err := conv.ParseInt32(req.PathValue("stayNumber"))
+	visitNumber, err := conv.ParseInt32(req.PathValue("visitNumber"))
 	if err != nil {
-		return herr.BadRequest("Failed to parse stayNumber", err).From("[ParseInt32]")
+		return herr.BadRequest("Failed to parse visitNumber", err).From("[ParseInt32]")
 	}
 	reportEntryId, err := conv.ParseInt32(req.PathValue("reportEntryId"))
 	if err != nil {
@@ -243,12 +243,12 @@ func (action EditStayReportEntry) editStayReportEntry(req *http.Request) *herr.H
 		return errHTTP.From("[readBodyAs]")
 	}
 
-	_, err = action.imsDBQ.Stay(ctx, action.imsDBQ, imsdb.StayParams{
+	_, err = action.imsDBQ.Visit(ctx, action.imsDBQ, imsdb.VisitParams{
 		Event:  event.ID,
-		Number: stayNumber,
+		Number: visitNumber,
 	})
 	if err != nil {
-		return herr.NotFound("There is no Stay for the provided ID", err).From("[Stay]")
+		return herr.NotFound("There is no Visit for the provided ID", err).From("[Visit]")
 	}
 
 	if re.Stricken == nil {
@@ -262,31 +262,31 @@ func (action EditStayReportEntry) editStayReportEntry(req *http.Request) *herr.H
 	}
 	defer rollback(txn)
 
-	err = action.imsDBQ.SetStayReportEntryStricken(ctx, txn,
-		imsdb.SetStayReportEntryStrickenParams{
+	err = action.imsDBQ.SetVisitReportEntryStricken(ctx, txn,
+		imsdb.SetVisitReportEntryStrickenParams{
 			Stricken:    *re.Stricken,
 			Event:       event.ID,
-			StayNumber:  stayNumber,
+			VisitNumber: visitNumber,
 			ReportEntry: reportEntryId,
 		},
 	)
 	if err != nil {
-		return herr.InternalServerError("Error setting stay report entry", err).From("[SetStayReportEntryStricken]")
+		return herr.InternalServerError("Error setting visit report entry", err).From("[SetVisitReportEntryStricken]")
 	}
 	struckVerb := "Struck"
 	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addStayReportEntry(ctx, action.imsDBQ, txn, event.ID, stayNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
+	_, errHTTP = addVisitReportEntry(ctx, action.imsDBQ, txn, event.ID, visitNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
 	if errHTTP != nil {
-		return errHTTP.From("[addStayReportEntry]")
+		return errHTTP.From("[addVisitReportEntry]")
 	}
 	err = txn.Commit()
 	if err != nil {
 		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
 	}
 
-	defer action.eventSource.notifyStayUpdate(event.ID, stayNumber)
+	defer action.eventSource.notifyVisitUpdate(event.ID, visitNumber)
 
 	return nil
 }

@@ -191,8 +191,8 @@ type AccessForEvent struct {
 	ReadIncidents     bool  `json:"readIncidents"`
 	WriteIncidents    bool  `json:"writeIncidents"`
 	WriteFieldReports bool  `json:"writeFieldReports"`
-	ReadStays         bool  `json:"readStays"`
-	WriteStays        bool  `json:"writeStays"`
+	ReadVisits        bool  `json:"readVisits"`
+	WriteVisits       bool  `json:"writeVisits"`
 	AttachFiles       bool  `json:"attachFiles"`
 }
 
@@ -242,8 +242,8 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 						ReadIncidents:     false,
 						WriteIncidents:    false,
 						WriteFieldReports: false,
-						ReadStays:         false,
-						WriteStays:        false,
+						ReadVisits:        false,
+						WriteVisits:       false,
 						AttachFiles:       false,
 					},
 				}
@@ -262,8 +262,8 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 				ReadIncidents:     eventPermissions[event.ID]&authz.EventReadIncidents != 0,
 				WriteIncidents:    eventPermissions[event.ID]&authz.EventWriteIncidents != 0,
 				WriteFieldReports: eventPermissions[event.ID]&(authz.EventWriteOwnFieldReports|authz.EventWriteAllFieldReports) != 0,
-				ReadStays:         eventPermissions[event.ID]&authz.EventReadStays != 0,
-				WriteStays:        eventPermissions[event.ID]&authz.EventWriteStays != 0,
+				ReadVisits:        eventPermissions[event.ID]&authz.EventReadVisits != 0,
+				WriteVisits:       eventPermissions[event.ID]&authz.EventWriteVisits != 0,
 				AttachFiles:       action.attachmentsEnabled,
 			},
 		}

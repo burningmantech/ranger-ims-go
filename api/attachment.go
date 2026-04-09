@@ -81,7 +81,7 @@ type AttachToFieldReport struct {
 	imsAdmins        []string
 }
 
-type GetStayAttachment struct {
+type GetVisitAttachment struct {
 	imsDBQ           *store.DBQ
 	userStore        *directory.UserStore
 	attachmentsStore conf.AttachmentsStore
@@ -89,7 +89,7 @@ type GetStayAttachment struct {
 	imsAdmins        []string
 }
 
-type AttachToStay struct {
+type AttachToVisit struct {
 	imsDBQ           *store.DBQ
 	userStore        *directory.UserStore
 	es               *EventSourcerer
@@ -496,40 +496,40 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	return reID, nil
 }
 
-func (action GetStayAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	file, contentType, errHTTP := action.getStayAttachment(req)
+func (action GetVisitAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	file, contentType, errHTTP := action.getVisitAttachment(req)
 	if errHTTP != nil {
-		errHTTP.From("[getStayAttachment]").WriteResponse(w)
+		errHTTP.From("[getVisitAttachment]").WriteResponse(w)
 		return
 	}
 	w.Header().Set("Content-Type", contentType)
 	http.ServeContent(w, req, "Attached File", time.Now(), file)
 }
 
-func (action GetStayAttachment) getStayAttachment(
+func (action GetVisitAttachment) getVisitAttachment(
 	req *http.Request,
 ) (fi io.ReadSeeker, contentType string, errHTTP *herr.HTTPError) {
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, "", errHTTP.From("[getEventPermissions]")
 	}
-	if eventPermissions&authz.EventReadStays == 0 {
-		return nil, "", herr.Forbidden("The requestor does not have EventReadStays permission on this Event", nil)
+	if eventPermissions&authz.EventReadVisits == 0 {
+		return nil, "", herr.Forbidden("The requestor does not have EventReadVisits permission on this Event", nil)
 	}
 	ctx := req.Context()
 
-	stayNumber, err := conv.ParseInt32(req.PathValue("stayNumber"))
+	visitNumber, err := conv.ParseInt32(req.PathValue("visitNumber"))
 	if err != nil {
-		return nil, "", herr.BadRequest("Failed to parse stay number", err).From("[ParseInt32]")
+		return nil, "", herr.BadRequest("Failed to parse visit number", err).From("[ParseInt32]")
 	}
 	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
 	if err != nil {
 		return nil, "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
-	_, reportEntries, errHTTP := fetchStay(ctx, action.imsDBQ, event.ID, stayNumber)
+	_, reportEntries, errHTTP := fetchVisit(ctx, action.imsDBQ, event.ID, visitNumber)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[fetchStay]")
+		return nil, "", errHTTP.From("[fetchVisit]")
 	}
 
 	var filename string
@@ -554,30 +554,30 @@ func (action GetStayAttachment) getStayAttachment(
 	return file, contentType, nil
 }
 
-func (action AttachToStay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	reID, errHTTP := action.attachToStay(req)
+func (action AttachToVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	reID, errHTTP := action.attachToVisit(req)
 	if errHTTP != nil {
-		errHTTP.From("[attachToStay]").WriteResponse(w)
+		errHTTP.From("[attachToVisit]").WriteResponse(w)
 		return
 	}
-	slog.Info("Saved Stay attachment")
+	slog.Info("Saved Visit attachment")
 	w.Header().Set("IMS-Report-Entry-Number", conv.FormatInt(reID))
-	herr.WriteNoContentResponse(w, "Saved Stay attachment")
+	herr.WriteNoContentResponse(w, "Saved Visit attachment")
 }
 
-func (action AttachToStay) attachToStay(req *http.Request) (int32, *herr.HTTPError) {
+func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[getEventPermissions]")
 	}
-	if eventPermissions&authz.EventWriteStays == 0 {
-		return 0, herr.Forbidden("The requestor does not have EventWriteStays permission on this Event", nil)
+	if eventPermissions&authz.EventWriteVisits == 0 {
+		return 0, herr.Forbidden("The requestor does not have EventWriteVisits permission on this Event", nil)
 	}
 	ctx := req.Context()
 
-	stayNumber, err := conv.ParseInt32(req.PathValue("stayNumber"))
+	visitNumber, err := conv.ParseInt32(req.PathValue("visitNumber"))
 	if err != nil {
-		return 0, herr.BadRequest("Failed to parse stay number", err).From("[ParseInt32]")
+		return 0, herr.BadRequest("Failed to parse visit number", err).From("[ParseInt32]")
 	}
 
 	// this must match the key sent by the client
@@ -596,12 +596,12 @@ func (action AttachToStay) attachToStay(req *http.Request) (int32, *herr.HTTPErr
 		return 0, errHTTP.From("[sniffFile]")
 	}
 
-	newFileName := fmt.Sprintf("event_%05d_stay_%05d_%v%v", event.ID, stayNumber, rand.Text(), mtype.Extension())
+	newFileName := fmt.Sprintf("event_%05d_visit_%05d_%v%v", event.ID, visitNumber, rand.Text(), mtype.Extension())
 	// #nosec G706 // log injection
-	slog.Info("User uploaded a stay attachment",
+	slog.Info("User uploaded a visit attachment",
 		"user", jwtCtx.Claims.RangerHandle(),
 		"eventName", event.Name,
-		"stayNumber", stayNumber,
+		"visitNumber", visitNumber,
 		"originalName", fiHead.Filename,
 		"newFileName", newFileName,
 		"size", fiHead.Size,
@@ -616,15 +616,15 @@ func (action AttachToStay) attachToStay(req *http.Request) (int32, *herr.HTTPErr
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
 		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
-	reID, errHTTP := addStayReportEntry(
-		ctx, action.imsDBQ, action.imsDBQ, event.ID, stayNumber, jwtCtx.Claims.RangerHandle(),
+	reID, errHTTP := addVisitReportEntry(
+		ctx, action.imsDBQ, action.imsDBQ, event.ID, visitNumber, jwtCtx.Claims.RangerHandle(),
 		reText, false, newFileName, fiHead.Filename, mtype.String(),
 	)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[addStayReportEntry]")
+		return 0, errHTTP.From("[addVisitReportEntry]")
 	}
 
-	action.es.notifyStayUpdate(event.ID, stayNumber)
+	action.es.notifyVisitUpdate(event.ID, visitNumber)
 	return reID, nil
 }
 

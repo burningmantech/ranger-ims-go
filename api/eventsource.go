@@ -31,12 +31,12 @@ type IMSEventData struct {
 	EventID int32  `json:"event_id,omitzero"`
 	Comment string `json:"comment,omitzero"`
 
-	// Exactly one of IncidentNumber, FieldReportNumber, StayNumber,
+	// Exactly one of IncidentNumber, FieldReportNumber, VisitNumber,
 	// or InitialEvent must be set, as this indicates the type of IMS SSE.
 
 	IncidentNumber    int32 `json:"incident_number,omitzero"`
 	FieldReportNumber int32 `json:"field_report_number,omitzero"`
-	StayNumber        int32 `json:"stay_number,omitzero"`
+	VisitNumber       int32 `json:"visit_number,omitzero"`
 	InitialEvent      bool  `json:"initial_event,omitzero"`
 }
 
@@ -56,8 +56,8 @@ func (e IMSEvent) Event() string {
 	if e.EventData.FieldReportNumber > 0 {
 		return "FieldReport"
 	}
-	if e.EventData.StayNumber > 0 {
-		return "Stay"
+	if e.EventData.VisitNumber > 0 {
+		return "Visit"
 	}
 	if e.EventData.InitialEvent {
 		return "InitialEvent"
@@ -137,15 +137,15 @@ func (es *EventSourcerer) notifyIncidentUpdates(eventID int32, incident1, incide
 	}
 }
 
-func (es *EventSourcerer) notifyStayUpdate(eventID int32, stayNumber int32) {
-	if stayNumber == 0 {
+func (es *EventSourcerer) notifyVisitUpdate(eventID int32, visitNumber int32) {
+	if visitNumber == 0 {
 		return
 	}
 	es.Server.Publish([]string{EventSourceChannel}, IMSEvent{
 		EventID: es.IdCounter.Add(1),
 		EventData: IMSEventData{
-			EventID:    eventID,
-			StayNumber: stayNumber,
+			EventID:     eventID,
+			VisitNumber: visitNumber,
 		},
 	})
 }

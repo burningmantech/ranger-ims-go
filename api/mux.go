@@ -296,9 +296,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("GET /ims/api/events/{eventName}/stays",
+	mux.Handle("GET /ims/api/events/{eventName}/visits",
 		Adapt(
-			GetStays{db, userStore, cfg.Core.Admins, attachmentsEnabled},
+			GetVisits{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(false, actionLogger, userStore),
@@ -306,9 +306,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("GET /ims/api/events/{eventName}/stays/{stayNumber}",
+	mux.Handle("GET /ims/api/events/{eventName}/visits/{visitNumber}",
 		Adapt(
-			GetStay{db, userStore, cfg.Core.Admins, attachmentsEnabled},
+			GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(false, actionLogger, userStore),
@@ -316,9 +316,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("POST /ims/api/events/{eventName}/stays",
+	mux.Handle("POST /ims/api/events/{eventName}/visits",
 		Adapt(
-			NewStay{db, userStore, es, cfg.Core.Admins},
+			NewVisit{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(false, actionLogger, userStore),
@@ -326,9 +326,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}",
+	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}",
 		Adapt(
-			EditStay{db, userStore, es, cfg.Core.Admins},
+			EditVisit{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(false, actionLogger, userStore),
@@ -336,9 +336,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}/rangers/{rangerName}",
+	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}",
 		Adapt(
-			AttachRangerToStay{db, userStore, es, cfg.Core.Admins},
+			AttachRangerToVisit{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),
@@ -346,9 +346,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("DELETE /ims/api/events/{eventName}/stays/{stayNumber}/rangers/{rangerName}",
+	mux.Handle("DELETE /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}",
 		Adapt(
-			DetachRangerFromStay{db, userStore, es, cfg.Core.Admins},
+			DetachRangerFromVisit{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),
@@ -356,9 +356,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("GET /ims/api/events/{eventName}/stays/{stayNumber}/attachments/{attachmentNumber}",
+	mux.Handle("GET /ims/api/events/{eventName}/visits/{visitNumber}/attachments/{attachmentNumber}",
 		Adapt(
-			GetStayAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			GetVisitAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),
@@ -366,9 +366,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}/attachments",
+	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}/attachments",
 		Adapt(
-			AttachToStay{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
+			AttachToVisit{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),
@@ -376,9 +376,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("POST /ims/api/events/{eventName}/stays/{stayNumber}/report_entries/{reportEntryId}",
+	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}/report_entries/{reportEntryId}",
 		Adapt(
-			EditStayReportEntry{db, userStore, es, cfg.Core.Admins},
+			EditVisitReportEntry{db, userStore, es, cfg.Core.Admins},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),

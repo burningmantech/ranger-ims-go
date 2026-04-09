@@ -25,13 +25,13 @@ export let pathIds: {
     eventId: number|null,
     incidentNumber: number|null,
     fieldReportNumber: number|null,
-    stayNumber: number|null,
+    visitNumber: number|null,
 } = {
     eventName: null,
     eventId: null,
     incidentNumber: null,
     fieldReportNumber: null,
-    stayNumber: null,
+    visitNumber: null,
 };
 
 export let eventAccess: AuthInfoEventAccess|null = null;
@@ -41,7 +41,7 @@ const accessTokenRefreshAfterKey = "access_token_refresh_after";
 
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
-const staysPreferredStatusKey = "preferred_stays_status";
+const visitsPreferredStatusKey = "preferred_visits_status";
 
 export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 
@@ -56,7 +56,7 @@ function idsFromPath(): {
     eventId: number|null,
     incidentNumber:number|null,
     fieldReportNumber: number|null,
-    stayNumber:number|null,
+    visitNumber:number|null,
 } {
     const splits = window.location.pathname.split("/");
 
@@ -80,7 +80,7 @@ function idsFromPath(): {
         eventId: null,
         incidentNumber: parseInt10(tokenAfter("incidents")),
         fieldReportNumber: parseInt10(tokenAfter("field_reports")),
-        stayNumber: parseInt10(tokenAfter("stays")),
+        visitNumber: parseInt10(tokenAfter("visits")),
     };
 }
 
@@ -440,13 +440,13 @@ function renderCommonPageItems(authInfo: AuthInfo): void {
             }
         }
 
-        const activeEventStays = document.getElementById("active-event-stays") as HTMLAnchorElement|null;
-        if (activeEventStays != null) {
-            activeEventStays.href = urlReplace(url_viewStays);
-            activeEventStays.classList.remove("hidden");
+        const activeEventVisits = document.getElementById("active-event-visits") as HTMLAnchorElement|null;
+        if (activeEventVisits != null) {
+            activeEventVisits.href = urlReplace(url_viewVisits);
+            activeEventVisits.classList.remove("hidden");
 
-            if (window.location.pathname.startsWith(urlReplace(url_viewStays))) {
-                activeEventStays.classList.add("active");
+            if (window.location.pathname.startsWith(urlReplace(url_viewVisits))) {
+                activeEventVisits.classList.add("active");
             }
         }
     }
@@ -666,36 +666,36 @@ export function fieldReportAsString(report: FieldReport): string {
     return `FR #${report.number} (${fieldReportAuthor(report)}): ${summarizeIncidentOrFR(report)}`;
 }
 
-export function stayAsString(s: Stay): string {
+export function visitAsString(s: Visit): string {
     if (s.number == null) {
-        return "New Stay";
+        return "New Visit";
     }
     const reason = s.arrival_reason ? ` - ${s.arrival_reason}` : "";
-    return `Stay #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}${reason}`;
+    return `VS #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}${reason}`;
 }
 
 // Return all user-entered report text for a given incident as a single string.
 export function reportTextFromIncident(
-    incidentFROrStay: Incident|FieldReport|Stay,
+    incidentFROrVisit: Incident|FieldReport|Visit,
     eventFieldReports?: FieldReportsByNumber,
-    eventStays?: StaysByNumber,
+    eventVisits?: VisitsByNumber,
 ): string {
     const texts: string[] = [];
 
-    if ("summary" in incidentFROrStay) {
-        texts.push(incidentFROrStay.summary||"");
+    if ("summary" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.summary||"");
     }
-    if ("guest_preferred_name" in incidentFROrStay) {
-        texts.push(incidentFROrStay.guest_preferred_name||"");
+    if ("guest_preferred_name" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.guest_preferred_name||"");
     }
-    if ("guest_legal_name" in incidentFROrStay) {
-        texts.push(incidentFROrStay.guest_legal_name||"");
+    if ("guest_legal_name" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.guest_legal_name||"");
     }
-    if ("guest_description" in incidentFROrStay) {
-        texts.push(incidentFROrStay.guest_description||"");
+    if ("guest_description" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.guest_description||"");
     }
 
-    for (const reportEntry of incidentFROrStay.report_entries??[]) {
+    for (const reportEntry of incidentFROrVisit.report_entries??[]) {
 
         // Skip system entries
         if (reportEntry.system_entry) {
@@ -708,19 +708,19 @@ export function reportTextFromIncident(
     }
 
     // Incidents page loads all field reports for the event
-    if (eventFieldReports != null && "field_reports" in incidentFROrStay) {
-        for (const reportNumber of incidentFROrStay.field_reports??[]) {
+    if (eventFieldReports != null && "field_reports" in incidentFROrVisit) {
+        for (const reportNumber of incidentFROrVisit.field_reports??[]) {
             const report: FieldReport = eventFieldReports[reportNumber]!;
             const reportText = reportTextFromIncident(report);
 
             texts.push(reportText);
         }
     }
-    // Incidents page also loads all stays for the event
-    if (eventStays != null && "stays" in incidentFROrStay) {
-        for (const stayNumber of incidentFROrStay.stays??[]) {
-            const stay: Stay = eventStays[stayNumber]!;
-            const reportText = reportTextFromIncident(stay);
+    // Incidents page also loads all visits for the event
+    if (eventVisits != null && "visits" in incidentFROrVisit) {
+        for (const visitNumber of incidentFROrVisit.visits??[]) {
+            const visit: Visit = eventVisits[visitNumber]!;
+            const reportText = reportTextFromIncident(visit);
 
             texts.push(reportText);
         }
@@ -772,7 +772,7 @@ export function renderSortedSpan(strings: string[]): Node {
     return sp;
 }
 
-export function renderIncidentNumber(incidentNumber: number|null, type: string, _incidentOrFROrStay: any): RenderValue {
+export function renderIncidentNumber(incidentNumber: number|null, type: string, _incidentOrFROrVisit: any): RenderValue {
     switch (type) {
         case "display":
             if (incidentNumber == null) {
@@ -812,21 +812,21 @@ export function renderFieldReportNumber(fieldReportNumber: number|null, type: st
     }
 }
 
-export function renderStayNumber(stayNumber: number|null, type: string, _stay: any): RenderValue {
+export function renderVisitNumber(visitNumber: number|null, type: string, _visit: any): RenderValue {
     switch (type) {
         case "display":
-            if (stayNumber == null) {
+            if (visitNumber == null) {
                 return null;
             }
             const link = document.createElement("a");
-            link.href = `${urlReplace(url_viewStays)}/${stayNumber.toString()}`;
-            link.text = stayNumber.toString();
+            link.href = `${urlReplace(url_viewVisits)}/${visitNumber.toString()}`;
+            link.text = visitNumber.toString();
             return link;
         case "filter":
         case "sort":
         case "type":
         case undefined:
-            return stayNumber;
+            return visitNumber;
         default:
             return undefined;
     }
@@ -901,7 +901,7 @@ export function localTimeHHMM(date: Date): string {
     return `${hours}:${minutes}`;
 }
 
-export function renderDate(date: string|undefined, type: string, _incidentOrFROrStay: any): RenderValue {
+export function renderDate(date: string|undefined, type: string, _incidentOrFROrVisit: any): RenderValue {
     if (date === undefined) {
         return undefined;
     }
@@ -999,7 +999,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         entryContainer.classList.add("report_entry_user");
     }
 
-    if (entry.frNum || entry.stayNum) {
+    if (entry.frNum || entry.visitNum) {
         entryContainer.classList.add("report_entry_merged");
     }
 
@@ -1020,11 +1020,11 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
                 strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
                     await setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
                 }
-            } else if (entry.stayNum) {
-                const entryMerged = entry.stayNum;
-                // this is an entry from a stay, as shown on the incident page
+            } else if (entry.visitNum) {
+                const entryMerged = entry.visitNum;
+                // this is an entry from a visit, as shown on the incident page
                 strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
-                    await setStrikeStayEntry(entryMerged, entryId, !entryStricken);
+                    await setStrikeVisitEntry(entryMerged, entryId, !entryStricken);
                 }
             } else {
                 const incidentNum = pathIds.incidentNumber;
@@ -1039,11 +1039,11 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
                 await setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
             }
-        } else if (pathIds.stayNumber != null) {
-            // we're on the stay page
-            const stayNum = pathIds.stayNumber;
+        } else if (pathIds.visitNumber != null) {
+            // we're on the visit page
+            const visitNum = pathIds.visitNumber;
             strikeContainer.onclick = async (_e: MouseEvent): Promise<void> => {
-                await setStrikeStayEntry(stayNum, entryId, !entryStricken);
+                await setStrikeVisitEntry(visitNum, entryId, !entryStricken);
             }
         }
         strikeContainer.classList.add("badge", "btn", "btn-danger", "remove-badge", "float-end");
@@ -1072,12 +1072,12 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 
         metaDataContainer.append("(via ", link, ")");
         metaDataContainer.classList.add("report_entry_source");
-    } else if (entry.stayNum) {
+    } else if (entry.visitNum) {
         metaDataContainer.append(" ");
 
         const link: HTMLAnchorElement = document.createElement("a");
-        link.textContent = "stay #" + entry.stayNum;
-        link.href = `${urlReplace(url_viewStays)}/${entry.stayNum}`;
+        link.textContent = "VS #" + entry.visitNum;
+        link.href = `${urlReplace(url_viewVisits)}/${entry.visitNum}`;
 
         metaDataContainer.append("(via ", link, ")");
         metaDataContainer.classList.add("report_entry_source");
@@ -1097,7 +1097,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         textContainer.textContent = paragraph;
         entryContainer.append(textContainer);
     }
-    if (entry.attachment?.name && (pathIds.incidentNumber || pathIds.fieldReportNumber || pathIds.stayNumber)) {
+    if (entry.attachment?.name && (pathIds.incidentNumber || pathIds.fieldReportNumber || pathIds.visitNumber)) {
 
         let url: string = "";
         if (pathIds.fieldReportNumber != null) {
@@ -1106,10 +1106,10 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             url = urlReplace(url_fieldReportAttachmentNumber)
                 .replace("<field_report_number>", frNum)
                 .replace("<attachment_number>", entry.id!.toString());
-        } else if (pathIds.stayNumber != null) {
-            // Stay attachment on stay page
-            url = urlReplace(url_stayAttachmentNumber)
-                .replace("<stay_number>", pathIds.stayNumber.toString())
+        } else if (pathIds.visitNumber != null) {
+            // Visit attachment on visit page
+            url = urlReplace(url_visitAttachmentNumber)
+                .replace("<visit_number>", pathIds.visitNumber.toString())
                 .replace("<attachment_number>", entry.id!.toString());
         } else if (pathIds.incidentNumber != null && entry.frNum == null) {
             // incident attachment on incident page
@@ -1121,10 +1121,10 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             url = urlReplace(url_fieldReportAttachmentNumber)
                 .replace("<field_report_number>", entry.frNum.toString())
                 .replace("<attachment_number>", entry.id!.toString());
-        } else if (pathIds.incidentNumber != null && entry.stayNum != null) {
-            // Stay attachment on incident page
-            url = urlReplace(url_stayAttachmentNumber)
-                .replace("<field_report_number>", entry.stayNum.toString())
+        } else if (pathIds.incidentNumber != null && entry.visitNum != null) {
+            // Visit attachment on incident page
+            url = urlReplace(url_visitAttachmentNumber)
+                .replace("<visit_number>", entry.visitNum.toString())
                 .replace("<attachment_number>", entry.id!.toString());
         } else {
             throw new Error(`Unknown attachment source for entry: ${entry}`);
@@ -1279,9 +1279,9 @@ async function setStrikeFieldReportEntry(fieldReportNumber: number, reportEntryI
     }
 }
 
-async function setStrikeStayEntry(stayNumber: number, reportEntryId: number, strike: boolean): Promise<void> {
-    const url = urlReplace(url_stay_reportEntry)
-        .replace("<stay_number>", stayNumber.toString())
+async function setStrikeVisitEntry(visitNumber: number, reportEntryId: number, strike: boolean): Promise<void> {
+    const url = urlReplace(url_visit_reportEntry)
+        .replace("<visit_number>", visitNumber.toString())
         .replace("<report_entry_id>", reportEntryId.toString());
     const {err} = await fetchNoThrow(url, {
         body: JSON.stringify({"stricken": strike}),
@@ -1398,9 +1398,9 @@ export function newFieldReportChannel(): BroadcastChannelTyped<FieldReportBroadc
     const fieldReportChannelName= "field_report_update";
     return new BroadcastChannel(fieldReportChannelName);
 }
-export function newStayChannel(): BroadcastChannelTyped<StayBroadcast> {
-    const stayChannelName= "stay_update";
-    return new BroadcastChannel(stayChannelName);
+export function newVisitChannel(): BroadcastChannelTyped<VisitBroadcast> {
+    const visitChannelName= "visit_update";
+    return new BroadcastChannel(visitChannelName);
 }
 
 //
@@ -1492,9 +1492,9 @@ function subscribeToUpdates(closed: (_value?: undefined)=>void): void {
         newFieldReportChannel().postMessage(JSON.parse(e.data) as FieldReportBroadcast);
     });
 
-    eventSource.addEventListener("Stay", function(e: MessageEvent<string>) {
+    eventSource.addEventListener("Visit", function(e: MessageEvent<string>) {
         localStorage.setItem(lastSseIDKey, e.lastEventId);
-        newStayChannel().postMessage(JSON.parse(e.data) as StayBroadcast);
+        newVisitChannel().postMessage(JSON.parse(e.data) as VisitBroadcast);
     });
 }
 
@@ -1567,26 +1567,26 @@ export function isValidIncidentsTableState(value: string|null): value is Inciden
     return false;
 }
 
-export const staysStatusValues = ["all", "current"] as const;
-export type StaysTableStatus = typeof staysStatusValues[number];
-export function isValidStaysTableStatus(value: string|null): value is StaysTableStatus {
+export const visitsStatusValues = ["all", "current"] as const;
+export type VisitsTableStatus = typeof visitsStatusValues[number];
+export function isValidVisitsTableStatus(value: string|null): value is VisitsTableStatus {
     if (value) {
-        return staysStatusValues.includes(value as StaysTableStatus);
+        return visitsStatusValues.includes(value as VisitsTableStatus);
     }
     return false;
 }
 
-export function setStaysPreferredStatus(status: StaysTableStatus|null): void {
+export function setVisitsPreferredStatus(status: VisitsTableStatus|null): void {
     if (status) {
-        localStorage.setItem(staysPreferredStatusKey, status);
+        localStorage.setItem(visitsPreferredStatusKey, status);
     } else {
-        localStorage.removeItem(staysPreferredStatusKey);
+        localStorage.removeItem(visitsPreferredStatusKey);
     }
 }
 
-export function getStaysPreferredStatus(): StaysTableStatus|null {
-    const pref = localStorage.getItem(staysPreferredStatusKey);
-    if (isValidStaysTableStatus(pref)) {
+export function getVisitsPreferredStatus(): VisitsTableStatus|null {
+    const pref = localStorage.getItem(visitsPreferredStatusKey);
+    if (isValidVisitsTableStatus(pref)) {
         return pref;
     }
     return null;
@@ -1646,7 +1646,7 @@ export function clearLocalStorage(): void {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
-    localStorage.removeItem(staysPreferredStatusKey);
+    localStorage.removeItem(visitsPreferredStatusKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
 }
 
@@ -1788,7 +1788,7 @@ export type IncidentRanger = {
     role?: string|null;
 }
 
-export type StayRanger = {
+export type VisitRanger = {
     handle?: string|null;
     role?: string|null;
 }
@@ -1809,7 +1809,7 @@ export type Incident = {
     location?: EventLocation|null;
     report_entries?: ReportEntry[]|null;
     field_reports?: number[]|null;
-    stays?: number[]|null;
+    visits?: number[]|null;
     linked_incidents?: LinkedIncident[]|null;
 }
 
@@ -1823,9 +1823,9 @@ export type FieldReport = {
 }
 
 export type FieldReportsByNumber = Record<number, FieldReport>;
-export type StaysByNumber = Record<number, Stay>;
+export type VisitsByNumber = Record<number, Visit>;
 
-export type Stay = {
+export type Visit = {
     number?: number|null;
     event?: string|null;
     created?: string|null;
@@ -1855,7 +1855,7 @@ export type Stay = {
     resource_food_bev?: string|null;
     resource_other?: string|null;
 
-    rangers?: StayRanger[]|null;
+    rangers?: VisitRanger[]|null;
     report_entries?: ReportEntry[]|null;
 }
 
@@ -1876,7 +1876,7 @@ export interface ReportEntry {
     created?: string|null;
     author?: string|null;
     frNum?: number|null,
-    stayNum?: number|null,
+    visitNum?: number|null,
     text?: string|null;
     system_entry?: boolean|null;
     stricken?: boolean|null;
@@ -2005,8 +2005,8 @@ export type AuthInfoEventAccess = {
     readIncidents: boolean,
     writeIncidents: boolean,
     writeFieldReports: boolean,
-    readStays: boolean,
-    writeStays: boolean,
+    readVisits: boolean,
+    writeVisits: boolean,
     attachFiles: boolean,
 }
 
@@ -2042,10 +2042,10 @@ export type FieldReportBroadcast = {
     update_all?: boolean
 }
 
-export type StayBroadcast = {
+export type VisitBroadcast = {
     // fields from SSE
     event_id?: number|null;
-    stay_number?: number|null;
+    visit_number?: number|null;
     // additional fields for use in BroadcastChannel
     update_all?: boolean
 }

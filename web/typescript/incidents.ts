@@ -129,7 +129,7 @@ async function initIncidentsPage(): Promise<void> {
 
         const hashParams = ims.windowFragmentParams();
         const liTemplate = el.multisearchEventsList.querySelector("template")!;
-        for (const eventData of eventDatas) {
+        for (const eventData of eventDatas.toSorted((a,b)=>b.name.localeCompare(a.name))) {
             const liFrag = liTemplate.content.cloneNode(true) as DocumentFragment;
             const eventLink = liFrag.querySelector("a")!;
             eventLink.textContent = eventData.name;

@@ -94,7 +94,7 @@ async function initIncidentsPage() {
         el.multisearchEventsList.querySelectorAll("li").forEach((li) => { li.remove(); });
         const hashParams = ims.windowFragmentParams();
         const liTemplate = el.multisearchEventsList.querySelector("template");
-        for (const eventData of eventDatas) {
+        for (const eventData of eventDatas.toSorted((a, b) => b.name.localeCompare(a.name))) {
             const liFrag = liTemplate.content.cloneNode(true);
             const eventLink = liFrag.querySelector("a");
             eventLink.textContent = eventData.name;

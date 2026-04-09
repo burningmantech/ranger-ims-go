@@ -295,7 +295,7 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	if queryAction := req.FormValue("action"); queryAction != "" {
 		targetIncidentVal := req.FormValue("incident")
 
-		// TODO: get rid of this "action" framework, and just allow a standard POST, as with stay's incident field.
+		// TODO: get rid of this "action" framework, and just allow a standard POST, as with visit's incident field.
 		errHTTP = action.handleLinkToIncident(ctx, storedFR, event, queryAction, targetIncidentVal, author)
 		if errHTTP != nil {
 			return errHTTP.From("[handleLinkToIncident]")

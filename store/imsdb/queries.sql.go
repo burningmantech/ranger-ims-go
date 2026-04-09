@@ -195,22 +195,22 @@ func (q *Queries) AttachRangerHandleToIncident(ctx context.Context, db DBTX, arg
 	return err
 }
 
-const attachRangerToStay = `-- name: AttachRangerToStay :exec
-insert into STAY__RANGER (EVENT, STAY_NUMBER, RANGER_HANDLE, ROLE)
+const attachRangerToVisit = `-- name: AttachRangerToVisit :exec
+insert into VISIT__RANGER (EVENT, VISIT_NUMBER, RANGER_HANDLE, ROLE)
 values (?, ?, ?, ?)
 `
 
-type AttachRangerToStayParams struct {
+type AttachRangerToVisitParams struct {
 	Event        int32
-	StayNumber   int32
+	VisitNumber  int32
 	RangerHandle string
 	Role         sql.NullString
 }
 
-func (q *Queries) AttachRangerToStay(ctx context.Context, db DBTX, arg AttachRangerToStayParams) error {
-	_, err := db.ExecContext(ctx, attachRangerToStay,
+func (q *Queries) AttachRangerToVisit(ctx context.Context, db DBTX, arg AttachRangerToVisitParams) error {
+	_, err := db.ExecContext(ctx, attachRangerToVisit,
 		arg.Event,
-		arg.StayNumber,
+		arg.VisitNumber,
 		arg.RangerHandle,
 		arg.Role,
 	)
@@ -255,39 +255,39 @@ func (q *Queries) AttachReportEntryToIncident(ctx context.Context, db DBTX, arg 
 	return err
 }
 
-const attachReportEntryToStay = `-- name: AttachReportEntryToStay :exec
-insert into STAY__REPORT_ENTRY (
-    EVENT, STAY_NUMBER, REPORT_ENTRY
+const attachReportEntryToVisit = `-- name: AttachReportEntryToVisit :exec
+insert into VISIT__REPORT_ENTRY (
+    EVENT, VISIT_NUMBER, REPORT_ENTRY
 ) values (
     ?, ?, ?
 )
 `
 
-type AttachReportEntryToStayParams struct {
+type AttachReportEntryToVisitParams struct {
 	Event       int32
-	StayNumber  int32
+	VisitNumber int32
 	ReportEntry int32
 }
 
-func (q *Queries) AttachReportEntryToStay(ctx context.Context, db DBTX, arg AttachReportEntryToStayParams) error {
-	_, err := db.ExecContext(ctx, attachReportEntryToStay, arg.Event, arg.StayNumber, arg.ReportEntry)
+func (q *Queries) AttachReportEntryToVisit(ctx context.Context, db DBTX, arg AttachReportEntryToVisitParams) error {
+	_, err := db.ExecContext(ctx, attachReportEntryToVisit, arg.Event, arg.VisitNumber, arg.ReportEntry)
 	return err
 }
 
-const attachStayToIncident = `-- name: AttachStayToIncident :exec
-update STAY
+const attachVisitToIncident = `-- name: AttachVisitToIncident :exec
+update VISIT
 set INCIDENT_NUMBER = ?
 where EVENT = ? and NUMBER = ?
 `
 
-type AttachStayToIncidentParams struct {
+type AttachVisitToIncidentParams struct {
 	IncidentNumber sql.NullInt32
 	Event          int32
 	Number         int32
 }
 
-func (q *Queries) AttachStayToIncident(ctx context.Context, db DBTX, arg AttachStayToIncidentParams) error {
-	_, err := db.ExecContext(ctx, attachStayToIncident, arg.IncidentNumber, arg.Event, arg.Number)
+func (q *Queries) AttachVisitToIncident(ctx context.Context, db DBTX, arg AttachVisitToIncidentParams) error {
+	_, err := db.ExecContext(ctx, attachVisitToIncident, arg.IncidentNumber, arg.Event, arg.Number)
 	return err
 }
 
@@ -535,18 +535,18 @@ func (q *Queries) CreateReportEntry(ctx context.Context, db DBTX, arg CreateRepo
 	return result.LastInsertId()
 }
 
-const createStay = `-- name: CreateStay :execlastid
-insert into STAY (` + "`" + `EVENT` + "`" + `, NUMBER, CREATED) values (?, ?, ?)
+const createVisit = `-- name: CreateVisit :execlastid
+insert into VISIT (` + "`" + `EVENT` + "`" + `, NUMBER, CREATED) values (?, ?, ?)
 `
 
-type CreateStayParams struct {
+type CreateVisitParams struct {
 	Event   int32
 	Number  int32
 	Created float64
 }
 
-func (q *Queries) CreateStay(ctx context.Context, db DBTX, arg CreateStayParams) (int64, error) {
-	result, err := db.ExecContext(ctx, createStay, arg.Event, arg.Number, arg.Created)
+func (q *Queries) CreateVisit(ctx context.Context, db DBTX, arg CreateVisitParams) (int64, error) {
+	result, err := db.ExecContext(ctx, createVisit, arg.Event, arg.Number, arg.Created)
 	if err != nil {
 		return 0, err
 	}
@@ -630,22 +630,22 @@ func (q *Queries) DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, a
 	return err
 }
 
-const detachRangerFromStay = `-- name: DetachRangerFromStay :exec
-delete from STAY__RANGER
+const detachRangerFromVisit = `-- name: DetachRangerFromVisit :exec
+delete from VISIT__RANGER
 where
     EVENT = ?
-    and STAY_NUMBER = ?
+    and VISIT_NUMBER = ?
     and RANGER_HANDLE = ?
 `
 
-type DetachRangerFromStayParams struct {
+type DetachRangerFromVisitParams struct {
 	Event        int32
-	StayNumber   int32
+	VisitNumber  int32
 	RangerHandle string
 }
 
-func (q *Queries) DetachRangerFromStay(ctx context.Context, db DBTX, arg DetachRangerFromStayParams) error {
-	_, err := db.ExecContext(ctx, detachRangerFromStay, arg.Event, arg.StayNumber, arg.RangerHandle)
+func (q *Queries) DetachRangerFromVisit(ctx context.Context, db DBTX, arg DetachRangerFromVisitParams) error {
+	_, err := db.ExecContext(ctx, detachRangerFromVisit, arg.Event, arg.VisitNumber, arg.RangerHandle)
 	return err
 }
 
@@ -1016,11 +1016,11 @@ select
           and i.NUMBER = irep.INCIDENT_NUMBER
     ) as FIELD_REPORT_NUMBERS,
     (
-        select coalesce(json_arrayagg(stay.NUMBER), "[]")
-        from STAY stay
-        where i.EVENT = stay.EVENT
-          and i.NUMBER = stay.INCIDENT_NUMBER
-    ) as STAY_NUMBERS
+        select coalesce(json_arrayagg(visit.NUMBER), "[]")
+        from VISIT visit
+        where i.EVENT = visit.EVENT
+          and i.NUMBER = visit.INCIDENT_NUMBER
+    ) as VISIT_NUMBERS
 from INCIDENT i
 where i.EVENT = ?
     and i.NUMBER = ?
@@ -1035,7 +1035,7 @@ type IncidentRow struct {
 	Incident           Incident
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
-	StayNumbers        interface{}
+	VisitNumbers       interface{}
 }
 
 func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error) {
@@ -1058,7 +1058,7 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.LocationDescription,
 		&i.IncidentTypeIds,
 		&i.FieldReportNumbers,
-		&i.StayNumbers,
+		&i.VisitNumbers,
 	)
 	return i, err
 }
@@ -1301,11 +1301,11 @@ select
             and i.NUMBER = irep.INCIDENT_NUMBER
     ) as FIELD_REPORT_NUMBERS,
     (
-        select coalesce(json_arrayagg(stay.NUMBER), "[]")
-        from STAY stay
-        where i.EVENT = stay.EVENT
-          and i.NUMBER = stay.INCIDENT_NUMBER
-    ) as STAY_NUMBERS
+        select coalesce(json_arrayagg(visit.NUMBER), "[]")
+        from VISIT visit
+        where i.EVENT = visit.EVENT
+          and i.NUMBER = visit.INCIDENT_NUMBER
+    ) as VISIT_NUMBERS
 from
     INCIDENT i
 where
@@ -1318,7 +1318,7 @@ type IncidentsRow struct {
 	Incident           Incident
 	IncidentTypeIds    interface{}
 	FieldReportNumbers interface{}
-	StayNumbers        interface{}
+	VisitNumbers       interface{}
 }
 
 func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]IncidentsRow, error) {
@@ -1347,7 +1347,7 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.LocationDescription,
 			&i.IncidentTypeIds,
 			&i.FieldReportNumbers,
-			&i.StayNumbers,
+			&i.VisitNumbers,
 		); err != nil {
 			return nil, err
 		}
@@ -1521,9 +1521,9 @@ func (q *Queries) NextIncidentNumber(ctx context.Context, db DBTX, event int32) 
 	return next_id, err
 }
 
-const nextStayNumber = `-- name: NextStayNumber :one
+const nextVisitNumber = `-- name: NextVisitNumber :one
 select NUMBER + 1 as NEXT_ID
-from STAY
+from VISIT
 where EVENT = ?
 union
 select 1
@@ -1532,8 +1532,8 @@ limit 1
 `
 
 // This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
-func (q *Queries) NextStayNumber(ctx context.Context, db DBTX, event int32) (int32, error) {
-	row := db.QueryRowContext(ctx, nextStayNumber, event)
+func (q *Queries) NextVisitNumber(ctx context.Context, db DBTX, event int32) (int32, error) {
+	row := db.QueryRowContext(ctx, nextVisitNumber, event)
 	var next_id int32
 	err := row.Scan(&next_id)
 	return next_id, err
@@ -1650,349 +1650,33 @@ func (q *Queries) SetIncidentReportEntryStricken(ctx context.Context, db DBTX, a
 	return err
 }
 
-const setStayReportEntryStricken = `-- name: SetStayReportEntryStricken :exec
+const setVisitReportEntryStricken = `-- name: SetVisitReportEntryStricken :exec
 update REPORT_ENTRY
 set STRICKEN = ?
 where ID IN (
     select REPORT_ENTRY
-    from STAY__REPORT_ENTRY
+    from VISIT__REPORT_ENTRY
     where EVENT = ?
-      and STAY_NUMBER = ?
+      and VISIT_NUMBER = ?
       and REPORT_ENTRY = ?
 )
 `
 
-type SetStayReportEntryStrickenParams struct {
+type SetVisitReportEntryStrickenParams struct {
 	Stricken    bool
 	Event       int32
-	StayNumber  int32
+	VisitNumber int32
 	ReportEntry int32
 }
 
-func (q *Queries) SetStayReportEntryStricken(ctx context.Context, db DBTX, arg SetStayReportEntryStrickenParams) error {
-	_, err := db.ExecContext(ctx, setStayReportEntryStricken,
+func (q *Queries) SetVisitReportEntryStricken(ctx context.Context, db DBTX, arg SetVisitReportEntryStrickenParams) error {
+	_, err := db.ExecContext(ctx, setVisitReportEntryStricken,
 		arg.Stricken,
 		arg.Event,
-		arg.StayNumber,
+		arg.VisitNumber,
 		arg.ReportEntry,
 	)
 	return err
-}
-
-const stay = `-- name: Stay :one
-select
-    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
-from
-    STAY s
-where
-    s.EVENT = ?
-    and s.NUMBER = ?
-`
-
-type StayParams struct {
-	Event  int32
-	Number int32
-}
-
-type StayRow struct {
-	Stay Stay
-}
-
-func (q *Queries) Stay(ctx context.Context, db DBTX, arg StayParams) (StayRow, error) {
-	row := db.QueryRowContext(ctx, stay, arg.Event, arg.Number)
-	var i StayRow
-	err := row.Scan(
-		&i.Stay.Event,
-		&i.Stay.Number,
-		&i.Stay.Created,
-		&i.Stay.IncidentNumber,
-		&i.Stay.GuestPreferredName,
-		&i.Stay.GuestLegalName,
-		&i.Stay.GuestDescription,
-		&i.Stay.GuestCampName,
-		&i.Stay.GuestCampAddress,
-		&i.Stay.GuestCampDescription,
-		&i.Stay.ArrivalTime,
-		&i.Stay.ArrivalMethod,
-		&i.Stay.ArrivalState,
-		&i.Stay.ArrivalReason,
-		&i.Stay.ArrivalBelongings,
-		&i.Stay.DepartureTime,
-		&i.Stay.DepartureMethod,
-		&i.Stay.DepartureState,
-		&i.Stay.ResourceRest,
-		&i.Stay.ResourceClothes,
-		&i.Stay.ResourcePogs,
-		&i.Stay.ResourceFoodBev,
-		&i.Stay.ResourceOther,
-	)
-	return i, err
-}
-
-const stay_Rangers = `-- name: Stay_Rangers :many
-select
-    sr.id, sr.event, sr.stay_number, sr.ranger_handle, sr.role
-from
-    STAY__RANGER sr
-where
-    sr.EVENT = ?
-    and sr.STAY_NUMBER = ?
-`
-
-type Stay_RangersParams struct {
-	Event      int32
-	StayNumber int32
-}
-
-type Stay_RangersRow struct {
-	StayRanger StayRanger
-}
-
-func (q *Queries) Stay_Rangers(ctx context.Context, db DBTX, arg Stay_RangersParams) ([]Stay_RangersRow, error) {
-	rows, err := db.QueryContext(ctx, stay_Rangers, arg.Event, arg.StayNumber)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Stay_RangersRow
-	for rows.Next() {
-		var i Stay_RangersRow
-		if err := rows.Scan(
-			&i.StayRanger.ID,
-			&i.StayRanger.Event,
-			&i.StayRanger.StayNumber,
-			&i.StayRanger.RangerHandle,
-			&i.StayRanger.Role,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const stay_ReportEntries = `-- name: Stay_ReportEntries :many
-select
-    sre.STAY_NUMBER,
-    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
-from
-    STAY__REPORT_ENTRY sre
-        join REPORT_ENTRY re
-             on re.ID = sre.REPORT_ENTRY
-where
-    sre.EVENT = ?
-    and sre.STAY_NUMBER = ?
-`
-
-type Stay_ReportEntriesParams struct {
-	Event      int32
-	StayNumber int32
-}
-
-type Stay_ReportEntriesRow struct {
-	StayNumber  int32
-	ReportEntry ReportEntry
-}
-
-func (q *Queries) Stay_ReportEntries(ctx context.Context, db DBTX, arg Stay_ReportEntriesParams) ([]Stay_ReportEntriesRow, error) {
-	rows, err := db.QueryContext(ctx, stay_ReportEntries, arg.Event, arg.StayNumber)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Stay_ReportEntriesRow
-	for rows.Next() {
-		var i Stay_ReportEntriesRow
-		if err := rows.Scan(
-			&i.StayNumber,
-			&i.ReportEntry.ID,
-			&i.ReportEntry.Author,
-			&i.ReportEntry.Text,
-			&i.ReportEntry.Created,
-			&i.ReportEntry.Generated,
-			&i.ReportEntry.Stricken,
-			&i.ReportEntry.AttachedFile,
-			&i.ReportEntry.AttachedFileOriginalName,
-			&i.ReportEntry.AttachedFileMediaType,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const stays = `-- name: Stays :many
-select
-    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
-from
-    STAY s
-where
-    s.EVENT = ?
-group by
-    s.NUMBER
-`
-
-type StaysRow struct {
-	Stay Stay
-}
-
-func (q *Queries) Stays(ctx context.Context, db DBTX, event int32) ([]StaysRow, error) {
-	rows, err := db.QueryContext(ctx, stays, event)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []StaysRow
-	for rows.Next() {
-		var i StaysRow
-		if err := rows.Scan(
-			&i.Stay.Event,
-			&i.Stay.Number,
-			&i.Stay.Created,
-			&i.Stay.IncidentNumber,
-			&i.Stay.GuestPreferredName,
-			&i.Stay.GuestLegalName,
-			&i.Stay.GuestDescription,
-			&i.Stay.GuestCampName,
-			&i.Stay.GuestCampAddress,
-			&i.Stay.GuestCampDescription,
-			&i.Stay.ArrivalTime,
-			&i.Stay.ArrivalMethod,
-			&i.Stay.ArrivalState,
-			&i.Stay.ArrivalReason,
-			&i.Stay.ArrivalBelongings,
-			&i.Stay.DepartureTime,
-			&i.Stay.DepartureMethod,
-			&i.Stay.DepartureState,
-			&i.Stay.ResourceRest,
-			&i.Stay.ResourceClothes,
-			&i.Stay.ResourcePogs,
-			&i.Stay.ResourceFoodBev,
-			&i.Stay.ResourceOther,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const stays_Rangers = `-- name: Stays_Rangers :many
-select
-    sr.id, sr.event, sr.stay_number, sr.ranger_handle, sr.role
-from
-    STAY__RANGER sr
-where
-    sr.EVENT = ?
-`
-
-type Stays_RangersRow struct {
-	StayRanger StayRanger
-}
-
-func (q *Queries) Stays_Rangers(ctx context.Context, db DBTX, event int32) ([]Stays_RangersRow, error) {
-	rows, err := db.QueryContext(ctx, stays_Rangers, event)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Stays_RangersRow
-	for rows.Next() {
-		var i Stays_RangersRow
-		if err := rows.Scan(
-			&i.StayRanger.ID,
-			&i.StayRanger.Event,
-			&i.StayRanger.StayNumber,
-			&i.StayRanger.RangerHandle,
-			&i.StayRanger.Role,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const stays_ReportEntries = `-- name: Stays_ReportEntries :many
-select
-    sre.STAY_NUMBER,
-    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
-from
-    STAY__REPORT_ENTRY sre
-        join REPORT_ENTRY re
-             on re.ID = sre.REPORT_ENTRY
-where
-    sre.EVENT = ?
-    and re.GENERATED <= ?
-`
-
-type Stays_ReportEntriesParams struct {
-	Event     int32
-	Generated bool
-}
-
-type Stays_ReportEntriesRow struct {
-	StayNumber  int32
-	ReportEntry ReportEntry
-}
-
-func (q *Queries) Stays_ReportEntries(ctx context.Context, db DBTX, arg Stays_ReportEntriesParams) ([]Stays_ReportEntriesRow, error) {
-	rows, err := db.QueryContext(ctx, stays_ReportEntries, arg.Event, arg.Generated)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Stays_ReportEntriesRow
-	for rows.Next() {
-		var i Stays_ReportEntriesRow
-		if err := rows.Scan(
-			&i.StayNumber,
-			&i.ReportEntry.ID,
-			&i.ReportEntry.Author,
-			&i.ReportEntry.Text,
-			&i.ReportEntry.Created,
-			&i.ReportEntry.Generated,
-			&i.ReportEntry.Stricken,
-			&i.ReportEntry.AttachedFile,
-			&i.ReportEntry.AttachedFileOriginalName,
-			&i.ReportEntry.AttachedFileMediaType,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const unlinkIncidents = `-- name: UnlinkIncidents :exec
@@ -2149,8 +1833,8 @@ func (q *Queries) UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateInc
 	return err
 }
 
-const updateStay = `-- name: UpdateStay :exec
-update STAY set
+const updateVisit = `-- name: UpdateVisit :exec
+update VISIT set
     -- CREATED should be immutable, so it's not present in this UPDATE query
     INCIDENT_NUMBER = ?,
     GUEST_PREFERRED_NAME = ?,
@@ -2180,7 +1864,7 @@ where
     and NUMBER = ?
 `
 
-type UpdateStayParams struct {
+type UpdateVisitParams struct {
 	IncidentNumber       sql.NullInt32
 	GuestPreferredName   sql.NullString
 	GuestLegalName       sql.NullString
@@ -2205,8 +1889,8 @@ type UpdateStayParams struct {
 	Number               int32
 }
 
-func (q *Queries) UpdateStay(ctx context.Context, db DBTX, arg UpdateStayParams) error {
-	_, err := db.ExecContext(ctx, updateStay,
+func (q *Queries) UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParams) error {
+	_, err := db.ExecContext(ctx, updateVisit,
 		arg.IncidentNumber,
 		arg.GuestPreferredName,
 		arg.GuestLegalName,
@@ -2231,4 +1915,320 @@ func (q *Queries) UpdateStay(ctx context.Context, db DBTX, arg UpdateStayParams)
 		arg.Number,
 	)
 	return err
+}
+
+const visit = `-- name: Visit :one
+select
+    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
+from
+    VISIT s
+where
+    s.EVENT = ?
+    and s.NUMBER = ?
+`
+
+type VisitParams struct {
+	Event  int32
+	Number int32
+}
+
+type VisitRow struct {
+	Visit Visit
+}
+
+func (q *Queries) Visit(ctx context.Context, db DBTX, arg VisitParams) (VisitRow, error) {
+	row := db.QueryRowContext(ctx, visit, arg.Event, arg.Number)
+	var i VisitRow
+	err := row.Scan(
+		&i.Visit.Event,
+		&i.Visit.Number,
+		&i.Visit.Created,
+		&i.Visit.IncidentNumber,
+		&i.Visit.GuestPreferredName,
+		&i.Visit.GuestLegalName,
+		&i.Visit.GuestDescription,
+		&i.Visit.GuestCampName,
+		&i.Visit.GuestCampAddress,
+		&i.Visit.GuestCampDescription,
+		&i.Visit.ArrivalTime,
+		&i.Visit.ArrivalMethod,
+		&i.Visit.ArrivalState,
+		&i.Visit.ArrivalReason,
+		&i.Visit.ArrivalBelongings,
+		&i.Visit.DepartureTime,
+		&i.Visit.DepartureMethod,
+		&i.Visit.DepartureState,
+		&i.Visit.ResourceRest,
+		&i.Visit.ResourceClothes,
+		&i.Visit.ResourcePogs,
+		&i.Visit.ResourceFoodBev,
+		&i.Visit.ResourceOther,
+	)
+	return i, err
+}
+
+const visit_Rangers = `-- name: Visit_Rangers :many
+select
+    sr.id, sr.event, sr.visit_number, sr.ranger_handle, sr.role
+from
+    VISIT__RANGER sr
+where
+    sr.EVENT = ?
+    and sr.VISIT_NUMBER = ?
+`
+
+type Visit_RangersParams struct {
+	Event       int32
+	VisitNumber int32
+}
+
+type Visit_RangersRow struct {
+	VisitRanger VisitRanger
+}
+
+func (q *Queries) Visit_Rangers(ctx context.Context, db DBTX, arg Visit_RangersParams) ([]Visit_RangersRow, error) {
+	rows, err := db.QueryContext(ctx, visit_Rangers, arg.Event, arg.VisitNumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Visit_RangersRow
+	for rows.Next() {
+		var i Visit_RangersRow
+		if err := rows.Scan(
+			&i.VisitRanger.ID,
+			&i.VisitRanger.Event,
+			&i.VisitRanger.VisitNumber,
+			&i.VisitRanger.RangerHandle,
+			&i.VisitRanger.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const visit_ReportEntries = `-- name: Visit_ReportEntries :many
+select
+    sre.VISIT_NUMBER,
+    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
+from
+    VISIT__REPORT_ENTRY sre
+        join REPORT_ENTRY re
+             on re.ID = sre.REPORT_ENTRY
+where
+    sre.EVENT = ?
+    and sre.VISIT_NUMBER = ?
+`
+
+type Visit_ReportEntriesParams struct {
+	Event       int32
+	VisitNumber int32
+}
+
+type Visit_ReportEntriesRow struct {
+	VisitNumber int32
+	ReportEntry ReportEntry
+}
+
+func (q *Queries) Visit_ReportEntries(ctx context.Context, db DBTX, arg Visit_ReportEntriesParams) ([]Visit_ReportEntriesRow, error) {
+	rows, err := db.QueryContext(ctx, visit_ReportEntries, arg.Event, arg.VisitNumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Visit_ReportEntriesRow
+	for rows.Next() {
+		var i Visit_ReportEntriesRow
+		if err := rows.Scan(
+			&i.VisitNumber,
+			&i.ReportEntry.ID,
+			&i.ReportEntry.Author,
+			&i.ReportEntry.Text,
+			&i.ReportEntry.Created,
+			&i.ReportEntry.Generated,
+			&i.ReportEntry.Stricken,
+			&i.ReportEntry.AttachedFile,
+			&i.ReportEntry.AttachedFileOriginalName,
+			&i.ReportEntry.AttachedFileMediaType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const visits = `-- name: Visits :many
+select
+    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
+from
+    VISIT s
+where
+    s.EVENT = ?
+group by
+    s.NUMBER
+`
+
+type VisitsRow struct {
+	Visit Visit
+}
+
+func (q *Queries) Visits(ctx context.Context, db DBTX, event int32) ([]VisitsRow, error) {
+	rows, err := db.QueryContext(ctx, visits, event)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []VisitsRow
+	for rows.Next() {
+		var i VisitsRow
+		if err := rows.Scan(
+			&i.Visit.Event,
+			&i.Visit.Number,
+			&i.Visit.Created,
+			&i.Visit.IncidentNumber,
+			&i.Visit.GuestPreferredName,
+			&i.Visit.GuestLegalName,
+			&i.Visit.GuestDescription,
+			&i.Visit.GuestCampName,
+			&i.Visit.GuestCampAddress,
+			&i.Visit.GuestCampDescription,
+			&i.Visit.ArrivalTime,
+			&i.Visit.ArrivalMethod,
+			&i.Visit.ArrivalState,
+			&i.Visit.ArrivalReason,
+			&i.Visit.ArrivalBelongings,
+			&i.Visit.DepartureTime,
+			&i.Visit.DepartureMethod,
+			&i.Visit.DepartureState,
+			&i.Visit.ResourceRest,
+			&i.Visit.ResourceClothes,
+			&i.Visit.ResourcePogs,
+			&i.Visit.ResourceFoodBev,
+			&i.Visit.ResourceOther,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const visits_Rangers = `-- name: Visits_Rangers :many
+select
+    sr.id, sr.event, sr.visit_number, sr.ranger_handle, sr.role
+from
+    VISIT__RANGER sr
+where
+    sr.EVENT = ?
+`
+
+type Visits_RangersRow struct {
+	VisitRanger VisitRanger
+}
+
+func (q *Queries) Visits_Rangers(ctx context.Context, db DBTX, event int32) ([]Visits_RangersRow, error) {
+	rows, err := db.QueryContext(ctx, visits_Rangers, event)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Visits_RangersRow
+	for rows.Next() {
+		var i Visits_RangersRow
+		if err := rows.Scan(
+			&i.VisitRanger.ID,
+			&i.VisitRanger.Event,
+			&i.VisitRanger.VisitNumber,
+			&i.VisitRanger.RangerHandle,
+			&i.VisitRanger.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const visits_ReportEntries = `-- name: Visits_ReportEntries :many
+select
+    sre.VISIT_NUMBER,
+    re.id, re.author, re.text, re.created, re.` + "`" + `generated` + "`" + `, re.stricken, re.attached_file, re.attached_file_original_name, re.attached_file_media_type
+from
+    VISIT__REPORT_ENTRY sre
+        join REPORT_ENTRY re
+             on re.ID = sre.REPORT_ENTRY
+where
+    sre.EVENT = ?
+    and re.GENERATED <= ?
+`
+
+type Visits_ReportEntriesParams struct {
+	Event     int32
+	Generated bool
+}
+
+type Visits_ReportEntriesRow struct {
+	VisitNumber int32
+	ReportEntry ReportEntry
+}
+
+func (q *Queries) Visits_ReportEntries(ctx context.Context, db DBTX, arg Visits_ReportEntriesParams) ([]Visits_ReportEntriesRow, error) {
+	rows, err := db.QueryContext(ctx, visits_ReportEntries, arg.Event, arg.Generated)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Visits_ReportEntriesRow
+	for rows.Next() {
+		var i Visits_ReportEntriesRow
+		if err := rows.Scan(
+			&i.VisitNumber,
+			&i.ReportEntry.ID,
+			&i.ReportEntry.Author,
+			&i.ReportEntry.Text,
+			&i.ReportEntry.Created,
+			&i.ReportEntry.Generated,
+			&i.ReportEntry.Stricken,
+			&i.ReportEntry.AttachedFile,
+			&i.ReportEntry.AttachedFileOriginalName,
+			&i.ReportEntry.AttachedFileMediaType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

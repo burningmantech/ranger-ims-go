@@ -78,10 +78,10 @@ func AllDestinationTypeValues() []DestinationType {
 type EventAccessMode string
 
 const (
-	EventAccessModeRead       EventAccessMode = "read"
-	EventAccessModeWrite      EventAccessMode = "write"
-	EventAccessModeReport     EventAccessMode = "report"
-	EventAccessModeWriteStays EventAccessMode = "write_stays"
+	EventAccessModeRead        EventAccessMode = "read"
+	EventAccessModeWrite       EventAccessMode = "write"
+	EventAccessModeReport      EventAccessMode = "report"
+	EventAccessModeWriteVisits EventAccessMode = "write_visits"
 )
 
 func (e *EventAccessMode) Scan(src interface{}) error {
@@ -124,7 +124,7 @@ func (e EventAccessMode) Valid() bool {
 	case EventAccessModeRead,
 		EventAccessModeWrite,
 		EventAccessModeReport,
-		EventAccessModeWriteStays:
+		EventAccessModeWriteVisits:
 		return true
 	}
 	return false
@@ -135,7 +135,7 @@ func AllEventAccessModeValues() []EventAccessMode {
 		EventAccessModeRead,
 		EventAccessModeWrite,
 		EventAccessModeReport,
-		EventAccessModeWriteStays,
+		EventAccessModeWriteVisits,
 	}
 }
 
@@ -392,7 +392,7 @@ type SchemaInfo struct {
 	Version int16
 }
 
-type Stay struct {
+type Visit struct {
 	Event                int32
 	Number               int32
 	Created              float64
@@ -418,16 +418,16 @@ type Stay struct {
 	ResourceOther        sql.NullString
 }
 
-type StayRanger struct {
+type VisitRanger struct {
 	ID           int32
 	Event        int32
-	StayNumber   int32
+	VisitNumber  int32
 	RangerHandle string
 	Role         sql.NullString
 }
 
-type StayReportEntry struct {
+type VisitReportEntry struct {
 	Event       int32
-	StayNumber  int32
+	VisitNumber int32
 	ReportEntry int32
 }

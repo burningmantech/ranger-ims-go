@@ -58,7 +58,7 @@ var Validity;
     Validity["always"] = "always";
     Validity["onsite"] = "onsite";
 })(Validity || (Validity = {}));
-const allAccessModes = ["readers", "writers", "reporters", "stay_writers"];
+const allAccessModes = ["readers", "writers", "reporters", "visit_writers"];
 let sortedEvents;
 let accessControlList = null;
 async function loadAccessControlList() {
@@ -152,8 +152,8 @@ function displayMode(m) {
             return "Full writers";
         case "reporters":
             return "Reporters";
-        case "stay_writers":
-            return "Stay writers";
+        case "visit_writers":
+            return "Visit writers";
         default:
             throw new Error(`unexpected access mode ${m}`);
     }

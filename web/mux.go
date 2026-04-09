@@ -137,18 +137,18 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			).ServeHTTP(w, r)
 		},
 	)
-	mux.HandleFunc("GET /ims/app/events/{eventName}/stays",
+	mux.HandleFunc("GET /ims/app/events/{eventName}/visits",
 		func(w http.ResponseWriter, r *http.Request) {
 			AdaptTempl(
-				template.SanctuaryStays(deployment, versionName, versionRef, r.PathValue("eventName")),
+				template.SanctuaryVisits(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 			).ServeHTTP(w, r)
 		},
 	)
-	mux.HandleFunc("GET /ims/app/events/{eventName}/stays/{stayNumber}",
+	mux.HandleFunc("GET /ims/app/events/{eventName}/visits/{visitNumber}",
 		func(w http.ResponseWriter, r *http.Request) {
 			AdaptTempl(
-				template.SanctuaryStay(deployment, versionName, versionRef, r.PathValue("eventName")),
+				template.SanctuaryVisit(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 			).ServeHTTP(w, r)
 		},

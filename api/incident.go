@@ -244,7 +244,7 @@ func incidentToJSON(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inciden
 		}
 	}
 
-	incidentTypeIDs, fieldReportNumbers, stayNumbers, err := readExtraIncidentRowFields(storedRow)
+	incidentTypeIDs, fieldReportNumbers, visitNumbers, err := readExtraIncidentRowFields(storedRow)
 	if err != nil {
 		return resp, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -276,7 +276,7 @@ func incidentToJSON(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inciden
 		},
 		IncidentTypeIDs: &incidentTypeIDs,
 		FieldReports:    &fieldReportNumbers,
-		Stays:           &stayNumbers,
+		Visits:          &visitNumbers,
 		Rangers:         &rangersJson,
 		ReportEntries:   resultEntries,
 		LinkedIncidents: &linkedIncidentJson,
@@ -424,7 +424,7 @@ func unmarshalByteSlice[T any](isByteSlice any) (T, error) {
 	return result, nil
 }
 
-func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeIDs, fieldReportNumbers, stayNumbers []int32, err error) {
+func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeIDs, fieldReportNumbers, visitNumbers []int32, err error) {
 	incidentTypeIDs, err = unmarshalByteSlice[[]int32](row.IncidentTypeIds)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
@@ -433,11 +433,11 @@ func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeIDs, fieldRe
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
-	stayNumbers, err = unmarshalByteSlice[[]int32](row.StayNumbers)
+	visitNumbers, err = unmarshalByteSlice[[]int32](row.VisitNumbers)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("[unmarshalByteSlice]: %w", err)
 	}
-	return incidentTypeIDs, fieldReportNumbers, stayNumbers, nil
+	return incidentTypeIDs, fieldReportNumbers, visitNumbers, nil
 }
 
 func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
@@ -479,7 +479,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		return herr.InternalServerError("Failed to fetch linked incidents", err)
 	}
 
-	incidentTypeIDs, fieldReportNumbers, stayNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
+	incidentTypeIDs, fieldReportNumbers, visitNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
 	if err != nil {
 		return herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
 	}
@@ -640,40 +640,40 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 			}
 		}
 	}
-	var updatedStays []int32
-	if newIncident.Stays != nil {
-		add := sliceSubtract(*newIncident.Stays, stayNumbers)
-		sub := sliceSubtract(stayNumbers, *newIncident.Stays)
-		updatedStays = append(updatedStays, add...)
-		updatedStays = append(updatedStays, sub...)
+	var updatedVisits []int32
+	if newIncident.Visits != nil {
+		add := sliceSubtract(*newIncident.Visits, visitNumbers)
+		sub := sliceSubtract(visitNumbers, *newIncident.Visits)
+		updatedVisits = append(updatedVisits, add...)
+		updatedVisits = append(updatedVisits, sub...)
 
 		if len(add) > 0 {
-			logs = append(logs, fmt.Sprintf("Stay added: %v", add))
-			for _, stayNum := range add {
-				err = imsDBQ.AttachStayToIncident(ctx, txn,
-					imsdb.AttachStayToIncidentParams{
+			logs = append(logs, fmt.Sprintf("Visit added: %v", add))
+			for _, visitNum := range add {
+				err = imsDBQ.AttachVisitToIncident(ctx, txn,
+					imsdb.AttachVisitToIncidentParams{
 						Event:          newIncident.EventID,
-						Number:         stayNum,
+						Number:         visitNum,
 						IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
 					},
 				)
 				if err != nil {
-					return herr.InternalServerError("Failed to attach Stay", err).From("[AttachStayToIncidentParams]")
+					return herr.InternalServerError("Failed to attach Visit", err).From("[AttachVisitToIncidentParams]")
 				}
 			}
 		}
 		if len(sub) > 0 {
-			logs = append(logs, fmt.Sprintf("Stay removed: %v", sub))
-			for _, stayNum := range sub {
-				err = imsDBQ.AttachStayToIncident(ctx, txn,
-					imsdb.AttachStayToIncidentParams{
+			logs = append(logs, fmt.Sprintf("Visit removed: %v", sub))
+			for _, visitNum := range sub {
+				err = imsDBQ.AttachVisitToIncident(ctx, txn,
+					imsdb.AttachVisitToIncidentParams{
 						Event:          newIncident.EventID,
-						Number:         stayNum,
+						Number:         visitNum,
 						IncidentNumber: sql.NullInt32{},
 					},
 				)
 				if err != nil {
-					return herr.InternalServerError("Failed to detach Stay", err).From("[AttachStayToIncident]")
+					return herr.InternalServerError("Failed to detach Visit", err).From("[AttachVisitToIncident]")
 				}
 			}
 		}
@@ -807,8 +807,8 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	for _, inc := range updatedLinkedIncidents {
 		es.notifyIncidentUpdate(inc.EventID, inc.Number)
 	}
-	for _, s := range updatedStays {
-		es.notifyStayUpdate(newIncident.EventID, s)
+	for _, s := range updatedVisits {
+		es.notifyVisitUpdate(newIncident.EventID, s)
 	}
 
 	return nil

@@ -16,16 +16,16 @@
 
 package template
 
-templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
+templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Sanctuary Stay | " + eventName, "sanctuary_stay.js", true, versionRef)
+@Head("Sanctuary Visit | " + eventName, "sanctuary_visit.js", true, versionRef)
 
 <body>
 <div class="container-fluid">
 @Header(deployment)
 @Nav(eventName)
-<h1 id="doc-title">Sanctuary Stay</h1>
+<h1 id="doc-title">Sanctuary Visit</h1>
 
 @LoadingOverlay()
 
@@ -40,7 +40,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body">
-            <code>n</code>: create (n)ew Sanctuary Stay<br/>
+            <code>n</code>: create (n)ew Sanctuary Visit<br/>
             <code>a</code>: jump to (a)dd new report text<br/>
             <code>h</code>: toggle showing system-generated (h)istory <br/>
           </div>
@@ -48,13 +48,13 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
       </div>
     </div>
 
-    <!-- Stay number, state, check-in time -->
+    <!-- Visit number, state, check-in time -->
 
     <div class="row py-1">
       <div class="col-sm-6 py-1">
         <div class="input-group flex-nowrap">
-          <label for="stay_number" class="control-label input-group-text">Stay #</label>
-          <input id="stay_number" type="text" class="form-control form-control-static mw-4rem" readonly/>
+          <label for="visit_number" class="control-label input-group-text">VS #</label>
+          <input id="visit_number" type="text" class="form-control form-control-static mw-4rem" readonly/>
         </div>
       </div>
       <div class="col-sm-6 py-1">
@@ -300,8 +300,8 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
           <label class="control-label card-header">
           Sanctuary Rangers
           </label>
-          <ul id="stay_rangers_list" class="list-group list-group-flush list-group-small card-body">
-            <template id="stay_rangers_li_template">
+          <ul id="visit_rangers_list" class="list-group list-group-flush list-group-small card-body">
+            <template id="visit_rangers_li_template">
               <li class="list-group-item flex-input-container ps-3 hidden">
                 <span><a href="#" tabindex="-1"></a></span>
                 <input aria-label="Description of Ranger role" type="text" class="form-control form-control-sm short-input auto-width hover-placeholder border-0"
@@ -414,7 +414,7 @@ templ SanctuaryStay(deployment, versionName, versionRef, eventName string) {
     <div class="row py-1">
       <div class="col-sm-12">
         <div class="card">
-          <label class="control-label card-header">Stay Notes & Report Entries</label>
+          <label class="control-label card-header">Visit Notes & Report Entries</label>
           <div id="report_entry_well" class="card-body">
             <label class="control-label">
               <input id="history_checkbox" type="checkbox" onchange="toggleShowHistory()"/>

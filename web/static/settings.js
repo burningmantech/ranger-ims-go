@@ -22,7 +22,7 @@ import * as ims from "./ims.js";
 //
 const el = {
     preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
-    preferredStaysStatus: ims.typedElement("preferred_stays_status", HTMLSelectElement),
+    preferredVisitsStatus: ims.typedElement("preferred_visits_status", HTMLSelectElement),
     preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
 };
 initSettingsPage();
@@ -36,16 +36,16 @@ async function initSettingsPage() {
     if (preferredState) {
         el.preferredState.value = preferredState;
     }
-    const preferredStaysStatus = ims.getStaysPreferredStatus();
-    if (preferredStaysStatus) {
-        el.preferredStaysStatus.value = preferredStaysStatus;
+    const preferredVisitsStatus = ims.getVisitsPreferredStatus();
+    if (preferredVisitsStatus) {
+        el.preferredVisitsStatus.value = preferredVisitsStatus;
     }
     const preferredRowsPerPage = ims.getPreferredTableRowsPerPage();
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
     window.setPreferredState = setPreferredState;
-    window.setPreferredStaysStatus = setPreferredStaysStatus;
+    window.setPreferredVisitsStatus = setPreferredVisitsStatus;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;
 }
 async function setPreferredState(el) {
@@ -57,12 +57,12 @@ async function setPreferredState(el) {
     }
     ims.controlHasSuccess(el);
 }
-async function setPreferredStaysStatus(el) {
-    if (ims.isValidStaysTableStatus(el.value)) {
-        ims.setStaysPreferredStatus(el.value);
+async function setPreferredVisitsStatus(el) {
+    if (ims.isValidVisitsTableStatus(el.value)) {
+        ims.setVisitsPreferredStatus(el.value);
     }
     else {
-        ims.setStaysPreferredStatus(null);
+        ims.setVisitsPreferredStatus(null);
     }
     ims.controlHasSuccess(el);
 }

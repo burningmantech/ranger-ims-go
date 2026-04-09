@@ -144,7 +144,7 @@ async function initIncidentPage(): Promise<void> {
             },
         ),
         await loadDestinations(),
-        await loadAllStays(),
+        await loadAllVisits(),
         await loadAllFieldReports(),
     ]);
 
@@ -188,7 +188,7 @@ async function initIncidentPage(): Promise<void> {
         if (updateAll || (eventId === ims.pathIds.eventId && number === ims.pathIds.incidentNumber)) {
             console.log("Got incident update: " + number);
             await loadAndDisplayIncident();
-            await loadAllStays();
+            await loadAllVisits();
             await loadAllFieldReports();
             renderFieldReportData();
         }
@@ -213,20 +213,20 @@ async function initIncidentPage(): Promise<void> {
         }
     };
 
-    ims.newStayChannel().onmessage = async function (e: MessageEvent<ims.StayBroadcast>): Promise<void> {
+    ims.newVisitChannel().onmessage = async function (e: MessageEvent<ims.VisitBroadcast>): Promise<void> {
         const updateAll = e.data.update_all??false;
         if (updateAll) {
-            console.log("Updating all stays");
-            await loadAllStays();
+            console.log("Updating all visits");
+            await loadAllVisits();
             renderFieldReportData();
             return;
         }
 
-        const number = e.data.stay_number;
+        const number = e.data.visit_number;
         const eventId = e.data.event_id;
         if (eventId === ims.pathIds.eventId) {
-            console.log("Got stay update: " + number);
-            await loadOneStay(number!);
+            console.log("Got visit update: " + number);
+            await loadOneVisit(number!);
             renderFieldReportData();
             return;
         }
@@ -362,10 +362,10 @@ function displayIncident(): void {
 // Do all the client-side rendering based on the state of allFieldReports.
 function renderFieldReportData(): void {
     loadAttachedFieldReports();
-    loadAttachedStays();
+    loadAttachedVisits();
     drawFieldReportsToAttach();
     drawMergedReportEntries();
-    drawAttachedFieldReportsStays();
+    drawAttachedFieldReportsVisits();
     drawLinkedIncidents();
 }
 
@@ -385,7 +385,7 @@ async function loadPersonnel(): Promise<void> {
 }
 
 //
-// Load all field reports and stays
+// Load all field reports and visits
 //
 
 let allFieldReports: ims.FieldReport[]|null|undefined = null;
@@ -460,50 +460,50 @@ async function loadOneFieldReport(fieldReportNumber: number): Promise<{err: stri
     return {err: null};
 }
 
-let allStays: ims.Stay[]|null|undefined = null;
+let allVisits: ims.Visit[]|null|undefined = null;
 
-async function loadAllStays(): Promise<{err: string|null}> {
-    if (allStays === undefined) {
+async function loadAllVisits(): Promise<{err: string|null}> {
+    if (allVisits === undefined) {
         return {err: null};
     }
 
-    const {resp, json, err} = await ims.fetchNoThrow<ims.Stay[]>(ims.urlReplace(url_stays), null);
+    const {resp, json, err} = await ims.fetchNoThrow<ims.Visit[]>(ims.urlReplace(url_visits), null);
     if (err != null) {
         if (resp != null && resp.status === 403) {
             // We're not allowed to look these up.
             allFieldReports = undefined;
-            console.error("Got a 403 looking up stays");
+            console.error("Got a 403 looking up visits");
             return {err: null};
         } else {
-            const message = `Failed to load stays: ${err}`;
+            const message = `Failed to load visits: ${err}`;
             console.error(message);
             ims.setErrorMessage(message);
             return {err: message};
         }
     }
-    const stays: ims.Stay[] = [];
+    const visits: ims.Visit[] = [];
     for (const d of json!) {
-        stays.push(d);
+        visits.push(d);
     }
-    // apply a descending sort based on the stay number,
-    // being cautious about field report number being null
-    stays.sort(function (a, b) {
+    // apply a descending sort based on the visit number,
+    // being cautious about visit number being null
+    visits.sort(function (a, b) {
         return (b.number ?? -1) - (a.number ?? -1);
     });
-    allStays = stays;
+    allVisits = visits;
     return {err: null};
 }
 
-async function loadOneStay(stayNumber: number): Promise<{err: string|null}> {
-    if (allStays === undefined) {
+async function loadOneVisit(visitNumber: number): Promise<{err: string|null}> {
+    if (allVisits === undefined) {
         return {err: null};
     }
 
-    const {resp, json, err} = await ims.fetchNoThrow<ims.Stay>(
-        ims.urlReplace(url_stayNumber).replace("<stay_number>", stayNumber.toString()), null);
+    const {resp, json, err} = await ims.fetchNoThrow<ims.Visit>(
+        ims.urlReplace(url_visitNumber).replace("<visit_number>", visitNumber.toString()), null);
     if (err != null) {
         if (resp == null || resp.status !== 403) {
-            const message = `Failed to load stay ${stayNumber} ${err}`;
+            const message = `Failed to load visit ${visitNumber} ${err}`;
             console.error(message);
             ims.setErrorMessage(message);
             return {err: message};
@@ -511,20 +511,20 @@ async function loadOneStay(stayNumber: number): Promise<{err: string|null}> {
     }
 
     let found = false;
-    for (const i in allStays!) {
-        if (allStays[i]!.number === json!.number) {
-            allStays[i] = json!;
+    for (const i in allVisits!) {
+        if (allVisits[i]!.number === json!.number) {
+            allVisits[i] = json!;
             found = true;
         }
     }
     if (!found) {
-        if (allStays == null) {
-            allStays = [];
+        if (allVisits == null) {
+            allVisits = [];
         }
-        allStays.push(json!);
-        // apply a descending sort based on the stay number,
-        // being cautious about field report number being null
-        allStays.sort(function (a, b) {
+        allVisits.push(json!);
+        // apply a descending sort based on the visit number,
+        // being cautious about visit number being null
+        allVisits.sort(function (a, b) {
             return (b.number ?? -1) - (a.number ?? -1);
         });
     }
@@ -535,7 +535,7 @@ async function loadOneStay(stayNumber: number): Promise<{err: string|null}> {
 
 
 //
-// Load attached field reports and stays
+// Load attached field reports and visits
 //
 
 let attachedFieldReports: ims.FieldReport[]|null = null;
@@ -553,19 +553,19 @@ function loadAttachedFieldReports() {
     attachedFieldReports = _attachedFieldReports;
 }
 
-let attachedStays: ims.Stay[]|null = null;
+let attachedVisits: ims.Visit[]|null = null;
 
-function loadAttachedStays() {
+function loadAttachedVisits() {
     if (ims.pathIds.incidentNumber == null) {
         return;
     }
-    const newAttachedStays: ims.Stay[] = [];
-    for (const s of allStays??[]) {
+    const newAttachedVisits: ims.Visit[] = [];
+    for (const s of allVisits??[]) {
         if (s.incident === ims.pathIds.incidentNumber) {
-            newAttachedStays.push(s);
+            newAttachedVisits.push(s);
         }
     }
-    attachedStays = newAttachedStays;
+    attachedVisits = newAttachedVisits;
 }
 
 
@@ -904,9 +904,9 @@ function drawMergedReportEntries(): void {
         }
     }
 
-    for (const stay of (attachedStays??[])) {
-        for (const entry of stay.report_entries??[]) {
-            entry.stayNum = stay.number??null;
+    for (const visit of (attachedVisits??[])) {
+        for (const entry of visit.report_entries??[]) {
+            entry.visitNum = visit.number??null;
             entries.push(entry);
         }
     }
@@ -916,11 +916,11 @@ function drawMergedReportEntries(): void {
     ims.drawReportEntries(entries);
 }
 
-function drawAttachedFieldReportsStays() {
+function drawAttachedFieldReportsVisits() {
     el.attachedFieldReports.querySelectorAll("li").forEach((li: HTMLElement) => {li.remove()});
 
     const reports = attachedFieldReports??[];
-    const stays = attachedStays??[];
+    const visits = attachedVisits??[];
 
     el.attachedFieldReports.replaceChildren();
 
@@ -938,17 +938,17 @@ function drawAttachedFieldReportsStays() {
 
         el.attachedFieldReports.append(item);
     }
-    for (const stay of stays) {
+    for (const visit of visits) {
         const fragment = el.attachedFieldReportLiTemplate.content.cloneNode(true) as DocumentFragment;
         const item = fragment.querySelector("li")!;
 
         const link: HTMLAnchorElement = document.createElement("a");
-        link.href = `${ims.urlReplace(url_viewStays)}/${stay.number}`;
-        link.innerText = ims.stayAsString(stay);
+        link.href = `${ims.urlReplace(url_viewVisits)}/${visit.number}`;
+        link.innerText = ims.visitAsString(visit);
 
         item.classList.remove("hidden");
         item.append(link);
-        item.dataset["stayNumber"] = stay.number!.toString();
+        item.dataset["visitNumber"] = visit.number!.toString();
 
         el.attachedFieldReports.append(item);
     }
@@ -1019,14 +1019,14 @@ function drawFieldReportsToAttach() {
         option.text = ims.fieldReportAsString(report);
         el.attachedFieldReportAdd.append(option);
     }
-    for (const stay of allStays??[]) {
-        // Skip stays that *are* attached to an incident
-        if (stay.incident != null) {
+    for (const visit of allVisits??[]) {
+        // Skip visits that *are* attached to an incident
+        if (visit.incident != null) {
             continue;
         }
         const option: HTMLOptionElement = document.createElement("option");
-        option.value = `Stay#${stay.number!.toString()}`;
-        option.text = ims.stayAsString(stay);
+        option.value = `VS#${visit.number!.toString()}`;
+        option.text = ims.visitAsString(visit);
         el.attachedFieldReportAdd.append(option);
     }
     const attachedGroup: HTMLOptGroupElement = document.createElement("optgroup");
@@ -1046,18 +1046,18 @@ function drawFieldReportsToAttach() {
         option.text = ims.fieldReportAsString(report);
         el.attachedFieldReportAdd.append(option);
     }
-    for (const stay of allStays??[]) {
-        // Skip stays that *are not* attached to an incident
-        if (stay.incident == null) {
+    for (const visit of allVisits??[]) {
+        // Skip visits that *are not* attached to an incident
+        if (visit.incident == null) {
             continue;
         }
-        // Skip stays that are already attached this incident
-        if (stay.incident === ims.pathIds.incidentNumber) {
+        // Skip visits that are already attached this incident
+        if (visit.incident === ims.pathIds.incidentNumber) {
             continue;
         }
         const option: HTMLOptionElement = document.createElement("option");
-        option.value = `Stay#${stay.number!.toString()}`;
-        option.text = ims.stayAsString(stay);
+        option.value = `VS#${visit.number!.toString()}`;
+        option.text = ims.visitAsString(visit);
         el.attachedFieldReportAdd.append(option);
     }
     el.attachedFieldReportAdd.append(document.createElement("optgroup"));
@@ -1396,7 +1396,7 @@ async function addIncidentType(): Promise<void> {
 async function detachFieldReport(sender: HTMLElement): Promise<void> {
     const parent: HTMLElement = sender.parentElement!;
     const frNumber = parent.dataset["frNumber"]||null;
-    const stayNumber = parent.dataset["stayNumber"]||null;
+    const visitNumber = parent.dataset["visitNumber"]||null;
 
     let err: string|null = null;
     if (frNumber) {
@@ -1407,27 +1407,27 @@ async function detachFieldReport(sender: HTMLElement): Promise<void> {
         ({err} = await ims.fetchNoThrow(url, {
             body: JSON.stringify({}),
         }));
-    } else if (stayNumber) {
-        const url = `${ims.urlReplace(url_stays)}/${stayNumber}`;
-        const stay: ims.Stay = {
+    } else if (visitNumber) {
+        const url = `${ims.urlReplace(url_visits)}/${visitNumber}`;
+        const visit: ims.Visit = {
             event: ims.pathIds.eventName,
-            number: ims.parseInt10(stayNumber),
+            number: ims.parseInt10(visitNumber),
             incident: 0,
         };
         ({err} = await ims.fetchNoThrow(url, {
-            body: JSON.stringify(stay),
+            body: JSON.stringify(visit),
         }));
     }
     if (err != null) {
         const message = `Failed to detach field report ${err}`;
         console.log(message);
-        await loadAllStays();
+        await loadAllVisits();
         await loadAllFieldReports();
         renderFieldReportData();
         ims.setErrorMessage(message);
         return;
     }
-    await loadAllStays();
+    await loadAllVisits();
     await loadAllFieldReports();
     renderFieldReportData();
 }
@@ -1452,29 +1452,29 @@ async function attachFieldReport(): Promise<void> {
         ({err} = await ims.fetchNoThrow(url, {
             body: JSON.stringify({}),
         }));
-    } else if (el.attachedFieldReportAdd.value.startsWith("Stay#")) {
-        const stayNumber = el.attachedFieldReportAdd.value.substring("Stay#".length);
-        const url = `${ims.urlReplace(url_stays)}/${stayNumber}`;
-        const stay: ims.Stay = {
+    } else if (el.attachedFieldReportAdd.value.startsWith("VS#")) {
+        const visitNumber = el.attachedFieldReportAdd.value.substring("VS#".length);
+        const url = `${ims.urlReplace(url_visits)}/${visitNumber}`;
+        const visit: ims.Visit = {
             event: ims.pathIds.eventName,
-            number: ims.parseInt10(stayNumber),
+            number: ims.parseInt10(visitNumber),
             incident: ims.pathIds.incidentNumber,
         };
         ({err} = await ims.fetchNoThrow(url, {
-            body: JSON.stringify(stay),
+            body: JSON.stringify(visit),
         }));
     }
     if (err != null) {
         const message = `Failed to attach: ${err}`;
         console.log(message);
-        await loadAllStays();
+        await loadAllVisits();
         await loadAllFieldReports();
         renderFieldReportData();
         ims.setErrorMessage(message);
         ims.controlHasError(el.attachedFieldReportAdd);
         return;
     }
-    await loadAllStays();
+    await loadAllVisits();
     await loadAllFieldReports();
     renderFieldReportData();
     ims.controlHasSuccess(el.attachedFieldReportAdd);
@@ -1578,7 +1578,7 @@ async function linkIncident(input: HTMLInputElement): Promise<void> {
 // The success callback for a report entry strike call.
 async function onStrikeSuccess(): Promise<void> {
     await loadAndDisplayIncident();
-    await loadAllStays();
+    await loadAllVisits();
     await loadAllFieldReports();
     renderFieldReportData();
     ims.clearErrorMessage();

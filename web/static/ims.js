@@ -24,14 +24,14 @@ export let pathIds = {
     eventId: null,
     incidentNumber: null,
     fieldReportNumber: null,
-    stayNumber: null,
+    visitNumber: null,
 };
 export let eventAccess = null;
 const accessTokenKey = "access_token";
 const accessTokenRefreshAfterKey = "access_token_refresh_after";
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
-const staysPreferredStatusKey = "preferred_stays_status";
+const visitsPreferredStatusKey = "preferred_visits_status";
 export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 //
 // HTML encoding
@@ -59,7 +59,7 @@ function idsFromPath() {
         eventId: null,
         incidentNumber: parseInt10(tokenAfter("incidents")),
         fieldReportNumber: parseInt10(tokenAfter("field_reports")),
-        stayNumber: parseInt10(tokenAfter("stays")),
+        visitNumber: parseInt10(tokenAfter("visits")),
     };
 }
 //
@@ -382,12 +382,12 @@ function renderCommonPageItems(authInfo) {
                 activeEventFRs.classList.add("active");
             }
         }
-        const activeEventStays = document.getElementById("active-event-stays");
-        if (activeEventStays != null) {
-            activeEventStays.href = urlReplace(url_viewStays);
-            activeEventStays.classList.remove("hidden");
-            if (window.location.pathname.startsWith(urlReplace(url_viewStays))) {
-                activeEventStays.classList.add("active");
+        const activeEventVisits = document.getElementById("active-event-visits");
+        if (activeEventVisits != null) {
+            activeEventVisits.href = urlReplace(url_viewVisits);
+            activeEventVisits.classList.remove("hidden");
+            if (window.location.pathname.startsWith(urlReplace(url_viewVisits))) {
+                activeEventVisits.classList.add("active");
             }
         }
     }
@@ -570,29 +570,29 @@ export function fieldReportAsString(report) {
     }
     return `FR #${report.number} (${fieldReportAuthor(report)}): ${summarizeIncidentOrFR(report)}`;
 }
-export function stayAsString(s) {
+export function visitAsString(s) {
     if (s.number == null) {
-        return "New Stay";
+        return "New Visit";
     }
     const reason = s.arrival_reason ? ` - ${s.arrival_reason}` : "";
-    return `Stay #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}${reason}`;
+    return `VS #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}${reason}`;
 }
 // Return all user-entered report text for a given incident as a single string.
-export function reportTextFromIncident(incidentFROrStay, eventFieldReports, eventStays) {
+export function reportTextFromIncident(incidentFROrVisit, eventFieldReports, eventVisits) {
     const texts = [];
-    if ("summary" in incidentFROrStay) {
-        texts.push(incidentFROrStay.summary || "");
+    if ("summary" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.summary || "");
     }
-    if ("guest_preferred_name" in incidentFROrStay) {
-        texts.push(incidentFROrStay.guest_preferred_name || "");
+    if ("guest_preferred_name" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.guest_preferred_name || "");
     }
-    if ("guest_legal_name" in incidentFROrStay) {
-        texts.push(incidentFROrStay.guest_legal_name || "");
+    if ("guest_legal_name" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.guest_legal_name || "");
     }
-    if ("guest_description" in incidentFROrStay) {
-        texts.push(incidentFROrStay.guest_description || "");
+    if ("guest_description" in incidentFROrVisit) {
+        texts.push(incidentFROrVisit.guest_description || "");
     }
-    for (const reportEntry of incidentFROrStay.report_entries ?? []) {
+    for (const reportEntry of incidentFROrVisit.report_entries ?? []) {
         // Skip system entries
         if (reportEntry.system_entry) {
             continue;
@@ -602,18 +602,18 @@ export function reportTextFromIncident(incidentFROrStay, eventFieldReports, even
         }
     }
     // Incidents page loads all field reports for the event
-    if (eventFieldReports != null && "field_reports" in incidentFROrStay) {
-        for (const reportNumber of incidentFROrStay.field_reports ?? []) {
+    if (eventFieldReports != null && "field_reports" in incidentFROrVisit) {
+        for (const reportNumber of incidentFROrVisit.field_reports ?? []) {
             const report = eventFieldReports[reportNumber];
             const reportText = reportTextFromIncident(report);
             texts.push(reportText);
         }
     }
-    // Incidents page also loads all stays for the event
-    if (eventStays != null && "stays" in incidentFROrStay) {
-        for (const stayNumber of incidentFROrStay.stays ?? []) {
-            const stay = eventStays[stayNumber];
-            const reportText = reportTextFromIncident(stay);
+    // Incidents page also loads all visits for the event
+    if (eventVisits != null && "visits" in incidentFROrVisit) {
+        for (const visitNumber of incidentFROrVisit.visits ?? []) {
+            const visit = eventVisits[visitNumber];
+            const reportText = reportTextFromIncident(visit);
             texts.push(reportText);
         }
     }
@@ -651,7 +651,7 @@ export function renderSortedSpan(strings) {
     }
     return sp;
 }
-export function renderIncidentNumber(incidentNumber, type, _incidentOrFROrStay) {
+export function renderIncidentNumber(incidentNumber, type, _incidentOrFROrVisit) {
     switch (type) {
         case "display":
             if (incidentNumber == null) {
@@ -689,21 +689,21 @@ export function renderFieldReportNumber(fieldReportNumber, type, _fieldReport) {
             return undefined;
     }
 }
-export function renderStayNumber(stayNumber, type, _stay) {
+export function renderVisitNumber(visitNumber, type, _visit) {
     switch (type) {
         case "display":
-            if (stayNumber == null) {
+            if (visitNumber == null) {
                 return null;
             }
             const link = document.createElement("a");
-            link.href = `${urlReplace(url_viewStays)}/${stayNumber.toString()}`;
-            link.text = stayNumber.toString();
+            link.href = `${urlReplace(url_viewVisits)}/${visitNumber.toString()}`;
+            link.text = visitNumber.toString();
             return link;
         case "filter":
         case "sort":
         case "type":
         case undefined:
-            return stayNumber;
+            return visitNumber;
         default:
             return undefined;
     }
@@ -765,7 +765,7 @@ export function localTimeHHMM(date) {
     const minutes = date.getMinutes().toString().padStart(2, "0");
     return `${hours}:${minutes}`;
 }
-export function renderDate(date, type, _incidentOrFROrStay) {
+export function renderDate(date, type, _incidentOrFROrVisit) {
     if (date === undefined) {
         return undefined;
     }
@@ -853,7 +853,7 @@ function reportEntryElement(entry) {
     else {
         entryContainer.classList.add("report_entry_user");
     }
-    if (entry.frNum || entry.stayNum) {
+    if (entry.frNum || entry.visitNum) {
         entryContainer.classList.add("report_entry_merged");
     }
     // Add the timestamp and author, with a Strike/Unstrike button
@@ -872,11 +872,11 @@ function reportEntryElement(entry) {
                     await setStrikeFieldReportEntry(entryMerged, entryId, !entryStricken);
                 };
             }
-            else if (entry.stayNum) {
-                const entryMerged = entry.stayNum;
-                // this is an entry from a stay, as shown on the incident page
+            else if (entry.visitNum) {
+                const entryMerged = entry.visitNum;
+                // this is an entry from a visit, as shown on the incident page
                 strikeContainer.onclick = async (_e) => {
-                    await setStrikeStayEntry(entryMerged, entryId, !entryStricken);
+                    await setStrikeVisitEntry(entryMerged, entryId, !entryStricken);
                 };
             }
             else {
@@ -894,11 +894,11 @@ function reportEntryElement(entry) {
                 await setStrikeFieldReportEntry(fieldReportNum, entryId, !entryStricken);
             };
         }
-        else if (pathIds.stayNumber != null) {
-            // we're on the stay page
-            const stayNum = pathIds.stayNumber;
+        else if (pathIds.visitNumber != null) {
+            // we're on the visit page
+            const visitNum = pathIds.visitNumber;
             strikeContainer.onclick = async (_e) => {
-                await setStrikeStayEntry(stayNum, entryId, !entryStricken);
+                await setStrikeVisitEntry(visitNum, entryId, !entryStricken);
             };
         }
         strikeContainer.classList.add("badge", "btn", "btn-danger", "remove-badge", "float-end");
@@ -920,11 +920,11 @@ function reportEntryElement(entry) {
         metaDataContainer.append("(via ", link, ")");
         metaDataContainer.classList.add("report_entry_source");
     }
-    else if (entry.stayNum) {
+    else if (entry.visitNum) {
         metaDataContainer.append(" ");
         const link = document.createElement("a");
-        link.textContent = "stay #" + entry.stayNum;
-        link.href = `${urlReplace(url_viewStays)}/${entry.stayNum}`;
+        link.textContent = "VS #" + entry.visitNum;
+        link.href = `${urlReplace(url_viewVisits)}/${entry.visitNum}`;
         metaDataContainer.append("(via ", link, ")");
         metaDataContainer.classList.add("report_entry_source");
     }
@@ -940,7 +940,7 @@ function reportEntryElement(entry) {
         textContainer.textContent = paragraph;
         entryContainer.append(textContainer);
     }
-    if (entry.attachment?.name && (pathIds.incidentNumber || pathIds.fieldReportNumber || pathIds.stayNumber)) {
+    if (entry.attachment?.name && (pathIds.incidentNumber || pathIds.fieldReportNumber || pathIds.visitNumber)) {
         let url = "";
         if (pathIds.fieldReportNumber != null) {
             // FR attachment on FR page
@@ -949,10 +949,10 @@ function reportEntryElement(entry) {
                 .replace("<field_report_number>", frNum)
                 .replace("<attachment_number>", entry.id.toString());
         }
-        else if (pathIds.stayNumber != null) {
-            // Stay attachment on stay page
-            url = urlReplace(url_stayAttachmentNumber)
-                .replace("<stay_number>", pathIds.stayNumber.toString())
+        else if (pathIds.visitNumber != null) {
+            // Visit attachment on visit page
+            url = urlReplace(url_visitAttachmentNumber)
+                .replace("<visit_number>", pathIds.visitNumber.toString())
                 .replace("<attachment_number>", entry.id.toString());
         }
         else if (pathIds.incidentNumber != null && entry.frNum == null) {
@@ -967,10 +967,10 @@ function reportEntryElement(entry) {
                 .replace("<field_report_number>", entry.frNum.toString())
                 .replace("<attachment_number>", entry.id.toString());
         }
-        else if (pathIds.incidentNumber != null && entry.stayNum != null) {
-            // Stay attachment on incident page
-            url = urlReplace(url_stayAttachmentNumber)
-                .replace("<field_report_number>", entry.stayNum.toString())
+        else if (pathIds.incidentNumber != null && entry.visitNum != null) {
+            // Visit attachment on incident page
+            url = urlReplace(url_visitAttachmentNumber)
+                .replace("<visit_number>", entry.visitNum.toString())
                 .replace("<attachment_number>", entry.id.toString());
         }
         else {
@@ -1109,9 +1109,9 @@ async function setStrikeFieldReportEntry(fieldReportNumber, reportEntryId, strik
         await strikeSuccessFunc();
     }
 }
-async function setStrikeStayEntry(stayNumber, reportEntryId, strike) {
-    const url = urlReplace(url_stay_reportEntry)
-        .replace("<stay_number>", stayNumber.toString())
+async function setStrikeVisitEntry(visitNumber, reportEntryId, strike) {
+    const url = urlReplace(url_visit_reportEntry)
+        .replace("<visit_number>", visitNumber.toString())
         .replace("<report_entry_id>", reportEntryId.toString());
     const { err } = await fetchNoThrow(url, {
         body: JSON.stringify({ "stricken": strike }),
@@ -1211,9 +1211,9 @@ export function newFieldReportChannel() {
     const fieldReportChannelName = "field_report_update";
     return new BroadcastChannel(fieldReportChannelName);
 }
-export function newStayChannel() {
-    const stayChannelName = "stay_update";
-    return new BroadcastChannel(stayChannelName);
+export function newVisitChannel() {
+    const visitChannelName = "visit_update";
+    return new BroadcastChannel(visitChannelName);
 }
 //
 // EventSource
@@ -1292,9 +1292,9 @@ function subscribeToUpdates(closed) {
         localStorage.setItem(lastSseIDKey, e.lastEventId);
         newFieldReportChannel().postMessage(JSON.parse(e.data));
     });
-    eventSource.addEventListener("Stay", function (e) {
+    eventSource.addEventListener("Visit", function (e) {
         localStorage.setItem(lastSseIDKey, e.lastEventId);
-        newStayChannel().postMessage(JSON.parse(e.data));
+        newVisitChannel().postMessage(JSON.parse(e.data));
     });
 }
 // Set the user-visible error information on the page to the provided string.
@@ -1356,24 +1356,24 @@ export function isValidIncidentsTableState(value) {
     }
     return false;
 }
-export const staysStatusValues = ["all", "current"];
-export function isValidStaysTableStatus(value) {
+export const visitsStatusValues = ["all", "current"];
+export function isValidVisitsTableStatus(value) {
     if (value) {
-        return staysStatusValues.includes(value);
+        return visitsStatusValues.includes(value);
     }
     return false;
 }
-export function setStaysPreferredStatus(status) {
+export function setVisitsPreferredStatus(status) {
     if (status) {
-        localStorage.setItem(staysPreferredStatusKey, status);
+        localStorage.setItem(visitsPreferredStatusKey, status);
     }
     else {
-        localStorage.removeItem(staysPreferredStatusKey);
+        localStorage.removeItem(visitsPreferredStatusKey);
     }
 }
-export function getStaysPreferredStatus() {
-    const pref = localStorage.getItem(staysPreferredStatusKey);
-    if (isValidStaysTableStatus(pref)) {
+export function getVisitsPreferredStatus() {
+    const pref = localStorage.getItem(visitsPreferredStatusKey);
+    if (isValidVisitsTableStatus(pref)) {
         return pref;
     }
     return null;
@@ -1427,7 +1427,7 @@ export function clearLocalStorage() {
     localStorage.removeItem(accessTokenKey);
     localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
-    localStorage.removeItem(staysPreferredStatusKey);
+    localStorage.removeItem(visitsPreferredStatusKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
 }
 export function clearSessionStorage() {

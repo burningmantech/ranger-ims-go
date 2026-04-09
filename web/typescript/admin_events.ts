@@ -96,7 +96,7 @@ interface DebugInfo {
     known_target?: boolean|null
 }
 
-const allAccessModes = ["readers", "writers", "reporters", "stay_writers"] as const;
+const allAccessModes = ["readers", "writers", "reporters", "visit_writers"] as const;
 type AccessMode = typeof allAccessModes[number];
 type EventAccess = Partial<Record<AccessMode, Access[]>>;
 // key is event name
@@ -211,8 +211,8 @@ function displayMode(m: AccessMode): string {
             return "Full writers";
         case "reporters":
             return "Reporters";
-        case "stay_writers":
-            return "Stay writers";
+        case "visit_writers":
+            return "Visit writers";
         default:
             throw new Error(`unexpected access mode ${m satisfies never}`);
     }

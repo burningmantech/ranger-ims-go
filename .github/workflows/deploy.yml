@@ -18,8 +18,11 @@ env:
   AWS_ECS_CLUSTER: rangers
   AWS_ECS_CONTAINER_NAME: ranger-ims-go
   AWS_ECS_SERVICE_PRODUCTION: ranger-ims-go-production-fg
+  AWS_ECS_SERVICE_TRAINING: ranger-ims-go-training-fg
   AWS_ECS_TASK_DEFINITION_ARN_PRODUCTION: "arn:aws:ecs:us-west-2:${{ secrets.AWS_ACCOUNT_ID }}:task-definition/ranger-ims-go-production-fg"
+  AWS_ECS_TASK_DEFINITION_ARN_TRAINING: "arn:aws:ecs:us-west-2:${{ secrets.AWS_ACCOUNT_ID }}:task-definition/ranger-ims-go-training-fg"
   AWS_ECS_TASK_DEFINITION_FAMILY_PRODUCTION: ranger-ims-go-production-fg
+  AWS_ECS_TASK_DEFINITION_FAMILY_TRAINING: ranger-ims-go-training-fg
   AWS_REGION: us-west-2
 
 jobs:
@@ -107,5 +110,35 @@ jobs:
         with:
           task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"
           service: "${{ env.AWS_ECS_SERVICE_PRODUCTION }}"
+          cluster: "${{ env.AWS_ECS_CLUSTER }}"
+          wait-for-service-stability: true
+
+      - name: Fetch and update current task definition for training
+        id: new-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_TRAINING }}"
+          task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY_TRAINING }}"
+          container-name: "${{ env.AWS_ECS_CONTAINER_NAME }}"
+          image: "${{ steps.aws-login-ecr.outputs.registry }}${{ env.AWS_ECR_IMAGE_NAME }}:${{ github.sha }}"
+          environment-variables: |
+            GHA_ACTOR_ID=${{ github.actor_id }}
+            GHA_ACTOR=${{ github.actor }}
+            GHA_EVENT_NAME=${{ github.event_name }}
+            GHA_JOB=${{ github.job }}
+            GHA_REF=${{ github.ref }}
+            GHA_RUN_ATTEMPT=${{ github.run_attempt }}
+            GHA_RUN_ID=${{ github.run_id }}
+            GHA_RUN_NUMBER=${{ github.run_number }}
+            GHA_TRIGGERING_ACTOR=${{ github.triggering_actor }}
+            GHA_WORKFLOW=${{ github.workflow }}
+            GIT_SHA=${{ github.sha }}
+            TASK_UPDATED=${{ steps.date.outputs.date }}
+
+      - name: Update task definition and ECS service for training
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"
+          service: "${{ env.AWS_ECS_SERVICE_TRAINING }}"
           cluster: "${{ env.AWS_ECS_CLUSTER }}"
           wait-for-service-stability: true

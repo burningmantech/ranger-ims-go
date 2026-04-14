@@ -207,8 +207,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       <div class="col-sm-12">
         <div class="card">
           <label class="control-label card-header">Location
-            <a href="../destinations" target="_blank" class="link-body-emphasis float-end no-print" title="On-Duty Report" tabindex="-1">
-              Destinations
+            <a href="../places" target="_blank" class="link-body-emphasis float-end no-print" title="On-Duty Report" tabindex="-1">
+              Places
               <svg fill="currentColor" class="bi">
                 <use href="#box-arrow-up-right"></use>
               </svg>
@@ -224,11 +224,11 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                           id="incident_location_name" class="form-control form-control-sm"
                           type="text" inputmode="latin-prose" autocomplete="off"
                           placeholder="Name of location"
-                          list="destinations-list"
+                          list="places-list"
                           aria-label="Location name"
                           onchange="editLocationName()"
                   />
-                  <datalist id="destinations-list"></datalist>
+                  <datalist id="places-list"></datalist>
                 </div>
               </div>
               <div class="input-group row align-items-center">

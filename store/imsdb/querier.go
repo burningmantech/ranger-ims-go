@@ -24,14 +24,13 @@ type Querier interface {
 	ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error
 	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)
 	CreateConcentricStreet(ctx context.Context, db DBTX, arg CreateConcentricStreetParams) error
-	CreateDestination(ctx context.Context, db DBTX, arg CreateDestinationParams) error
 	CreateEvent(ctx context.Context, db DBTX, arg CreateEventParams) (int64, error)
 	CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error
 	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)
 	CreateIncidentType(ctx context.Context, db DBTX, arg CreateIncidentTypeParams) (int64, error)
+	CreatePlace(ctx context.Context, db DBTX, arg CreatePlaceParams) error
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
 	CreateVisit(ctx context.Context, db DBTX, arg CreateVisitParams) (int64, error)
-	Destinations(ctx context.Context, db DBTX, arg DestinationsParams) ([]DestinationsRow, error)
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerFromVisit(ctx context.Context, db DBTX, arg DetachRangerFromVisitParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
@@ -63,8 +62,9 @@ type Querier interface {
 	NextIncidentNumber(ctx context.Context, db DBTX, event int32) (int32, error)
 	// This doesn't use "MAX" because sqlc can't figure out the type for aggregations :(.
 	NextVisitNumber(ctx context.Context, db DBTX, event int32) (int32, error)
+	Places(ctx context.Context, db DBTX, arg PlacesParams) ([]PlacesRow, error)
 	QueryEventID(ctx context.Context, db DBTX, name string) (QueryEventIDRow, error)
-	RemoveDestinations(ctx context.Context, db DBTX, arg RemoveDestinationsParams) error
+	RemovePlaces(ctx context.Context, db DBTX, arg RemovePlacesParams) error
 	SchemaVersion(ctx context.Context, db DBTX) (int16, error)
 	SetFieldReportReportEntryStricken(ctx context.Context, db DBTX, arg SetFieldReportReportEntryStrickenParams) error
 	//

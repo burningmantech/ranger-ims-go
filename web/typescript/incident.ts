@@ -49,7 +49,7 @@ let allIncidentTypes: ims.IncidentType[] = [];
 
 let allEvents: ims.EventData[]|null = null;
 
-let destinations: ims.Destinations = {};
+let places: ims.Places = {};
 
 //
 // Initialize UI
@@ -79,7 +79,7 @@ const el = {
     incidentTypeInfoTemplate: ims.typedElement("incident-type-info-template", HTMLTemplateElement),
     showIncidentTypeInfo: ims.typedElement("show-incident-type-info", HTMLElement),
 
-    destinationsList: ims.typedElement("destinations-list", HTMLDataListElement),
+    placesList: ims.typedElement("places-list", HTMLDataListElement),
 
     attachedFieldReportLiTemplate: ims.typedElement("attached_field_report_li_template", HTMLTemplateElement),
     attachedFieldReportAddContainer: ims.typedElement("attached_field_report_add_container", HTMLDivElement),
@@ -143,7 +143,7 @@ async function initIncidentPage(): Promise<void> {
                 allIncidentTypes = value.types;
             },
         ),
-        await loadDestinations(),
+        await loadPlaces(),
         await loadAllVisits(),
         await loadAllFieldReports(),
     ]);
@@ -161,7 +161,7 @@ async function initIncidentPage(): Promise<void> {
     drawRangersToAdd();
     drawIncidentTypesToAdd();
     drawIncidentTypeInfo();
-    drawDestinationsList();
+    drawPlacesList();
     renderFieldReportData();
 
     ims.hideLoadingOverlay();
@@ -821,26 +821,26 @@ function drawLocationName() {
     }
 }
 
-async function loadDestinations(): Promise<void> {
-    const {json, err} = await ims.fetchNoThrow<ims.Destinations>(
-       `${ims.urlReplace(url_destinations)}?exclude_external_data=true`,
+async function loadPlaces(): Promise<void> {
+    const {json, err} = await ims.fetchNoThrow<ims.Places>(
+       `${ims.urlReplace(url_places)}?exclude_external_data=true`,
         null,
     );
     if (err != null || json == null) {
-        const message = `Failed to load destinations: ${err}`;
+        const message = `Failed to load places: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);
         return;
     }
-    destinations = json;
+    places = json;
 }
 
-function drawDestinationsList(): void {
-    el.destinationsList.replaceChildren();
-    el.destinationsList.append(document.createElement("option"));
+function drawPlacesList(): void {
+    el.placesList.replaceChildren();
+    el.placesList.append(document.createElement("option"));
 
     const newOptions: HTMLOptionElement[] = [];
-    for (const d of destinations.art??[]) {
+    for (const d of places.art??[]) {
         const option: HTMLOptionElement = document.createElement("option");
         option.value = `${d.name} (Art) (${d.location_string || '??'})`;
         option.dataset["name"] = d.name??"";
@@ -848,7 +848,7 @@ function drawDestinationsList(): void {
         option.dataset["type"] = "Art";
         newOptions.push(option);
     }
-    for (const d of destinations.camp??[]) {
+    for (const d of places.camp??[]) {
         const option: HTMLOptionElement = document.createElement("option");
         option.value = `${d.name} (${d.location_string || '??'})`;
         option.dataset["name"] = d.name??"";
@@ -856,14 +856,14 @@ function drawDestinationsList(): void {
         option.dataset["type"] = "Camp";
         newOptions.push(option);
     }
-    for (const d of destinations.mv??[]) {
+    for (const d of places.mv??[]) {
         const option: HTMLOptionElement = document.createElement("option");
         option.value = `${d.name} (MV)`;
         option.dataset["name"] = d.name??"";
         option.dataset["type"] = "MV";
         newOptions.push(option);
     }
-    for (const d of destinations.other??[]) {
+    for (const d of places.other??[]) {
         const option: HTMLOptionElement = document.createElement("option");
         option.value = `${d.name} (${d.location_string || '??'})`;
         option.dataset["name"] = d.name??"";
@@ -872,7 +872,7 @@ function drawDestinationsList(): void {
         newOptions.push(option);
     }
     newOptions.sort((a: HTMLOptionElement, b: HTMLOptionElement): number => a.value.localeCompare(b.value));
-    el.destinationsList.append(...newOptions);
+    el.placesList.append(...newOptions);
 }
 
 function drawLocationAddress() {
@@ -1174,14 +1174,14 @@ async function editIncidentSummary(): Promise<void> {
 
 
 async function editLocationName(): Promise<void> {
-    const destination = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`) as HTMLOptionElement|null;
-    if (destination) {
-        return await setLocationFromDestination(destination);
+    const place = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`) as HTMLOptionElement|null;
+    if (place) {
+        return await setLocationFromPlace(place);
     }
     await ims.editFromElement(el.locationName, "location.name");
 }
 
-async function setLocationFromDestination(knownLoc: HTMLOptionElement): Promise<void> {
+async function setLocationFromPlace(knownLoc: HTMLOptionElement): Promise<void> {
     let nameSuffix: string = "";
     switch (knownLoc.dataset["type"]) {
         case "Art":

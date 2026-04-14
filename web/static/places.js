@@ -17,7 +17,7 @@
 //
 "use strict";
 import * as ims from "./ims.js";
-let destinationsTable = null;
+let placesTable = null;
 const _destSearchDelayMs = 250;
 let _destSearchDelayTimer = undefined;
 let _destShowRows = null;
@@ -28,25 +28,25 @@ const destDefaultRows = "25";
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
-    destinationInfoModal: ims.typedElement("destinationInfoModal", HTMLElement),
-    destinationInfoModalLabel: ims.typedElement("destinationInfoModalLabel", HTMLParagraphElement),
-    destinationBody: ims.typedElement("destinationBody", HTMLElement),
+    placeInfoModal: ims.typedElement("placeInfoModal", HTMLElement),
+    placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
+    placeBody: ims.typedElement("placeBody", HTMLElement),
 };
-initDestinationsPage();
-async function initDestinationsPage() {
+initPlacesPage();
+async function initPlacesPage() {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
         await ims.redirectToLogin();
         return;
     }
     if (!ims.eventAccess.readIncidents && !ims.eventAccess.writeFieldReports) {
-        ims.setErrorMessage(`You're not currently authorized to view Destinations in Event "${ims.pathIds.eventName}".`);
+        ims.setErrorMessage(`You're not currently authorized to view Places in Event "${ims.pathIds.eventName}".`);
         ims.hideLoadingOverlay();
         return;
     }
     window.destShowRows = destShowRows;
     ims.disableEditing();
-    initDestinationsTable();
+    initPlacesTable();
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
@@ -68,7 +68,7 @@ async function initDestinationsPage() {
 //
 // Dispatch queue table
 //
-function initDestinationsTable() {
+function initPlacesTable() {
     destInitDataTables();
     destInitTableButtons();
     destInitSearchField();
@@ -79,9 +79,9 @@ function initDestinationsTable() {
 // Initialize DataTables
 //
 function destInitDataTables() {
-    const destinationInfoModal = ims.bsModal(el.destinationInfoModal);
+    const placeInfoModal = ims.bsModal(el.placeInfoModal);
     DataTable.ext.errMode = "none";
-    destinationsTable = new DataTable("#destinations_table", {
+    placesTable = new DataTable("#places_table", {
         // Save table state to SessionStorage (-1). This tells DataTables to save state
         // on any update to the sorting/filtering, and to load that table state again
         // when the browsing context comes back to this page.
@@ -112,55 +112,55 @@ function destInitDataTables() {
         // https://datatables.net/forums/discussion/47411/i-always-get-error-when-i-use-table-ajax-reload
         "ajax": function (_data, callback, _settings) {
             async function doAjax() {
-                const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_destinations), null);
+                const { json, err } = await ims.fetchNoThrow(ims.urlReplace(url_places), null);
                 if (err != null || json == null) {
                     ims.setErrorMessage(`Failed to load table: ${err}`);
                     return;
                 }
-                const destinations = [];
+                const places = [];
                 for (const art of json.art ?? []) {
                     art.type = "art";
                     art.description = art.external_data.description;
-                    destinations.push(art);
+                    places.push(art);
                 }
                 for (const camp of json.camp ?? []) {
                     camp.type = "camp";
                     camp.description = camp.external_data.description;
-                    destinations.push(camp);
+                    places.push(camp);
                 }
                 for (const mv of json.mv ?? []) {
                     mv.type = "mv";
                     mv.description = mv.external_data.description;
-                    destinations.push(mv);
+                    places.push(mv);
                 }
                 for (const other of json.other ?? []) {
                     other.type = "other";
-                    destinations.push(other);
+                    places.push(other);
                 }
-                callback({ data: destinations });
+                callback({ data: places });
             }
             doAjax();
         },
         "columns": [
             {
-                "name": "destination_name",
-                "className": "destination_name text-left all",
+                "name": "place_name",
+                "className": "place_name text-left all",
                 "data": "name",
                 "cellType": "th",
             },
             {
-                "name": "destination_address",
-                "className": "destination_address text-left",
+                "name": "place_address",
+                "className": "place_address text-left",
                 "data": "location_string",
             },
             {
-                "name": "destination_type",
-                "className": "destination_type text-left",
+                "name": "place_type",
+                "className": "place_type text-left",
                 "data": "type",
             },
             {
-                "name": "destination_description",
-                "className": "destination_description text-left",
+                "name": "place_description",
+                "className": "place_description text-left",
                 "data": "description",
                 "render": renderWithMaxLength(200),
             },
@@ -168,18 +168,18 @@ function destInitDataTables() {
         "order": [
             [0, "asc"],
         ],
-        "createdRow": function (row, destination, _index) {
+        "createdRow": function (row, place, _index) {
             const openLink = function (_e) {
-                el.destinationInfoModalLabel.textContent = destination.name ?? "(unnamed destination)";
-                el.destinationBody.replaceChildren(destinationToHTML(destination));
-                destinationInfoModal.toggle();
+                el.placeInfoModalLabel.textContent = place.name ?? "(unnamed place)";
+                el.placeBody.replaceChildren(placeToHTML(place));
+                placeInfoModal.toggle();
             };
             row.addEventListener("click", openLink);
             row.addEventListener("auxclick", openLink);
         },
     });
 }
-function destinationToHTML(destination) {
+function placeToHTML(place) {
     function setImageDetails(imageDd, imageURL) {
         if (imageURL) {
             if (imageURL.includes("?")) {
@@ -192,10 +192,10 @@ function destinationToHTML(destination) {
             imageDd.textContent = "None provided";
         }
     }
-    switch (destination.type) {
+    switch (place.type) {
         case "other":
         case "camp": {
-            const camp = destination.external_data;
+            const camp = place.external_data;
             const campTemplate = document.getElementById("camp_template");
             // Clone the new row and insert it into the table
             const campEl = campTemplate.content.cloneNode(true);
@@ -234,7 +234,7 @@ function destinationToHTML(destination) {
             return campEl;
         }
         case "art": {
-            const art = destination.external_data;
+            const art = place.external_data;
             const template = document.getElementById("art_template");
             // Clone the new row and insert it into the table
             const artEl = template.content.cloneNode(true);
@@ -271,7 +271,7 @@ function destinationToHTML(destination) {
             return artEl;
         }
         case "mv": {
-            const mv = destination.external_data;
+            const mv = place.external_data;
             const template = document.getElementById("mv_template");
             // Clone the new row and insert it into the table
             const mvEl = template.content.cloneNode(true);
@@ -304,7 +304,7 @@ function destinationToHTML(destination) {
             return mvEl;
         }
         default:
-            throw new Error("Found no destination type");
+            throw new Error("Found no place type");
     }
 }
 function renderWithMaxLength(maxLength) {
@@ -348,8 +348,8 @@ function destInitSearchField() {
             smartSearch = false;
             q = q.slice(1, q.length - 1);
         }
-        destinationsTable.search(q, isRegex, smartSearch);
-        destinationsTable.draw();
+        placesTable.search(q, isRegex, smartSearch);
+        placesTable.draw();
     }
     const fragmentParams = ims.windowFragmentParams();
     const queryString = fragmentParams.get("q");
@@ -394,8 +394,8 @@ function destShowRows(rowsToShow, replaceState) {
     if (replaceState) {
         destReplaceWindowState();
     }
-    destinationsTable.page.len(ims.parseInt10(rowsToShow));
-    destinationsTable.draw();
+    placesTable.page.len(ims.parseInt10(rowsToShow));
+    placesTable.draw();
 }
 //
 // Update the page URL based on the search input and other filters.
@@ -409,6 +409,6 @@ function destReplaceWindowState() {
     if (_destShowRows != null && _destShowRows !== destDefaultRows) {
         newParams.push(["rows", _destShowRows]);
     }
-    const newURL = `${ims.urlReplace(url_viewDestinations)}#${new URLSearchParams(newParams).toString()}`;
+    const newURL = `${ims.urlReplace(url_viewPlaces)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);
 }

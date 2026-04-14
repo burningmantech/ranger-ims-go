@@ -16,11 +16,11 @@
 
 package json
 
-type Destination struct {
+type Place struct {
 	Name           string `json:"name"`
 	LocationString string `json:"location_string"`
 	ExternalData   any    `json:"external_data,omitempty"`
 }
 
-// Destinations is keyed by destination type.
-type Destinations map[string][]Destination
+// Places is keyed by place type.
+type Places map[string][]Place

@@ -79,7 +79,7 @@ const (
 	EventWriteAllFieldReports
 	EventWriteOwnFieldReports
 	EventReadEventName
-	EventReadDestinations
+	EventReadPlaces
 	EventReadVisits
 	EventWriteVisits
 )
@@ -94,20 +94,20 @@ const (
 	GlobalAdministrateEvents
 	GlobalAdministrateStreets
 	GlobalAdministrateIncidentTypes
-	GlobalAdministrateDestinations
+	GlobalAdministratePlaces
 	GlobalAdministrateDebugging
 )
 
 var RolesToGlobalPerms = map[Role]GlobalPermissionMask{
 	AnyAuthenticatedUser: GlobalListEvents | GlobalReadIncidentTypes | GlobalReadPersonnel | GlobalReadStreets,
-	Administrator:        GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministrateDestinations | GlobalAdministrateDebugging,
+	Administrator:        GlobalAdministrateEvents | GlobalAdministrateStreets | GlobalAdministrateIncidentTypes | GlobalAdministratePlaces | GlobalAdministrateDebugging,
 }
 
 var RolesToEventPerms = map[Role]EventPermissionMask{
-	EventReporter:    EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadDestinations,
-	EventReader:      EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadVisits | EventReadDestinations,
-	EventWriter:      EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadVisits | EventWriteVisits | EventReadDestinations,
-	EventVisitWriter: EventReadEventName | EventReadVisits | EventWriteVisits | EventReadDestinations,
+	EventReporter:    EventReadEventName | EventReadOwnFieldReports | EventWriteOwnFieldReports | EventReadPlaces,
+	EventReader:      EventReadEventName | EventReadIncidents | EventReadOwnFieldReports | EventReadAllFieldReports | EventReadVisits | EventReadPlaces,
+	EventWriter:      EventReadEventName | EventReadIncidents | EventWriteIncidents | EventReadAllFieldReports | EventReadOwnFieldReports | EventWriteAllFieldReports | EventWriteOwnFieldReports | EventReadVisits | EventWriteVisits | EventReadPlaces,
+	EventVisitWriter: EventReadEventName | EventReadVisits | EventWriteVisits | EventReadPlaces,
 }
 
 func EventPermissions(

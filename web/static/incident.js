@@ -21,7 +21,7 @@ import { fetchPersonnel } from "./ims.js";
 let incident = null;
 let allIncidentTypes = [];
 let allEvents = null;
-let destinations = {};
+let places = {};
 //
 // Initialize UI
 //
@@ -45,7 +45,7 @@ const el = {
     incidentTypeInfo: ims.typedElement("incident-type-info", HTMLUListElement),
     incidentTypeInfoTemplate: ims.typedElement("incident-type-info-template", HTMLTemplateElement),
     showIncidentTypeInfo: ims.typedElement("show-incident-type-info", HTMLElement),
-    destinationsList: ims.typedElement("destinations-list", HTMLDataListElement),
+    placesList: ims.typedElement("places-list", HTMLDataListElement),
     attachedFieldReportLiTemplate: ims.typedElement("attached_field_report_li_template", HTMLTemplateElement),
     attachedFieldReportAddContainer: ims.typedElement("attached_field_report_add_container", HTMLDivElement),
     attachedFieldReportAdd: ims.typedElement("attached_field_report_add", HTMLSelectElement),
@@ -97,7 +97,7 @@ async function initIncidentPage() {
         await ims.loadIncidentTypes().then(value => {
             allIncidentTypes = value.types;
         }),
-        await loadDestinations(),
+        await loadPlaces(),
         await loadAllVisits(),
         await loadAllFieldReports(),
     ]);
@@ -112,7 +112,7 @@ async function initIncidentPage() {
     drawRangersToAdd();
     drawIncidentTypesToAdd();
     drawIncidentTypeInfo();
-    drawDestinationsList();
+    drawPlacesList();
     renderFieldReportData();
     ims.hideLoadingOverlay();
     // for a new incident, jump to summary field
@@ -668,21 +668,21 @@ function drawLocationName() {
         el.locationName.value = incident.location.name;
     }
 }
-async function loadDestinations() {
-    const { json, err } = await ims.fetchNoThrow(`${ims.urlReplace(url_destinations)}?exclude_external_data=true`, null);
+async function loadPlaces() {
+    const { json, err } = await ims.fetchNoThrow(`${ims.urlReplace(url_places)}?exclude_external_data=true`, null);
     if (err != null || json == null) {
-        const message = `Failed to load destinations: ${err}`;
+        const message = `Failed to load places: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);
         return;
     }
-    destinations = json;
+    places = json;
 }
-function drawDestinationsList() {
-    el.destinationsList.replaceChildren();
-    el.destinationsList.append(document.createElement("option"));
+function drawPlacesList() {
+    el.placesList.replaceChildren();
+    el.placesList.append(document.createElement("option"));
     const newOptions = [];
-    for (const d of destinations.art ?? []) {
+    for (const d of places.art ?? []) {
         const option = document.createElement("option");
         option.value = `${d.name} (Art) (${d.location_string || '??'})`;
         option.dataset["name"] = d.name ?? "";
@@ -690,7 +690,7 @@ function drawDestinationsList() {
         option.dataset["type"] = "Art";
         newOptions.push(option);
     }
-    for (const d of destinations.camp ?? []) {
+    for (const d of places.camp ?? []) {
         const option = document.createElement("option");
         option.value = `${d.name} (${d.location_string || '??'})`;
         option.dataset["name"] = d.name ?? "";
@@ -698,14 +698,14 @@ function drawDestinationsList() {
         option.dataset["type"] = "Camp";
         newOptions.push(option);
     }
-    for (const d of destinations.mv ?? []) {
+    for (const d of places.mv ?? []) {
         const option = document.createElement("option");
         option.value = `${d.name} (MV)`;
         option.dataset["name"] = d.name ?? "";
         option.dataset["type"] = "MV";
         newOptions.push(option);
     }
-    for (const d of destinations.other ?? []) {
+    for (const d of places.other ?? []) {
         const option = document.createElement("option");
         option.value = `${d.name} (${d.location_string || '??'})`;
         option.dataset["name"] = d.name ?? "";
@@ -714,7 +714,7 @@ function drawDestinationsList() {
         newOptions.push(option);
     }
     newOptions.sort((a, b) => a.value.localeCompare(b.value));
-    el.destinationsList.append(...newOptions);
+    el.placesList.append(...newOptions);
 }
 function drawLocationAddress() {
     if (!incident || !incident.location) {
@@ -960,13 +960,13 @@ async function editIncidentSummary() {
     await ims.editFromElement(el.incidentSummary, "summary");
 }
 async function editLocationName() {
-    const destination = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`);
-    if (destination) {
-        return await setLocationFromDestination(destination);
+    const place = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`);
+    if (place) {
+        return await setLocationFromPlace(place);
     }
     await ims.editFromElement(el.locationName, "location.name");
 }
-async function setLocationFromDestination(knownLoc) {
+async function setLocationFromPlace(knownLoc) {
     let nameSuffix = "";
     switch (knownLoc.dataset["type"]) {
         case "Art":

@@ -386,9 +386,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("GET /ims/api/events/{eventName}/destinations",
+	mux.Handle("GET /ims/api/events/{eventName}/places",
 		Adapt(
-			GetDestinations{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
+			GetPlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),
@@ -396,9 +396,9 @@ func AddToMux(
 		),
 	)
 
-	mux.Handle("POST /ims/api/events/{eventName}/destinations",
+	mux.Handle("POST /ims/api/events/{eventName}/places",
 		Adapt(
-			UpdateDestinations{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
+			UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(true, actionLogger, userStore),

@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (29);
+insert into SCHEMA_INFO (VERSION) values (30);
 
 
 create table `EVENT` (
@@ -220,7 +220,7 @@ create table `ACTION_LOG` (
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-create table `DESTINATION` (
+create table `PLACE` (
     `EVENT`             integer not null,
     `TYPE`              enum('camp', 'art', 'other', 'mv') not null,
     `NUMBER`            integer not null,

@@ -24,7 +24,7 @@ declare global {
     }
 }
 
-let destinationsTable: ims.DataTablesTable|null = null;
+let placesTable: ims.DataTablesTable|null = null;
 
 const _destSearchDelayMs = 250;
 let _destSearchDelayTimer: number|undefined = undefined;
@@ -39,16 +39,16 @@ const destDefaultRows = "25";
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
-    destinationInfoModal: ims.typedElement("destinationInfoModal", HTMLElement),
-    destinationInfoModalLabel: ims.typedElement("destinationInfoModalLabel", HTMLParagraphElement),
-    destinationBody: ims.typedElement("destinationBody", HTMLElement),
+    placeInfoModal: ims.typedElement("placeInfoModal", HTMLElement),
+    placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
+    placeBody: ims.typedElement("placeBody", HTMLElement),
 };
 
-initDestinationsPage();
+initPlacesPage();
 
 
 
-async function initDestinationsPage(): Promise<void> {
+async function initPlacesPage(): Promise<void> {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
         await ims.redirectToLogin();
@@ -56,7 +56,7 @@ async function initDestinationsPage(): Promise<void> {
     }
     if (!ims.eventAccess!.readIncidents && !ims.eventAccess!.writeFieldReports) {
         ims.setErrorMessage(
-            `You're not currently authorized to view Destinations in Event "${ims.pathIds.eventName}".`
+            `You're not currently authorized to view Places in Event "${ims.pathIds.eventName}".`
         );
         ims.hideLoadingOverlay();
         return;
@@ -65,7 +65,7 @@ async function initDestinationsPage(): Promise<void> {
     window.destShowRows = destShowRows;
 
     ims.disableEditing();
-    initDestinationsTable();
+    initPlacesTable();
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -91,7 +91,7 @@ async function initDestinationsPage(): Promise<void> {
 // Dispatch queue table
 //
 
-function initDestinationsTable() {
+function initPlacesTable() {
     destInitDataTables();
     destInitTableButtons();
     destInitSearchField();
@@ -106,10 +106,10 @@ declare let DataTable: any;
 //
 
 function destInitDataTables() {
-    const destinationInfoModal = ims.bsModal(el.destinationInfoModal);
+    const placeInfoModal = ims.bsModal(el.placeInfoModal);
 
     DataTable.ext.errMode = "none";
-    destinationsTable = new DataTable("#destinations_table", {
+    placesTable = new DataTable("#places_table", {
         // Save table state to SessionStorage (-1). This tells DataTables to save state
         // on any update to the sorting/filtering, and to load that table state again
         // when the browsing context comes back to this page.
@@ -138,59 +138,59 @@ function destInitDataTables() {
         // DataTables gets mad if you return a Promise from this function, so we use an inner
         // async function instead.
         // https://datatables.net/forums/discussion/47411/i-always-get-error-when-i-use-table-ajax-reload
-        "ajax": function (_data: unknown, callback: (resp: {data: ims.Destination[]})=>void, _settings: unknown): void {
+        "ajax": function (_data: unknown, callback: (resp: {data: ims.Place[]})=>void, _settings: unknown): void {
             async function doAjax(): Promise<void> {
-                const {json, err} = await ims.fetchNoThrow<ims.Destinations>(
-                    ims.urlReplace(url_destinations), null,
+                const {json, err} = await ims.fetchNoThrow<ims.Places>(
+                    ims.urlReplace(url_places), null,
                 );
                 if (err != null || json == null) {
                     ims.setErrorMessage(`Failed to load table: ${err}`);
                     return;
                 }
-                const destinations: ims.Destination[] = [];
+                const places: ims.Place[] = [];
                 for (const art of json.art??[]) {
                     art.type = "art";
                     art.description = (art.external_data as ims.BMArt).description;
-                    destinations.push(art);
+                    places.push(art);
                 }
                 for (const camp of json.camp??[]) {
                     camp.type = "camp";
                     camp.description = (camp.external_data as ims.BMCamp).description;
-                    destinations.push(camp);
+                    places.push(camp);
                 }
                 for (const mv of json.mv??[]) {
                     mv.type = "mv";
                     mv.description = (mv.external_data as ims.BMMV).description;
-                    destinations.push(mv);
+                    places.push(mv);
                 }
                 for (const other of json.other??[]) {
                     other.type = "other";
-                    destinations.push(other);
+                    places.push(other);
                 }
-                callback({data: destinations});
+                callback({data: places});
             }
             doAjax();
         },
         "columns": [
             {   // 0
-                "name": "destination_name",
-                "className": "destination_name text-left all",
+                "name": "place_name",
+                "className": "place_name text-left all",
                 "data": "name",
                 "cellType": "th",
             },
             {   // 1
-                "name": "destination_address",
-                "className": "destination_address text-left",
+                "name": "place_address",
+                "className": "place_address text-left",
                 "data": "location_string",
             },
             {   // 2
-                "name": "destination_type",
-                "className": "destination_type text-left",
+                "name": "place_type",
+                "className": "place_type text-left",
                 "data": "type",
             },
             {   // 3
-                "name": "destination_description",
-                "className": "destination_description text-left",
+                "name": "place_description",
+                "className": "place_description text-left",
                 "data":  "description",
                 "render": renderWithMaxLength(200),
             },
@@ -199,11 +199,11 @@ function destInitDataTables() {
             [0, "asc"],
         ],
 
-        "createdRow": function (row: HTMLElement, destination: ims.Destination, _index: number) {
+        "createdRow": function (row: HTMLElement, place: ims.Place, _index: number) {
             const openLink = function(_e: MouseEvent): void {
-                el.destinationInfoModalLabel.textContent = destination.name??"(unnamed destination)";
-                el.destinationBody.replaceChildren(destinationToHTML(destination));
-                destinationInfoModal.toggle();
+                el.placeInfoModalLabel.textContent = place.name??"(unnamed place)";
+                el.placeBody.replaceChildren(placeToHTML(place));
+                placeInfoModal.toggle();
             }
             row.addEventListener("click", openLink);
             row.addEventListener("auxclick", openLink);
@@ -211,7 +211,7 @@ function destInitDataTables() {
     });
 }
 
-function destinationToHTML(destination: ims.Destination): Node {
+function placeToHTML(place: ims.Place): Node {
     function setImageDetails(imageDd: HTMLElement, imageURL?: string|null) {
         if (imageURL) {
             if (imageURL.includes("?")) {
@@ -224,10 +224,10 @@ function destinationToHTML(destination: ims.Destination): Node {
         }
     }
 
-    switch (destination.type) {
+    switch (place.type) {
         case "other":
         case "camp": {
-            const camp = destination.external_data as ims.BMCamp;
+            const camp = place.external_data as ims.BMCamp;
 
             const campTemplate = document.getElementById("camp_template") as HTMLTemplateElement;
 
@@ -267,7 +267,7 @@ function destinationToHTML(destination: ims.Destination): Node {
             return campEl;
         }
         case "art": {
-            const art = destination.external_data as ims.BMArt;
+            const art = place.external_data as ims.BMArt;
 
             const template = document.getElementById("art_template") as HTMLTemplateElement;
 
@@ -305,7 +305,7 @@ function destinationToHTML(destination: ims.Destination): Node {
             return artEl;
         }
         case "mv": {
-            const mv = destination.external_data as ims.BMMV;
+            const mv = place.external_data as ims.BMMV;
 
             const template = document.getElementById("mv_template") as HTMLTemplateElement;
 
@@ -339,12 +339,12 @@ function destinationToHTML(destination: ims.Destination): Node {
             return mvEl;
         }
         default:
-            throw new Error("Found no destination type");
+            throw new Error("Found no place type");
     }
 }
 
-function renderWithMaxLength(maxLength: number): (data: (string | null), type: string, _dest: ims.Destination) => (string | undefined) {
-    return function (data: string|null, type: string, _dest: ims.Destination): string|undefined {
+function renderWithMaxLength(maxLength: number): (data: (string | null), type: string, _dest: ims.Place) => (string | undefined) {
+    return function (data: string|null, type: string, _dest: ims.Place): string|undefined {
         switch (type) {
             case "display":
                 if ((data?.length??0) > maxLength+3) {
@@ -395,8 +395,8 @@ function destInitSearchField(): void {
             smartSearch = false;
             q = q.slice(1, q.length-1);
         }
-        destinationsTable!.search(q, isRegex, smartSearch);
-        destinationsTable!.draw();
+        placesTable!.search(q, isRegex, smartSearch);
+        placesTable!.draw();
     }
 
     const fragmentParams: URLSearchParams = ims.windowFragmentParams();
@@ -459,8 +459,8 @@ function destShowRows(rowsToShow: string, replaceState: boolean) {
         destReplaceWindowState();
     }
 
-    destinationsTable!.page.len(ims.parseInt10(rowsToShow));
-    destinationsTable!.draw();
+    placesTable!.page.len(ims.parseInt10(rowsToShow));
+    placesTable!.draw();
 }
 
 
@@ -477,6 +477,6 @@ function destReplaceWindowState(): void {
     if (_destShowRows != null && _destShowRows !== destDefaultRows) {
         newParams.push(["rows", _destShowRows]);
     }
-    const newURL = `${ims.urlReplace(url_viewDestinations)}#${new URLSearchParams(newParams).toString()}`;
+    const newURL = `${ims.urlReplace(url_viewPlaces)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);
 }

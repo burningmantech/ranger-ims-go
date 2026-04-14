@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateDestination(t *testing.T) {
+func TestCreatePlace(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -51,7 +51,7 @@ func TestCreateDestination(t *testing.T) {
 	}
 	require.NotZero(t, event.ID)
 
-	dests := imsjson.Destinations{
+	dests := imsjson.Places{
 		"camp": {
 			{
 				Name:           "Camp Fun Times",
@@ -63,13 +63,13 @@ func TestCreateDestination(t *testing.T) {
 		},
 	}
 
-	resp = apis.editDestinations(ctx, eventName, dests)
+	resp = apis.editPlaces(ctx, eventName, dests)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	destinations, resp := apis.getDestinations(ctx, eventName)
+	places, resp := apis.getPlaces(ctx, eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	assert.Equal(t, dests, destinations)
+	assert.Equal(t, dests, places)
 }

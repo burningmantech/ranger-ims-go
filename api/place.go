@@ -30,14 +30,14 @@ import (
 	"time"
 )
 
-type GetDestinations struct {
+type GetPlaces struct {
 	imsDBQ            *store.DBQ
 	userStore         *directory.UserStore
 	imsAdmins         []string
 	cacheControlShort time.Duration
 }
 
-func (action GetDestinations) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (action GetPlaces) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	resp, errHTTP := action.run(req)
 	if errHTTP != nil {
 		errHTTP.From("[run]").WriteResponse(w)
@@ -47,9 +47,9 @@ func (action GetDestinations) ServeHTTP(w http.ResponseWriter, req *http.Request
 	mustWriteJSON(w, req, resp)
 }
 
-func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *herr.HTTPError) {
+func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError) {
 	ctx := req.Context()
-	resp := make(imsjson.Destinations)
+	resp := make(imsjson.Places)
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[getEventPermissions]")
@@ -58,8 +58,8 @@ func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *her
 	if errHTTP != nil {
 		return nil, errHTTP.From("[getGlobalPermissions]")
 	}
-	if eventPermissions&authz.EventReadDestinations == 0 && globalPermissions&authz.GlobalAdministrateDestinations == 0 {
-		return nil, herr.Forbidden("The requestor does not have EventReadDestinations permission", nil)
+	if eventPermissions&authz.EventReadPlaces == 0 && globalPermissions&authz.GlobalAdministratePlaces == 0 {
+		return nil, herr.Forbidden("The requestor does not have EventReadPlaces permission", nil)
 	}
 	err := req.ParseForm()
 	if err != nil {
@@ -67,19 +67,19 @@ func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *her
 	}
 	excludeExternalData := strings.EqualFold(req.Form.Get("exclude_external_data"), "true")
 
-	destinations, err := action.imsDBQ.Destinations(ctx, action.imsDBQ,
-		imsdb.DestinationsParams{
+	places, err := action.imsDBQ.Places(ctx, action.imsDBQ,
+		imsdb.PlacesParams{
 			Event:               event.ID,
 			ExcludeExternalData: excludeExternalData,
 		},
 	)
 	if err != nil {
-		return nil, herr.InternalServerError("Failed to fetch Destinations", err).From("[Destinations]")
+		return nil, herr.InternalServerError("Failed to fetch Places", err).From("[Places]")
 	}
 
-	for _, rowDest := range destinations {
+	for _, rowDest := range places {
 		dType := string(rowDest.Type)
-		apiDest := imsjson.Destination{
+		apiDest := imsjson.Place{
 			Name:           rowDest.Name,
 			LocationString: rowDest.LocationString,
 		}
@@ -87,7 +87,7 @@ func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *her
 			ed := make(map[string]any)
 			err := json.Unmarshal(rowDest.ExternalData.([]byte), &ed)
 			if err != nil {
-				return nil, herr.InternalServerError("Failed to unmarshal destination", err).From("[Unmarshal]")
+				return nil, herr.InternalServerError("Failed to unmarshal place", err).From("[Unmarshal]")
 			}
 			apiDest.ExternalData = ed
 		}
@@ -97,14 +97,14 @@ func (action GetDestinations) run(req *http.Request) (imsjson.Destinations, *her
 	return resp, nil
 }
 
-type UpdateDestinations struct {
+type UpdatePlaces struct {
 	imsDBQ            *store.DBQ
 	userStore         *directory.UserStore
 	imsAdmins         []string
 	cacheControlShort time.Duration
 }
 
-func (action UpdateDestinations) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (action UpdatePlaces) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	errHTTP := action.run(req)
 	if errHTTP != nil {
 		errHTTP.From("[run]").WriteResponse(w)
@@ -113,20 +113,20 @@ func (action UpdateDestinations) ServeHTTP(w http.ResponseWriter, req *http.Requ
 	herr.WriteNoContentResponse(w, "Success")
 }
 
-func (action UpdateDestinations) run(req *http.Request) *herr.HTTPError {
+func (action UpdatePlaces) run(req *http.Request) *herr.HTTPError {
 	ctx := req.Context()
 	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return errHTTP.From("[getGlobalPermissions]")
 	}
-	if globalPermissions&authz.GlobalAdministrateDestinations == 0 {
-		return herr.Forbidden("The requestor does not have GlobalAdministrateDestinations permission", nil)
+	if globalPermissions&authz.GlobalAdministratePlaces == 0 {
+		return herr.Forbidden("The requestor does not have GlobalAdministratePlaces permission", nil)
 	}
 	event, errHTTP := getEvent(req, req.PathValue("eventName"), action.imsDBQ)
 	if errHTTP != nil {
 		return errHTTP.From("[getEvent]")
 	}
-	destByType, errHTTP := readBodyAs[imsjson.Destinations](req)
+	destByType, errHTTP := readBodyAs[imsjson.Places](req)
 	if errHTTP != nil {
 		return errHTTP.From("[readBodyAs]")
 	}
@@ -134,33 +134,33 @@ func (action UpdateDestinations) run(req *http.Request) *herr.HTTPError {
 	// for each type supplied, delete everything we have currently for that type
 	// before adding in everything from the request.
 	for dType, dests := range destByType {
-		err := action.imsDBQ.RemoveDestinations(ctx, action.imsDBQ,
-			imsdb.RemoveDestinationsParams{
+		err := action.imsDBQ.RemovePlaces(ctx, action.imsDBQ,
+			imsdb.RemovePlacesParams{
 				Event: event.ID,
-				Type:  imsdb.DestinationType(dType),
+				Type:  imsdb.PlaceType(dType),
 			},
 		)
 		if err != nil {
-			return herr.InternalServerError("Failed to remove destinations", err).From("[RemoveDestinations]")
+			return herr.InternalServerError("Failed to remove places", err).From("[RemovePlaces]")
 		}
 
 		for i, d := range dests {
 			marshal, err := json.Marshal(d.ExternalData)
 			if err != nil {
-				return herr.InternalServerError("Failed to marshal destination", err).From("[Marshal]")
+				return herr.InternalServerError("Failed to marshal place", err).From("[Marshal]")
 			}
-			err = action.imsDBQ.CreateDestination(ctx, action.imsDBQ,
-				imsdb.CreateDestinationParams{
+			err = action.imsDBQ.CreatePlace(ctx, action.imsDBQ,
+				imsdb.CreatePlaceParams{
 					Event:          event.ID,
 					Number:         int32(i),
-					Type:           imsdb.DestinationType(dType),
+					Type:           imsdb.PlaceType(dType),
 					Name:           d.Name,
 					LocationString: d.LocationString,
 					ExternalData:   marshal,
 				},
 			)
 			if err != nil {
-				return herr.InternalServerError("Failed to create destination", err).From("[UpdateDestination]")
+				return herr.InternalServerError("Failed to create place", err).From("[UpdatePlace]")
 			}
 		}
 	}

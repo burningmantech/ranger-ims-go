@@ -20,7 +20,7 @@ import * as ims from "./ims.ts";
 
 declare global {
     interface Window {
-        loadDestinations: () => Promise<void>;
+        loadPlaces: () => Promise<void>;
     }
 }
 
@@ -29,7 +29,7 @@ declare global {
 //
 
 const el = {
-    destinationForm: ims.typedElement("destination-form", HTMLFormElement),
+    placeForm: ims.typedElement("place-form", HTMLFormElement),
     eventName: ims.typedElement("event-name", HTMLInputElement),
     artData: ims.typedElement("art-data", HTMLTextAreaElement),
     campData: ims.typedElement("camp-data", HTMLTextAreaElement),
@@ -41,23 +41,23 @@ const el = {
     otherDataLabel: ims.typedElement("other-data-label", HTMLLabelElement),
 };
 
-initAdminDestinationsPage();
+initAdminPlacesPage();
 
-async function initAdminDestinationsPage(): Promise<void> {
+async function initAdminPlacesPage(): Promise<void> {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
         await ims.redirectToLogin();
         return;
     }
-    window.loadDestinations = loadDestinations;
-    el.destinationForm.addEventListener("submit", async (e: SubmitEvent): Promise<void> => {
+    window.loadPlaces = loadPlaces;
+    el.placeForm.addEventListener("submit", async (e: SubmitEvent): Promise<void> => {
         e.preventDefault();
         await submit();
     })
 }
 
-function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextAreaElement, mvDataEl: HTMLTextAreaElement, otherDataEl: HTMLTextAreaElement): ims.Destinations {
-    const destinations: ims.Destinations = {
+function parsePlaces(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextAreaElement, mvDataEl: HTMLTextAreaElement, otherDataEl: HTMLTextAreaElement): ims.Places {
+    const places: ims.Places = {
         art: [],
         camp: [],
         other: [],
@@ -66,7 +66,7 @@ function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextA
     {
         const artExtDatas = JSON.parse(artDataEl.value) as ims.BMArt[];
         for (const ed of artExtDatas) {
-            destinations.art!.push({
+            places.art!.push({
                 name: ed.name,
                 location_string: ed.location_string,
                 external_data: ed,
@@ -76,7 +76,7 @@ function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextA
     {
         const campExtDatas = JSON.parse(campDataEl.value) as ims.BMCamp[];
         for (const ed of campExtDatas) {
-            destinations.camp!.push({
+            places.camp!.push({
                 name: ed.name,
                 location_string: ed.location_string,
                 external_data: ed,
@@ -86,7 +86,7 @@ function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextA
     {
         const mvExtDatas = JSON.parse(mvDataEl.value) as ims.BMMV[];
         for (const ed of mvExtDatas) {
-            destinations.mv!.push({
+            places.mv!.push({
                 name: ed.name,
                 external_data: ed,
             });
@@ -95,21 +95,21 @@ function parseDestinations(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextA
     {
         const otherExtDatas = JSON.parse(otherDataEl.value) as ims.OtherDest[];
         for (const ed of otherExtDatas) {
-            destinations.other!.push({
+            places.other!.push({
                 name: ed.name,
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
     }
-    return destinations
+    return places
 }
 
 async function submit(): Promise<void> {
     ims.clearErrorMessage();
-    let destinations: ims.Destinations|null = null;
+    let places: ims.Places|null = null;
     try {
-        destinations = parseDestinations(el.artData, el.campData, el.mvData, el.otherData);
+        places = parsePlaces(el.artData, el.campData, el.mvData, el.otherData);
     } catch (e: any) {
         console.log(e);
         ims.setErrorMessage(e);
@@ -118,11 +118,11 @@ async function submit(): Promise<void> {
     const eventName = el.eventName.value;
 
     const {err} = await ims.fetchNoThrow(
-        url_destinations.replace("<event_id>", eventName), {
-            body: JSON.stringify(destinations),
+        url_places.replace("<event_id>", eventName), {
+            body: JSON.stringify(places),
         });
     if (err != null) {
-        const message = `Failed to create destination: ${err}`;
+        const message = `Failed to create place: ${err}`;
         console.log(message);
         ims.setErrorMessage(message);
         ims.controlHasError(el.artData);
@@ -137,17 +137,17 @@ async function submit(): Promise<void> {
     ims.controlHasSuccess(el.otherData);
 }
 
-async function loadDestinations(): Promise<void> {
+async function loadPlaces(): Promise<void> {
     ims.clearErrorMessage();
     const eventName = el.eventName.value;
 
-    const {json, err} = await ims.fetchNoThrow<ims.Destinations>(
-        url_destinations.replace("<event_id>", eventName), {
+    const {json, err} = await ims.fetchNoThrow<ims.Places>(
+        url_places.replace("<event_id>", eventName), {
             headers: {"Cache-Control": "no-cache"},
         },
     );
     if (err != null || json == null) {
-        const message = `Failed to load destinations: ${err}`;
+        const message = `Failed to load places: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);
         return;

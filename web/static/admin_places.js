@@ -21,7 +21,7 @@ import * as ims from "./ims.js";
 // Initialize UI
 //
 const el = {
-    destinationForm: ims.typedElement("destination-form", HTMLFormElement),
+    placeForm: ims.typedElement("place-form", HTMLFormElement),
     eventName: ims.typedElement("event-name", HTMLInputElement),
     artData: ims.typedElement("art-data", HTMLTextAreaElement),
     campData: ims.typedElement("camp-data", HTMLTextAreaElement),
@@ -32,21 +32,21 @@ const el = {
     mvDataLabel: ims.typedElement("mv-data-label", HTMLLabelElement),
     otherDataLabel: ims.typedElement("other-data-label", HTMLLabelElement),
 };
-initAdminDestinationsPage();
-async function initAdminDestinationsPage() {
+initAdminPlacesPage();
+async function initAdminPlacesPage() {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
         await ims.redirectToLogin();
         return;
     }
-    window.loadDestinations = loadDestinations;
-    el.destinationForm.addEventListener("submit", async (e) => {
+    window.loadPlaces = loadPlaces;
+    el.placeForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         await submit();
     });
 }
-function parseDestinations(artDataEl, campDataEl, mvDataEl, otherDataEl) {
-    const destinations = {
+function parsePlaces(artDataEl, campDataEl, mvDataEl, otherDataEl) {
+    const places = {
         art: [],
         camp: [],
         other: [],
@@ -55,7 +55,7 @@ function parseDestinations(artDataEl, campDataEl, mvDataEl, otherDataEl) {
     {
         const artExtDatas = JSON.parse(artDataEl.value);
         for (const ed of artExtDatas) {
-            destinations.art.push({
+            places.art.push({
                 name: ed.name,
                 location_string: ed.location_string,
                 external_data: ed,
@@ -65,7 +65,7 @@ function parseDestinations(artDataEl, campDataEl, mvDataEl, otherDataEl) {
     {
         const campExtDatas = JSON.parse(campDataEl.value);
         for (const ed of campExtDatas) {
-            destinations.camp.push({
+            places.camp.push({
                 name: ed.name,
                 location_string: ed.location_string,
                 external_data: ed,
@@ -75,7 +75,7 @@ function parseDestinations(artDataEl, campDataEl, mvDataEl, otherDataEl) {
     {
         const mvExtDatas = JSON.parse(mvDataEl.value);
         for (const ed of mvExtDatas) {
-            destinations.mv.push({
+            places.mv.push({
                 name: ed.name,
                 external_data: ed,
             });
@@ -84,20 +84,20 @@ function parseDestinations(artDataEl, campDataEl, mvDataEl, otherDataEl) {
     {
         const otherExtDatas = JSON.parse(otherDataEl.value);
         for (const ed of otherExtDatas) {
-            destinations.other.push({
+            places.other.push({
                 name: ed.name,
                 location_string: ed.location_string,
                 external_data: ed,
             });
         }
     }
-    return destinations;
+    return places;
 }
 async function submit() {
     ims.clearErrorMessage();
-    let destinations = null;
+    let places = null;
     try {
-        destinations = parseDestinations(el.artData, el.campData, el.mvData, el.otherData);
+        places = parsePlaces(el.artData, el.campData, el.mvData, el.otherData);
     }
     catch (e) {
         console.log(e);
@@ -105,11 +105,11 @@ async function submit() {
         return;
     }
     const eventName = el.eventName.value;
-    const { err } = await ims.fetchNoThrow(url_destinations.replace("<event_id>", eventName), {
-        body: JSON.stringify(destinations),
+    const { err } = await ims.fetchNoThrow(url_places.replace("<event_id>", eventName), {
+        body: JSON.stringify(places),
     });
     if (err != null) {
-        const message = `Failed to create destination: ${err}`;
+        const message = `Failed to create place: ${err}`;
         console.log(message);
         ims.setErrorMessage(message);
         ims.controlHasError(el.artData);
@@ -123,14 +123,14 @@ async function submit() {
     ims.controlHasSuccess(el.mvData);
     ims.controlHasSuccess(el.otherData);
 }
-async function loadDestinations() {
+async function loadPlaces() {
     ims.clearErrorMessage();
     const eventName = el.eventName.value;
-    const { json, err } = await ims.fetchNoThrow(url_destinations.replace("<event_id>", eventName), {
+    const { json, err } = await ims.fetchNoThrow(url_places.replace("<event_id>", eventName), {
         headers: { "Cache-Control": "no-cache" },
     });
     if (err != null || json == null) {
-        const message = `Failed to load destinations: ${err}`;
+        const message = `Failed to load places: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);
         return;

@@ -16,23 +16,23 @@
 
 package template
 
-templ AdminDestinations(deployment, versionName, versionRef string) {
+templ AdminPlaces(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Destinations", "admin_destinations.js", false, versionRef)
+@Head("Places", "admin_places.js", false, versionRef)
 
 <body>
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
-<h1 id="doc-title">Event Destinations</h1>
+<h1 id="doc-title">Event Places</h1>
 
 @ErrorInfo()
 
-<form id="destination-form">
+<form id="place-form">
   <div class="mb-3">
     <label for="event-name" class="form-label">Event name</label>
-    <input id="event-name" type="text" class="form-control" onchange="loadDestinations();">
+    <input id="event-name" type="text" class="form-control" onchange="loadPlaces();">
   </div>
   <h5>Art data</h5>
   <div class="mb-3">
@@ -56,7 +56,7 @@ templ AdminDestinations(deployment, versionName, versionRef string) {
     <div class="mb-3">
       <label id="other-data-label" for="other-data" class="form-label">JSON Data</label>
       <textarea id="other-data" type="text" class="form-control font-monospace" aria-describedby="other-help" rows="12"></textarea>
-      <div id="other-help" class="form-text">Write in any Destinations that aren't in the Burning Man art or camp API responses.
+      <div id="other-help" class="form-text">Write in any Places that aren't in the Burning Man art or camp API responses.
             This must be in the form of a JSON array. The only required fields are 'name' and 'location_string'.</div>
     </div>
   <div class="mb-3">

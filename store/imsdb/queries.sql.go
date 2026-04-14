@@ -370,34 +370,6 @@ func (q *Queries) CreateConcentricStreet(ctx context.Context, db DBTX, arg Creat
 	return err
 }
 
-const createDestination = `-- name: CreateDestination :exec
-insert into DESTINATION
-    (EVENT, NUMBER, TYPE, NAME, LOCATION_STRING, EXTERNAL_DATA)
-values
-    (?,?,?,?,?,?)
-`
-
-type CreateDestinationParams struct {
-	Event          int32
-	Number         int32
-	Type           DestinationType
-	Name           string
-	LocationString string
-	ExternalData   json.RawMessage
-}
-
-func (q *Queries) CreateDestination(ctx context.Context, db DBTX, arg CreateDestinationParams) error {
-	_, err := db.ExecContext(ctx, createDestination,
-		arg.Event,
-		arg.Number,
-		arg.Type,
-		arg.Name,
-		arg.LocationString,
-		arg.ExternalData,
-	)
-	return err
-}
-
 const createEvent = `-- name: CreateEvent :execlastid
 insert into EVENT (NAME, IS_GROUP, PARENT_GROUP) values (?, ?, ?)
 `
@@ -498,6 +470,34 @@ func (q *Queries) CreateIncidentType(ctx context.Context, db DBTX, arg CreateInc
 	return result.LastInsertId()
 }
 
+const createPlace = `-- name: CreatePlace :exec
+insert into PLACE
+    (EVENT, NUMBER, TYPE, NAME, LOCATION_STRING, EXTERNAL_DATA)
+values
+    (?,?,?,?,?,?)
+`
+
+type CreatePlaceParams struct {
+	Event          int32
+	Number         int32
+	Type           PlaceType
+	Name           string
+	LocationString string
+	ExternalData   json.RawMessage
+}
+
+func (q *Queries) CreatePlace(ctx context.Context, db DBTX, arg CreatePlaceParams) error {
+	_, err := db.ExecContext(ctx, createPlace,
+		arg.Event,
+		arg.Number,
+		arg.Type,
+		arg.Name,
+		arg.LocationString,
+		arg.ExternalData,
+	)
+	return err
+}
+
 const createReportEntry = `-- name: CreateReportEntry :execlastid
 insert into REPORT_ENTRY (
     AUTHOR, TEXT, CREATED, ` + "`" + `GENERATED` + "`" + `, STRICKEN,
@@ -551,64 +551,6 @@ func (q *Queries) CreateVisit(ctx context.Context, db DBTX, arg CreateVisitParam
 		return 0, err
 	}
 	return result.LastInsertId()
-}
-
-const destinations = `-- name: Destinations :many
-select
-    EVENT,
-    TYPE,
-    NUMBER,
-    NAME,
-    LOCATION_STRING,
-    if(?, '', EXTERNAL_DATA) as EXTERNAL_DATA
-from
-    DESTINATION d
-where
-    EVENT = ?
-`
-
-type DestinationsParams struct {
-	ExcludeExternalData interface{}
-	Event               int32
-}
-
-type DestinationsRow struct {
-	Event          int32
-	Type           DestinationType
-	Number         int32
-	Name           string
-	LocationString string
-	ExternalData   interface{}
-}
-
-func (q *Queries) Destinations(ctx context.Context, db DBTX, arg DestinationsParams) ([]DestinationsRow, error) {
-	rows, err := db.QueryContext(ctx, destinations, arg.ExcludeExternalData, arg.Event)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []DestinationsRow
-	for rows.Next() {
-		var i DestinationsRow
-		if err := rows.Scan(
-			&i.Event,
-			&i.Type,
-			&i.Number,
-			&i.Name,
-			&i.LocationString,
-			&i.ExternalData,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const detachIncidentTypeFromIncident = `-- name: DetachIncidentTypeFromIncident :exec
@@ -1539,6 +1481,64 @@ func (q *Queries) NextVisitNumber(ctx context.Context, db DBTX, event int32) (in
 	return next_id, err
 }
 
+const places = `-- name: Places :many
+select
+    EVENT,
+    TYPE,
+    NUMBER,
+    NAME,
+    LOCATION_STRING,
+    if(?, '', EXTERNAL_DATA) as EXTERNAL_DATA
+from
+    PLACE d
+where
+    EVENT = ?
+`
+
+type PlacesParams struct {
+	ExcludeExternalData interface{}
+	Event               int32
+}
+
+type PlacesRow struct {
+	Event          int32
+	Type           PlaceType
+	Number         int32
+	Name           string
+	LocationString string
+	ExternalData   interface{}
+}
+
+func (q *Queries) Places(ctx context.Context, db DBTX, arg PlacesParams) ([]PlacesRow, error) {
+	rows, err := db.QueryContext(ctx, places, arg.ExcludeExternalData, arg.Event)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlacesRow
+	for rows.Next() {
+		var i PlacesRow
+		if err := rows.Scan(
+			&i.Event,
+			&i.Type,
+			&i.Number,
+			&i.Name,
+			&i.LocationString,
+			&i.ExternalData,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const queryEventID = `-- name: QueryEventID :one
 select e.id, e.name, e.is_group, e.parent_group from EVENT e where e.NAME = ?
 `
@@ -1559,20 +1559,20 @@ func (q *Queries) QueryEventID(ctx context.Context, db DBTX, name string) (Query
 	return i, err
 }
 
-const removeDestinations = `-- name: RemoveDestinations :exec
+const removePlaces = `-- name: RemovePlaces :exec
 delete from
-    DESTINATION
+    PLACE
 where EVENT = ?
     and TYPE = ?
 `
 
-type RemoveDestinationsParams struct {
+type RemovePlacesParams struct {
 	Event int32
-	Type  DestinationType
+	Type  PlaceType
 }
 
-func (q *Queries) RemoveDestinations(ctx context.Context, db DBTX, arg RemoveDestinationsParams) error {
-	_, err := db.ExecContext(ctx, removeDestinations, arg.Event, arg.Type)
+func (q *Queries) RemovePlaces(ctx context.Context, db DBTX, arg RemovePlacesParams) error {
+	_, err := db.ExecContext(ctx, removePlaces, arg.Event, arg.Type)
 	return err
 }
 

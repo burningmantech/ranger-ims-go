@@ -445,21 +445,21 @@ where
     and al.CREATED_AT < sqlc.arg(max_time)
 ;
 
--- name: CreateDestination :exec
-insert into DESTINATION
+-- name: CreatePlace :exec
+insert into PLACE
     (EVENT, NUMBER, TYPE, NAME, LOCATION_STRING, EXTERNAL_DATA)
 values
     (?,?,?,?,?,?)
 ;
 
--- name: RemoveDestinations :exec
+-- name: RemovePlaces :exec
 delete from
-    DESTINATION
+    PLACE
 where EVENT = ?
     and TYPE = ?
 ;
 
--- name: Destinations :many
+-- name: Places :many
 select
     EVENT,
     TYPE,
@@ -468,7 +468,7 @@ select
     LOCATION_STRING,
     if(sqlc.arg(exclude_external_data), '', EXTERNAL_DATA) as EXTERNAL_DATA
 from
-    DESTINATION d
+    PLACE d
 where
     EVENT = ?
 ;

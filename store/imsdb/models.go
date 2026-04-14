@@ -11,70 +11,6 @@ import (
 	"fmt"
 )
 
-type DestinationType string
-
-const (
-	DestinationTypeCamp  DestinationType = "camp"
-	DestinationTypeArt   DestinationType = "art"
-	DestinationTypeOther DestinationType = "other"
-	DestinationTypeMv    DestinationType = "mv"
-)
-
-func (e *DestinationType) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = DestinationType(s)
-	case string:
-		*e = DestinationType(s)
-	default:
-		return fmt.Errorf("unsupported scan type for DestinationType: %T", src)
-	}
-	return nil
-}
-
-type NullDestinationType struct {
-	DestinationType DestinationType
-	Valid           bool // Valid is true if DestinationType is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullDestinationType) Scan(value interface{}) error {
-	if value == nil {
-		ns.DestinationType, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.DestinationType.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullDestinationType) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.DestinationType), nil
-}
-
-func (e DestinationType) Valid() bool {
-	switch e {
-	case DestinationTypeCamp,
-		DestinationTypeArt,
-		DestinationTypeOther,
-		DestinationTypeMv:
-		return true
-	}
-	return false
-}
-
-func AllDestinationTypeValues() []DestinationType {
-	return []DestinationType{
-		DestinationTypeCamp,
-		DestinationTypeArt,
-		DestinationTypeOther,
-		DestinationTypeMv,
-	}
-}
-
 type EventAccessMode string
 
 const (
@@ -264,6 +200,70 @@ func AllIncidentStateValues() []IncidentState {
 	}
 }
 
+type PlaceType string
+
+const (
+	PlaceTypeCamp  PlaceType = "camp"
+	PlaceTypeArt   PlaceType = "art"
+	PlaceTypeOther PlaceType = "other"
+	PlaceTypeMv    PlaceType = "mv"
+)
+
+func (e *PlaceType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PlaceType(s)
+	case string:
+		*e = PlaceType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PlaceType: %T", src)
+	}
+	return nil
+}
+
+type NullPlaceType struct {
+	PlaceType PlaceType
+	Valid     bool // Valid is true if PlaceType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPlaceType) Scan(value interface{}) error {
+	if value == nil {
+		ns.PlaceType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PlaceType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPlaceType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PlaceType), nil
+}
+
+func (e PlaceType) Valid() bool {
+	switch e {
+	case PlaceTypeCamp,
+		PlaceTypeArt,
+		PlaceTypeOther,
+		PlaceTypeMv:
+		return true
+	}
+	return false
+}
+
+func AllPlaceTypeValues() []PlaceType {
+	return []PlaceType{
+		PlaceTypeCamp,
+		PlaceTypeArt,
+		PlaceTypeOther,
+		PlaceTypeMv,
+	}
+}
+
 type ActionLog struct {
 	ID             int64
 	CreatedAt      float64
@@ -284,15 +284,6 @@ type ConcentricStreet struct {
 	Event int32
 	ID    string
 	Name  string
-}
-
-type Destination struct {
-	Event          int32
-	Type           DestinationType
-	Number         int32
-	Name           string
-	LocationString string
-	ExternalData   json.RawMessage
 }
 
 type Event struct {
@@ -374,6 +365,15 @@ type IncidentType struct {
 	Name        string
 	Hidden      bool
 	Description sql.NullString
+}
+
+type Place struct {
+	Event          int32
+	Type           PlaceType
+	Number         int32
+	Name           string
+	LocationString string
+	ExternalData   json.RawMessage
 }
 
 type ReportEntry struct {

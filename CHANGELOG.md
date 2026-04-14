@@ -46,7 +46,7 @@ https://github.com/burningmantech/ranger-ims-go/pull/528
 
 ### Added
 
-- Added a "Destinations" functionality to IMS, so that users can see all the art and camps for an event. Users can also quickly set the location of an Incident to match one of those camps or art pieces. https://github.com/burningmantech/ranger-ims-go/pull/461
+- Added a "Places" functionality to IMS, so that users can see all the art and camps for an event. Users can also quickly set the location of an Incident to match one of those camps or art pieces. https://github.com/burningmantech/ranger-ims-go/pull/461
 - Started allowing setting the IMS number for an FR from the FR page. https://github.com/burningmantech/ranger-ims-go/pull/452
 
 ## 2025-09

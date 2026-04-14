@@ -1890,18 +1890,18 @@ export interface IncidentType {
     description?: string|null;
 }
 
-type DestinationType = "art"|"camp"|"other"|"mv";
+type PlaceType = "art"|"camp"|"other"|"mv";
 
-export type Destination = {
+export type Place = {
     name?: string|null;
     location_string?: string|null;
     external_data?: BMArt|BMCamp|BMMV|OtherDest|null;
 
-    type?: DestinationType|null;
+    type?: PlaceType|null;
     description?: string|null;
 }
 
-export type Destinations = Partial<Record<DestinationType, Destination[]|null|undefined>>;
+export type Places = Partial<Record<PlaceType, Place[]|null|undefined>>;
 
 export type BMArt = {
     name: string;

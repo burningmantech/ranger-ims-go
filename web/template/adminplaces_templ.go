@@ -38,7 +38,7 @@ package template
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func AdminDestinations(deployment, versionName, versionRef string) templ.Component {
+func AdminPlaces(deployment, versionName, versionRef string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -63,7 +63,7 @@ func AdminDestinations(deployment, versionName, versionRef string) templ.Compone
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head("Destinations", "admin_destinations.js", false, versionRef).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head("Places", "admin_places.js", false, versionRef).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -79,7 +79,7 @@ func AdminDestinations(deployment, versionName, versionRef string) templ.Compone
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Event Destinations</h1>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Event Places</h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,7 +87,7 @@ func AdminDestinations(deployment, versionName, versionRef string) templ.Compone
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form id=\"destination-form\"><div class=\"mb-3\"><label for=\"event-name\" class=\"form-label\">Event name</label> <input id=\"event-name\" type=\"text\" class=\"form-control\" onchange=\"loadDestinations();\"></div><h5>Art data</h5><div class=\"mb-3\"><label id=\"art-data-label\" for=\"art-data\" class=\"form-label\">JSON Data</label> <textarea id=\"art-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"art-help\" rows=\"12\"></textarea><div id=\"art-help\" class=\"form-text\">Paste in the full API response from the Burning Man v2 art endpoint.</div></div><h5>Camp data</h5><div class=\"mb-3\"><label id=\"camp-data-label\" for=\"camp-data\" class=\"form-label\">JSON Data</label> <textarea id=\"camp-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"camp-help\" rows=\"12\"></textarea><div id=\"camp-help\" class=\"form-text\">Paste in the full API response from the Burning Man v2 camp endpoint.</div></div><h5>Mutant vehicle data</h5><div class=\"mb-3\"><label id=\"mv-data-label\" for=\"mv-data\" class=\"form-label\">JSON Data</label> <textarea id=\"mv-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"mv-help\" rows=\"12\"></textarea><div id=\"mv-help\" class=\"form-text\">Paste in the full API response from the Burning Man v2 mv endpoint.</div></div><h5>Other data</h5><div class=\"mb-3\"><label id=\"other-data-label\" for=\"other-data\" class=\"form-label\">JSON Data</label> <textarea id=\"other-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"other-help\" rows=\"12\"></textarea><div id=\"other-help\" class=\"form-text\">Write in any Destinations that aren't in the Burning Man art or camp API responses. This must be in the form of a JSON array. The only required fields are 'name' and 'location_string'.</div></div><div class=\"mb-3\"><button type=\"submit\" class=\"btn btn-primary\">Save</button></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form id=\"place-form\"><div class=\"mb-3\"><label for=\"event-name\" class=\"form-label\">Event name</label> <input id=\"event-name\" type=\"text\" class=\"form-control\" onchange=\"loadPlaces();\"></div><h5>Art data</h5><div class=\"mb-3\"><label id=\"art-data-label\" for=\"art-data\" class=\"form-label\">JSON Data</label> <textarea id=\"art-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"art-help\" rows=\"12\"></textarea><div id=\"art-help\" class=\"form-text\">Paste in the full API response from the Burning Man v2 art endpoint.</div></div><h5>Camp data</h5><div class=\"mb-3\"><label id=\"camp-data-label\" for=\"camp-data\" class=\"form-label\">JSON Data</label> <textarea id=\"camp-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"camp-help\" rows=\"12\"></textarea><div id=\"camp-help\" class=\"form-text\">Paste in the full API response from the Burning Man v2 camp endpoint.</div></div><h5>Mutant vehicle data</h5><div class=\"mb-3\"><label id=\"mv-data-label\" for=\"mv-data\" class=\"form-label\">JSON Data</label> <textarea id=\"mv-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"mv-help\" rows=\"12\"></textarea><div id=\"mv-help\" class=\"form-text\">Paste in the full API response from the Burning Man v2 mv endpoint.</div></div><h5>Other data</h5><div class=\"mb-3\"><label id=\"other-data-label\" for=\"other-data\" class=\"form-label\">JSON Data</label> <textarea id=\"other-data\" type=\"text\" class=\"form-control font-monospace\" aria-describedby=\"other-help\" rows=\"12\"></textarea><div id=\"other-help\" class=\"form-text\">Write in any Places that aren't in the Burning Man art or camp API responses. This must be in the form of a JSON array. The only required fields are 'name' and 'location_string'.</div></div><div class=\"mb-3\"><button type=\"submit\" class=\"btn btn-primary\">Save</button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

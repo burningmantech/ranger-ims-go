@@ -362,7 +362,7 @@ h1 {
   cursor: pointer;
 }
 
-#destinations_table>tbody>tr {
+#places_table>tbody>tr {
   cursor: pointer;
 }
 
@@ -389,7 +389,7 @@ h1 {
   min-width: 4rem !important;
 }
 
-.destination-dl > dd {
+.place-dl > dd {
   padding-left: 1rem;
 }
 

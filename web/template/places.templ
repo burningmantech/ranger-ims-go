@@ -16,34 +16,34 @@
 
 package template
 
-templ Destinations(deployment, versionName, versionRef, eventName string) {
+templ Places(deployment, versionName, versionRef, eventName string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Destinations | " + eventName, "destinations.js", true, versionRef)
+@Head("Places | " + eventName, "places.js", true, versionRef)
 
 <body>
 <div class="container-fluid">
 @Header(deployment)
 @Nav(eventName)
-<h1 id="doc-title">Destinations</h1>
+<h1 id="doc-title">Places</h1>
 
 @ErrorInfo()
 
-    <!-- Destination info -->
-    <div class="modal no-print" id="destinationInfoModal" tabindex="-1" aria-labelledby="destinationInfoModalLabel" aria-hidden="true">
+    <!-- Place info -->
+    <div class="modal no-print" id="placeInfoModal" tabindex="-1" aria-labelledby="placeInfoModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <p class="modal-title fs-5" id="destinationInfoModalLabel"></p>
+            <p class="modal-title fs-5" id="placeInfoModalLabel"></p>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
-          <div class="modal-body" id="destinationBody" style="white-space: pre-wrap;">
+          <div class="modal-body" id="placeBody" style="white-space: pre-wrap;">
           </div>
         </div>
       </div>
 
       <template id="camp_template">
-        <dl class="destination-dl">
+        <dl class="place-dl">
           <dt>Name</dt>
           <dd id="camp_name"></dd>
 
@@ -80,7 +80,7 @@ templ Destinations(deployment, versionName, versionRef, eventName string) {
       </template>
 
       <template id="art_template">
-        <dl class="destination-dl">
+        <dl class="place-dl">
           <dt>Name</dt>
           <dd id="art_name"></dd>
 
@@ -117,7 +117,7 @@ templ Destinations(deployment, versionName, versionRef, eventName string) {
       </template>
 
       <template id="mv_template">
-        <dl class="destination-dl">
+        <dl class="place-dl">
           <dt>Name</dt>
           <dd id="mv_name"></dd>
 
@@ -195,13 +195,13 @@ templ Destinations(deployment, versionName, versionRef, eventName string) {
                   placeholder="Press &quot; ⁄ &quot; to search"
                   inputmode="latin"
                   autocomplete="off"
-                  aria-controls="destinations_table"
+                  aria-controls="places_table"
           />
         </div>
       </div>
     </div>
 
-    <table id="destinations_table" class="table table-striped table-hover">
+    <table id="places_table" class="table table-striped table-hover">
       <thead>
       <tr>
         <th>Name</th>

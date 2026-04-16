@@ -38,7 +38,9 @@ package template
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Login(deployment, passwordResetURL, versionName, versionRef string) templ.Component {
+import "strings"
+
+func Login(deployment, versionName, versionRef string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -87,20 +89,23 @@ func Login(deployment, passwordResetURL, versionName, versionRef string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form method=\"POST\" id=\"login_form\" class=\"form-horizontal\"><button type=\"button\" class=\"btn btn-block btn-danger if-authentication-failed hidden\">Authentication Failed</button> <button type=\"button\" class=\"btn btn-block btn-danger if-logged-in hidden\">You are already logged in as <span class=\"logged-in-user\"></span></button><p>Please log in with your Ranger Secret Clubhouse credentials.</p><div class=\"form-floating mb-3\"><input id=\"username_input\" type=\"text\" name=\"username\" inputmode=\"latin-name\" class=\"form-control text-size-normal\" autocomplete=\"username\" placeholder=\"name@example.com\"> <label for=\"username_input\">Email address</label></div><div class=\"input-group mb-3\"><div class=\"form-floating\"><input id=\"password_input\" type=\"password\" name=\"password\" inputmode=\"latin-prose\" class=\"form-control text-size-normal\" autocomplete=\"current-password\" placeholder=\"Password\"> <label for=\"password_input\">Password</label></div><button class=\"btn btn-outline-secondary\" type=\"button\" id=\"password_show_hide\" onclick=\"toggleShowPassword()\">Show</button></div><div class=\"d-flex justify-content-between mb-3\"><button type=\"submit\" class=\"btn btn-primary\">Submit</button> <a class=\"align-self-center\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form method=\"POST\" id=\"login_form\" class=\"form-horizontal\"><button type=\"button\" class=\"btn btn-block btn-danger if-authentication-failed hidden\">Authentication Failed</button> <button type=\"button\" class=\"btn btn-block btn-danger if-logged-in hidden\">You are already logged in as <span class=\"logged-in-user\"></span></button><p>Please log in with your Ranger Secret Clubhouse credentials.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var2 templ.SafeURL
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(passwordResetURL)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/template/login.templ`, Line: 61, Col: 53}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+		templ_7745c5c3_Err = credentialsNotice(deployment).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" target=\"_blank\">Forgot your password?</a></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"form-floating mb-3\"><input id=\"username_input\" type=\"text\" name=\"username\" inputmode=\"latin-name\" class=\"form-control text-size-normal\" autocomplete=\"username\" placeholder=\"name@example.com\"> <label for=\"username_input\">Email address</label></div><div class=\"input-group mb-3\"><div class=\"form-floating\"><input id=\"password_input\" type=\"password\" name=\"password\" inputmode=\"latin-prose\" class=\"form-control text-size-normal\" autocomplete=\"current-password\" placeholder=\"Password\"> <label for=\"password_input\">Password</label></div><button class=\"btn btn-outline-secondary\" type=\"button\" id=\"password_show_hide\" onclick=\"toggleShowPassword()\">Show</button></div><div class=\"d-flex justify-content-between mb-3\"><button type=\"submit\" class=\"btn btn-primary\">Submit</button>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = passwordResetLink(deployment).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -108,9 +113,93 @@ func Login(deployment, passwordResetURL, versionName, versionRef string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func passwordResetLink(deployment string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var2 == nil {
+			templ_7745c5c3_Var2 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		switch strings.ToLower(deployment) {
+		case "training":
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a class=\"align-self-center\" href=\"https://ranger-clubhouse-training.burningman.org/\" target=\"_blank\">Forgot your password?</a>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		case "staging":
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<a class=\"align-self-center\" href=\"https://ranger-clubhouse-staging.burningman.org/reset-password\" target=\"_blank\">Forgot your password?</a>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		default:
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a class=\"align-self-center\" href=\"https://ranger-clubhouse.burningman.org/reset-password\" target=\"_blank\">Forgot your password?</a>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		return nil
+	})
+}
+
+func credentialsNotice(deployment string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		switch strings.ToLower(deployment) {
+		case "training":
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p><strong>This is IMS Training</strong>. Use your credentials from the <a href=\"https://ranger-clubhouse-training.burningman.org\">Clubhouse Training server</a>.<br>This will usually be an email address @nomail.none.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		case "staging":
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p><strong>This is IMS Staging</strong>. Use your credentials from the <a href=\"https://ranger-clubhouse-staging.burningman.org\">Clubhouse Staging server</a>.<br>This will usually be your actual email address and actual password.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		default:
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p></p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		return nil
 	})

@@ -16,7 +16,9 @@
 
 package template
 
-templ Login(deployment, passwordResetURL, versionName, versionRef string) {
+import "strings"
+
+templ Login(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Log In | IMS", "login.js", false, versionRef)
@@ -39,6 +41,8 @@ templ Login(deployment, passwordResetURL, versionName, versionRef string) {
   Please log in with your Ranger Secret Clubhouse credentials.
 </p>
 
+@credentialsNotice(deployment)
+
 <div class="form-floating mb-3">
   <input id="username_input" type="text" name="username" inputmode="latin-name"
          class="form-control text-size-normal"
@@ -58,7 +62,7 @@ templ Login(deployment, passwordResetURL, versionName, versionRef string) {
 
 <div class="d-flex justify-content-between mb-3">
   <button type="submit" class="btn btn-primary">Submit</button>
-  <a class="align-self-center" href={passwordResetURL} target="_blank">Forgot your password?</a>
+  @passwordResetLink(deployment)
 </div>
 
 </form>
@@ -67,4 +71,35 @@ templ Login(deployment, passwordResetURL, versionName, versionRef string) {
 </body>
 </html>
 
+}
+
+templ passwordResetLink(deployment string) {
+    switch strings.ToLower(deployment) {
+        case "training":
+            <a class="align-self-center" href="https://ranger-clubhouse-training.burningman.org/" target="_blank">Forgot your password?</a>
+        case "staging":
+            <a class="align-self-center" href="https://ranger-clubhouse-staging.burningman.org/reset-password" target="_blank">Forgot your password?</a>
+        default:
+            <a class="align-self-center" href="https://ranger-clubhouse.burningman.org/reset-password" target="_blank">Forgot your password?</a>
+    }
+}
+
+templ credentialsNotice(deployment string) {
+    switch strings.ToLower(deployment) {
+        case "training":
+            <p>
+                <strong>This is IMS Training</strong>. Use your credentials from the
+                <a href="https://ranger-clubhouse-training.burningman.org">Clubhouse Training server</a>.
+                <br>This will usually be an email address @nomail.none.
+            </p>
+        case "staging":
+            <p>
+                <strong>This is IMS Staging</strong>. Use your credentials from the
+                <a href="https://ranger-clubhouse-staging.burningman.org">Clubhouse Staging server</a>.
+                <br>This will usually be your actual email address and actual password.
+            </p>
+        default:
+            <p></p>
+
+    }
 }

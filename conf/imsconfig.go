@@ -49,7 +49,7 @@ func DefaultIMS() *IMSConfig {
 			ActionLogEnabled:     true,
 		},
 		Store: DBStore{
-			Type: DBStoreTypeNoOp,
+			Type: DBStoreTypeMaria,
 			MariaDB: DBStoreMaria{
 				HostName: "localhost",
 				HostPort: 3306,
@@ -60,7 +60,7 @@ func DefaultIMS() *IMSConfig {
 			},
 		},
 		Directory: Directory{
-			Directory: DirectoryTypeNoOp,
+			Directory: DirectoryTypeClubhouseDB,
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",

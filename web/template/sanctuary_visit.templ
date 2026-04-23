@@ -103,12 +103,12 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                   </div>
                 </div>
                 <div class="input-group row align-items-center">
-                  <label for="guest_description" class="col-sm-2 col-form-label control-label">Description:</label>
+                  <label for="guest_description" class="col-sm-2 col-form-label control-label">Physical description:</label>
                   <div class="col-sm-10">
                     <input
                         id="guest_description" class="form-control form-control-sm"
                         type="text" inputmode="latin-prose" autocomplete="off"
-                        placeholder="Physical traits, gender, languages, etc."
+                        placeholder=""
                         onchange="editGuestDescription()"
                     />
                   </div>
@@ -243,7 +243,14 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
     <div class="row py-1">
       <div class="col-sm-12">
         <div class="card">
-          <label class="control-label card-header">Guest camp information</label>
+          <label class="control-label card-header">Camp and contact information
+          <a href="../places" target="_blank" class="link-body-emphasis float-end no-print" title="Camps, art, etc." tabindex="-1">
+            Places
+            <svg fill="currentColor" class="bi">
+              <use href="#box-arrow-up-right"></use>
+            </svg>
+          </a>
+          </label>
           <div class="card-body">
             <form class="form-horizontal">
               <div class="input-group row align-items-center">

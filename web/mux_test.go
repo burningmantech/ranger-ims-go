@@ -95,7 +95,7 @@ func TestRedirects(t *testing.T) {
 
 	// Note the trailing slash. This should get caught by the catchall handler,
 	// which will send us to the same URL without that trailing slash.
-	path := serverURL.JoinPath("/ims/app/events/SomeEvent/incidents/")
+	path := serverURL.JoinPath("/ims/app/events/SomeEvent/incidents/../")
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
 	// #nosec G704 // SSRF via taint analysis.

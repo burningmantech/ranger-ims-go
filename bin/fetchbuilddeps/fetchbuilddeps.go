@@ -84,14 +84,14 @@ func main() {
 		))
 	}
 	// https://cdn.datatables.net/#Release
-	datatablesVersion := "2.3.7"
+	datatablesVersion := "2.3.8"
 	{
 		datatablesDir := mustMakeSubRoot(staticExtRoot, "datatables")
 		defer logClose(datatablesDir)
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.min.js",
 			"https://cdn.datatables.net/"+datatablesVersion+"/js/dataTables.min.js",
-			"sha384-Lo2E+ASlyar6zUXt6sPEy5uaDGtDGHXo300rohaW4/AV26JdoLBT9zhcOhV8BtL8",
+			"sha384-vKSHfmUIK/B5LfOmzrP+424efQhNcgZm+sqxgq/DNCicqQRp/V6pVc4HCaRzeQZw",
 		))
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.js",

@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"path"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -155,7 +157,8 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	)
 	mux.HandleFunc("GET /ims/app/events/{eventName}",
 		func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/ims/app/events/"+r.PathValue("eventName")+"/incidents", http.StatusFound)
+			ev := url.PathEscape(r.PathValue("eventName"))
+			http.Redirect(w, r, "/ims/app/events/"+ev+"/incidents", http.StatusFound)
 		},
 	)
 
@@ -182,8 +185,11 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	// Catch-all handler. Requests to the above handlers with a trailing slash will get
 	// a 404 response, so we redirect here instead.
 	mux.HandleFunc("GET /ims/app/{anything...}", func(w http.ResponseWriter, r *http.Request) {
-		if before, ok := strings.CutSuffix(r.URL.Path, "/"); ok {
-			http.Redirect(w, r, before, http.StatusMovedPermanently)
+		if strings.HasSuffix(r.URL.Path, "/") {
+			// This makes really sure the resultant redirect will still be under /ims/app
+			cleaned := path.Join("/", r.PathValue("anything"))
+			// #nosec G710 // Open redirect via taint analysis
+			http.Redirect(w, r, "/ims/app"+cleaned, http.StatusMovedPermanently)
 			return
 		}
 		http.NotFound(w, r)

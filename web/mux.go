@@ -188,6 +188,9 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		if strings.HasSuffix(r.URL.Path, "/") {
 			// This makes really sure the resultant redirect will still be under /ims/app
 			cleaned := path.Join("/", r.PathValue("anything"))
+			if cleaned == "/" {
+				cleaned = ""
+			}
 			// #nosec G710 // Open redirect via taint analysis
 			http.Redirect(w, r, "/ims/app"+cleaned, http.StatusMovedPermanently)
 			return

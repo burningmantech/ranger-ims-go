@@ -186,7 +186,7 @@ func credentialsNotice(deployment string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch strings.ToLower(deployment) {
 		case "training":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p><strong>This is IMS Training</strong>. Use your credentials from the <a href=\"https://ranger-clubhouse-training.burningman.org\">Clubhouse Training server</a>.<br>This will usually be an email address @nomail.none.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p><strong>This is IMS Training</strong>. Use your credentials from the <a href=\"https://ranger-clubhouse.burningman.org\">Clubhouse Production server</a>.<br>This is your actual email address and actual password.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

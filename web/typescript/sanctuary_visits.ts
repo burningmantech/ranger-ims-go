@@ -279,7 +279,23 @@ function initDataTables() {
                 "data": "guest_preferred_name",
                 "defaultContent": "",
                 "render": renderName,
-                "width": "70%",
+                "width": "50%",
+            },
+            {
+                // 5
+                "name": "visit_sitter",
+                "className": "visit_sitter all",
+                "data": "resource_sitter",
+                "render": renderString,
+                "defaultContent": "",
+            },
+            {
+                // 6
+                "name": "visit_bed_id",
+                "className": "visit_bed_id all",
+                "data": "resource_bed_id",
+                "render": renderString,
+                "defaultContent": "",
             },
         ],
         "order": [
@@ -458,6 +474,27 @@ function initSearch() {
             return visit.departure_time == null || visit.departure_time === "";
         },
     );
+}
+
+function renderString(data: string|null, type: ims.RenderType, _visit: ims.Visit): ims.RenderValue {
+    switch (type) {
+        case "display": {
+            const maxDisplayLength = 250;
+            let s = data??"";
+            if (s.length > maxDisplayLength) {
+                s = s.substring(0, maxDisplayLength - 3) + "...";
+            }
+            // XSS prevention
+            return DataTable.render.text().display(s) as string;
+        }
+        case "filter":
+        case "sort":
+        case "type":
+        case undefined:
+            return DataTable.render.text().display(data??"") as string;
+        default:
+            return undefined;
+    }
 }
 
 //

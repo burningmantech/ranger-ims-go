@@ -133,15 +133,15 @@ type exampleAction struct {
 }
 
 func (e exampleAction) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintln(e.output, "      in the action")
+	_, _ = fmt.Fprintln(e.output, "      in the action")
 }
 
 func firstAdapter(output *bytes.Buffer) web.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintln(output, "firstAdapter before")
+			_, _ = fmt.Fprintln(output, "firstAdapter before")
 			next.ServeHTTP(w, r)
-			fmt.Fprintln(output, "firstAdapter after")
+			_, _ = fmt.Fprintln(output, "firstAdapter after")
 		})
 	}
 }
@@ -149,9 +149,9 @@ func firstAdapter(output *bytes.Buffer) web.Adapter {
 func secondAdapter(output *bytes.Buffer) web.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintln(output, "  secondAdapter before")
+			_, _ = fmt.Fprintln(output, "  secondAdapter before")
 			next.ServeHTTP(w, r)
-			fmt.Fprintln(output, "  secondAdapter after")
+			_, _ = fmt.Fprintln(output, "  secondAdapter after")
 		})
 	}
 }
@@ -159,9 +159,9 @@ func secondAdapter(output *bytes.Buffer) web.Adapter {
 func thirdAdapter(output *bytes.Buffer) web.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintln(output, "    thirdAdapter before")
+			_, _ = fmt.Fprintln(output, "    thirdAdapter before")
 			next.ServeHTTP(w, r)
-			fmt.Fprintln(output, "    thirdAdapter after")
+			_, _ = fmt.Fprintln(output, "    thirdAdapter after")
 		})
 	}
 }

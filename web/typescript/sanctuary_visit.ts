@@ -25,9 +25,11 @@ declare global {
         editGuestPreferredName: () => void;
         editGuestLegalName: () => void;
         editGuestDescription: () => void;
+        editGuestActionPlan: () => void;
         editGuestCampName: () => void;
         editGuestCampAddress: () => void;
         editGuestCampDescription: () => void;
+        editGuestCampContacts: () => void;
 
         editArrivalMethod: () => void;
         editArrivalState: () => void;
@@ -37,6 +39,8 @@ declare global {
         editDepartureMethod: () => void;
         editDepartureState: () => void;
 
+        editResourceSitter: () => void;
+        editResourceBedID: () => void;
         editResourceRest: () => void;
         editResourceClothes: () => void;
         editResourcePogs: () => void;
@@ -68,9 +72,11 @@ const el = {
     guestPreferredName: ims.typedElement("guest_preferred_name", HTMLInputElement),
     guestLegalName: ims.typedElement("guest_legal_name", HTMLInputElement),
     guestDescription: ims.typedElement("guest_description", HTMLInputElement),
+    guestActionPlan: ims.typedElement("guest_action_plan", HTMLInputElement),
     guestCampName: ims.typedElement("guest_camp_name", HTMLInputElement),
     guestCampAddress: ims.typedElement("guest_camp_address", HTMLInputElement),
     guestCampDescription: ims.typedElement("guest_camp_description", HTMLInputElement),
+    guestCampContacts: ims.typedElement("guest_camp_contacts", HTMLInputElement),
 
     arrivalTime: ims.typedElement("arrival_time", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
     arrivalMethod: ims.typedElement("arrival_method", HTMLInputElement),
@@ -82,6 +88,8 @@ const el = {
     departureMethod: ims.typedElement("departure_method", HTMLInputElement),
     departureState: ims.typedElement("departure_state", HTMLInputElement),
 
+    resourceSitter: ims.typedElement("resource_sitter", HTMLInputElement),
+    resourceBedID: ims.typedElement("resource_bed_id", HTMLInputElement),
     resourceRest: ims.typedElement("resource_rest", HTMLInputElement),
     resourceClothes: ims.typedElement("resource_clothes", HTMLInputElement),
     resourcePogs: ims.typedElement("resource_pogs", HTMLInputElement),
@@ -119,9 +127,11 @@ async function initSanctuaryVisitPage(): Promise<void> {
     window.editGuestPreferredName = editGuestPreferredName;
     window.editGuestLegalName = editGuestLegalName;
     window.editGuestDescription = editGuestDescription;
+    window.editGuestActionPlan = editGuestActionPlan;
     window.editGuestCampName = editGuestCampName;
     window.editGuestCampAddress = editGuestCampAddress;
     window.editGuestCampDescription = editGuestCampDescription;
+    window.editGuestCampContacts = editGuestCampContacts;
 
     window.editArrivalMethod = editArrivalMethod;
     window.editArrivalState = editArrivalState;
@@ -131,6 +141,8 @@ async function initSanctuaryVisitPage(): Promise<void> {
     window.editDepartureMethod = editDepartureMethod;
     window.editDepartureState = editDepartureState;
 
+    window.editResourceSitter = editResourceSitter;
+    window.editResourceBedID = editResourceBedID;
     window.editResourceRest = editResourceRest;
     window.editResourceClothes = editResourceClothes;
     window.editResourcePogs = editResourcePogs;
@@ -317,6 +329,15 @@ function displayVisit(): void {
 function drawVisitFields(): void {
     drawVisitTitle("for_display");
     el.visitNumber.value = (visit?.number??"(new)").toString();
+    let docTitle = "Sanctuary Visit";
+    if (visit?.number == null) {
+        docTitle += " (new)";
+    } else if (visit?.departure_time) {
+        docTitle += " (past)";
+    } else {
+        docTitle += " (current)";
+    }
+    document.getElementById("doc-title")!.textContent = docTitle;
     if (visit?.incident) {
         el.parentIncident.value = (visit.incident?.toString())??"";
         el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${visit.incident}`);
@@ -328,9 +349,11 @@ function drawVisitFields(): void {
     el.guestPreferredName.value = (visit?.guest_preferred_name?.toString())??"";
     el.guestLegalName.value = (visit?.guest_legal_name?.toString())??"";
     el.guestDescription.value = (visit?.guest_description?.toString())??"";
+    el.guestActionPlan.value = (visit?.guest_action_plan?.toString())??"";
     el.guestCampName.value = (visit?.guest_camp_name?.toString())??"";
     el.guestCampAddress.value = (visit?.guest_camp_address?.toString())??"";
     el.guestCampDescription.value = (visit?.guest_camp_description?.toString())??"";
+    el.guestCampContacts.value = (visit?.guest_camp_contacts?.toString())??"";
 
     if (visit?.arrival_time) {
         el.arrivalTime._flatpickr.setDate(visit.arrival_time, false, "Z");
@@ -352,6 +375,8 @@ function drawVisitFields(): void {
     el.departureMethod.value = (visit?.departure_method?.toString())??"";
     el.departureState.value = (visit?.departure_state?.toString())??"";
 
+    el.resourceSitter.value = (visit?.resource_sitter?.toString())??"";
+    el.resourceBedID.value = (visit?.resource_bed_id?.toString())??"";
     el.resourceRest.value = (visit?.resource_rest?.toString())??"";
     el.resourceClothes.value = (visit?.resource_clothes?.toString())??"";
     el.resourcePogs.value = (visit?.resource_pogs?.toString())??"";
@@ -459,6 +484,10 @@ async function editGuestDescription(): Promise<void> {
     await ims.editFromElement(el.guestDescription, "guest_description");
 }
 
+async function editGuestActionPlan(): Promise<void> {
+    await ims.editFromElement(el.guestActionPlan, "guest_action_plan");
+}
+
 async function editGuestCampName(): Promise<void> {
     await ims.editFromElement(el.guestCampName, "guest_camp_name");
 }
@@ -469,6 +498,10 @@ async function editGuestCampAddress(): Promise<void> {
 
 async function editGuestCampDescription(): Promise<void> {
     await ims.editFromElement(el.guestCampDescription, "guest_camp_description");
+}
+
+async function editGuestCampContacts(): Promise<void> {
+    await ims.editFromElement(el.guestCampContacts, "guest_camp_contacts");
 }
 
 const zeroTimeValue = "0001-01-01T00:00:00Z";
@@ -513,6 +546,12 @@ async function editDepartureState(): Promise<void> {
     await ims.editFromElement(el.departureState, "departure_state");
 }
 
+async function editResourceSitter(): Promise<void> {
+    await ims.editFromElement(el.resourceSitter, "resource_sitter");
+}
+async function editResourceBedID(): Promise<void> {
+    await ims.editFromElement(el.resourceBedID, "resource_bed_id");
+}
 async function editResourceRest(): Promise<void> {
     await ims.editFromElement(el.resourceRest, "resource_rest");
 }

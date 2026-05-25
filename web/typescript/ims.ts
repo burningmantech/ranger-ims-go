@@ -670,8 +670,7 @@ export function visitAsString(s: Visit): string {
     if (s.number == null) {
         return "New Visit";
     }
-    const reason = s.arrival_reason ? ` - ${s.arrival_reason}` : "";
-    return `VS #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}${reason}`;
+    return `VS #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}`;
 }
 
 // Return all user-entered report text for a given incident as a single string.
@@ -1835,9 +1834,11 @@ export type Visit = {
     guest_preferred_name?: string|null;
     guest_legal_name?: string|null;
     guest_description?: string|null;
+    guest_action_plan?: string|null;
     guest_camp_name?: string|null;
     guest_camp_address?: string|null;
     guest_camp_description?: string|null;
+    guest_camp_contacts?: string|null;
 
     arrival_time?: string|null;
     arrival_method?: string|null;
@@ -1849,6 +1850,8 @@ export type Visit = {
     departure_method?: string|null;
     departure_state?: string|null;
 
+    resource_sitter?: string|null;
+    resource_bed_id?: string|null;
     resource_rest?: string|null;
     resource_clothes?: string|null;
     resource_pogs?: string|null;

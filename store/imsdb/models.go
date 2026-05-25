@@ -400,9 +400,11 @@ type Visit struct {
 	GuestPreferredName   sql.NullString
 	GuestLegalName       sql.NullString
 	GuestDescription     sql.NullString
+	GuestActionPlan      sql.NullString
 	GuestCampName        sql.NullString
 	GuestCampAddress     sql.NullString
 	GuestCampDescription sql.NullString
+	GuestCampContacts    sql.NullString
 	ArrivalTime          sql.NullFloat64
 	ArrivalMethod        sql.NullString
 	ArrivalState         sql.NullString
@@ -411,6 +413,8 @@ type Visit struct {
 	DepartureTime        sql.NullFloat64
 	DepartureMethod      sql.NullString
 	DepartureState       sql.NullString
+	ResourceSitter       sql.NullString
+	ResourceBedID        sql.NullString
 	ResourceRest         sql.NullString
 	ResourceClothes      sql.NullString
 	ResourcePogs         sql.NullString

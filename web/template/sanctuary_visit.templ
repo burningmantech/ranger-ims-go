@@ -81,46 +81,53 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                 <div class="input-group row align-items-center">
                   <label for="guest_preferred_name"
                        class="col-sm-2 col-form-label control-label">Preferred name:</label>
-                  <div class="col-sm-10">
+                  <div title="The name the guest wants to be called by" class="col-sm-10">
                     <input
                         id="guest_preferred_name" class="form-control form-control-sm"
                         type="text" inputmode="latin-prose" autocomplete="off"
-                        placeholder=""
                         onchange="editGuestPreferredName()"
                     />
                   </div>
                 </div>
-                <div class="input-group row align-items-center">
+                <div title="The name the guest legally goes by" class="input-group row align-items-center">
                   <label for="guest_legal_name"
                          class="col-sm-2 col-form-label control-label">Legal name:</label>
                   <div class="col-sm-10">
                     <input
                         id="guest_legal_name" class="form-control form-control-sm"
                         type="text" inputmode="latin-prose" autocomplete="off"
-                        placeholder=""
                         onchange="editGuestLegalName()"
                     />
                   </div>
                 </div>
-                <div class="input-group row align-items-center">
+                <div title="A physical description of the guest, including age, height, gender presentation, clothing, etc." class="input-group row align-items-center">
                   <label for="guest_description" class="col-sm-2 col-form-label control-label">Physical description:</label>
                   <div class="col-sm-10">
                     <input
                         id="guest_description" class="form-control form-control-sm"
                         type="text" inputmode="latin-prose" autocomplete="off"
-                        placeholder=""
                         onchange="editGuestDescription()"
                     />
                   </div>
                 </div>
-                <div class="input-group row align-items-center">
+                <div title="The plan for getting this guest back out into the city" class="input-group row align-items-center">
+                  <label for="guest_action_plan" class="col-sm-2 col-form-label control-label">Action plan:</label>
+                  <div class="col-sm-10">
+                    <input
+                        id="guest_action_plan" class="form-control form-control-sm"
+                        type="text" inputmode="latin-prose" autocomplete="off"
+                        onchange="editGuestActionPlan()"
+                    />
+                  </div>
+                </div>
+                <div title="When this guest arrived at Sanctuary" class="input-group row align-items-center">
                   <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
                   <label class="col-sm-2 col-form-label control-label" for="alt_arrival_time">Arrival time:</label>
                   <div class="col-sm-10">
                     <input id="arrival_time" type="text" class="form-control form-control-sm" />
                   </div>
                 </div>
-                <div class="input-group row align-items-center">
+                <div title="When this guest departed from Sanctuary"  class="input-group row align-items-center">
                   <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
                   <label class="col-sm-2 col-form-label control-label" for="alt_departure_time">Departure time:</label>
                   <div class="col-sm-10">
@@ -141,7 +148,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
           <label class="control-label card-header">Arrival details</label>
           <div class="card-body">
             <form class="form-horizontal">
-              <div class="input-group row align-items-center">
+              <div title="How the guest arrived at Sanctuary (on foot, by Ranger transport, etc.)"  class="input-group row align-items-center">
                 <label for="arrival_method" class="col-sm-2 col-form-label control-label">Method:</label>
                 <div class="col-sm-10">
                   <input
@@ -154,7 +161,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                 </div>
               </div>
 
-              <div class="input-group row align-items-center">
+              <div title="The guest's physical and emotional state at arrival" class="input-group row align-items-center">
                 <label for="arrival_state" class="col-sm-2 col-form-label control-label">Overall state:</label>
                 <div class="col-sm-10">
                   <input
@@ -167,27 +174,25 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                 </div>
               </div>
 
-              <div class="input-group row align-items-center">
+              <div title="The reason the guest needed a visit to Sanctuary" class="input-group row align-items-center">
                 <label for="arrival_reason" class="col-sm-2 col-form-label control-label">Reason:</label>
                 <div class="col-sm-10">
                   <textarea
                       id="arrival_reason"
                       class="form-control form-control-sm"
                       rows="1"
-                      placeholder="Reason for needing Sanctuary"
                       onchange="editArrivalReason()"
                   ></textarea>
                 </div>
               </div>
 
-              <div class="input-group row align-items-center">
+              <div title="The belongings brought with the guest to Sanctuary, including medications" class="input-group row align-items-center">
                 <label for="arrival_belongings" class="col-sm-2 col-form-label control-label">Personal belongings:</label>
                 <div class="col-sm-10">
                   <textarea
                       id="arrival_belongings"
                       class="form-control form-control-sm"
                       rows="1"
-                      placeholder="Things brought with the guest to Sanctuary"
                       onchange="editArrivalBelongings()"
                   ></textarea>
                 </div>
@@ -205,7 +210,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
           <label class="control-label card-header">Departure details</label>
           <div class="card-body">
             <form class="form-horizontal">
-              <div class="input-group row align-items-center">
+              <div title="How the guest departed from Sanctuary (on foot, by Ranger transport, etc.)" class="input-group row align-items-center">
                 <label for="departure_method" class="col-sm-2 col-form-label control-label">Method:</label>
                 <div class="col-sm-10">
                   <input
@@ -218,7 +223,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                 </div>
               </div>
 
-              <div class="input-group row align-items-center">
+              <div title="The guest's physical and emotional state at departure" class="input-group row align-items-center">
                 <label for="departure_state" class="col-sm-2 col-form-label control-label">Overall state:</label>
                 <div class="col-sm-10">
                   <input
@@ -253,43 +258,145 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
           </label>
           <div class="card-body">
             <form class="form-horizontal">
-              <div class="input-group row align-items-center">
+              <div title="The guest's camp name" class="input-group row align-items-center">
                 <label for="guest_camp_name" class="col-sm-2 col-form-label control-label">Camp name:</label>
                 <div class="col-sm-10">
                   <input
                           id="guest_camp_name"
                           type="text"
                           class="form-control form-control-sm"
-                          placeholder=""
                           autocomplete="off"
                           onchange="editGuestCampName()"
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center">
-                <label for="guest_camp_address" class="col-sm-2 col-form-label control-label">Address:</label>
+              <div title="The guest's camp address" class="input-group row align-items-center">
+                <label for="guest_camp_address" class="col-sm-2 col-form-label control-label">Camp address:</label>
                 <div class="col-sm-10">
                   <input
                           id="guest_camp_address"
                           type="text"
                           class="form-control form-control-sm"
-                          placeholder=""
                           autocomplete="off"
                           onchange="editGuestCampAddress()"
                   />
                 </div>
               </div>
-              <div class="input-group row align-items-center">
-                <label for="guest_camp_description" class="col-sm-2 col-form-label control-label">Description:</label>
+              <div title="Optional additional description of the camp, if the name and address aren't enough" class="input-group row align-items-center">
+                <label for="guest_camp_description" class="col-sm-2 col-form-label control-label">Camp description:</label>
                 <div class="col-sm-10">
                   <input
                           id="guest_camp_description"
                           type="text"
                           class="form-control form-control-sm"
                           aria-label="Additional location description"
-                          placeholder="Other identifying info"
                           autocomplete="off"
                           onchange="editGuestCampDescription()"
+                  />
+                </div>
+              </div>
+              <div title="Any names or contact information for friends/campmates of the guest" class="input-group row align-items-center">
+                <label for="guest_camp_contacts" class="col-sm-2 col-form-label control-label">Contacts:</label>
+                <div class="col-sm-10">
+                  <input
+                          id="guest_camp_contacts"
+                          type="text"
+                          class="form-control form-control-sm"
+                          aria-label="Guest camp contact information"
+                          autocomplete="off"
+                          onchange="editGuestCampContacts()"
+                  />
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row py-1">
+      <div class="col-sm-12">
+        <div class="card">
+          <label class="control-label card-header">Sanctuary resources</label>
+          <div class="card-body">
+            <form class="form-horizontal">
+              <div title="The most reason Sanctuary Ranger who sat with the guest" class="input-group row align-items-center">
+                <label for="resource_sitter" class="col-sm-2 col-form-label control-label">Sanctuary sitter:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_sitter" class="form-control form-control-sm"
+                      type="text" inputmode="latin-prose" autocomplete="off"
+                      onchange="editResourceSitter()"
+                  />
+                </div>
+              </div>
+              <div title="The identifier for the bed used by the guest" class="input-group row align-items-center">
+                <label for="resource_bed_id" class="col-sm-2 col-form-label control-label">Bed ID:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_bed_id" class="form-control form-control-sm"
+                      type="text" inputmode="latin-prose" autocomplete="off"
+                      onchange="editResourceBedID()"
+                  />
+                </div>
+              </div>
+              <div title="Rest-related resources used by the guest, like blankets" class="input-group row align-items-center">
+                <label for="resource_rest" class="col-sm-2 col-form-label control-label">Bedding/blankets:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_rest"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editResourceRest()"
+                  />
+                </div>
+              </div>
+              <div title="Clothing resources donated from Sanctuary to the guest" class="input-group row align-items-center">
+                <label for="resource_clothes" class="col-sm-2 col-form-label control-label">Clothing:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_clothes"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editResourceClothes()"
+                  />
+                </div>
+              </div>
+              <div title="Details of Sanctuary food or beverages donated to the guest" class="input-group row align-items-center">
+                <label for="resource_food_bev" class="col-sm-2 col-form-label control-label">Food/bev given:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_food_bev"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editResourceFoodBev()"
+                  />
+                </div>
+              </div>
+              <div title="Number/details of Commissary meals given to the guest" class="input-group row align-items-center">
+                <label for="resource_pogs" class="col-sm-2 col-form-label control-label">Commissary food:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_pogs"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editResourcePogs()"
+                  />
+                </div>
+              </div>
+              <div title="Any other resources used for the guest, such as first aid, CIT, ESD, shower pogs" class="input-group row align-items-center">
+                <label for="resource_other" class="col-sm-2 col-form-label control-label">Other resources:</label>
+                <div class="col-sm-10">
+                  <input
+                      id="resource_other"
+                      type="text"
+                      class="form-control form-control-sm"
+                      autocomplete="off"
+                      onchange="editResourceOther()"
                   />
                 </div>
               </div>
@@ -334,83 +441,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
             <datalist id="ranger_handles">
               <option value=""></option>
             </datalist>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="row py-1">
-      <div class="col-sm-12">
-        <div class="card">
-          <label class="control-label card-header">Sanctuary resources</label>
-          <div class="card-body">
-            <form class="form-horizontal">
-              <div class="input-group row align-items-center">
-                <label for="resource_rest" class="col-sm-2 col-form-label control-label">Rest details:</label>
-                <div class="col-sm-10">
-                  <input
-                      id="resource_rest"
-                      type="text"
-                      class="form-control form-control-sm"
-                      placeholder="If/where they slept at Sanctuary, and what sleep resources were used"
-                      autocomplete="off"
-                      onchange="editResourceRest()"
-                  />
-                </div>
-              </div>
-              <div class="input-group row align-items-center">
-                <label for="resource_clothes" class="col-sm-2 col-form-label control-label">Clothes given:</label>
-                <div class="col-sm-10">
-                  <input
-                      id="resource_clothes"
-                      type="text"
-                      class="form-control form-control-sm"
-                      placeholder="Items of Sanctuary clothes donated to the guest"
-                      autocomplete="off"
-                      onchange="editResourceClothes()"
-                  />
-                </div>
-              </div>
-              <div class="input-group row align-items-center">
-                <label for="resource_pogs" class="col-sm-2 col-form-label control-label">Meal pogs:</label>
-                <div class="col-sm-10">
-                  <input
-                      id="resource_pogs"
-                      type="text"
-                      class="form-control form-control-sm"
-                      placeholder="Details of any Commissary meal pog gifts to the guest"
-                      autocomplete="off"
-                      onchange="editResourcePogs()"
-                  />
-                </div>
-              </div>
-              <div class="input-group row align-items-center">
-                <label for="resource_food_bev" class="col-sm-2 col-form-label control-label">Food/bev given:</label>
-                <div class="col-sm-10">
-                  <input
-                      id="resource_food_bev"
-                      type="text"
-                      class="form-control form-control-sm"
-                      placeholder="Food or beverage items given to the guest"
-                      autocomplete="off"
-                      onchange="editResourceFoodBev()"
-                  />
-                </div>
-              </div>
-              <div class="input-group row align-items-center">
-                <label for="resource_other" class="col-sm-2 col-form-label control-label">Other resources:</label>
-                <div class="col-sm-10">
-                  <input
-                      id="resource_other"
-                      type="text"
-                      class="form-control form-control-sm"
-                      placeholder="Any other expendable resources used for the guest, e.g. first aid"
-                      autocomplete="off"
-                      onchange="editResourceOther()"
-                  />
-                </div>
-              </div>
-            </form>
           </div>
         </div>
       </div>

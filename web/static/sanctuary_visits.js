@@ -234,7 +234,23 @@ function initDataTables() {
                 "data": "guest_preferred_name",
                 "defaultContent": "",
                 "render": renderName,
-                "width": "70%",
+                "width": "50%",
+            },
+            {
+                // 5
+                "name": "visit_sitter",
+                "className": "visit_sitter all",
+                "data": "resource_sitter",
+                "render": renderString,
+                "defaultContent": "",
+            },
+            {
+                // 6
+                "name": "visit_bed_id",
+                "className": "visit_bed_id all",
+                "data": "resource_bed_id",
+                "render": renderString,
+                "defaultContent": "",
             },
         ],
         "order": [
@@ -381,6 +397,26 @@ function initSearch() {
         const visit = visitsTable.data()[rowIndex];
         return visit.departure_time == null || visit.departure_time === "";
     });
+}
+function renderString(data, type, _visit) {
+    switch (type) {
+        case "display": {
+            const maxDisplayLength = 250;
+            let s = data ?? "";
+            if (s.length > maxDisplayLength) {
+                s = s.substring(0, maxDisplayLength - 3) + "...";
+            }
+            // XSS prevention
+            return DataTable.render.text().display(s);
+        }
+        case "filter":
+        case "sort":
+        case "type":
+        case undefined:
+            return DataTable.render.text().display(data ?? "");
+        default:
+            return undefined;
+    }
 }
 //
 // Show rows button handling

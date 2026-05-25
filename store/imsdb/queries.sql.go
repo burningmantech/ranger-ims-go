@@ -1840,9 +1840,11 @@ update VISIT set
     GUEST_PREFERRED_NAME = ?,
     GUEST_LEGAL_NAME = ?,
     GUEST_DESCRIPTION = ?,
+    GUEST_ACTION_PLAN = ?,
     GUEST_CAMP_NAME = ?,
     GUEST_CAMP_ADDRESS = ?,
     GUEST_CAMP_DESCRIPTION = ?,
+    GUEST_CAMP_CONTACTS = ?,
 
     ARRIVAL_TIME = ?,
     ARRIVAL_METHOD = ?,
@@ -1854,6 +1856,8 @@ update VISIT set
     DEPARTURE_METHOD = ?,
     DEPARTURE_STATE = ?,
 
+    RESOURCE_SITTER = ?,
+    RESOURCE_BED_ID = ?,
     RESOURCE_REST = ?,
     RESOURCE_CLOTHES = ?,
     RESOURCE_POGS = ?,
@@ -1869,9 +1873,11 @@ type UpdateVisitParams struct {
 	GuestPreferredName   sql.NullString
 	GuestLegalName       sql.NullString
 	GuestDescription     sql.NullString
+	GuestActionPlan      sql.NullString
 	GuestCampName        sql.NullString
 	GuestCampAddress     sql.NullString
 	GuestCampDescription sql.NullString
+	GuestCampContacts    sql.NullString
 	ArrivalTime          sql.NullFloat64
 	ArrivalMethod        sql.NullString
 	ArrivalState         sql.NullString
@@ -1880,6 +1886,8 @@ type UpdateVisitParams struct {
 	DepartureTime        sql.NullFloat64
 	DepartureMethod      sql.NullString
 	DepartureState       sql.NullString
+	ResourceSitter       sql.NullString
+	ResourceBedID        sql.NullString
 	ResourceRest         sql.NullString
 	ResourceClothes      sql.NullString
 	ResourcePogs         sql.NullString
@@ -1895,9 +1903,11 @@ func (q *Queries) UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParam
 		arg.GuestPreferredName,
 		arg.GuestLegalName,
 		arg.GuestDescription,
+		arg.GuestActionPlan,
 		arg.GuestCampName,
 		arg.GuestCampAddress,
 		arg.GuestCampDescription,
+		arg.GuestCampContacts,
 		arg.ArrivalTime,
 		arg.ArrivalMethod,
 		arg.ArrivalState,
@@ -1906,6 +1916,8 @@ func (q *Queries) UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParam
 		arg.DepartureTime,
 		arg.DepartureMethod,
 		arg.DepartureState,
+		arg.ResourceSitter,
+		arg.ResourceBedID,
 		arg.ResourceRest,
 		arg.ResourceClothes,
 		arg.ResourcePogs,
@@ -1919,7 +1931,7 @@ func (q *Queries) UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParam
 
 const visit = `-- name: Visit :one
 select
-    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
+    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_action_plan, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.guest_camp_contacts, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_sitter, s.resource_bed_id, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
 from
     VISIT s
 where
@@ -1947,9 +1959,11 @@ func (q *Queries) Visit(ctx context.Context, db DBTX, arg VisitParams) (VisitRow
 		&i.Visit.GuestPreferredName,
 		&i.Visit.GuestLegalName,
 		&i.Visit.GuestDescription,
+		&i.Visit.GuestActionPlan,
 		&i.Visit.GuestCampName,
 		&i.Visit.GuestCampAddress,
 		&i.Visit.GuestCampDescription,
+		&i.Visit.GuestCampContacts,
 		&i.Visit.ArrivalTime,
 		&i.Visit.ArrivalMethod,
 		&i.Visit.ArrivalState,
@@ -1958,6 +1972,8 @@ func (q *Queries) Visit(ctx context.Context, db DBTX, arg VisitParams) (VisitRow
 		&i.Visit.DepartureTime,
 		&i.Visit.DepartureMethod,
 		&i.Visit.DepartureState,
+		&i.Visit.ResourceSitter,
+		&i.Visit.ResourceBedID,
 		&i.Visit.ResourceRest,
 		&i.Visit.ResourceClothes,
 		&i.Visit.ResourcePogs,
@@ -2074,7 +2090,7 @@ func (q *Queries) Visit_ReportEntries(ctx context.Context, db DBTX, arg Visit_Re
 
 const visits = `-- name: Visits :many
 select
-    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
+    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_action_plan, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.guest_camp_contacts, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_sitter, s.resource_bed_id, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
 from
     VISIT s
 where
@@ -2104,9 +2120,11 @@ func (q *Queries) Visits(ctx context.Context, db DBTX, event int32) ([]VisitsRow
 			&i.Visit.GuestPreferredName,
 			&i.Visit.GuestLegalName,
 			&i.Visit.GuestDescription,
+			&i.Visit.GuestActionPlan,
 			&i.Visit.GuestCampName,
 			&i.Visit.GuestCampAddress,
 			&i.Visit.GuestCampDescription,
+			&i.Visit.GuestCampContacts,
 			&i.Visit.ArrivalTime,
 			&i.Visit.ArrivalMethod,
 			&i.Visit.ArrivalState,
@@ -2115,6 +2133,8 @@ func (q *Queries) Visits(ctx context.Context, db DBTX, event int32) ([]VisitsRow
 			&i.Visit.DepartureTime,
 			&i.Visit.DepartureMethod,
 			&i.Visit.DepartureState,
+			&i.Visit.ResourceSitter,
+			&i.Visit.ResourceBedID,
 			&i.Visit.ResourceRest,
 			&i.Visit.ResourceClothes,
 			&i.Visit.ResourcePogs,

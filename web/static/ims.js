@@ -574,8 +574,7 @@ export function visitAsString(s) {
     if (s.number == null) {
         return "New Visit";
     }
-    const reason = s.arrival_reason ? ` - ${s.arrival_reason}` : "";
-    return `VS #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}${reason}`;
+    return `VS #${s.number}: ${s.guest_preferred_name || s.guest_legal_name}`;
 }
 // Return all user-entered report text for a given incident as a single string.
 export function reportTextFromIncident(incidentFROrVisit, eventFieldReports, eventVisits) {

@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (30);
+insert into SCHEMA_INFO (VERSION) values (31);
 
 
 create table `EVENT` (
@@ -242,9 +242,11 @@ create table VISIT (
     GUEST_PREFERRED_NAME        varchar(128),
     GUEST_LEGAL_NAME            varchar(128),
     GUEST_DESCRIPTION           varchar(256),
+    GUEST_ACTION_PLAN           varchar(512),
     GUEST_CAMP_NAME             varchar(256),
     GUEST_CAMP_ADDRESS          varchar(256),
     GUEST_CAMP_DESCRIPTION      varchar(256),
+    GUEST_CAMP_CONTACTS         varchar(512),
 
     ARRIVAL_TIME        double,
     ARRIVAL_METHOD      varchar(256),
@@ -256,6 +258,8 @@ create table VISIT (
     DEPARTURE_METHOD    varchar(256),
     DEPARTURE_STATE     varchar(256),
 
+    RESOURCE_SITTER     varchar(256),
+    RESOURCE_BED_ID     varchar(64),
     RESOURCE_REST       varchar(256),
     RESOURCE_CLOTHES    varchar(256),
     RESOURCE_POGS       varchar(256),

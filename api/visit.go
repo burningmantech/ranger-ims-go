@@ -258,9 +258,13 @@ func visitToJSON(storedRow imsdb.VisitRow, visitRangers []imsdb.VisitRanger,
 		GuestPreferredName:   conv.SqlToString(storedRow.Visit.GuestPreferredName),
 		GuestLegalName:       conv.SqlToString(storedRow.Visit.GuestLegalName),
 		GuestDescription:     conv.SqlToString(storedRow.Visit.GuestDescription),
+		GuestActionPlan:      conv.SqlToString(storedRow.Visit.GuestActionPlan),
+		ResourceBedID:        conv.SqlToString(storedRow.Visit.ResourceBedID),
 		GuestCampName:        conv.SqlToString(storedRow.Visit.GuestCampName),
 		GuestCampAddress:     conv.SqlToString(storedRow.Visit.GuestCampAddress),
 		GuestCampDescription: conv.SqlToString(storedRow.Visit.GuestCampDescription),
+		GuestCampContacts:    conv.SqlToString(storedRow.Visit.GuestCampContacts),
+		ResourceSitter:       conv.SqlToString(storedRow.Visit.ResourceSitter),
 
 		ArrivalTime:       conv.NullFloatToTimePtr(storedRow.Visit.ArrivalTime),
 		ArrivalMethod:     conv.SqlToString(storedRow.Visit.ArrivalMethod),
@@ -380,9 +384,13 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 		GuestPreferredName:   storedVisit.GuestPreferredName,
 		GuestLegalName:       storedVisit.GuestLegalName,
 		GuestDescription:     storedVisit.GuestDescription,
+		GuestActionPlan:      storedVisit.GuestActionPlan,
+		ResourceBedID:        storedVisit.ResourceBedID,
 		GuestCampName:        storedVisit.GuestCampName,
 		GuestCampAddress:     storedVisit.GuestCampAddress,
 		GuestCampDescription: storedVisit.GuestCampDescription,
+		GuestCampContacts:    storedVisit.GuestCampContacts,
+		ResourceSitter:       storedVisit.ResourceSitter,
 		ArrivalTime:          storedVisit.ArrivalTime,
 		ArrivalMethod:        storedVisit.ArrivalMethod,
 		ArrivalState:         storedVisit.ArrivalState,
@@ -426,6 +434,14 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 		update.GuestDescription = conv.StringToSql(newVisit.GuestDescription, 0)
 		logs = append(logs, fmt.Sprintf("Changed GuestDescription: %v", update.GuestDescription.String))
 	}
+	if newVisit.GuestActionPlan != nil {
+		update.GuestActionPlan = conv.StringToSql(newVisit.GuestActionPlan, 0)
+		logs = append(logs, fmt.Sprintf("Changed GuestActionPlan: %v", update.GuestActionPlan.String))
+	}
+	if newVisit.ResourceBedID != nil {
+		update.ResourceBedID = conv.StringToSql(newVisit.ResourceBedID, 0)
+		logs = append(logs, fmt.Sprintf("Changed ResourceBedID: %v", update.ResourceBedID.String))
+	}
 	if newVisit.GuestCampName != nil {
 		update.GuestCampName = conv.StringToSql(newVisit.GuestCampName, 0)
 		logs = append(logs, fmt.Sprintf("Changed GuestCampName: %v", update.GuestCampName.String))
@@ -437,6 +453,14 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 	if newVisit.GuestCampDescription != nil {
 		update.GuestCampDescription = conv.StringToSql(newVisit.GuestCampDescription, 0)
 		logs = append(logs, fmt.Sprintf("Changed GuestCampDescription: %v", update.GuestCampDescription.String))
+	}
+	if newVisit.GuestCampContacts != nil {
+		update.GuestCampContacts = conv.StringToSql(newVisit.GuestCampContacts, 0)
+		logs = append(logs, fmt.Sprintf("Changed GuestCampContacts: %v", update.GuestCampContacts.String))
+	}
+	if newVisit.ResourceSitter != nil {
+		update.ResourceSitter = conv.StringToSql(newVisit.ResourceSitter, 0)
+		logs = append(logs, fmt.Sprintf("Changed ResourceSitter: %v", update.ResourceSitter.String))
 	}
 
 	if newVisit.ArrivalTime != nil {
@@ -502,9 +526,9 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 
 	err = imsDBQ.UpdateVisit(ctx, txn, update)
 	if err != nil {
-		var mysqlErr *mysql.MySQLError
 		const mySQLErNoReferencedRow2 = 1452
-		if errors.As(err, &mysqlErr) && mysqlErr.Number == mySQLErNoReferencedRow2 {
+		mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+		if ok && mysqlErr.Number == mySQLErNoReferencedRow2 {
 			// This is probably the source of the error, because there are no other foreign
 			// keys updates within this function.
 			return herr.NotFound("No such Incident", err).From("[UpdateVisit]")

@@ -31,9 +31,11 @@ type Visit struct {
 	GuestPreferredName   *string `json:"guest_preferred_name,omitzero"`
 	GuestLegalName       *string `json:"guest_legal_name,omitzero"`
 	GuestDescription     *string `json:"guest_description,omitzero"`
+	GuestActionPlan      *string `json:"guest_action_plan,omitzero"`
 	GuestCampName        *string `json:"guest_camp_name,omitzero"`
 	GuestCampAddress     *string `json:"guest_camp_address,omitzero"`
 	GuestCampDescription *string `json:"guest_camp_description,omitzero"`
+	GuestCampContacts    *string `json:"guest_camp_contacts,omitzero"`
 
 	ArrivalTime       *time.Time `json:"arrival_time,omitempty"`
 	ArrivalMethod     *string    `json:"arrival_method,omitzero"`
@@ -45,6 +47,8 @@ type Visit struct {
 	DepartureMethod *string    `json:"departure_method,omitzero"`
 	DepartureState  *string    `json:"departure_state,omitzero"`
 
+	ResourceSitter  *string `json:"resource_sitter,omitzero"`
+	ResourceBedID   *string `json:"resource_bed_id,omitzero"`
 	ResourceRest    *string `json:"resource_rest,omitzero"`
 	ResourceClothes *string `json:"resource_clothes,omitzero"`
 	ResourcePogs    *string `json:"resource_pogs,omitzero"`

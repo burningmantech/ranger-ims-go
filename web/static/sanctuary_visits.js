@@ -282,7 +282,7 @@ function initDataTables() {
     });
 }
 function renderName(_data, type, visit) {
-    const guestName = visit.guest_preferred_name || visit.guest_legal_name || "Someone";
+    const guestName = visit.guest_preferred_name || visit.guest_legal_name || "";
     switch (type) {
         case "display":
             const sp = document.createElement("span");

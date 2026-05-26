@@ -389,7 +389,7 @@ function drawVisitFields(): void {
 function drawVisitTitle(mode: "for_display"|"for_print_to_pdf"): void {
     let newTitle: string = "";
     if (mode === "for_print_to_pdf" && visit?.number) {
-        newTitle = `Visit-${ims.pathIds.eventName}-${visit.number}_${visit.guest_preferred_name}`;
+        newTitle = `Visit-${ims.pathIds.eventName}-${visit.number}_${visit.guest_preferred_name??""}`;
     } else {
         const eventSuffix: string = ims.pathIds.eventName != null ? ` | ${ims.pathIds.eventName}` : "";
         newTitle = `${ims.visitAsString(visit!)}${eventSuffix}`;

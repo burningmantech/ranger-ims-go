@@ -329,13 +329,21 @@ function displayVisit(): void {
 function drawVisitFields(): void {
     drawVisitTitle("for_display");
     el.visitNumber.value = (visit?.number??"(new)").toString();
+
     let docTitle = "Sanctuary Visit";
     if (visit?.number == null) {
-        docTitle += " (new)";
+        docTitle = `New ${docTitle}`;
     } else if (visit?.departure_time) {
-        docTitle += " (past)";
+        docTitle = `Past ${docTitle}`;
     } else {
-        docTitle += " (current)";
+        docTitle = `Current ${docTitle}`;
+    }
+    if (visit?.guest_preferred_name) {
+        docTitle = `${docTitle} (${visit?.guest_preferred_name})`;
+    } else if (visit?.guest_legal_name) {
+        docTitle = `${docTitle} (${visit?.guest_legal_name})`;
+    } else if (visit?.number) {
+        docTitle = `${docTitle} (no name)`;
     }
     document.getElementById("doc-title")!.textContent = docTitle;
     if (visit?.incident) {

@@ -1917,10 +1917,15 @@ export type BMArt = {
     category: string|null;
     program: string|null;
     donation_link: string|null;
+    guided_tours: boolean|null;
+    needs_volunteers: boolean|null;
+    self_guided_tour_map: boolean|null;
     images: BMArtImage[]|null;
     location: BMArtLocation|null;
     uid: string;
     url: string|null;
+
+    // https://api.burningman.org/docs#tag/Art-Installations
 }
 
 export type BMCamp = {
@@ -1930,6 +1935,7 @@ export type BMCamp = {
     description: string|null;
     contact_email: string|null;
     hometown: string|null;
+    accepting_campers: boolean|null;
     images: BMCampImage[]|null;
     landmark: string|null;
     location: BMCampLocation|null;
@@ -1937,8 +1943,7 @@ export type BMCamp = {
     url: string|null;
     year: number;
 
-    // other possible fields can be found here:
-    // https://api.burningman.org/docs#operation/get_camp
+    // https://api.burningman.org/docs#tag/Theme-Camps
 }
 
 export type BMMV = {
@@ -1953,6 +1958,8 @@ export type BMMV = {
     uid: string;
     url: string|null;
     year: number;
+
+    // https://api.burningman.org/docs#tag/Mutant-Vehicles
 }
 
 export type BMArtLocation = {

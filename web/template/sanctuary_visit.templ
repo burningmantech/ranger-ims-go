@@ -72,30 +72,24 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
       </div>
     </div>
 
-       <div id="instructions_accordion" class="accordion py-1">
-
-          <!-- Basics -->
-          <div class="accordion-item">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                      data-bs-target="#collapse-instructions" aria-controls="collapse-instructions">
-                Instructions
-              </button>
-            </h2>
-            <div id="collapse-instructions" class="accordion-collapse collapse">
-              <div class="accordion-body">
-                The Green Dot Cadre can choose what to put in this space, if anything.
-              </div>
-            </div>
+   <!-- Instructions -->
+   <div class="accordion">
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#collapse-instructions" aria-controls="collapse-instructions">
+            Instructions
+          </button>
+        </h2>
+        <div id="collapse-instructions" class="accordion-collapse collapse">
+          <div class="accordion-body">
+            The Green Dot Cadre can choose what to put in this space, if anything.
           </div>
+        </div>
       </div>
+  </div>
 
-    <!--
-      Each section below is an accordion item. The accordion-collapse elements
-      deliberately omit data-bs-parent, so opening one item does not close the
-      others; any number of items can be expanded at once.
-    -->
-    <div id="visit_accordion" class="accordion py-1">
+    <div class="accordion pt-1">
 
       <!-- Basics -->
       <div class="accordion-item">
@@ -168,6 +162,9 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
           </div>
         </div>
       </div>
+
+      </div>
+      <div class="accordion">
 
       <!-- Arrival/departure details -->
       <div class="accordion-item">
@@ -261,6 +258,9 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
         </div>
       </div>
 
+      </div>
+      <div class="accordion">
+
       <!-- Camp and contact information -->
       <div class="accordion-item">
         <h2 class="accordion-header position-relative">
@@ -335,6 +335,9 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
           </div>
         </div>
       </div>
+
+      </div>
+      <div class="accordion">
 
       <!-- Sanctuary resources -->
       <div class="accordion-item">
@@ -432,6 +435,9 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
         </div>
       </div>
 
+      </div>
+      <div class="accordion">
+
       <!-- Sanctuary Rangers -->
       <div class="accordion-item">
         <h2 class="accordion-header">
@@ -473,6 +479,9 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
           </div>
         </div>
       </div>
+
+      </div>
+      <div class="accordion">
 
       <!-- Report Entries -->
       <div class="accordion-item">

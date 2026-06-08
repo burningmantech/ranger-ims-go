@@ -77,7 +77,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
     <li><strong>Always</strong> - valid all year long</li>
     <li><strong>On-Site</strong> - valid only when a matching Ranger is marked "on-site" in Clubhouse</li>
   </ul>
-  <p>You can set an expiration team for each permission, after which the permission will stop granting access. Times are shown in your time zone (<span id="browser_tz"></span>).</p>
+  <p>You can set a <strong>not-after</strong> time for each permission, after which the permission will stop granting access. You can also set a <strong>not-before</strong> time, before which the permission will not yet grant access. Times are shown in your time zone (<span id="browser_tz"></span>).</p>
   <p>A permission with an invalid person, position, or team name will show "Unknown" in that row, to indicate that the admin likely made a typo.</p>
   <p>You can click the "Explain" button to see which Rangers currently match which permissions, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
   <div class="row" id="event_access_container">
@@ -119,19 +119,33 @@ templ AdminEvents(deployment, versionName, versionRef string) {
         X
       </button>
       <input
-          class="access_expires hidden float-end"
+          class="access_not_after hidden float-end"
           type="datetime-local"
-          aria-label="Expiration time"
-          onblur="setExpires(this)"
-          title="Expiration time, in your browser's time zone"
+          aria-label="Not after time"
+          onblur="setNotAfter(this)"
+          title="Not after: permission stops granting access after this time (your browser's time zone)"
       />
       <input
-          class="btn btn-xs btn-outline-secondary access_expires_button float-end"
+          class="btn btn-xs btn-outline-secondary access_not_after_button float-end"
           type="button"
-          value="Set expiration"
-          onclick="showExpiresInput(this)"
+          value="Set not after"
+          onclick="showNotAfterInput(this)"
       />
-      <span class="access_expired_text fw-bold float-end me-2" aria-label="Expiration info"></span>
+      <input
+          class="access_not_before hidden float-end"
+          type="datetime-local"
+          aria-label="Not before time"
+          onblur="setNotBefore(this)"
+          title="Not before: permission does not grant access before this time (your browser's time zone)"
+      />
+      <input
+          class="btn btn-xs btn-outline-secondary access_not_before_button float-end"
+          type="button"
+          value="Set not before"
+          onclick="showNotBeforeInput(this)"
+      />
+      <span class="access_pending_text fw-bold float-end me-2" aria-label="Not-before info"></span>
+      <span class="access_expired_text fw-bold float-end me-2" aria-label="Not-after info"></span>
       <span class="unknown_target_text fw-bold float-end me-2" aria-label="Unknown info"></span>
     </li>
   </template>

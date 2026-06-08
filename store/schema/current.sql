@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (31);
+insert into SCHEMA_INFO (VERSION) values (32);
 
 
 create table `EVENT` (
@@ -157,7 +157,9 @@ create table EVENT_ACCESS (
     MODE     enum ('read', 'write', 'report', 'write_visits') not null,
     VALIDITY enum ('always', 'onsite') not null default 'always',
     -- An optional timestamp at which the access rule expires
-    EXPIRES  double,
+    NOT_AFTER  double,
+    -- An optional timestamp before which the access rule is not yet active
+    NOT_BEFORE double,
 
     foreign key `EVENT_ACCESS_TO_EVENT` (`EVENT`) references `EVENT`(ID),
 

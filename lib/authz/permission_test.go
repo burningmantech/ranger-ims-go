@@ -17,8 +17,11 @@
 package authz
 
 import (
+	"database/sql"
 	"testing"
+	"time"
 
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/stretchr/testify/require"
 )
@@ -43,6 +46,64 @@ func addPerm(m map[int32][]imsdb.EventAccess, eventID int32, expr string, mode i
 			Validity:   validity,
 		},
 	)
+}
+
+func addPermWithTimes(m map[int32][]imsdb.EventAccess, eventID int32, expr string, mode imsdb.EventAccessMode, validity imsdb.EventAccessValidity, notAfter, notBefore sql.NullFloat64) {
+	m[eventID] = append(m[eventID],
+		imsdb.EventAccess{
+			Event:      eventID,
+			Expression: expr,
+			Mode:       mode,
+			Validity:   validity,
+			NotAfter:   notAfter,
+			NotBefore:  notBefore,
+		},
+	)
+}
+
+// TestPersonMatches_notAfterNotBeforeGuards tests the NotAfter and NotBefore enforcement
+// in PersonMatches, which is the single point where time-based access is evaluated.
+func TestPersonMatches_notAfterNotBeforeGuards(t *testing.T) {
+	t.Parallel()
+
+	past := time.Now().Add(-1 * time.Hour)
+	future := time.Now().Add(1 * time.Hour)
+
+	const eventID int32 = 123
+
+	// Helper: run ManyEventPermissions for a single wildcard/always rule with given times.
+	check := func(notAfter, notBefore sql.NullFloat64) EventPermissionMask {
+		accessByEvent := make(map[int32][]imsdb.EventAccess)
+		addPermWithTimes(accessByEvent, eventID, "*", modeRead, validityAlways, notAfter, notBefore)
+		perms, _ := ManyEventPermissions(accessByEvent, testAdmins, "AnyRanger", false, nil, nil, "")
+		return perms[eventID]
+	}
+
+	noTime := sql.NullFloat64{Valid: false}
+
+	// No time bounds: rule grants access.
+	require.Equal(t, readerPerm, check(noTime, noTime), "no bounds should grant access")
+
+	// NotAfter in the past: rule is expired, no access.
+	require.Equal(t, EventNoPermissions, check(conv.TimeToNullFloat(past), noTime), "expired rule should deny access")
+
+	// NotAfter in the future: rule is active, access granted.
+	require.Equal(t, readerPerm, check(conv.TimeToNullFloat(future), noTime), "unexpired rule should grant access")
+
+	// NotBefore in the future: rule not yet active, no access.
+	require.Equal(t, EventNoPermissions, check(noTime, conv.TimeToNullFloat(future)), "pending rule should deny access")
+
+	// NotBefore in the past: rule is active, access granted.
+	require.Equal(t, readerPerm, check(noTime, conv.TimeToNullFloat(past)), "started rule should grant access")
+
+	// NotBefore in past, NotAfter in future: fully active, access granted.
+	require.Equal(t, readerPerm, check(conv.TimeToNullFloat(future), conv.TimeToNullFloat(past)), "active rule should grant access")
+
+	// NotBefore in future, NotAfter in future: not yet active even though not expired.
+	require.Equal(t, EventNoPermissions, check(conv.TimeToNullFloat(future), conv.TimeToNullFloat(future)), "pending (not_before>now, not_after>now) should deny access")
+
+	// NotBefore in past, NotAfter in past: expired wins.
+	require.Equal(t, EventNoPermissions, check(conv.TimeToNullFloat(past), conv.TimeToNullFloat(past)), "expired rule with past not_before should deny access")
 }
 
 func TestManyEventPermissions_personRules(t *testing.T) {

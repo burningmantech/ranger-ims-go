@@ -18,7 +18,6 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"slices"
 	"strings"
@@ -118,16 +117,20 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 		for _, accessRow := range accessRowByEventID[e.ID] {
 			access := accessRow
 
-			expires := conv.NullFloatToTime(access.Expires)
-			expired := access.Expires.Valid && expires.Before(time.Now())
+			notBefore := conv.NullFloatToTime(access.NotBefore)
+			notAfter := conv.NullFloatToTime(access.NotAfter)
+			expired := access.NotAfter.Valid && notAfter.Before(time.Now())
+			pending := access.NotBefore.Valid && notBefore.After(time.Now())
 			rule := imsjson.AccessRule{
 				Expression: access.Expression,
 				Validity:   string(access.Validity),
-				Expires:    conv.NullFloatToTime(access.Expires),
+				NotAfter:   notAfter,
 				Expired:    expired,
+				NotBefore:  notBefore,
+				Pending:    pending,
 			}
 
-			if access.Expression == "*" && access.Validity == imsdb.EventAccessValidityAlways && !rule.Expired {
+			if access.Expression == "*" && access.Validity == imsdb.EventAccessValidityAlways && !rule.Expired && !rule.Pending {
 				rule.DebugInfo.MatchesAllUsers = true
 			} else {
 				for _, person := range users {
@@ -279,11 +282,8 @@ func (action PostEventAccess) maybeSetAccess(
 		if err != nil {
 			return herr.InternalServerError("Failed to clear event access", err).From("[ClearEventAccessForExpression]")
 		}
-		var expires sql.NullFloat64
-		if !rule.Expires.IsZero() {
-			expires.Float64 = conv.TimeToFloat(rule.Expires)
-			expires.Valid = true
-		}
+		notAfter := conv.TimeToNullFloat(rule.NotAfter)
+		notBefore := conv.TimeToNullFloat(rule.NotBefore)
 
 		_, err = action.imsDBQ.AddEventAccess(ctx, txn,
 			imsdb.AddEventAccessParams{
@@ -291,7 +291,8 @@ func (action PostEventAccess) maybeSetAccess(
 				Expression: rule.Expression,
 				Mode:       mode,
 				Validity:   imsdb.EventAccessValidity(rule.Validity),
-				Expires:    expires,
+				NotAfter:   notAfter,
+				NotBefore:  notBefore,
 			},
 		)
 		if err != nil {

@@ -23,10 +23,15 @@ type EventsAccess map[string]EventAccess
 type AccessRule struct {
 	Expression string    `json:"expression"`
 	Validity   string    `json:"validity"`
-	Expires    time.Time `json:"expires,omitzero"`
+	NotAfter   time.Time `json:"not_after,omitzero"`
 
-	// Expired is a read-only field, saying if the AccessRule's Expires time is in the past.
+	// Expired is a read-only field, saying if the AccessRule's NotAfter time is in the past.
 	Expired bool `json:"expired,omitzero"`
+
+	NotBefore time.Time `json:"not_before,omitzero"`
+
+	// Pending is a read-only field, saying if the AccessRule's NotBefore time is in the future.
+	Pending bool `json:"pending,omitzero"`
 
 	DebugInfo struct {
 		MatchesUsers    []string `json:"matches_users,omitempty"`

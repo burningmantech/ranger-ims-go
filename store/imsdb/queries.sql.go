@@ -111,8 +111,8 @@ func (q *Queries) AddActionLog(ctx context.Context, db DBTX, arg AddActionLogPar
 }
 
 const addEventAccess = `-- name: AddEventAccess :execlastid
-insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY, EXPIRES)
-values (?, ?, ?, ?, ?)
+insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY, NOT_AFTER, NOT_BEFORE)
+values (?, ?, ?, ?, ?, ?)
 `
 
 type AddEventAccessParams struct {
@@ -120,7 +120,8 @@ type AddEventAccessParams struct {
 	Expression string
 	Mode       EventAccessMode
 	Validity   EventAccessValidity
-	Expires    sql.NullFloat64
+	NotAfter   sql.NullFloat64
+	NotBefore  sql.NullFloat64
 }
 
 func (q *Queries) AddEventAccess(ctx context.Context, db DBTX, arg AddEventAccessParams) (int64, error) {
@@ -129,7 +130,8 @@ func (q *Queries) AddEventAccess(ctx context.Context, db DBTX, arg AddEventAcces
 		arg.Expression,
 		arg.Mode,
 		arg.Validity,
-		arg.Expires,
+		arg.NotAfter,
+		arg.NotBefore,
 	)
 	if err != nil {
 		return 0, err
@@ -631,7 +633,7 @@ func (q *Queries) Event(ctx context.Context, db DBTX, id int32) (EventRow, error
 }
 
 const eventAccessAll = `-- name: EventAccessAll :many
-select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
+select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.not_after, ea.not_before
 from EVENT_ACCESS ea
 `
 
@@ -654,7 +656,8 @@ func (q *Queries) EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAll
 			&i.EventAccess.Expression,
 			&i.EventAccess.Mode,
 			&i.EventAccess.Validity,
-			&i.EventAccess.Expires,
+			&i.EventAccess.NotAfter,
+			&i.EventAccess.NotBefore,
 		); err != nil {
 			return nil, err
 		}
@@ -670,14 +673,14 @@ func (q *Queries) EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAll
 }
 
 const eventAndParentAccess = `-- name: EventAndParentAccess :many
-select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
+select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.not_after, ea.not_before
 from ` + "`" + `EVENT` + "`" + ` e
     join EVENT_ACCESS ea
         on e.ID = ea.EVENT
 where e.ID = ?
     and not e.IS_GROUP
 union all
-select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.expires
+select ea.id, ea.event, ea.expression, ea.mode, ea.validity, ea.not_after, ea.not_before
 from ` + "`" + `EVENT` + "`" + ` e
     join EVENT_ACCESS ea
         on e.PARENT_GROUP = ea.EVENT
@@ -712,7 +715,8 @@ func (q *Queries) EventAndParentAccess(ctx context.Context, db DBTX, arg EventAn
 			&i.EventAccess.Expression,
 			&i.EventAccess.Mode,
 			&i.EventAccess.Validity,
-			&i.EventAccess.Expires,
+			&i.EventAccess.NotAfter,
+			&i.EventAccess.NotBefore,
 		); err != nil {
 			return nil, err
 		}

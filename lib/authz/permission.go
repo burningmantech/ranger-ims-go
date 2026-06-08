@@ -203,7 +203,10 @@ func PersonMatches(
 	onsite bool,
 	onDutyPosition string,
 ) bool {
-	if ea.Expires.Valid && conv.FloatToTime(ea.Expires.Float64).Before(time.Now()) {
+	if ea.NotAfter.Valid && conv.FloatToTime(ea.NotAfter.Float64).Before(time.Now()) {
+		return false
+	}
+	if ea.NotBefore.Valid && conv.FloatToTime(ea.NotBefore.Float64).After(time.Now()) {
 		return false
 	}
 	matchExpr := false

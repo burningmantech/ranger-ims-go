@@ -299,7 +299,8 @@ type EventAccess struct {
 	Expression string
 	Mode       EventAccessMode
 	Validity   EventAccessValidity
-	Expires    sql.NullFloat64
+	NotAfter   sql.NullFloat64
+	NotBefore  sql.NullFloat64
 }
 
 type FieldReport struct {

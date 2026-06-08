@@ -158,8 +158,8 @@ test("admin_events", async ({ browser }) => {
     await expect(writers).not.toContainText("Expired");
     await expect(writers).toContainText("Unknown");
 
-    await writers.getByRole("button", { name: "Set expiration" }).click();
-    const expirationTime = writers.getByRole("textbox", {name: "Expiration time"});
+    await writers.getByRole("button", { name: "Set not after" }).click();
+    const expirationTime = writers.getByRole("textbox", {name: "Not after time"});
     await expect(expirationTime).toBeVisible();
     await expirationTime.fill("2025-05-05T05:55");
     // focus anywhere else, so that the expirationTime oninput fires

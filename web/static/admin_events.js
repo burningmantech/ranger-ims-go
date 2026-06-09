@@ -39,10 +39,6 @@ async function initAdminEventsPage() {
         return;
     }
     window.setValidity = setValidity;
-    window.setNotAfter = setNotAfter;
-    window.showNotAfterInput = showNotAfterInput;
-    window.setNotBefore = setNotBefore;
-    window.showNotBeforeInput = showNotBeforeInput;
     window.addEvent = addEvent;
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
@@ -63,6 +59,7 @@ var Validity;
 const allAccessModes = ["readers", "writers", "reporters", "visit_writers"];
 let sortedEvents;
 let accessControlList = null;
+let flatpickrIdCounter = 0;
 async function loadAccessControlList() {
     const { json: eventsJson, err: eventsErr } = await ims.fetchNoThrow(url_events + "?include_groups=true", {
         headers: { "Cache-Control": "no-cache" },
@@ -190,17 +187,23 @@ function updateEventAccess(event, mode) {
         if (accessEntry.debug_info) {
             let unknownSuffix = "";
             if (accessEntry.debug_info?.known_target !== true) {
-                unknownSuffix = " (Unknown)";
+                unknownSuffix = " (unknown target)";
             }
-            let expiredSuffix = "";
-            if (accessEntry.expired) {
-                expiredSuffix = " (Expired)";
+            let intervalSuffix = "";
+            if (!accessEntry.pending && !accessEntry.expired) {
+                // We're in the interval
+                intervalSuffix = "";
             }
-            let pendingSuffix = "";
-            if (accessEntry.pending) {
-                pendingSuffix = " (Pending)";
+            else if (accessEntry.pending && !accessEntry.expired) {
+                intervalSuffix = " (pending)";
             }
-            let msg = `${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${expiredSuffix}${pendingSuffix}\n`;
+            else if (!accessEntry.pending && accessEntry.expired) {
+                intervalSuffix = " (expired)";
+            }
+            else {
+                intervalSuffix = " (invalid interval)";
+            }
+            let msg = `${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${intervalSuffix}\n`;
             if (accessEntry.debug_info.matches_no_one) {
                 msg += `${indent}NO users`;
             }
@@ -215,49 +218,37 @@ function updateEventAccess(event, mode) {
         }
         const validityField = entryItem.getElementsByClassName("access_validity")[0];
         validityField.value = accessEntry.validity;
-        const notAfterField = entryItem.getElementsByClassName("access_not_after")[0];
-        const notAfterButton = entryItem.getElementsByClassName("access_not_after_button")[0];
+        const notAfterInput = entryItem.getElementsByClassName("access_not_after")[0];
+        ims.newFlatpickr(notAfterInput, `alt_not_after_${flatpickrIdCounter++}`, (selectedDates) => {
+            saveNotAfter(entryItem, selectedDates[0] ?? null);
+        });
         if (accessEntry.not_after) {
-            const d = new Date(accessEntry.not_after);
-            notAfterField.value = `${ims.localDateISO(d)}T${ims.localTimeHHMM(d)}`;
-            notAfterField.classList.remove("hidden");
-            notAfterButton.classList.add("hidden");
+            notAfterInput._flatpickr.setDate(new Date(accessEntry.not_after), false, "Z");
         }
-        else {
-            notAfterField.value = "";
-            notAfterField.classList.add("hidden");
-            notAfterButton.classList.remove("hidden");
-        }
-        const expiredText = entryItem.getElementsByClassName("access_expired_text")[0];
-        if (accessEntry.expired) {
-            expiredText.textContent = "Expired";
-        }
-        else {
-            expiredText.textContent = "";
-        }
-        const notBeforeField = entryItem.getElementsByClassName("access_not_before")[0];
-        const notBeforeButton = entryItem.getElementsByClassName("access_not_before_button")[0];
+        const notBeforeInput = entryItem.getElementsByClassName("access_not_before")[0];
+        ims.newFlatpickr(notBeforeInput, `alt_not_before_${flatpickrIdCounter++}`, (selectedDates) => {
+            saveNotBefore(entryItem, selectedDates[0] ?? null);
+        });
         if (accessEntry.not_before) {
-            const d = new Date(accessEntry.not_before);
-            notBeforeField.value = `${ims.localDateISO(d)}T${ims.localTimeHHMM(d)}`;
-            notBeforeField.classList.remove("hidden");
-            notBeforeButton.classList.add("hidden");
+            notBeforeInput._flatpickr.setDate(new Date(accessEntry.not_before), false, "Z");
+        }
+        const intervalText = entryItem.getElementsByClassName("access_interval_text")[0];
+        if (!accessEntry.pending && !accessEntry.expired) {
+            // We're in the interval
+            intervalText.textContent = "";
+        }
+        else if (accessEntry.pending && !accessEntry.expired) {
+            intervalText.textContent = "Pending";
+        }
+        else if (!accessEntry.pending && accessEntry.expired) {
+            intervalText.textContent = "Expired";
         }
         else {
-            notBeforeField.value = "";
-            notBeforeField.classList.add("hidden");
-            notBeforeButton.classList.remove("hidden");
-        }
-        const pendingText = entryItem.getElementsByClassName("access_pending_text")[0];
-        if (accessEntry.pending) {
-            pendingText.textContent = "Pending";
-        }
-        else {
-            pendingText.textContent = "";
+            intervalText.textContent = "Invalid interval";
         }
         const unknownTargetText = entryItem.getElementsByClassName("unknown_target_text")[0];
         if (accessEntry.debug_info?.known_target !== true) {
-            unknownTargetText.textContent = "Unknown";
+            unknownTargetText.textContent = "Unknown target";
         }
         else {
             unknownTargetText.textContent = "";
@@ -420,33 +411,22 @@ async function setValidity(sender) {
     }
     sender.value = ""; // Clear input field
 }
-async function setNotAfter(sender) {
-    const container = sender.closest(".event_access");
+async function saveNotAfter(accessRow, date) {
+    const container = accessRow.closest(".event_access");
     const event = container.dataset["eventName"];
     const mode = container.dataset["accessMode"];
-    const accessRow = sender.closest("li");
     const expression = accessRow.dataset["expression"].trim();
     const validity = accessRow.dataset["validity"].trim();
     const notBefore = accessRow.dataset["not_before"] || null;
     let acl = accessControlList[event][mode].slice();
-    // remove other acls for this mode for the same expression
     acl = acl.filter((v) => { return v.expression !== expression; });
-    let notAfter = null;
-    if (sender.value) {
-        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date(sender.value))}`);
-        notAfter = theDate.toISOString();
+    const notAfter = date?.toISOString() ?? null;
+    if (notAfter) {
         console.log(`Setting not-after to ${notAfter}`);
     }
     else {
         console.log("Unsetting not-after");
     }
-    if (notBefore && notAfter && new Date(notBefore) >= new Date(notAfter)) {
-        const proceed = confirm("Not-before time is at or after the not-after time, so this permission will never grant access. Proceed?");
-        if (!proceed) {
-            updateEventAccess(event, mode);
-            return;
-        }
-    }
     const newVal = {
         "expression": expression,
         "validity": validity === "onsite" ? Validity.onsite : Validity.always,
@@ -463,43 +443,26 @@ async function setNotAfter(sender) {
         updateEventAccess(event, mode);
     }
     if (err != null) {
-        ims.controlHasError(sender);
+        ims.controlHasError(accessRow.getElementsByClassName("access_not_after")[0]);
         return;
     }
 }
-async function showNotAfterInput(sender) {
-    const accessRow = sender.closest("li");
-    sender.classList.add("hidden");
-    const notAfterField = accessRow.getElementsByClassName("access_not_after")[0];
-    notAfterField.classList.remove("hidden");
-}
-async function setNotBefore(sender) {
-    const container = sender.closest(".event_access");
+async function saveNotBefore(accessRow, date) {
+    const container = accessRow.closest(".event_access");
     const event = container.dataset["eventName"];
     const mode = container.dataset["accessMode"];
-    const accessRow = sender.closest("li");
     const expression = accessRow.dataset["expression"].trim();
     const validity = accessRow.dataset["validity"].trim();
     const notAfter = accessRow.dataset["not_after"] || null;
     let acl = accessControlList[event][mode].slice();
-    // remove other acls for this mode for the same expression
     acl = acl.filter((v) => { return v.expression !== expression; });
-    let notBefore = null;
-    if (sender.value) {
-        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date(sender.value))}`);
-        notBefore = theDate.toISOString();
+    const notBefore = date?.toISOString() ?? null;
+    if (notBefore) {
         console.log(`Setting not-before to ${notBefore}`);
     }
     else {
         console.log("Unsetting not-before");
     }
-    if (notBefore && notAfter && new Date(notBefore) >= new Date(notAfter)) {
-        const proceed = confirm("Not-before time is at or after the not-after time, so this permission will never grant access. Proceed?");
-        if (!proceed) {
-            updateEventAccess(event, mode);
-            return;
-        }
-    }
     const newVal = {
         "expression": expression,
         "validity": validity === "onsite" ? Validity.onsite : Validity.always,
@@ -516,15 +479,9 @@ async function setNotBefore(sender) {
         updateEventAccess(event, mode);
     }
     if (err != null) {
-        ims.controlHasError(sender);
+        ims.controlHasError(accessRow.getElementsByClassName("access_not_before")[0]);
         return;
     }
-}
-async function showNotBeforeInput(sender) {
-    const accessRow = sender.closest("li");
-    sender.classList.add("hidden");
-    const notBeforeField = accessRow.getElementsByClassName("access_not_before")[0];
-    notBeforeField.classList.remove("hidden");
 }
 async function sendACL(edits) {
     const { err } = await ims.fetchNoThrow(url_acl, {

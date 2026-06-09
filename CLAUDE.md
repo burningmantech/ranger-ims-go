@@ -26,6 +26,8 @@ make build
 
 The build outputs a `ranger-ims-go` binary in the project root.
 
+**Always use the build script for code generation.** Do not run individual generators (templ, tsgo, sqlc) separately — use `go run bin/build/build.go` or `make build` instead, as the script runs all generators in the correct order.
+
 ### Running the Server
 
 Run with MariaDB (requires `.env` file configuration):

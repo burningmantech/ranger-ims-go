@@ -21,10 +21,6 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         setValidity: (el: HTMLSelectElement)=>Promise<void>;
-        setNotAfter: (el: HTMLInputElement) => Promise<void>;
-        showNotAfterInput: (el: HTMLButtonElement) => Promise<void>;
-        setNotBefore: (el: HTMLInputElement) => Promise<void>;
-        showNotBeforeInput: (el: HTMLButtonElement) => Promise<void>;
         addAccess: (el: HTMLInputElement)=>Promise<void>;
         addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
         removeAccess: (el: HTMLButtonElement)=>Promise<void>;
@@ -59,10 +55,6 @@ async function initAdminEventsPage(): Promise<void> {
     }
 
     window.setValidity = setValidity;
-    window.setNotAfter = setNotAfter;
-    window.showNotAfterInput = showNotAfterInput;
-    window.setNotBefore = setNotBefore;
-    window.showNotBeforeInput = showNotBeforeInput;
     window.addEvent = addEvent;
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
@@ -110,6 +102,7 @@ type EventsAccess = Record<string, EventAccess|null>;
 
 let sortedEvents: ims.EventData[];
 let accessControlList: EventsAccess|null = null;
+let flatpickrIdCounter = 0;
 
 async function loadAccessControlList() : Promise<{err: string|null}> {
     const {json: eventsJson, err: eventsErr} = await ims.fetchNoThrow<ims.EventData[]>(url_events + "?include_groups=true", {
@@ -262,17 +255,22 @@ function updateEventAccess(event: string, mode: AccessMode): void {
         if (accessEntry.debug_info) {
             let unknownSuffix: string = "";
             if (accessEntry.debug_info?.known_target !== true) {
-                unknownSuffix = " (Unknown)";
+                unknownSuffix = " (unknown target)";
             }
-            let expiredSuffix: string = "";
-            if (accessEntry.expired) {
-                expiredSuffix = " (Expired)"
+
+            let intervalSuffix = "";
+            if (!accessEntry.pending && !accessEntry.expired) {
+                // We're in the interval
+                intervalSuffix = "";
+            } else if (accessEntry.pending && !accessEntry.expired) {
+                intervalSuffix = " (pending)";
+            } else if (!accessEntry.pending && accessEntry.expired) {
+                intervalSuffix = " (expired)";
+            } else {
+                intervalSuffix = " (invalid interval)";
             }
-            let pendingSuffix: string = "";
-            if (accessEntry.pending) {
-                pendingSuffix = " (Pending)"
-            }
-            let msg: string = `${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${expiredSuffix}${pendingSuffix}\n`;
+
+            let msg: string = `${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${intervalSuffix}\n`;
             if (accessEntry.debug_info.matches_no_one) {
                 msg += `${indent}NO users`;
             } else if (accessEntry.debug_info.matches_all_users) {
@@ -287,46 +285,35 @@ function updateEventAccess(event: string, mode: AccessMode): void {
         const validityField = entryItem.getElementsByClassName("access_validity")[0] as HTMLSelectElement;
         validityField.value = accessEntry.validity;
 
-        const notAfterField = entryItem.getElementsByClassName("access_not_after")[0] as HTMLInputElement;
-        const notAfterButton = entryItem.getElementsByClassName("access_not_after_button")[0] as HTMLButtonElement;
+        const notAfterInput = entryItem.getElementsByClassName("access_not_after")[0] as ims.FlatpickrHTMLInputElement;
+        ims.newFlatpickr(notAfterInput, `alt_not_after_${flatpickrIdCounter++}`, (selectedDates) => {
+            saveNotAfter(entryItem, selectedDates[0] ?? null);
+        });
         if (accessEntry.not_after) {
-            const d = new Date(accessEntry.not_after);
-            notAfterField.value = `${ims.localDateISO(d)}T${ims.localTimeHHMM(d)}`;
-            notAfterField.classList.remove("hidden");
-            notAfterButton.classList.add("hidden");
-        } else {
-            notAfterField.value = "";
-            notAfterField.classList.add("hidden");
-            notAfterButton.classList.remove("hidden");
-        }
-        const expiredText = entryItem.getElementsByClassName("access_expired_text")[0] as HTMLSpanElement;
-        if (accessEntry.expired) {
-            expiredText.textContent = "Expired";
-        } else {
-            expiredText.textContent = "";
+            notAfterInput._flatpickr.setDate(new Date(accessEntry.not_after), false, "Z");
         }
 
-        const notBeforeField = entryItem.getElementsByClassName("access_not_before")[0] as HTMLInputElement;
-        const notBeforeButton = entryItem.getElementsByClassName("access_not_before_button")[0] as HTMLButtonElement;
+        const notBeforeInput = entryItem.getElementsByClassName("access_not_before")[0] as ims.FlatpickrHTMLInputElement;
+        ims.newFlatpickr(notBeforeInput, `alt_not_before_${flatpickrIdCounter++}`, (selectedDates) => {
+            saveNotBefore(entryItem, selectedDates[0] ?? null);
+        });
         if (accessEntry.not_before) {
-            const d = new Date(accessEntry.not_before);
-            notBeforeField.value = `${ims.localDateISO(d)}T${ims.localTimeHHMM(d)}`;
-            notBeforeField.classList.remove("hidden");
-            notBeforeButton.classList.add("hidden");
-        } else {
-            notBeforeField.value = "";
-            notBeforeField.classList.add("hidden");
-            notBeforeButton.classList.remove("hidden");
+            notBeforeInput._flatpickr.setDate(new Date(accessEntry.not_before), false, "Z");
         }
-        const pendingText = entryItem.getElementsByClassName("access_pending_text")[0] as HTMLSpanElement;
-        if (accessEntry.pending) {
-            pendingText.textContent = "Pending";
+        const intervalText = entryItem.getElementsByClassName("access_interval_text")[0] as HTMLSpanElement;
+        if (!accessEntry.pending && !accessEntry.expired) {
+            // We're in the interval
+            intervalText.textContent = "";
+        } else if (accessEntry.pending && !accessEntry.expired) {
+            intervalText.textContent = "Pending";
+        } else if (!accessEntry.pending && accessEntry.expired) {
+            intervalText.textContent = "Expired";
         } else {
-            pendingText.textContent = "";
+            intervalText.textContent = "Invalid interval";
         }
         const unknownTargetText = entryItem.getElementsByClassName("unknown_target_text")[0] as HTMLSpanElement;
         if (accessEntry.debug_info?.known_target !== true) {
-            unknownTargetText.textContent = "Unknown";
+            unknownTargetText.textContent = "Unknown target";
         } else {
             unknownTargetText.textContent = "";
         }
@@ -522,40 +509,24 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
     sender.value = "";  // Clear input field
 }
 
-async function setNotAfter(sender: HTMLInputElement): Promise<void> {
-    const container: HTMLElement = sender.closest(".event_access")!;
+async function saveNotAfter(accessRow: HTMLLIElement, date: Date|null): Promise<void> {
+    const container: HTMLElement = accessRow.closest(".event_access")!;
     const event = container.dataset["eventName"]!;
     const mode = container.dataset["accessMode"] as AccessMode;
-
-    const accessRow = sender.closest("li") as HTMLLIElement;
     const expression = accessRow.dataset["expression"]!.trim();
     const validity = accessRow.dataset["validity"]!.trim();
     const notBefore = accessRow.dataset["not_before"]||null;
 
     let acl: Access[] = accessControlList![event]![mode]!.slice();
-
-    // remove other acls for this mode for the same expression
     acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
 
-    let notAfter: string|null = null;
-    if (sender.value) {
-        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date(sender.value))}`);
-        notAfter = theDate.toISOString();
+    const notAfter: string|null = date?.toISOString() ?? null;
+    if (notAfter) {
         console.log(`Setting not-after to ${notAfter}`);
     } else {
         console.log("Unsetting not-after");
     }
 
-    if (notBefore && notAfter && new Date(notBefore) >= new Date(notAfter)) {
-        const proceed = confirm(
-            "Not-before time is at or after the not-after time, so this permission will never grant access. Proceed?"
-        );
-        if (!proceed) {
-            updateEventAccess(event, mode);
-            return;
-        }
-    }
-
     const newVal: Access = {
         "expression": expression,
         "validity": validity === "onsite" ? Validity.onsite : Validity.always,
@@ -575,50 +546,27 @@ async function setNotAfter(sender: HTMLInputElement): Promise<void> {
         updateEventAccess(event, mode);
     }
     if (err != null) {
-        ims.controlHasError(sender);
+        ims.controlHasError(accessRow.getElementsByClassName("access_not_after")[0] as HTMLElement);
         return;
     }
 }
 
-async function showNotAfterInput(sender: HTMLButtonElement): Promise<void> {
-    const accessRow = sender.closest("li") as HTMLLIElement;
-    sender.classList.add("hidden");
-    const notAfterField = accessRow.getElementsByClassName("access_not_after")[0] as HTMLInputElement;
-    notAfterField.classList.remove("hidden");
-}
-
-async function setNotBefore(sender: HTMLInputElement): Promise<void> {
-    const container: HTMLElement = sender.closest(".event_access")!;
+async function saveNotBefore(accessRow: HTMLLIElement, date: Date|null): Promise<void> {
+    const container: HTMLElement = accessRow.closest(".event_access")!;
     const event = container.dataset["eventName"]!;
     const mode = container.dataset["accessMode"] as AccessMode;
-
-    const accessRow = sender.closest("li") as HTMLLIElement;
     const expression = accessRow.dataset["expression"]!.trim();
     const validity = accessRow.dataset["validity"]!.trim();
     const notAfter = accessRow.dataset["not_after"]||null;
 
     let acl: Access[] = accessControlList![event]![mode]!.slice();
-
-    // remove other acls for this mode for the same expression
     acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
 
-    let notBefore: string|null = null;
-    if (sender.value) {
-        const theDate = new Date(`${sender.value}${ims.localTzOffset(new Date(sender.value))}`);
-        notBefore = theDate.toISOString();
+    const notBefore: string|null = date?.toISOString() ?? null;
+    if (notBefore) {
         console.log(`Setting not-before to ${notBefore}`);
     } else {
         console.log("Unsetting not-before");
-    }
-
-    if (notBefore && notAfter && new Date(notBefore) >= new Date(notAfter)) {
-        const proceed = confirm(
-            "Not-before time is at or after the not-after time, so this permission will never grant access. Proceed?"
-        );
-        if (!proceed) {
-            updateEventAccess(event, mode);
-            return;
-        }
     }
 
     const newVal: Access = {
@@ -640,16 +588,9 @@ async function setNotBefore(sender: HTMLInputElement): Promise<void> {
         updateEventAccess(event, mode);
     }
     if (err != null) {
-        ims.controlHasError(sender);
+        ims.controlHasError(accessRow.getElementsByClassName("access_not_before")[0] as HTMLElement);
         return;
     }
-}
-
-async function showNotBeforeInput(sender: HTMLButtonElement): Promise<void> {
-    const accessRow = sender.closest("li") as HTMLLIElement;
-    sender.classList.add("hidden");
-    const notBeforeField = accessRow.getElementsByClassName("access_not_before")[0] as HTMLInputElement;
-    notBeforeField.classList.remove("hidden");
 }
 
 async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {

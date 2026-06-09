@@ -118,34 +118,25 @@ templ AdminEvents(deployment, versionName, versionRef string) {
       <button class="badge btn btn-danger float-end ms-1" onclick="removeAccess(this)">
         X
       </button>
-      <input
-          class="access_not_after hidden float-end"
-          type="datetime-local"
-          aria-label="Not after time"
-          onblur="setNotAfter(this)"
-          title="Not after: permission stops granting access after this time (your browser's time zone)"
-      />
-      <input
-          class="btn btn-xs btn-outline-secondary access_not_after_button float-end"
-          type="button"
-          value="Set not after"
-          onclick="showNotAfterInput(this)"
-      />
-      <input
-          class="access_not_before hidden float-end"
-          type="datetime-local"
-          aria-label="Not before time"
-          onblur="setNotBefore(this)"
-          title="Not before: permission does not grant access before this time (your browser's time zone)"
-      />
-      <input
-          class="btn btn-xs btn-outline-secondary access_not_before_button float-end"
-          type="button"
-          value="Set not before"
-          onclick="showNotBeforeInput(this)"
-      />
-      <span class="access_pending_text fw-bold float-end me-2" aria-label="Not-before info"></span>
-      <span class="access_expired_text fw-bold float-end me-2" aria-label="Not-after info"></span>
+      <span class="access_not_after_container float-end">
+        <input
+            class="access_not_after p-1 auto-width"
+            type="text"
+            aria-label="Not after time"
+            title="Not after: permission stops granting access after this time (your browser's time zone)"
+            placeholder="Not after"
+        />
+      </span>
+      <span class="access_not_before_container float-end">
+        <input
+            class="access_not_before p-1 me-1 auto-width"
+            type="text"
+            aria-label="Not before time"
+            title="Not before: permission does not grant access before this time (your browser's time zone)"
+            placeholder="Not before"
+        />
+      </span>
+      <span class="access_interval_text fw-bold float-end me-2" aria-label="Validity interval info"></span>
       <span class="unknown_target_text fw-bold float-end me-2" aria-label="Unknown info"></span>
     </li>
   </template>

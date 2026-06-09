@@ -403,3 +403,12 @@ h1 {
 .hover-placeholder:hover::placeholder {
   opacity: 1;
 }
+
+.w-160 {
+  width: 150px !important;
+}
+
+.auto-width {
+  field-sizing: content;  /* Automatically fits the text length */
+  min-width: 100px;       /* Keeps it from completely collapsing when empty */
+}

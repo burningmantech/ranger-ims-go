@@ -156,16 +156,19 @@ test("admin_events", async ({ browser }) => {
     await expect(writers.getByText("person:SomeGuy")).toBeVisible();
     await expect(writers.locator("select")).toHaveValue("onsite");
     await expect(writers).not.toContainText("Expired");
-    await expect(writers).toContainText("Unknown");
+    await expect(writers).toContainText("Unknown target");
 
-    await writers.getByRole("button", { name: "Set not after" }).click();
-    const expirationTime = writers.getByRole("textbox", {name: "Not after time"});
+
+    // TODO: this doesn't work on mobile!
+
+    const expirationTime = writers.getByRole("textbox", {name: "Not after"});
     await expect(expirationTime).toBeVisible();
-    await expirationTime.fill("2025-05-05T05:55");
+    await expirationTime.fill("Mon 2025-01-27 @ 11:11");
+
     // focus anywhere else, so that the expirationTime oninput fires
     await writers.getByRole("textbox", { name: "person:Tool" }).focus();
     await expect(writers).toContainText("Expired");
-    await expect(writers).toContainText("Unknown");
+    await expect(writers).toContainText("Unknown target");
 
   }).toPass();
 

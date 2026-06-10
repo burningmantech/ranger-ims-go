@@ -35,7 +35,7 @@ func (j JWTer) createJWT(claims IMSClaims) (string, error) {
 	return token, nil
 }
 
-func (j JWTer) authenticateJWT(jwtStr string) (*IMSClaims, error) {
+func (j JWTer) authenticateJWT(jwtStr, wantTokenType string) (*IMSClaims, error) {
 	if jwtStr == "" {
 		return nil, errors.New("no JWT string provided")
 	}
@@ -54,6 +54,12 @@ func (j JWTer) authenticateJWT(jwtStr string) (*IMSClaims, error) {
 	}
 	if claims.RangerHandle() == "" {
 		return nil, errors.New("ranger handle is required")
+	}
+	// Access and refresh tokens are both JWTs signed by the same key, so this
+	// check is what stops a refresh token from being used as a bearer access
+	// token (or an access token from being used to mint new access tokens).
+	if claims.TokenType != wantTokenType {
+		return nil, fmt.Errorf("token type %q is not valid here", claims.TokenType)
 	}
 	return &claims, nil
 }

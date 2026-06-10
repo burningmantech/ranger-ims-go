@@ -30,8 +30,9 @@ import (
 const RefreshTokenCookieName = "refresh_token"
 
 // CreateRefreshToken creates a refresh token, which the client can use to request new access tokens,
-// based on any updated claims from the UserStore. It's an implementation detail that this uses an
-// access token-style JWT. Ideally a refresh token is supposed to be persisted, so that it can be
+// based on any updated claims from the UserStore. It's an implementation detail that this is a JWT;
+// its "tok" claim marks it as a refresh token, so it cannot be used as an access token.
+// Ideally a refresh token is supposed to be persisted, so that it can be
 // invalidated from the server side. As a stopgap before we have such a per-user persistence component,
 // we instead rely on the security of JWT signing.
 func (j JWTer) CreateRefreshToken(rangerName string, clubhouseID int64, expiration time.Time) (string, error) {
@@ -40,15 +41,17 @@ func (j JWTer) CreateRefreshToken(rangerName string, clubhouseID int64, expirati
 			WithIssuedAt(time.Now()).
 			WithExpiration(expiration).
 			WithIssuer("ims").
+			WithTokenType(TokenTypeRefresh).
 			WithRangerHandle(rangerName).
 			WithSubject(strconv.FormatInt(clubhouseID, 10)),
 	)
 }
 
 // AuthenticateRefreshToken is like AuthenticateJWT, in that it validates that the
-// supplied token is valid (was signed by the same secret key and hasn't expired).
-// It's an implementation detail that refresh tokens are also JWTs. Clients of IMS
-// should treat them as simply opaque strings.
+// supplied token is valid (was signed by the same secret key, hasn't expired, and
+// is a refresh token rather than an access token). It's an implementation detail
+// that refresh tokens are also JWTs. Clients of IMS should treat them as simply
+// opaque strings.
 func (j JWTer) AuthenticateRefreshToken(refreshToken string) (*IMSClaims, error) {
-	return j.authenticateJWT(refreshToken)
+	return j.authenticateJWT(refreshToken, TokenTypeRefresh)
 }

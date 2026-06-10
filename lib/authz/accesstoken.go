@@ -41,6 +41,7 @@ func (j JWTer) CreateAccessToken(
 			WithIssuedAt(time.Now()).
 			WithExpiration(expiration).
 			WithIssuer("ims").
+			WithTokenType(TokenTypeAccess).
 			WithRangerHandle(rangerName).
 			WithRangerOnSite(onsite).
 			WithRangerOnDutyPosition(onDutyPositionID).
@@ -50,9 +51,9 @@ func (j JWTer) CreateAccessToken(
 	)
 }
 
-// AuthenticateJWT gives JWT claims for a valid, authenticated JWT string, or
+// AuthenticateJWT gives JWT claims for a valid, authenticated access token, or
 // returns an error otherwise. A JWT may be invalid because it was signed by a
-// different key, because it has expired, etc.
+// different key, because it has expired, because it isn't an access token, etc.
 func (j JWTer) AuthenticateJWT(jwtStr string) (*IMSClaims, error) {
-	return j.authenticateJWT(jwtStr)
+	return j.authenticateJWT(jwtStr, TokenTypeAccess)
 }

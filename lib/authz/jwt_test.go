@@ -99,3 +99,37 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 		require.Contains(t, err.Error(), "ranger handle is required")
 	}
 }
+
+func TestTokenTypesAreNotInterchangeable(t *testing.T) {
+	t.Parallel()
+	jwter := authz.JWTer{SecretKey: "some-secret"}
+
+	accessToken, err := jwter.CreateAccessToken(
+		"Hardware",
+		12345,
+		nil,
+		nil,
+		true,
+		new(int64(20)),
+		time.Now().Add(1*time.Hour),
+	)
+	require.NoError(t, err)
+	refreshToken, err := jwter.CreateRefreshToken("Hardware", 12345, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+
+	// Each token works for its intended purpose
+	_, err = jwter.AuthenticateJWT(accessToken)
+	require.NoError(t, err)
+	_, err = jwter.AuthenticateRefreshToken(refreshToken)
+	require.NoError(t, err)
+
+	// A refresh token must not be usable as an access token
+	_, err = jwter.AuthenticateJWT(refreshToken)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "token type")
+
+	// An access token must not be usable as a refresh token
+	_, err = jwter.AuthenticateRefreshToken(accessToken)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "token type")
+}

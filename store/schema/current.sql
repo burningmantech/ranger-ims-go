@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (32);
+insert into SCHEMA_INFO (VERSION) values (33);
 
 
 create table `EVENT` (
@@ -15,6 +15,7 @@ create table `EVENT` (
 
     IS_GROUP        boolean not null default false,
     PARENT_GROUP    integer,
+    MAP_URL         varchar(1024),
 
     primary key (ID),
     unique key (NAME),

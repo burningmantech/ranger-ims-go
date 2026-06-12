@@ -291,6 +291,7 @@ type Event struct {
 	Name        string
 	IsGroup     bool
 	ParentGroup sql.NullInt32
+	MapUrl      sql.NullString
 }
 
 type EventAccess struct {

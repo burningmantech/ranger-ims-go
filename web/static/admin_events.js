@@ -43,6 +43,7 @@ async function initAdminEventsPage() {
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
+    window.setMapURL = setMapURL;
     el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
     await loadAccessControlList();
     drawAccess();
@@ -123,6 +124,10 @@ function drawAccess() {
             parentGroupInput.disabled = event.is_group ?? false;
             const currentParent = sortedEvents.find(value => { return value.id === event.parent_group; });
             parentGroupInput.value = currentParent?.name ?? "";
+            const mapURLInput = el.editEventModal.querySelector("#edit_map_url");
+            // groups can't have map URLs
+            mapURLInput.disabled = event.is_group ?? false;
+            mapURLInput.value = event.map_url ?? "";
             editEventModal?.show();
         });
         for (const mode of allAccessModes) {
@@ -520,6 +525,30 @@ async function setParentGroup(sender) {
         }
         requestBod.parent_group = newParent.id;
     }
+    const { err } = await ims.fetchNoThrow(url_events, {
+        body: JSON.stringify(requestBod),
+    });
+    if (err != null) {
+        const message = `Failed to edit event: ${err}`;
+        console.log(message);
+        window.alert(message);
+        await loadAccessControlList();
+        drawAccess();
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender);
+    await loadAccessControlList();
+    drawAccess();
+}
+async function setMapURL(sender) {
+    const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"]);
+    const requestBod = {
+        id: eventId,
+        // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.
+        name: null,
+        map_url: sender.value,
+    };
     const { err } = await ims.fetchNoThrow(url_events, {
         body: JSON.stringify(requestBod),
     });

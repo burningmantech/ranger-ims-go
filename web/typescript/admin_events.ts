@@ -25,6 +25,7 @@ declare global {
         addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
         removeAccess: (el: HTMLButtonElement)=>Promise<void>;
         setParentGroup: (el: HTMLInputElement) => Promise<void>;
+        setMapURL: (el: HTMLInputElement) => Promise<void>;
     }
 }
 
@@ -59,6 +60,7 @@ async function initAdminEventsPage(): Promise<void> {
     window.addAccess = addAccess;
     window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
+    window.setMapURL = setMapURL;
 
     el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -176,6 +178,11 @@ function drawAccess(): void {
             parentGroupInput.disabled = event.is_group??false;
             const currentParent = sortedEvents.find(value => {return value.id === event.parent_group});
             parentGroupInput.value = currentParent?.name??"";
+
+            const mapURLInput = el.editEventModal.querySelector("#edit_map_url") as HTMLInputElement;
+            // groups can't have map URLs
+            mapURLInput.disabled = event.is_group??false;
+            mapURLInput.value = event.map_url??"";
 
             editEventModal?.show();
         })
@@ -632,6 +639,32 @@ async function setParentGroup(sender: HTMLInputElement): Promise<void> {
         }
         requestBod.parent_group = newParent.id;
     }
+    const {err} = await ims.fetchNoThrow(url_events, {
+        body: JSON.stringify(requestBod),
+    });
+    if (err != null) {
+        const message = `Failed to edit event: ${err}`;
+        console.log(message);
+        window.alert(message);
+        await loadAccessControlList();
+        drawAccess();
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender);
+    await loadAccessControlList();
+    drawAccess();
+}
+
+async function setMapURL(sender: HTMLInputElement): Promise<void> {
+    const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"])!;
+
+    const requestBod: ims.EventData = {
+        id: eventId,
+        // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.
+        name: null,
+        map_url: sender.value,
+    };
     const {err} = await ims.fetchNoThrow(url_events, {
         body: JSON.stringify(requestBod),
     });

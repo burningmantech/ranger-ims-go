@@ -46,6 +46,10 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             <label for="edit_parent_group" class="control-label input-group-text">Parent Group</label>
             <input id="edit_parent_group" type="text" class="form-control form-control-sm" onchange="setParentGroup(this);" />
           </div>
+          <div class="input-group mb-3">
+            <label for="edit_map_url" class="control-label input-group-text">Map URL</label>
+            <input id="edit_map_url" type="url" class="form-control form-control-sm" onchange="setMapURL(this);" placeholder="https://example.com/map.pdf" />
+          </div>
         </div>
       </div>
     </div>

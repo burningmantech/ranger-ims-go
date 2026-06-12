@@ -60,8 +60,8 @@ func main() {
 	must(err)
 
 	must(fs.WalkDir(repo.FS(), ".", func(path string, d fs.DirEntry, err error) error {
-		if strings.Contains(path, "/node_modules/") {
-			return nil
+		if d.IsDir() && d.Name() == "node_modules" {
+			return fs.SkipDir
 		}
 		// conveniently, all of .go, .templ, and .ts support double slashed comments
 		relevantType := strings.HasSuffix(d.Name(), ".go") ||

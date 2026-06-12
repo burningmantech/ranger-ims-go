@@ -1,0 +1,23 @@
+{
+  // TypeScript project for the Vitest test files in this directory. This config
+  // is never used by the build (bin/build/build.go compiles only the root
+  // tsconfig.json project, which includes just web/typescript/*.ts). It exists
+  // for IDE support and for `npm run typecheck`.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "../..",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // Don't auto-include @types/node globals: its setTimeout/setInterval
+    // typings conflict with the DOM ones that the production code relies on.
+    // Node builtins are imported explicitly (e.g. "node:fs") where needed.
+    "types": [],
+    "skipLibCheck": true
+  },
+  // urls.ts is included for its global url_* declarations; other production
+  // files enter the program through test imports. The full web/typescript
+  // project is type-checked by the build (root tsconfig.json), where the
+  // @types/node setTimeout/setInterval typings aren't in play.
+  "include": ["./**/*.ts", "../typescript/urls.ts", "../../vitest.config.ts"]
+}

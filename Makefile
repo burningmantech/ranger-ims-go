@@ -14,11 +14,24 @@ build:
 test:
 	go test -v -race ./... && echo "All tests passed"
 
+## test/ts: run all TypeScript tests
+.PHONY: test/ts
+test/ts:
+	npm install
+	npm test
+
 ## cover: run all go tests and open a coverage report
 .PHONY: cover
 cover:
 	go test -race -covermode=atomic -coverprofile=coverage.out --coverpkg ./... ./...
 	go tool cover -html=coverage.out
+
+## cover/ts: run all TypeScript tests and open a coverage report
+.PHONY: cover/ts
+cover/ts:
+	npm install
+	npm run test:coverage
+	open coverage/index.html
 
 ## run: run the server
 .PHONY: run

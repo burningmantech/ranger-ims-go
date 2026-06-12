@@ -1,0 +1,21 @@
+{
+  "name": "ranger-ims-go",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fixtures": "go run bin/rendertestfixtures/rendertestfixtures.go",
+    "pretest": "npm run fixtures",
+    "test": "vitest run",
+    "pretest:watch": "npm run fixtures",
+    "test:watch": "vitest",
+    "pretest:coverage": "npm run fixtures",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "go tool tsgo -p web/typescripttest --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "happy-dom": "^20.0.0",
+    "vitest": "^4.0.0"
+  }
+}

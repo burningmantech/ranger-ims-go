@@ -337,6 +337,16 @@ export async function getAuthInfo() {
     const url = url_auth + (pathIds.eventName ? `?event_id=${pathIds.eventName}` : "");
     return await fetchNoThrow(url, null);
 }
+// setupMapLink points the given Map link at the current event's map URL and
+// unhides it. The link stays hidden if the event has no map URL configured.
+export function setupMapLink(mapLink, events) {
+    const currentEvent = (events ?? []).find(e => e.name === pathIds.eventName);
+    if (!currentEvent?.map_url) {
+        return;
+    }
+    mapLink.href = currentEvent.map_url;
+    mapLink.classList.remove("d-none");
+}
 export async function redirectToLogin() {
     // This clears the refresh cookie
     await fetch(url_logout);

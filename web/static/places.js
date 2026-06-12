@@ -31,6 +31,7 @@ const el = {
     placeInfoModal: ims.typedElement("placeInfoModal", HTMLElement),
     placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
     placeBody: ims.typedElement("placeBody", HTMLElement),
+    mapLink: ims.typedElement("map-link", HTMLAnchorElement),
 };
 initPlacesPage();
 async function initPlacesPage() {
@@ -45,6 +46,7 @@ async function initPlacesPage() {
         return;
     }
     window.destShowRows = destShowRows;
+    ims.setupMapLink(el.mapLink, await initResult.eventDatas);
     ims.disableEditing();
     initPlacesTable();
     // Keyboard shortcuts

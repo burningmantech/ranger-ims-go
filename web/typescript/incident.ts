@@ -151,7 +151,7 @@ async function initIncidentPage(): Promise<void> {
 
     allEvents = await initResult.eventDatas;
 
-    setupMapLink(allEvents);
+    ims.setupMapLink(el.mapLink, allEvents);
 
     ims.newFlatpickr("#started_datetime", "alt_started_datetime", setStartDatetime);
 
@@ -884,17 +884,6 @@ function drawLocationAddress() {
         return;
     }
     el.locationAddress.value = incident.location.address??"";
-}
-
-// setupMapLink shows the Map link in the Location card header if the current
-// event has a map URL configured. The link opens the map in a new tab.
-function setupMapLink(events: ims.EventData[]|null): void {
-    const currentEvent = (events??[]).find(e => e.name === ims.pathIds.eventName);
-    if (!currentEvent?.map_url) {
-        return;
-    }
-    el.mapLink.href = currentEvent.map_url;
-    el.mapLink.classList.remove("d-none");
 }
 
 function drawLocationDescription() {

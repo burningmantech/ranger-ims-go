@@ -31,6 +31,7 @@ declare global {
 const el = {
     placeForm: ims.typedElement("place-form", HTMLFormElement),
     eventName: ims.typedElement("event-name", HTMLInputElement),
+    eventNames: ims.typedElement("event-names", HTMLDataListElement),
     artData: ims.typedElement("art-data", HTMLTextAreaElement),
     campData: ims.typedElement("camp-data", HTMLTextAreaElement),
     mvData: ims.typedElement("mv-data", HTMLTextAreaElement),
@@ -54,6 +55,20 @@ async function initAdminPlacesPage(): Promise<void> {
         e.preventDefault();
         await submit();
     })
+    drawEventNames(await initResult.eventDatas);
+}
+
+function drawEventNames(events: ims.EventData[]|null): void {
+    el.eventNames.replaceChildren();
+    for (const event of events??[]) {
+        // groups are containers for events; they have no places of their own
+        if (event.is_group) {
+            continue;
+        }
+        const option: HTMLOptionElement = document.createElement("option");
+        option.value = event.name;
+        el.eventNames.append(option);
+    }
 }
 
 function parsePlaces(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextAreaElement, mvDataEl: HTMLTextAreaElement, otherDataEl: HTMLTextAreaElement): ims.Places {

@@ -158,3 +158,73 @@ func TestEditFieldReportReportEntry(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 }
+
+func TestEditVisitReportEntry(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	// Use the admin JWT to create a new event,
+	// then give the normal user VisitWriter role on that event
+	eventName := rand.NonCryptoText()
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp = apisAdmin.addVisitWriter(ctx, eventName, userAliceHandle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Use normal user to create a new Visit
+	visitReq := sampleVisit1(eventName)
+	entryReq := visitReq.ReportEntries[0]
+	num := apisNonAdmin.newVisitSuccess(ctx, visitReq)
+
+	// Use normal user to fetch that Visit from the API.
+	// The first report entry is the system entry. The second should be the one we sent in the request
+	retrievedVisit, resp := apisNonAdmin.getVisit(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, retrievedVisit.ReportEntries, 2)
+	reportEntry := retrievedVisit.ReportEntries[1]
+	require.Equal(t, entryReq.Text, reportEntry.Text)
+
+	// Strike that report entry
+	reportEntry.Stricken = new(true)
+	resp = apisNonAdmin.updateVisitReportEntry(ctx, eventName, num, reportEntry)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Check that the striking worked
+	retrievedVisit, resp = apisNonAdmin.getVisit(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	reportEntry = retrievedVisit.ReportEntries[1]
+	require.True(t, *reportEntry.Stricken)
+
+	// Unstrike that report entry
+	reportEntry.Stricken = new(false)
+	resp = apisNonAdmin.updateVisitReportEntry(ctx, eventName, num, reportEntry)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Check that the unstriking worked
+	retrievedVisit, resp = apisNonAdmin.getVisit(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	reportEntry = retrievedVisit.ReportEntries[1]
+	require.False(t, *reportEntry.Stricken)
+
+	// If no Stricken value is provided, nothing happens
+	reportEntry.Stricken = nil
+	resp = apisNonAdmin.updateVisitReportEntry(ctx, eventName, num, reportEntry)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Striking an entry on a nonexistent Visit gives a 404
+	reportEntry.Stricken = new(true)
+	resp = apisNonAdmin.updateVisitReportEntry(ctx, eventName, num+100, reportEntry)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}

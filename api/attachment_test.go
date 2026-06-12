@@ -127,3 +127,43 @@ func TestSaveAndRetrieveLocalFile_Errors(t *testing.T) {
 	require.Error(t, httpError)
 	assert.Equal(t, http.StatusInternalServerError, httpError.Code)
 }
+
+func TestSafeToPreviewContentType(t *testing.T) {
+	t.Parallel()
+
+	// Known-safe media types pass through unaltered, with any params retained
+	assert.Equal(t, "application/pdf", safeToPreviewContentType("application/pdf"))
+	assert.Equal(t, "image/png", safeToPreviewContentType("image/png"))
+	assert.Equal(t, "video/mp4", safeToPreviewContentType("video/mp4"))
+	assert.Equal(t, "text/plain; charset=utf-8", safeToPreviewContentType("text/plain; charset=utf-8"))
+
+	// QuickTime is relabeled as video/mp4 so that Chromium browsers will play it
+	assert.Equal(t, "video/mp4", safeToPreviewContentType("video/quicktime"))
+
+	// Other text types are downgraded to text/plain (with params retained),
+	// so that browsers won't render them
+	assert.Equal(t, "text/plain", safeToPreviewContentType("text/html"))
+	assert.Equal(t, "text/plain; charset=utf-8", safeToPreviewContentType("text/html; charset=utf-8"))
+
+	// Scriptable and unknown media types become application/octet-stream
+	assert.Equal(t, octetStream, safeToPreviewContentType("image/svg+xml"))
+	assert.Equal(t, octetStream, safeToPreviewContentType("application/javascript"))
+	assert.Equal(t, octetStream, safeToPreviewContentType("application/json"))
+
+	// Unparseable content types become application/octet-stream too
+	assert.Equal(t, octetStream, safeToPreviewContentType(""))
+	assert.Equal(t, octetStream, safeToPreviewContentType("not a media type"))
+}
+
+func TestPreviewableContentType(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, previewableContentType("image/png"))
+	assert.True(t, previewableContentType("video/quicktime"))
+	// text types are previewable, because they get downgraded to text/plain
+	assert.True(t, previewableContentType("text/html"))
+
+	assert.False(t, previewableContentType("image/svg+xml"))
+	assert.False(t, previewableContentType("application/octet-stream"))
+	assert.False(t, previewableContentType(""))
+}

@@ -613,7 +613,7 @@ func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, db DBTX, a
 }
 
 const event = `-- name: Event :one
-select e.id, e.name, e.is_group, e.parent_group from EVENT e where ID = ?
+select e.id, e.name, e.is_group, e.parent_group, e.map_url from EVENT e where ID = ?
 `
 
 type EventRow struct {
@@ -628,6 +628,7 @@ func (q *Queries) Event(ctx context.Context, db DBTX, id int32) (EventRow, error
 		&i.Event.Name,
 		&i.Event.IsGroup,
 		&i.Event.ParentGroup,
+		&i.Event.MapUrl,
 	)
 	return i, err
 }
@@ -732,7 +733,7 @@ func (q *Queries) EventAndParentAccess(ctx context.Context, db DBTX, arg EventAn
 }
 
 const events = `-- name: Events :many
-select e.id, e.name, e.is_group, e.parent_group from EVENT e
+select e.id, e.name, e.is_group, e.parent_group, e.map_url from EVENT e
 `
 
 type EventsRow struct {
@@ -753,6 +754,7 @@ func (q *Queries) Events(ctx context.Context, db DBTX) ([]EventsRow, error) {
 			&i.Event.Name,
 			&i.Event.IsGroup,
 			&i.Event.ParentGroup,
+			&i.Event.MapUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -1544,7 +1546,7 @@ func (q *Queries) Places(ctx context.Context, db DBTX, arg PlacesParams) ([]Plac
 }
 
 const queryEventID = `-- name: QueryEventID :one
-select e.id, e.name, e.is_group, e.parent_group from EVENT e where e.NAME = ?
+select e.id, e.name, e.is_group, e.parent_group, e.map_url from EVENT e where e.NAME = ?
 `
 
 type QueryEventIDRow struct {
@@ -1559,6 +1561,7 @@ func (q *Queries) QueryEventID(ctx context.Context, db DBTX, name string) (Query
 		&i.Event.Name,
 		&i.Event.IsGroup,
 		&i.Event.ParentGroup,
+		&i.Event.MapUrl,
 	)
 	return i, err
 }
@@ -1714,7 +1717,8 @@ update ` + "`" + `EVENT` + "`" + `
 set
     NAME = ?,
     IS_GROUP = ?,
-    PARENT_GROUP = ?
+    PARENT_GROUP = ?,
+    MAP_URL = ?
 where ID = ?
 `
 
@@ -1722,6 +1726,7 @@ type UpdateEventParams struct {
 	Name        string
 	IsGroup     bool
 	ParentGroup sql.NullInt32
+	MapUrl      sql.NullString
 	ID          int32
 }
 
@@ -1730,6 +1735,7 @@ func (q *Queries) UpdateEvent(ctx context.Context, db DBTX, arg UpdateEventParam
 		arg.Name,
 		arg.IsGroup,
 		arg.ParentGroup,
+		arg.MapUrl,
 		arg.ID,
 	)
 	return err

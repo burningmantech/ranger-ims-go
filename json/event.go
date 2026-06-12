@@ -22,4 +22,5 @@ type Event struct {
 	Name        *string `json:"name"`
 	IsGroup     *bool   `json:"is_group"`
 	ParentGroup *int32  `json:"parent_group"`
+	MapURL      *string `json:"map_url"`
 }

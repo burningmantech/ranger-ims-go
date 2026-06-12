@@ -92,9 +92,19 @@ go tool tsgo
 
 ### Linting
 
+Go linting runs via pre-commit (golangci-lint configured in `.golangci.yml`, plus `go vet`, `go fmt`, `go mod tidy`, govulncheck, and license-header checks):
+```bash
+uvx pre-commit run --all-files
+```
+
 JavaScript/TypeScript linting:
 ```bash
 npx eslint
+```
+
+All source files require the Apache 2.0 license header (see any `.go` file). Add headers to new files automatically with:
+```bash
+go run bin/prependlicense/prependlicense.go
 ```
 
 ### Running a Single Test
@@ -170,6 +180,8 @@ The API (`api/` package) uses a custom middleware adapter pattern:
 - `AddToMux()` in `api/mux.go` registers all routes
 - Handlers implement a specific interface and are wrapped with middleware adapters
 - Middleware includes: authentication, logging, panic recovery, request size limits
+- Handlers return `*herr.HTTPError` (`lib/herr/`), which carries both an internal error and a client-safe response message
+- Real-time updates are pushed to clients via Server-Sent Events (`api/eventsource.go`); mutations publish events that the web UI listens for
 
 ### Web UI
 
@@ -191,6 +203,8 @@ The project uses several code generators (all invoked by the build script):
 1. **sqlc** - Generates type-safe Go code from SQL
 2. **templ** - Compiles `.templ` templates to Go code
 3. **tsgo** - TypeScript compiler wrapper that transpiles to JavaScript
+
+**Never hand-edit generated files**: `*_templ.go` files in `web/template/`, everything in `store/imsdb/` and `directory/clubhousedb/`, and the JavaScript in `web/static/` (generated from `web/typescript/`). Edit the source (`.templ`, `.sql`, `.ts`) and rebuild instead.
 
 ## Development Patterns
 

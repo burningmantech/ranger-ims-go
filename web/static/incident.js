@@ -46,6 +46,7 @@ const el = {
     incidentTypeInfoTemplate: ims.typedElement("incident-type-info-template", HTMLTemplateElement),
     showIncidentTypeInfo: ims.typedElement("show-incident-type-info", HTMLElement),
     placesList: ims.typedElement("places-list", HTMLDataListElement),
+    mapLink: ims.typedElement("map-link", HTMLAnchorElement),
     attachedFieldReportLiTemplate: ims.typedElement("attached_field_report_li_template", HTMLTemplateElement),
     attachedFieldReportAddContainer: ims.typedElement("attached_field_report_add_container", HTMLDivElement),
     attachedFieldReportAdd: ims.typedElement("attached_field_report_add", HTMLSelectElement),
@@ -102,6 +103,7 @@ async function initIncidentPage() {
         await loadAllFieldReports(),
     ]);
     allEvents = await initResult.eventDatas;
+    setupMapLink(allEvents);
     ims.newFlatpickr("#started_datetime", "alt_started_datetime", setStartDatetime);
     ims.disableEditing();
     displayIncident();
@@ -722,6 +724,16 @@ function drawLocationAddress() {
         return;
     }
     el.locationAddress.value = incident.location.address ?? "";
+}
+// setupMapLink shows the Map link in the Location card header if the current
+// event has a map URL configured. The link opens the map in a new tab.
+function setupMapLink(events) {
+    const currentEvent = (events ?? []).find(e => e.name === ims.pathIds.eventName);
+    if (!currentEvent?.map_url) {
+        return;
+    }
+    el.mapLink.href = currentEvent.map_url;
+    el.mapLink.classList.remove("d-none");
 }
 function drawLocationDescription() {
     if (incident.location?.description) {

@@ -1867,6 +1867,7 @@ export type EventData = {
     name: string,
     is_group?: boolean,
     parent_group?: number|null,
+    map_url?: string|null,
 }
 
 export interface Attachment {

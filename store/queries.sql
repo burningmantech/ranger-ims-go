@@ -18,7 +18,8 @@ update `EVENT`
 set
     NAME = ?,
     IS_GROUP = ?,
-    PARENT_GROUP = ?
+    PARENT_GROUP = ?,
+    MAP_URL = ?
 where ID = ?
 ;
 

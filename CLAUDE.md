@@ -69,6 +69,16 @@ go test ./store/integration
 go test ./api/integration
 ```
 
+Run TypeScript tests (Vitest, in `web/typescripttest/`; requires `npm install`):
+```bash
+npm test
+# or
+make test/ts
+```
+These run against templ-rendered HTML fixtures, which are regenerated automatically
+by the `pretest` script (`bin/rendertestfixtures`) into the gitignored
+`web/typescripttest/fixtures/` directory.
+
 Run Playwright browser tests (requires Playwright installed):
 ```bash
 cd playwright
@@ -194,6 +204,7 @@ The web UI uses:
 
 - **Unit tests**: Throughout the codebase using `testify` assertions
 - **Integration tests**: `store/integration/` and `api/integration/` use testcontainers to spin up real MariaDB
+- **TypeScript tests**: Vitest tests in `web/typescripttest/` (run with `npm test`), exercising the real TypeScript against templ-rendered HTML fixtures in happy-dom, with fetch/EventSource mocked
 - **Playwright tests**: Browser automation tests in `playwright/tests/`
 
 ### Code Generation Tools

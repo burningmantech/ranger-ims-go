@@ -21,7 +21,9 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         setValidity: (el: HTMLSelectElement)=>Promise<void>;
+        setLevel: (el: HTMLSelectElement)=>Promise<void>;
         addAccess: (el: HTMLInputElement)=>Promise<void>;
+        fixAccess: (el: HTMLInputElement)=>Promise<void>;
         addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
         removeAccess: (el: HTMLButtonElement)=>Promise<void>;
         setParentGroup: (el: HTMLInputElement) => Promise<void>;
@@ -42,8 +44,8 @@ const el = {
     editEventModal: ims.typedElement("editEventModal", HTMLElement),
     eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
     eventAccessTemplate: ims.typedElement("event_access_template", HTMLTemplateElement),
-    eventAccessModeTemplate: ims.typedElement("event_access_mode_template", HTMLTemplateElement),
-    permissionTemplate: ims.typedElement("permission_template", HTMLTemplateElement),
+    accessRuleTemplate: ims.typedElement("access_rule_template", HTMLTemplateElement),
+    accessTargetList: ims.typedElement("access_target_list", HTMLDataListElement),
 };
 
 initAdminEventsPage();
@@ -56,15 +58,18 @@ async function initAdminEventsPage(): Promise<void> {
     }
 
     window.setValidity = setValidity;
+    window.setLevel = setLevel;
     window.addEvent = addEvent;
     window.addAccess = addAccess;
+    window.fixAccess = fixAccess;
     window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
     window.setMapURL = setMapURL;
 
     el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    await loadAccessControlList();
+    await Promise.all([loadAccessControlList(), loadAccessTargets()]);
+    expandEventsWithIssues();
     drawAccess();
 
     explainModal = ims.bsModal(el.explainModal);
@@ -96,15 +101,29 @@ interface DebugInfo {
     known_target?: boolean|null
 }
 
+interface AccessTargets {
+    persons?: string[]|null;
+    positions?: string[]|null;
+    teams?: string[]|null;
+}
+
 const allAccessModes = ["readers", "writers", "reporters", "visit_writers"] as const;
 type AccessMode = typeof allAccessModes[number];
 type EventAccess = Partial<Record<AccessMode, Access[]>>;
 // key is event name
 type EventsAccess = Record<string, EventAccess|null>;
 
+const indent = "    ";
+
 let sortedEvents: ims.EventData[];
 let accessControlList: EventsAccess|null = null;
+// All valid rule expressions (e.g. "person:Tool"), or null if they couldn't be fetched.
+let validExpressions: Set<string>|null = null;
 let flatpickrIdCounter = 0;
+// Names of events whose rule tables are currently expanded.
+const expandedEvents = new Set<string>();
+// Rules (keyed by event|mode|expression) whose date editors are currently shown.
+const openDateEditors = new Set<string>();
 
 async function loadAccessControlList() : Promise<{err: string|null}> {
     const {json: eventsJson, err: eventsErr} = await ims.fetchNoThrow<ims.EventData[]>(url_events + "?include_groups=true", {
@@ -140,6 +159,55 @@ async function loadAccessControlList() : Promise<{err: string|null}> {
     return {err: null};
 }
 
+async function loadAccessTargets(): Promise<void> {
+    const {json, err} = await ims.fetchNoThrow<AccessTargets>(url_accessTargets, null);
+    if (err != null || json == null) {
+        // The typeahead and typo checking are conveniences; the page still works without them.
+        console.error(`Failed to load access targets: ${err}`);
+        return;
+    }
+    const expressions: string[] = ["*"];
+    for (const person of json.persons??[]) {
+        expressions.push(`person:${person}`);
+    }
+    for (const position of json.positions??[]) {
+        expressions.push(`position:${position}`);
+    }
+    for (const position of json.positions??[]) {
+        expressions.push(`onduty:${position}`);
+    }
+    for (const team of json.teams??[]) {
+        expressions.push(`team:${team}`);
+    }
+    validExpressions = new Set(expressions);
+    el.accessTargetList.replaceChildren(...expressions.map((expression: string): HTMLOptionElement => {
+        const option = document.createElement("option");
+        option.value = expression;
+        return option;
+    }));
+}
+
+function ruleHasIssue(accessEntry: Access): boolean {
+    const unknownTarget = accessEntry.debug_info?.known_target !== true;
+    const invalidInterval = !!(accessEntry.pending && accessEntry.expired);
+    return unknownTarget || invalidInterval;
+}
+
+// Expand events that have rules needing attention, so that their issues
+// are visible without any clicking around.
+function expandEventsWithIssues(): void {
+    if (accessControlList == null) {
+        return;
+    }
+    for (const [event, eventACL] of Object.entries(accessControlList)) {
+        for (const mode of allAccessModes) {
+            if ((eventACL?.[mode]??[]).some(ruleHasIssue)) {
+                expandedEvents.add(event);
+            }
+        }
+    }
+}
+
 function drawAccess(): void {
     el.eventAccessContainer.replaceChildren();
 
@@ -148,205 +216,277 @@ function drawAccess(): void {
     }
 
     for (const event of sortedEvents) {
-        const eventAccessFrag = el.eventAccessTemplate.content.cloneNode(true) as DocumentFragment;
-
-        let eventWithGroupName: string = event.name;
-        if (event.is_group) {
-            eventWithGroupName = `Group: ${eventWithGroupName}`;
-        }
-        if (event.parent_group) {
-            const parentGroup = sortedEvents.find(value => {return value.id === event.parent_group});
-            if (parentGroup) {
-                eventWithGroupName += ` (${parentGroup.name})`;
-            }
-        }
-
-        eventAccessFrag.querySelector(".event_name")!.textContent = eventWithGroupName;
-
-        const editButton = eventAccessFrag.querySelector(".show-edit-modal") as HTMLButtonElement;
-        editButton.addEventListener("click", (_e: MouseEvent): void => {
-            el.editEventModal.querySelector(".modal-title")!.textContent = event.name;
-            el.editEventModal.dataset["eventId"] = event.id.toString();
-
-            const isGroupInput = el.editEventModal.querySelector("#is_group") as HTMLInputElement;
-            isGroupInput.disabled = true;
-            isGroupInput.value = (event.is_group??false).toString();
-
-            const parentGroupInput = el.editEventModal.querySelector("#edit_parent_group") as HTMLInputElement;
-
-            // groups can't have parent groups
-            parentGroupInput.disabled = event.is_group??false;
-            const currentParent = sortedEvents.find(value => {return value.id === event.parent_group});
-            parentGroupInput.value = currentParent?.name??"";
-
-            const mapURLInput = el.editEventModal.querySelector("#edit_map_url") as HTMLInputElement;
-            // groups can't have map URLs
-            mapURLInput.disabled = event.is_group??false;
-            mapURLInput.value = event.map_url??"";
-
-            editEventModal?.show();
-        })
-
-        for (const mode of allAccessModes) {
-            const eventModeAccessFrag = el.eventAccessModeTemplate.content.cloneNode(true) as DocumentFragment;
-            const eventAccess = eventModeAccessFrag.querySelector("div")!;
-            // Add an id to the element for future reference
-            eventAccess.id = eventAccessContainerId(event.name, mode);
-            eventAccess.dataset["accessMode"] = mode;
-            eventAccess.dataset["eventName"] = event.name;
-            eventAccessFrag.append(eventModeAccessFrag);
-        }
-
-        el.eventAccessContainer.append(eventAccessFrag);
-
-        for (const mode of allAccessModes) {
-            updateEventAccess(event.name, mode);
-        }
+        el.eventAccessContainer.append(eventCard(event));
     }
 }
 
-function eventAccessContainerId(event: string, mode: string): string {
-    return "event_access_" + event + "_" + mode;
-}
+function eventCard(event: ims.EventData): DocumentFragment {
+    const cardFrag = el.eventAccessTemplate.content.cloneNode(true) as DocumentFragment;
+    const card = cardFrag.querySelector(".event_access") as HTMLElement;
+    card.dataset["eventName"] = event.name;
 
-function displayMode(m: AccessMode): string {
-    switch (m) {
-        case "readers":
-            return "Full readers";
-        case "writers":
-            return "Full writers";
-        case "reporters":
-            return "Reporters";
-        case "visit_writers":
-            return "Visit writers";
-        default:
-            throw new Error(`unexpected access mode ${m satisfies never}`);
+    let eventWithGroupName: string = event.name;
+    if (event.is_group) {
+        eventWithGroupName = `Group: ${eventWithGroupName}`;
     }
-}
-
-function updateEventAccess(event: string, mode: AccessMode): void {
-    if (accessControlList == null) {
-        return;
+    if (event.parent_group) {
+        const parentGroup = sortedEvents.find(value => {return value.id === event.parent_group});
+        if (parentGroup) {
+            eventWithGroupName += ` (${parentGroup.name})`;
+        }
     }
-    const eventACL: EventAccess|null|undefined = accessControlList[event];
-    if (eventACL == null) {
-        return;
+    card.querySelector(".event_name")!.textContent = eventWithGroupName;
+
+    // Wire up the collapsible rule table, restoring this event's expansion state.
+    const collapse = card.querySelector(".access_rules_collapse") as HTMLElement;
+    collapse.id = `access_rules_collapse_${event.id}`;
+    const collapseToggle = card.querySelector(".access_collapse_toggle") as HTMLButtonElement;
+    collapseToggle.setAttribute("data-bs-target", `#${collapse.id}`);
+    collapseToggle.setAttribute("aria-controls", collapse.id);
+    const chevron = card.querySelector(".access_collapse_chevron") as HTMLElement;
+    const expanded = expandedEvents.has(event.name);
+    collapseToggle.setAttribute("aria-expanded", expanded.toString());
+    chevron.textContent = expanded ? "▾" : "▸";
+    if (expanded) {
+        collapse.classList.add("show");
     }
+    // Track expansion on the "show"/"hide" events, which fire as soon as the
+    // toggle is clicked. The after-animation "shown"/"hidden" events may never
+    // fire if a rule edit redraws the cards mid-transition, and this set must
+    // be current by then for the redrawn card to stay expanded.
+    collapse.addEventListener("show.bs.collapse", (): void => {
+        expandedEvents.add(event.name);
+        collapseToggle.setAttribute("aria-expanded", "true");
+        chevron.textContent = "▾";
+    });
+    collapse.addEventListener("hide.bs.collapse", (): void => {
+        expandedEvents.delete(event.name);
+        collapseToggle.setAttribute("aria-expanded", "false");
+        chevron.textContent = "▸";
+    });
+    // Let a click anywhere else on the header toggle the collapse too, leaving
+    // the header's buttons (event name toggle, Explain, Edit) to handle their own clicks.
+    const cardHeader = card.querySelector(".card-header") as HTMLElement;
+    cardHeader.addEventListener("click", (e: MouseEvent): void => {
+        if ((e.target as HTMLElement).closest("button") == null) {
+            collapseToggle.click();
+        }
+    });
 
-    const eventAccess: HTMLElement = document.getElementById(eventAccessContainerId(event, mode))!;
+    const editButton = card.querySelector(".show-edit-modal") as HTMLButtonElement;
+    editButton.addEventListener("click", (_e: MouseEvent): void => {
+        el.editEventModal.querySelector(".modal-title")!.textContent = event.name;
+        el.editEventModal.dataset["eventId"] = event.id.toString();
 
-    // Set displayed event name and mode
-    eventAccess.getElementsByClassName("event_name")[0]!.textContent = event;
-    eventAccess.getElementsByClassName("access_mode")[0]!.textContent = displayMode(mode);
+        const isGroupInput = el.editEventModal.querySelector("#is_group") as HTMLInputElement;
+        isGroupInput.disabled = true;
+        isGroupInput.value = (event.is_group??false).toString();
 
-    const entryContainer = eventAccess.getElementsByClassName("list-group")[0]!;
+        const parentGroupInput = el.editEventModal.querySelector("#edit_parent_group") as HTMLInputElement;
 
-    entryContainer.replaceChildren();
+        // groups can't have parent groups
+        parentGroupInput.disabled = event.is_group??false;
+        const currentParent = sortedEvents.find(value => {return value.id === event.parent_group});
+        parentGroupInput.value = currentParent?.name??"";
 
-    let explainMsgs: string[] = [];
-    const indent = "    ";
-    const accessEntries = (eventACL[mode]??[]).toSorted((a, b) => a.expression.localeCompare(b.expression));
-    for (const accessEntry of accessEntries) {
-        const entryItemFrag = el.permissionTemplate.content.cloneNode(true) as DocumentFragment;
-        const entryItem = entryItemFrag.querySelector("li")!;
+        const mapURLInput = el.editEventModal.querySelector("#edit_map_url") as HTMLInputElement;
+        // groups can't have map URLs
+        mapURLInput.disabled = event.is_group??false;
+        mapURLInput.value = event.map_url??"";
 
-        entryItem.append(accessEntry.expression);
-        entryItem.dataset["expression"] = accessEntry.expression;
-        entryItem.dataset["validity"] = accessEntry.validity;
+        editEventModal?.show();
+    });
 
-        entryItem.dataset["not_after"] = accessEntry.not_after??"";
-        entryItem.dataset["expired"] = accessEntry.expired ? "true" : "false";
-        entryItem.dataset["not_before"] = accessEntry.not_before??"";
-        entryItem.dataset["pending"] = accessEntry.pending ? "true" : "false";
-
-        if (accessEntry.debug_info) {
-            let unknownSuffix: string = "";
-            if (accessEntry.debug_info?.known_target !== true) {
-                unknownSuffix = " (unknown target)";
+    const tbody = card.querySelector(".access_rules") as HTMLTableSectionElement;
+    const eventACL: EventAccess|null|undefined = accessControlList?.[event.name];
+    let ruleCount = 0;
+    let issueCount = 0;
+    const explainMsgs: string[] = [];
+    for (const mode of allAccessModes) {
+        const accessEntries = (eventACL?.[mode]??[]).toSorted((a, b) => a.expression.localeCompare(b.expression));
+        if (accessEntries.length > 0) {
+            explainMsgs.push(`${displayMode(mode)}:`);
+        }
+        for (const accessEntry of accessEntries) {
+            ruleCount++;
+            if (ruleHasIssue(accessEntry)) {
+                issueCount++;
             }
+            tbody.append(ruleRow(event.name, mode, accessEntry));
 
-            let intervalSuffix = "";
-            if (!accessEntry.pending && !accessEntry.expired) {
-                // We're in the interval
-                intervalSuffix = "";
-            } else if (accessEntry.pending && !accessEntry.expired) {
-                intervalSuffix = " (pending)";
-            } else if (!accessEntry.pending && accessEntry.expired) {
-                intervalSuffix = " (expired)";
-            } else {
-                intervalSuffix = " (invalid interval)";
+            if (accessEntry.debug_info) {
+                let unknownSuffix: string = "";
+                if (accessEntry.debug_info?.known_target !== true) {
+                    unknownSuffix = " (unknown target)";
+                }
+
+                let intervalSuffix = "";
+                if (!accessEntry.pending && !accessEntry.expired) {
+                    // We're in the interval
+                    intervalSuffix = "";
+                } else if (accessEntry.pending && !accessEntry.expired) {
+                    intervalSuffix = " (pending)";
+                } else if (!accessEntry.pending && accessEntry.expired) {
+                    intervalSuffix = " (expired)";
+                } else {
+                    intervalSuffix = " (invalid interval)";
+                }
+
+                let msg: string = `${indent}${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${intervalSuffix}\n`;
+                if (accessEntry.debug_info.matches_no_one) {
+                    msg += `${indent}${indent}NO users`;
+                } else if (accessEntry.debug_info.matches_all_users) {
+                    msg += `${indent}${indent}ALL authenticated users`;
+                } else {
+                    msg += indent;
+                    msg += indent;
+                    msg += accessEntry.debug_info.matches_users?.join(`\n${indent}${indent}`);
+                }
+                explainMsgs.push(msg);
             }
-
-            let msg: string = `${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${intervalSuffix}\n`;
-            if (accessEntry.debug_info.matches_no_one) {
-                msg += `${indent}NO users`;
-            } else if (accessEntry.debug_info.matches_all_users) {
-                msg += `${indent}ALL authenticated users`;
-            } else {
-                msg += indent;
-                msg += accessEntry.debug_info.matches_users?.join(`\n${indent}`);
-            }
-            explainMsgs.push(msg);
         }
-
-        const validityField = entryItem.getElementsByClassName("access_validity")[0] as HTMLSelectElement;
-        validityField.value = accessEntry.validity;
-
-        const notAfterInput = entryItem.getElementsByClassName("access_not_after")[0] as ims.FlatpickrHTMLInputElement;
-        ims.newFlatpickr(notAfterInput, `alt_not_after_${flatpickrIdCounter++}`, (selectedDates) => {
-            saveNotAfter(entryItem, selectedDates[0] ?? null);
-        });
-        if (accessEntry.not_after) {
-            notAfterInput._flatpickr.setDate(new Date(accessEntry.not_after), false, "Z");
-        }
-
-        const notBeforeInput = entryItem.getElementsByClassName("access_not_before")[0] as ims.FlatpickrHTMLInputElement;
-        ims.newFlatpickr(notBeforeInput, `alt_not_before_${flatpickrIdCounter++}`, (selectedDates) => {
-            saveNotBefore(entryItem, selectedDates[0] ?? null);
-        });
-        if (accessEntry.not_before) {
-            notBeforeInput._flatpickr.setDate(new Date(accessEntry.not_before), false, "Z");
-        }
-        const intervalText = entryItem.getElementsByClassName("access_interval_text")[0] as HTMLSpanElement;
-        if (!accessEntry.pending && !accessEntry.expired) {
-            // We're in the interval
-            intervalText.textContent = "";
-        } else if (accessEntry.pending && !accessEntry.expired) {
-            intervalText.textContent = "Pending";
-        } else if (!accessEntry.pending && accessEntry.expired) {
-            intervalText.textContent = "Expired";
-        } else {
-            intervalText.textContent = "Invalid interval";
-        }
-        const unknownTargetText = entryItem.getElementsByClassName("unknown_target_text")[0] as HTMLSpanElement;
-        if (accessEntry.debug_info?.known_target !== true) {
-            unknownTargetText.textContent = "Unknown target";
-        } else {
-            unknownTargetText.textContent = "";
-        }
-
-        entryContainer.append(entryItemFrag);
     }
 
-    const explainButton = eventAccess.getElementsByClassName("explain_button")[0] as HTMLButtonElement;
+    card.querySelector(".rule_count")!.textContent =
+        `${ruleCount} ${ruleCount === 1 ? "rule" : "rules"}`;
+    if (issueCount > 0) {
+        const issueBadge = card.querySelector(".issue_count") as HTMLElement;
+        issueBadge.textContent = `${issueCount} ${issueCount === 1 ? "issue" : "issues"}`;
+        issueBadge.classList.remove("d-none");
+    }
+
+    const explainButton = card.querySelector(".explain_button") as HTMLButtonElement;
     explainButton.addEventListener("click", (_e: MouseEvent): void => {
-        el.explainModal.querySelector(".modal-title")!.textContent = `Current ${event} ${mode}`;
+        el.explainModal.querySelector(".modal-title")!.textContent = `Current permissions for ${event.name}`;
         if (explainMsgs.length === 0) {
             explainMsgs.push("No permissions");
         }
         const modalBody = el.explainModal.querySelector(".modal-body")!;
         modalBody.textContent = explainMsgs.join("\n");
-        const eventData = sortedEvents.find(value => {return value.name === event});
-        if (eventData && eventData.is_group) {
+        if (event.is_group) {
             modalBody.textContent += "\n\nThis is an event group, so all permissions above also apply to its child events:\n";
-            for (const event of sortedEvents) {
-                if (event.parent_group === eventData.id) {
-                    modalBody.textContent += `${indent}${event.name}\n`;
+            for (const child of sortedEvents) {
+                if (child.parent_group === event.id) {
+                    modalBody.textContent += `${indent}${child.name}\n`;
                 }
             }
         }
         explainModal?.show();
-    })
+    });
+
+    return cardFrag;
+}
+
+function ruleRow(event: string, mode: AccessMode, accessEntry: Access): HTMLTableRowElement {
+    const rowFrag = el.accessRuleTemplate.content.cloneNode(true) as DocumentFragment;
+    const row = rowFrag.querySelector("tr")!;
+
+    row.dataset["expression"] = accessEntry.expression;
+    row.dataset["mode"] = mode;
+    row.dataset["validity"] = accessEntry.validity;
+    row.dataset["not_after"] = accessEntry.not_after??"";
+    row.dataset["not_before"] = accessEntry.not_before??"";
+
+    row.querySelector(".access_expression")!.textContent = accessEntry.expression;
+
+    const levelField = row.querySelector(".access_level") as HTMLSelectElement;
+    levelField.value = mode;
+
+    const validityField = row.querySelector(".access_validity") as HTMLSelectElement;
+    validityField.value = accessEntry.validity;
+
+    const notBeforeInput = row.querySelector(".access_not_before") as ims.FlatpickrHTMLInputElement;
+    ims.newFlatpickr(notBeforeInput, `alt_not_before_${flatpickrIdCounter++}`, (selectedDates) => {
+        saveNotBefore(row, selectedDates[0] ?? null);
+    });
+    if (accessEntry.not_before) {
+        notBeforeInput._flatpickr.setDate(new Date(accessEntry.not_before), false, "Z");
+    }
+
+    const notAfterInput = row.querySelector(".access_not_after") as ims.FlatpickrHTMLInputElement;
+    ims.newFlatpickr(notAfterInput, `alt_not_after_${flatpickrIdCounter++}`, (selectedDates) => {
+        saveNotAfter(row, selectedDates[0] ?? null);
+    });
+    if (accessEntry.not_after) {
+        notAfterInput._flatpickr.setDate(new Date(accessEntry.not_after), false, "Z");
+    }
+
+    // Most rules have no dates, so the date pickers stay hidden until the rule
+    // has a date range (date badge) or the user asks for one ("Set dates" button).
+    const datesKey = `${event}|${mode}|${accessEntry.expression}`;
+    const datesSpan = row.querySelector(".access_dates") as HTMLElement;
+    const datesToggle = row.querySelector(".access_dates_toggle") as HTMLButtonElement;
+    const datesBadge = row.querySelector(".access_dates_badge") as HTMLButtonElement;
+    const showDateEditors = (): void => {
+        datesSpan.classList.remove("d-none");
+        datesToggle.classList.add("d-none");
+        datesBadge.classList.add("d-none");
+        openDateEditors.add(datesKey);
+    };
+    datesToggle.addEventListener("click", showDateEditors);
+    datesBadge.addEventListener("click", showDateEditors);
+    if (accessEntry.not_before || accessEntry.not_after) {
+        const notBefore = accessEntry.not_before ? notBeforeInput._flatpickr.altInput!.value : null;
+        const notAfter = accessEntry.not_after ? notAfterInput._flatpickr.altInput!.value : null;
+        if (notBefore && notAfter) {
+            datesBadge.textContent = `${notBefore} → ${notAfter}`;
+        } else if (notBefore) {
+            datesBadge.textContent = `from ${notBefore}`;
+        } else {
+            datesBadge.textContent = `until ${notAfter}`;
+        }
+        datesBadge.classList.remove("d-none");
+    } else {
+        datesToggle.classList.remove("d-none");
+    }
+    if (openDateEditors.has(datesKey)) {
+        showDateEditors();
+    }
+
+    const intervalText = row.querySelector(".access_interval_text") as HTMLSpanElement;
+    let intervalStatus = "";
+    if (accessEntry.pending && !accessEntry.expired) {
+        intervalStatus = "Pending";
+    } else if (!accessEntry.pending && accessEntry.expired) {
+        intervalStatus = "Expired";
+    } else if (accessEntry.pending && accessEntry.expired) {
+        intervalStatus = "Invalid interval";
+    }
+    if (intervalStatus) {
+        intervalText.textContent = intervalStatus;
+        intervalText.classList.remove("d-none");
+    }
+
+    if (accessEntry.debug_info?.known_target !== true) {
+        row.classList.add("table-danger");
+        row.querySelector(".unknown_target_text")!.classList.remove("d-none");
+        const fixButton = row.querySelector(".fix_button") as HTMLButtonElement;
+        fixButton.classList.remove("d-none");
+        const fixInput = row.querySelector(".access_fix") as HTMLInputElement;
+        fixButton.addEventListener("click", (): void => {
+            row.querySelector(".access_expression")!.classList.add("d-none");
+            fixInput.value = accessEntry.expression;
+            fixInput.classList.remove("d-none");
+            fixInput.focus();
+        });
+    }
+
+    return row;
+}
+
+function displayMode(m: AccessMode): string {
+    switch (m) {
+        case "readers":
+            return "Read all";
+        case "writers":
+            return "Write all";
+        case "reporters":
+            return "Report own";
+        case "visit_writers":
+            return "Write visits";
+        default:
+            throw new Error(`unexpected access mode ${m satisfies never}`);
+    }
 }
 
 async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Promise<void> {
@@ -368,53 +508,66 @@ async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Pr
         ims.controlHasError(sender);
         return;
     }
+    // Expand the new event, so the admin can start adding rules to it.
+    expandedEvents.add(event);
     await loadAccessControlList();
     drawAccess();
     sender.value = "";  // Clear input field
 }
 
-
-async function addAccess(sender: HTMLInputElement): Promise<void> {
-    const container: HTMLElement = sender.closest(".event_access")!;
-    const event = container.dataset["eventName"]!;
-    const mode = container.dataset["accessMode"] as AccessMode;
-    const newExpression = sender.value.trim();
-
-    if (newExpression === "") {
-        return;
-    }
-
-    if (newExpression === "**") {
-        const confirmed = confirm(
+// confirmExpression warns about suspicious-looking expressions, returning
+// false if the user decided not to proceed with one.
+function confirmExpression(expression: string): boolean {
+    if (expression === "**") {
+        return confirm(
             "Double-wildcard '**' ACLs are no longer supported, so this ACL will have " +
             "no effect.\n\n" +
             "Proceed with doing something pointless?"
         );
-        if (!confirmed) {
-            sender.value = "";
-            return;
-        }
     }
 
-    const validExpression = newExpression === "**" || newExpression === "*" ||
-        newExpression.startsWith("person:") || newExpression.startsWith("position:") ||
-        newExpression.startsWith("team:") || newExpression.startsWith("onduty:");
-    if (!validExpression) {
-        const confirmed = confirm(
-            "WARNING: '" + newExpression + "' does not look like a valid ACL " +
+    const validPrefix = expression === "*" ||
+        expression.startsWith("person:") || expression.startsWith("position:") ||
+        expression.startsWith("team:") || expression.startsWith("onduty:");
+    if (!validPrefix) {
+        return confirm(
+            "WARNING: '" + expression + "' does not look like a valid ACL " +
             "expression. Example expressions include 'person:Hubcap' for an individual, " +
             "'position:007' for a role, 'onduty:007' for people currently on duty for a position, " +
             "and 'team:Council' for a team. Wildcards are " +
             "supported as well, e.g. '*'\n\n" +
             "Proceed with firing footgun?"
         );
-        if (!confirmed) {
-            sender.value = "";
-            return;
-        }
     }
 
-    let acl: Access[] = accessControlList![event]![mode]!.slice();
+    if (validExpressions != null && !validExpressions.has(expression)) {
+        return confirm(
+            "'" + expression + "' does not match any known person, position, or team, " +
+            "so this rule won't grant access to anyone. It will be flagged as an " +
+            "issue on this page.\n\n" +
+            "Add it anyway?"
+        );
+    }
+
+    return true;
+}
+
+async function addAccess(sender: HTMLInputElement): Promise<void> {
+    const card: HTMLElement = sender.closest(".event_access")!;
+    const event = card.dataset["eventName"]!;
+    const mode = (card.querySelector(".access_add_level") as HTMLSelectElement).value as AccessMode;
+    const newExpression = sender.value.trim();
+
+    if (newExpression === "") {
+        return;
+    }
+
+    if (!confirmExpression(newExpression)) {
+        sender.value = "";
+        return;
+    }
+
+    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
 
     // remove other acls for this mode for the same expression
     acl = acl.filter((v: Access): boolean => {return v.expression !== newExpression});
@@ -431,25 +584,80 @@ async function addAccess(sender: HTMLInputElement): Promise<void> {
     edits[event][mode] = acl;
 
     const {err} = await sendACL(edits);
-    await loadAccessControlList();
-    for (const mode of allAccessModes) {
-        updateEventAccess(event, mode);
-    }
     if (err != null) {
         ims.controlHasError(sender);
         return;
     }
-    sender.value = "";  // Clear input field
+    await loadAccessControlList();
+    drawAccess();
+    // Put focus back on this event's add field, to ease adding several rules in a row.
+    const newCard = findEventCard(event);
+    (newCard?.querySelector(".access_add") as HTMLInputElement|null)?.focus();
 }
 
+function findEventCard(event: string): HTMLElement|null {
+    for (const card of el.eventAccessContainer.querySelectorAll<HTMLElement>(".event_access")) {
+        if (card.dataset["eventName"] === event) {
+            return card;
+        }
+    }
+    return null;
+}
+
+// fixAccess replaces a rule's expression, keeping its other fields, e.g. to correct a typo.
+async function fixAccess(sender: HTMLInputElement): Promise<void> {
+    const card: HTMLElement = sender.closest(".event_access")!;
+    const event = card.dataset["eventName"]!;
+    const row = sender.closest("tr")!;
+    const mode = row.dataset["mode"] as AccessMode;
+    const oldExpression = row.dataset["expression"]!;
+    const newExpression = sender.value.trim();
+
+    if (newExpression === "" || newExpression === oldExpression) {
+        drawAccess();
+        return;
+    }
+
+    if (!confirmExpression(newExpression)) {
+        drawAccess();
+        return;
+    }
+
+    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
+    acl = acl.filter((v: Access): boolean => {
+        return v.expression !== oldExpression && v.expression !== newExpression;
+    });
+
+    const newVal: Access = {
+        "expression": newExpression,
+        "validity": row.dataset["validity"] === "onsite" ? Validity.onsite : Validity.always,
+        "not_after": row.dataset["not_after"]||null,
+        "not_before": row.dataset["not_before"]||null,
+    };
+
+    acl.push(newVal);
+
+    const edits: EventsAccess = {};
+    edits[event] = {};
+    edits[event][mode] = acl;
+
+    const {err} = await sendACL(edits);
+    if (err != null) {
+        ims.controlHasError(sender);
+        return;
+    }
+    await loadAccessControlList();
+    drawAccess();
+}
 
 async function removeAccess(sender: HTMLButtonElement): Promise<void> {
-    const container: HTMLElement = sender.closest(".event_access")!;
-    const event = container.dataset["eventName"]!;
-    const mode = container.dataset["accessMode"] as AccessMode;
-    const expression = sender.closest("li")!.dataset["expression"]!.trim();
+    const card: HTMLElement = sender.closest(".event_access")!;
+    const event = card.dataset["eventName"]!;
+    const row = sender.closest("tr")!;
+    const mode = row.dataset["mode"] as AccessMode;
+    const expression = row.dataset["expression"]!.trim();
 
-    const acl: Access[] = accessControlList![event]![mode]!.slice();
+    const acl: Access[] = (accessControlList![event]![mode]??[]).slice();
 
     let foundIndex: number = -1;
     for (const [i, access] of acl.entries()) {
@@ -471,22 +679,56 @@ async function removeAccess(sender: HTMLButtonElement): Promise<void> {
 
     await sendACL(edits);
     await loadAccessControlList();
-    for (const mode of allAccessModes) {
-        updateEventAccess(event, mode);
+    drawAccess();
+}
+
+// setLevel moves a rule to a different access mode, keeping its other fields.
+async function setLevel(sender: HTMLSelectElement): Promise<void> {
+    const card: HTMLElement = sender.closest(".event_access")!;
+    const event = card.dataset["eventName"]!;
+    const row = sender.closest("tr")!;
+    const oldMode = row.dataset["mode"] as AccessMode;
+    const newMode = sender.value as AccessMode;
+    if (newMode === oldMode) {
+        return;
     }
+    const expression = row.dataset["expression"]!.trim();
+
+    const oldAcl: Access[] = (accessControlList![event]![oldMode]??[]).filter(
+        (v: Access): boolean => {return v.expression !== expression});
+    const newAcl: Access[] = (accessControlList![event]![newMode]??[]).filter(
+        (v: Access): boolean => {return v.expression !== expression});
+
+    newAcl.push({
+        "expression": expression,
+        "validity": row.dataset["validity"] === "onsite" ? Validity.onsite : Validity.always,
+        "not_after": row.dataset["not_after"]||null,
+        "not_before": row.dataset["not_before"]||null,
+    });
+
+    const edits: EventsAccess = {};
+    edits[event] = {};
+    edits[event][oldMode] = oldAcl;
+    edits[event][newMode] = newAcl;
+
+    // The two modes are updated in separate transactions server-side, so reload
+    // and redraw even on error, in case only one of them was applied.
+    await sendACL(edits);
+    await loadAccessControlList();
+    drawAccess();
 }
 
 async function setValidity(sender: HTMLSelectElement): Promise<void> {
-    const container: HTMLElement = sender.closest(".event_access")!;
-    const event = container.dataset["eventName"]!;
-    const mode = container.dataset["accessMode"] as AccessMode;
+    const card: HTMLElement = sender.closest(".event_access")!;
+    const event = card.dataset["eventName"]!;
+    const row = sender.closest("tr")!;
+    const mode = row.dataset["mode"] as AccessMode;
 
-    const accessRow = sender.closest("li") as HTMLLIElement;
-    const expression = accessRow.dataset["expression"]!.trim();
-    const notAfter = accessRow.dataset["not_after"]||null;
-    const notBefore = accessRow.dataset["not_before"]||null;
+    const expression = row.dataset["expression"]!.trim();
+    const notAfter = row.dataset["not_after"]||null;
+    const notBefore = row.dataset["not_before"]||null;
 
-    let acl: Access[] = accessControlList![event]![mode]!.slice();
+    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
 
     // remove other acls for this mode for the same expression
     acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
@@ -505,26 +747,23 @@ async function setValidity(sender: HTMLSelectElement): Promise<void> {
     edits[event][mode] = acl;
 
     const {err} = await sendACL(edits);
-    await loadAccessControlList();
-    for (const mode of allAccessModes) {
-        updateEventAccess(event, mode);
-    }
     if (err != null) {
         ims.controlHasError(sender);
         return;
     }
-    sender.value = "";  // Clear input field
+    await loadAccessControlList();
+    drawAccess();
 }
 
-async function saveNotAfter(accessRow: HTMLLIElement, date: Date|null): Promise<void> {
-    const container: HTMLElement = accessRow.closest(".event_access")!;
-    const event = container.dataset["eventName"]!;
-    const mode = container.dataset["accessMode"] as AccessMode;
-    const expression = accessRow.dataset["expression"]!.trim();
-    const validity = accessRow.dataset["validity"]!.trim();
-    const notBefore = accessRow.dataset["not_before"]||null;
+async function saveNotAfter(row: HTMLTableRowElement, date: Date|null): Promise<void> {
+    const card: HTMLElement = row.closest(".event_access")!;
+    const event = card.dataset["eventName"]!;
+    const mode = row.dataset["mode"] as AccessMode;
+    const expression = row.dataset["expression"]!.trim();
+    const validity = row.dataset["validity"]!.trim();
+    const notBefore = row.dataset["not_before"]||null;
 
-    let acl: Access[] = accessControlList![event]![mode]!.slice();
+    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
     acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
 
     const notAfter: string|null = date?.toISOString() ?? null;
@@ -548,25 +787,23 @@ async function saveNotAfter(accessRow: HTMLLIElement, date: Date|null): Promise<
     edits[event][mode] = acl;
 
     const {err} = await sendACL(edits);
-    await loadAccessControlList();
-    for (const mode of allAccessModes) {
-        updateEventAccess(event, mode);
-    }
     if (err != null) {
-        ims.controlHasError(accessRow.getElementsByClassName("access_not_after")[0] as HTMLElement);
+        ims.controlHasError(row.getElementsByClassName("access_not_after")[0] as HTMLElement);
         return;
     }
+    await loadAccessControlList();
+    drawAccess();
 }
 
-async function saveNotBefore(accessRow: HTMLLIElement, date: Date|null): Promise<void> {
-    const container: HTMLElement = accessRow.closest(".event_access")!;
-    const event = container.dataset["eventName"]!;
-    const mode = container.dataset["accessMode"] as AccessMode;
-    const expression = accessRow.dataset["expression"]!.trim();
-    const validity = accessRow.dataset["validity"]!.trim();
-    const notAfter = accessRow.dataset["not_after"]||null;
+async function saveNotBefore(row: HTMLTableRowElement, date: Date|null): Promise<void> {
+    const card: HTMLElement = row.closest(".event_access")!;
+    const event = card.dataset["eventName"]!;
+    const mode = row.dataset["mode"] as AccessMode;
+    const expression = row.dataset["expression"]!.trim();
+    const validity = row.dataset["validity"]!.trim();
+    const notAfter = row.dataset["not_after"]||null;
 
-    let acl: Access[] = accessControlList![event]![mode]!.slice();
+    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
     acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
 
     const notBefore: string|null = date?.toISOString() ?? null;
@@ -590,14 +827,12 @@ async function saveNotBefore(accessRow: HTMLLIElement, date: Date|null): Promise
     edits[event][mode] = acl;
 
     const {err} = await sendACL(edits);
-    await loadAccessControlList();
-    for (const mode of allAccessModes) {
-        updateEventAccess(event, mode);
-    }
     if (err != null) {
-        ims.controlHasError(accessRow.getElementsByClassName("access_not_before")[0] as HTMLElement);
+        ims.controlHasError(row.getElementsByClassName("access_not_before")[0] as HTMLElement);
         return;
     }
+    await loadAccessControlList();
+    drawAccess();
 }
 
 async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {

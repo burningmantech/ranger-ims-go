@@ -32,6 +32,16 @@ export function loadFixture(name: string): void {
     document.open();
     document.write(html);
     document.close();
+    // happy-dom's page parser drops table elements (like <tr>) that sit inside
+    // a <template> without a surrounding <table>, even though the HTML spec
+    // allows them there. Re-parse each template's content from the raw fixture
+    // HTML, which takes the innerHTML path that happy-dom handles correctly.
+    for (const match of html.matchAll(/<template id="([^"]+)">([\s\S]*?)<\/template>/g)) {
+        const template = document.getElementById(match[1]!) as HTMLTemplateElement | null;
+        if (template != null) {
+            template.innerHTML = match[2]!;
+        }
+    }
 }
 
 // Make a JSON Response like the IMS API would return. fetchNoThrow only

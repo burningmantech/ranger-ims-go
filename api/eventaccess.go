@@ -167,6 +167,64 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 	return result, nil
 }
 
+type GetAccessTargets struct {
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	imsAdmins []string
+}
+
+func (action GetAccessTargets) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	resp, errHTTP := action.getAccessTargets(req)
+	if errHTTP != nil {
+		errHTTP.From("[getAccessTargets]").WriteResponse(w)
+		return
+	}
+	mustWriteJSON(w, req, resp)
+}
+
+func (action GetAccessTargets) getAccessTargets(req *http.Request) (imsjson.AccessTargets, *herr.HTTPError) {
+	var empty imsjson.AccessTargets
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return empty, errHTTP.From("[getGlobalPermissions]")
+	}
+	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
+		return empty, herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
+	}
+
+	ctx := req.Context()
+	users, err := action.userStore.GetAllUsers(ctx)
+	if err != nil {
+		return empty, herr.InternalServerError("Failed to fetch Users", err).From("[GetAllUsers]")
+	}
+	positions, teams, err := action.userStore.GetPositionsAndTeams(ctx)
+	if err != nil {
+		return empty, herr.InternalServerError("Failed to fetch Positions and Teams", err).From("[GetPositionsAndTeams]")
+	}
+
+	resp := imsjson.AccessTargets{
+		Persons:   make([]string, 0, len(users)),
+		Positions: make([]string, 0, len(positions)),
+		Teams:     make([]string, 0, len(teams)),
+	}
+	for _, u := range users {
+		resp.Persons = append(resp.Persons, u.Handle)
+	}
+	for _, p := range positions {
+		resp.Positions = append(resp.Positions, p)
+	}
+	for _, t := range teams {
+		resp.Teams = append(resp.Teams, t)
+	}
+	caseInsensitive := func(a, b string) int {
+		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+	}
+	slices.SortFunc(resp.Persons, caseInsensitive)
+	slices.SortFunc(resp.Positions, caseInsensitive)
+	slices.SortFunc(resp.Teams, caseInsensitive)
+	return resp, nil
+}
+
 // knownTarget says whether the target of this access expression matches a known user, position, or team.
 func knownTarget(expression string, allHandles, allPositions, allTeams map[string]bool) bool {
 	if expression == "*" {

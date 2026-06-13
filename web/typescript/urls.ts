@@ -28,6 +28,7 @@ const url_actionlogs = "/ims/api/actionlogs";
 const url_auth = "/ims/api/auth";
 const url_authRefresh = "/ims/api/auth/refresh";
 const url_acl = "/ims/api/access";
+const url_accessTargets = "/ims/api/access_targets";
 const url_streets = "/ims/api/streets";
 const url_personnel = "/ims/api/personnel";
 const url_incidentTypes = "/ims/api/incident_types";

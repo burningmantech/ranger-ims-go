@@ -47,3 +47,11 @@ type EventAccess struct {
 	Reporters    []AccessRule `json:"reporters"`
 	VisitWriters []AccessRule `json:"visit_writers"`
 }
+
+// AccessTargets lists the names that are valid targets for AccessRule
+// expressions, e.g. a Persons entry of "Tool" means "person:Tool" is valid.
+type AccessTargets struct {
+	Persons   []string `json:"persons"`
+	Positions []string `json:"positions"`
+	Teams     []string `json:"teams"`
+}

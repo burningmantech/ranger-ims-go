@@ -17,9 +17,41 @@
 package integration_test
 
 import (
+	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEventAccessTODO(t *testing.T) {
 	t.Parallel()
+}
+
+func TestGetAccessTargets(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	// An unauthenticated user gets a 401
+	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	_, resp := apisNotAuthenticated.getAccessTargets(ctx)
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A non-admin user gets a 403
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	_, resp = apisAlice.getAccessTargets(ctx)
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// An admin gets all the persons, positions, and teams from the directory
+	// (these values come from clubhousedb_test_seed.sql)
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	targets, resp := apisAdmin.getAccessTargets(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	assert.Equal(t, []string{userAdminHandle, userAliceHandle}, targets.Persons)
+	assert.Equal(t, []string{"Nooperator"}, targets.Positions)
+	assert.Equal(t, []string{"Brown Dot"}, targets.Teams)
 }

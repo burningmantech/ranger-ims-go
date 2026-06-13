@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {test, expect, Page} from "@playwright/test";
+import {test, expect, Locator, Page} from "@playwright/test";
 
 const username = "Hardware";
 
@@ -61,30 +61,54 @@ async function addEvent(page: Page, eventName: string): Promise<void> {
   await page.getByPlaceholder("Burn-A-Matic-3000").fill(eventName);
   await page.getByPlaceholder("Burn-A-Matic-3000").press("Enter");
 
-  await expect(page.getByText(`Full readers for ${eventName}`)).toBeVisible();
-  await expect(page.getByText(`Full writers for ${eventName}`)).toBeVisible();
-  await expect(page.getByText(`Reporters for ${eventName}`)).toBeVisible();
-  await expect(page.getByText(`Visit writers for ${eventName}`)).toBeVisible();
+  await expect(eventCard(page, eventName)).toBeVisible();
+}
+
+function eventCard(page: Page, eventName: string): Locator {
+  return page.locator(".event_access").filter({hasText: eventName});
+}
+
+// expandEventCard expands the event's rule table, if it's collapsed.
+async function expandEventCard(page: Page, eventName: string): Promise<Locator> {
+  const card = eventCard(page, eventName);
+  const toggle = card.getByRole("button", {name: eventName});
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+    await toggle.click();
+  }
+  return card;
+}
+
+// Adding a rule for an unknown target pops up a confirm dialog; accept any
+// such dialogs on this page. Playwright dismisses dialogs by default.
+const dialogsAutoAccepted = new WeakSet<Page>();
+function autoAcceptDialogs(page: Page): void {
+  if (dialogsAutoAccepted.has(page)) {
+    return;
+  }
+  dialogsAutoAccepted.add(page);
+  page.on("dialog", (dialog) => void dialog.accept().catch((): void => {}));
+}
+
+async function addRule(page: Page, eventName: string, target: string, level: string): Promise<void> {
+  await eventsPage(page);
+  autoAcceptDialogs(page);
+
+  const card = await expandEventCard(page, eventName);
+  await card.getByLabel("Access level for new rule").selectOption(level);
+  await card.getByLabel("New rule target").fill(target);
+  // Commit with Tab (blur): WebKit doesn't fire "change" on Enter for inputs
+  // backed by a datalist.
+  await card.getByLabel("New rule target").press("Tab");
+  await expect(card.getByText(target)).toBeVisible({timeout: 5000});
 }
 
 async function addWriter(page: Page, eventName: string, writer: string): Promise<void> {
-  await eventsPage(page);
-
-  const writers = page.locator("div.card").filter({has: page.getByText(`Full writers for ${eventName}`)});
-
-  await writers.getByRole("textbox").fill(writer);
-  await writers.getByRole("textbox").press("Enter");
-  await expect(writers.getByText(writer)).toBeVisible({timeout: 5000});
+  await addRule(page, eventName, writer, "writers");
 }
 
-async function addReporter(page: Page, eventName: string, writer: string): Promise<void> {
-  await eventsPage(page);
-
-  const reporters = page.locator("div.card").filter({has: page.getByText(`reporters for ${eventName}`)});
-
-  await reporters.getByRole("textbox").fill(writer);
-  await reporters.getByRole("textbox").press("Enter");
-  await expect(reporters.getByText(writer)).toBeVisible({timeout: 5000});
+async function addReporter(page: Page, eventName: string, reporter: string): Promise<void> {
+  await addRule(page, eventName, reporter, "reporters");
 }
 
 async function maybeOpenNav(page: Page): Promise<void> {
@@ -135,6 +159,8 @@ test("admin_incident_types", async ({ page }) => {
 });
 
 test("admin_events", async ({ browser }) => {
+  test.slow();
+
   const ctx = await browser.newContext();
   const page = await ctx.newPage()
   await login(page);
@@ -143,34 +169,61 @@ test("admin_events", async ({ browser }) => {
   await addEvent(page, eventName);
   await addWriter(page, eventName, "person:SomeGuy");
 
-  const writers = page.locator("div.card").filter({has: page.getByText(`Full writers for ${eventName}`)});
+  const row = eventCard(page, eventName).locator("tr.access_rule").filter({hasText: "person:SomeGuy"});
+  await expect(row.getByLabel("Access level")).toHaveValue("writers");
   // it's hard to tell on the client side when this has completed, hence the toPass block below
-  await writers.locator("select").selectOption("On-Site");
+  await row.getByLabel("Validity").selectOption("On-Site");
 
   const page2 = await ctx.newPage();
   await login(page2);
   await eventsPage(page2);
+  const card2 = eventCard(page2, eventName);
+  const row2 = card2.locator("tr.access_rule").filter({hasText: "person:SomeGuy"});
   await expect(async (): Promise<void> => {
-    const writers = page2.locator("div.card").filter({has: page2.getByText(`Full writers for ${eventName}`)});
-    await expect(writers).toBeVisible();
-    await expect(writers.getByText("person:SomeGuy")).toBeVisible();
-    await expect(writers.locator("select")).toHaveValue("onsite");
-    await expect(writers).not.toContainText("Expired");
-    await expect(writers).toContainText("Unknown target");
-
-
-    // TODO: this doesn't work on mobile!
-
-    const expirationTime = writers.getByRole("textbox", {name: "Not after"});
-    await expect(expirationTime).toBeVisible();
-    await expirationTime.fill("Mon 2025-01-27 @ 11:11");
-
-    // focus anywhere else, so that the expirationTime oninput fires
-    await writers.getByRole("textbox", { name: "person:Tool" }).focus();
-    await expect(writers).toContainText("Expired");
-    await expect(writers).toContainText("Unknown target");
-
+    // The unknown person:SomeGuy is an issue, so the card auto-expands and
+    // shows an issue count.
+    await expect(card2).toBeVisible();
+    await expect(card2.locator(".rule_count")).toHaveText("1 rule");
+    await expect(card2.locator(".issue_count")).toHaveText("1 issue");
+    await expect(row2).toBeVisible();
+    await expect(row2.getByLabel("Validity")).toHaveValue("onsite");
+    await expect(row2).not.toContainText("Expired");
+    await expect(row2).toContainText("Unknown target");
   }).toPass();
+
+  // The date editors are hidden until the rule has dates; disclose them.
+  const expirationTime = row2.getByRole("textbox", {name: "Not after"});
+  if (!(await expirationTime.isVisible())) {
+    await row2.getByRole("button", {name: "Set dates"}).click();
+  }
+  // On mobile, flatpickr swaps in a native date picker that's harder to
+  // drive, so skip date editing there (as in the incidents test).
+  const onMobile = await row2.locator(".flatpickr-mobile").first().isVisible();
+  if (!onMobile) {
+    // Filling the date can race with a redraw of the rule row, which loses
+    // the typed value before it's committed; retry until the save shows up
+    // as the row's "Expired" chip.
+    await expect(async (): Promise<void> => {
+      if (await row2.getByRole("button", {name: "Set dates"}).isVisible()) {
+        await row2.getByRole("button", {name: "Set dates"}).click();
+      }
+      await expect(expirationTime).toBeVisible({timeout: 2000});
+      await expirationTime.fill("Mon 2025-01-27 @ 11:11");
+      // focus anywhere else, so that the expirationTime oninput fires
+      await card2.getByLabel("New rule target").focus();
+      await expect(row2).toContainText("Expired", {timeout: 3000});
+    }).toPass();
+    await expect(row2).toContainText("Unknown target");
+  }
+
+  // move the rule to a different access level via its dropdown
+  await row2.getByLabel("Access level").selectOption("reporters");
+  await expect(row2.getByLabel("Access level")).toHaveValue("reporters");
+  // the rule keeps its other fields
+  await expect(row2.getByLabel("Validity")).toHaveValue("onsite");
+  if (!onMobile) {
+    await expect(row2).toContainText("Expired");
+  }
 
   await page2.close();
   await page.close();
@@ -281,14 +334,23 @@ test("incidents", async ({ page, browser }) => {
 
     if (!ignoreDatetimeCheck) {
       await expect(altStartedDatetime).toBeVisible();
-      await altStartedDatetime.clear();
-      await altStartedDatetime.fill(altStartedDateTimeStr);
-      const responsePromise = page.waitForResponse(response =>
-          response.url().includes(`/ims/api/events/${eventName}/incidents/`)
-          && response.request().method() === "GET"
-      )
-      await altStartedDatetime.press("Tab");
-      await responsePromise;
+      // The earlier edits (rangers, location) each trigger a refresh that
+      // redraws the started-time field, and one of those can clobber the value
+      // typed here before it's committed, making the page save the clobbered
+      // value (or nothing). Retry until a save with the intended date (2025,
+      // in whatever UTC day the local-time string lands on) is observed.
+      await expect(async (): Promise<void> => {
+        await altStartedDatetime.clear();
+        await altStartedDatetime.fill(altStartedDateTimeStr);
+        const responsePromise = incidentPage.waitForResponse(response =>
+            response.url().includes(`/ims/api/events/${eventName}/incidents/`)
+            && response.request().method() === "POST"
+            && (response.request().postData() ?? "").includes('"started":"2025-01-2'),
+            {timeout: 3000},
+        );
+        await altStartedDatetime.press("Tab");
+        await responsePromise;
+      }).toPass();
     }
 
     // add location details
@@ -430,8 +492,12 @@ test("field_reports", async ({ page, browser }) => {
       const reportEntry = `This is some text - ${randomName("text")}`;
       {
         await frPage.getByLabel("New report entry text").fill(reportEntry);
-        await frPage.getByLabel("Submit report entry").click();
-        await expect(frPage.getByLabel("New report entry text")).toBeEmpty();
+        // The save can transiently fail when the dev server is busy, leaving
+        // the entry text in place; retry the submit until it's accepted.
+        await expect(async (): Promise<void> => {
+          await frPage.getByLabel("Submit report entry").click();
+          await expect(frPage.getByLabel("New report entry text")).toBeEmpty({timeout: 3000});
+        }).toPass();
         await expect(frPage.getByText(reportEntry)).toBeVisible();
       }
       // strike the entry, verified it's stricken

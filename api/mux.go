@@ -64,6 +64,16 @@ func AddToMux(
 		),
 	)
 
+	mux.Handle("GET /ims/api/access_targets",
+		Adapt(
+			GetAccessTargets{db, userStore, cfg.Core.Admins},
+			RecoverFromPanic(),
+			RequireAuthN(jwter),
+			LogRequest(true, actionLogger, userStore),
+			LimitRequestBytes(cfg.Core.MaxRequestBytes),
+		),
+	)
+
 	mux.Handle("POST /ims/api/access",
 		Adapt(
 			PostEventAccess{db, userStore, cfg.Core.Admins},

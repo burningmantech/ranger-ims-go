@@ -46,9 +46,10 @@ func main() {
 	const versionRef = "0123456789abcdef"
 
 	fixtures := map[string]templ.Component{
-		"login.html":       template.Login(deployment, versionName, versionRef),
-		"root.html":        template.Root(deployment, versionName, versionRef),
-		"admin_types.html": template.AdminTypes(deployment, versionName, versionRef),
+		"login.html":        template.Login(deployment, versionName, versionRef),
+		"root.html":         template.Root(deployment, versionName, versionRef),
+		"admin_types.html":  template.AdminTypes(deployment, versionName, versionRef),
+		"admin_events.html": template.AdminEvents(deployment, versionName, versionRef),
 		// The event name must match the one in the test URLs (see incident.test.ts).
 		"incident.html": template.Incident(deployment, versionName, versionRef, "2025"),
 	}

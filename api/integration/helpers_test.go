@@ -380,6 +380,12 @@ func (a ApiHelper) getAccess(ctx context.Context) (imsjson.EventsAccess, *http.R
 	return *bod.(*imsjson.EventsAccess), resp
 }
 
+func (a ApiHelper) getAccessTargets(ctx context.Context) (imsjson.AccessTargets, *http.Response) {
+	a.t.Helper()
+	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/access_targets").String(), &imsjson.AccessTargets{})
+	return *bod.(*imsjson.AccessTargets), resp
+}
+
 func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, incident int32, fileBytes []byte) (int32, *http.Response) {
 	a.t.Helper()
 

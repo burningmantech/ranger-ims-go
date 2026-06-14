@@ -48,7 +48,7 @@ async function initAdminEventsPage() {
     window.setMapURL = setMapURL;
     el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
     await Promise.all([loadAccessControlList(), loadAccessTargets()]);
-    expandEventsWithIssues();
+    expandEventsWithRules();
     drawAccess();
     explainModal = ims.bsModal(el.explainModal);
     editEventModal = ims.bsModal(el.editEventModal);
@@ -136,15 +136,16 @@ function ruleHasIssue(accessEntry) {
     const invalidInterval = !!(accessEntry.pending && accessEntry.expired);
     return unknownTarget || invalidInterval;
 }
-// Expand events that have rules needing attention, so that their issues
-// are visible without any clicking around.
-function expandEventsWithIssues() {
+// Expand events that have at least one rule, so their rules (and any issues
+// among them) are visible without any clicking around. Empty events stay
+// collapsed to keep the page compact.
+function expandEventsWithRules() {
     if (accessControlList == null) {
         return;
     }
     for (const [event, eventACL] of Object.entries(accessControlList)) {
         for (const mode of allAccessModes) {
-            if ((eventACL?.[mode] ?? []).some(ruleHasIssue)) {
+            if ((eventACL?.[mode] ?? []).length > 0) {
                 expandedEvents.add(event);
             }
         }
@@ -165,12 +166,12 @@ function eventCard(event) {
     card.dataset["eventName"] = event.name;
     let eventWithGroupName = event.name;
     if (event.is_group) {
-        eventWithGroupName = `Group: ${eventWithGroupName}`;
+        eventWithGroupName = `${eventWithGroupName} (Group)`;
     }
     if (event.parent_group) {
         const parentGroup = sortedEvents.find(value => { return value.id === event.parent_group; });
         if (parentGroup) {
-            eventWithGroupName += ` (${parentGroup.name})`;
+            eventWithGroupName += ` (inherits ${parentGroup.name})`;
         }
     }
     card.querySelector(".event_name").textContent = eventWithGroupName;
@@ -231,51 +232,14 @@ function eventCard(event) {
     const eventACL = accessControlList?.[event.name];
     let ruleCount = 0;
     let issueCount = 0;
-    const explainMsgs = [];
     for (const mode of allAccessModes) {
         const accessEntries = (eventACL?.[mode] ?? []).toSorted((a, b) => a.expression.localeCompare(b.expression));
-        if (accessEntries.length > 0) {
-            explainMsgs.push(`${displayMode(mode)}:`);
-        }
         for (const accessEntry of accessEntries) {
             ruleCount++;
             if (ruleHasIssue(accessEntry)) {
                 issueCount++;
             }
             tbody.append(ruleRow(event.name, mode, accessEntry));
-            if (accessEntry.debug_info) {
-                let unknownSuffix = "";
-                if (accessEntry.debug_info?.known_target !== true) {
-                    unknownSuffix = " (unknown target)";
-                }
-                let intervalSuffix = "";
-                if (!accessEntry.pending && !accessEntry.expired) {
-                    // We're in the interval
-                    intervalSuffix = "";
-                }
-                else if (accessEntry.pending && !accessEntry.expired) {
-                    intervalSuffix = " (pending)";
-                }
-                else if (!accessEntry.pending && accessEntry.expired) {
-                    intervalSuffix = " (expired)";
-                }
-                else {
-                    intervalSuffix = " (invalid interval)";
-                }
-                let msg = `${indent}${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${intervalSuffix}\n`;
-                if (accessEntry.debug_info.matches_no_one) {
-                    msg += `${indent}${indent}NO users`;
-                }
-                else if (accessEntry.debug_info.matches_all_users) {
-                    msg += `${indent}${indent}ALL authenticated users`;
-                }
-                else {
-                    msg += indent;
-                    msg += indent;
-                    msg += accessEntry.debug_info.matches_users?.join(`\n${indent}${indent}`);
-                }
-                explainMsgs.push(msg);
-            }
         }
     }
     card.querySelector(".rule_count").textContent =
@@ -288,11 +252,9 @@ function eventCard(event) {
     const explainButton = card.querySelector(".explain_button");
     explainButton.addEventListener("click", (_e) => {
         el.explainModal.querySelector(".modal-title").textContent = `Current permissions for ${event.name}`;
-        if (explainMsgs.length === 0) {
-            explainMsgs.push("No permissions");
-        }
+        const explainMsgs = explainMsgsForEvent(event);
         const modalBody = el.explainModal.querySelector(".modal-body");
-        modalBody.textContent = explainMsgs.join("\n");
+        modalBody.textContent = explainMsgs.length === 0 ? "No permissions" : explainMsgs.join("\n");
         if (event.is_group) {
             modalBody.textContent += "\n\nThis is an event group, so all permissions above also apply to its child events:\n";
             for (const child of sortedEvents) {
@@ -301,9 +263,67 @@ function eventCard(event) {
                 }
             }
         }
+        // Show permissions inherited from the parent group, if any.
+        if (event.parent_group) {
+            const parent = sortedEvents.find(value => value.id === event.parent_group);
+            if (parent) {
+                const parentMsgs = explainMsgsForEvent(parent);
+                modalBody.textContent += `\n\nInherited from parent group "${parent.name}":\n`;
+                modalBody.textContent += parentMsgs.length === 0 ? "No permissions" : parentMsgs.join("\n");
+            }
+        }
         explainModal?.show();
     });
     return cardFrag;
+}
+// Build the human-readable "Explain" lines for an event: one header per access
+// mode, followed by each rule's expression and the users it currently matches.
+function explainMsgsForEvent(event) {
+    const eventACL = accessControlList?.[event.name];
+    const explainMsgs = [];
+    for (const mode of allAccessModes) {
+        const accessEntries = (eventACL?.[mode] ?? []).toSorted((a, b) => a.expression.localeCompare(b.expression));
+        if (accessEntries.length > 0) {
+            explainMsgs.push(`${displayMode(mode)}:`);
+        }
+        for (const accessEntry of accessEntries) {
+            if (!accessEntry.debug_info) {
+                continue;
+            }
+            let unknownSuffix = "";
+            if (accessEntry.debug_info?.known_target !== true) {
+                unknownSuffix = " (unknown target)";
+            }
+            let intervalSuffix = "";
+            if (!accessEntry.pending && !accessEntry.expired) {
+                // We're in the interval
+                intervalSuffix = "";
+            }
+            else if (accessEntry.pending && !accessEntry.expired) {
+                intervalSuffix = " (pending)";
+            }
+            else if (!accessEntry.pending && accessEntry.expired) {
+                intervalSuffix = " (expired)";
+            }
+            else {
+                intervalSuffix = " (invalid interval)";
+            }
+            let msg = `${indent}${accessEntry.expression} (${accessEntry.validity})${unknownSuffix}${intervalSuffix}\n`;
+            if (accessEntry.debug_info.matches_no_one) {
+                msg += `${indent}${indent}NO users`;
+            }
+            else if (accessEntry.debug_info.matches_all_users) {
+                msg += `${indent}${indent}ALL authenticated users`;
+            }
+            else {
+                msg += indent;
+                msg += indent;
+                msg += accessEntry.debug_info.matches_users?.join(`\n${indent}${indent}`);
+            }
+            explainMsgs.push(msg);
+        }
+    }
+    return explainMsgs;
 }
 function ruleRow(event, mode, accessEntry) {
     const rowFrag = el.accessRuleTemplate.content.cloneNode(true);

@@ -102,10 +102,10 @@ test("event cards are rendered with their access rules", async (): Promise<void>
     const card = cards[0]!;
     expect(card.querySelector(".event_name")!.textContent).toBe("2025");
     expect(card.querySelector(".rule_count")!.textContent).toBe("2 rules");
-    // No rules have issues, so the issue badge stays hidden and the rule
-    // table stays collapsed.
+    // No rules have issues, so the issue badge stays hidden. The event has
+    // rules, though, so its rule table auto-expands.
     expect(card.querySelector(".issue_count")!.classList.contains("d-none")).toBe(true);
-    expect(card.querySelector(".access_rules_collapse")!.classList.contains("show")).toBe(false);
+    expect(card.querySelector(".access_rules_collapse")!.classList.contains("show")).toBe(true);
 
     // Rows are drawn in access mode order: readers before writers.
     const rows = ruleRows(card);

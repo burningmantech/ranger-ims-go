@@ -156,3 +156,102 @@ export class MockEventSource extends EventTarget {
         this.readyState = MockEventSource.CLOSED;
     }
 }
+
+interface DataTableColumn {
+    name?: string;
+    data?: string;
+    render?: (value: any, type: string, row: any) => unknown;
+}
+interface DataTableOptions {
+    ajax: (data: unknown, callback: (resp: { data: any[] }) => void, settings: unknown) => void;
+    columns: DataTableColumn[];
+    createdRow?: (row: HTMLElement, data: any, index: number) => void;
+}
+
+// A minimal stand-in for the DataTables grid that the list pages (incidents,
+// field_reports, sanctuary_visits, places) construct as a classic-script
+// dependency. It captures the options the page passes, runs the ajax data
+// source (so the page's row transforms and fetches are exercised), and fires
+// the "init" listeners once the first load completes. The methods the pages
+// call for filtering/paging are present as no-ops that record nothing, since
+// those drive the real DataTables rendering that isn't under test here.
+//
+// Install it per-test with vi.stubGlobal("DataTable", MockDataTable), then read
+// MockDataTable.lastInstance.data() to see the rows the page handed the table.
+export class MockDataTable {
+    static lastInstance: MockDataTable | null = null;
+    static ext = { errMode: "" };
+    static render = {
+        text: () => ({ display: (s: unknown): unknown => s }),
+        number: () => ({ display: (s: unknown): unknown => s }),
+    };
+
+    options: DataTableOptions;
+    private rowData: any[] = [];
+    private initHandlers: (() => void)[] = [];
+
+    page = { len: (_n: number | null): void => {} };
+    ajax = { reload: (_data?: unknown, _draw?: boolean): void => void this.runAjax(false) };
+    row = { add: (json: any): MockDataTable => { this.rowData.push(json); return this; } };
+    // search(q, isRegex, smart) with a .fixed(name, fn) sub-method.
+    search = Object.assign((..._args: unknown[]): void => {}, {
+        fixed: (..._args: unknown[]): void => {},
+    });
+
+    constructor(_selector: string, options: DataTableOptions) {
+        this.options = options;
+        MockDataTable.lastInstance = this;
+        void this.runAjax(true);
+    }
+
+    on(event: string, cb: () => void): MockDataTable {
+        if (event === "init") {
+            this.initHandlers.push(cb);
+        }
+        return this;
+    }
+
+    data(): any[] {
+        return this.rowData;
+    }
+
+    draw(_paging?: unknown): MockDataTable {
+        return this;
+    }
+
+    processing(_show: boolean): MockDataTable {
+        return this;
+    }
+
+    rows() {
+        const rowData = this.rowData;
+        return {
+            every(this: void, cb: (this: { data: () => any }) => void): void {
+                for (const datum of rowData) {
+                    cb.call({ data: (): any => datum });
+                }
+            },
+        };
+    }
+
+    column(name: string): DataTableColumn | undefined {
+        return this.options.columns.find(c => c.name === name);
+    }
+
+    private async runAjax(fireInit: boolean): Promise<void> {
+        await new Promise<void>((resolve): void => {
+            this.options.ajax(null, (resp): void => {
+                this.rowData = resp.data;
+                resolve();
+            }, null);
+        });
+        if (fireInit) {
+            // The page registers its "init" handler synchronously right after
+            // constructing the table, so it's in place by the time the first
+            // (awaited) load resolves here.
+            for (const cb of this.initHandlers) {
+                cb();
+            }
+        }
+    }
+}

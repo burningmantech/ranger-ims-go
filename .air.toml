@@ -18,6 +18,7 @@ tmp_dir = "air_tmp"
     "compose.ranger-ims-go",
     "web/template/*_templ.go",
     "web/static/*.js",
+    "web/typescripttest/*",
     "store/imsdb/*.go",
     "directory/clubhousedb/*.go",
     "coverage.out",

@@ -408,7 +408,7 @@ function initSearchField(): void {
             // very slow, and it's super annoying for a user when
             // the page fully locks up before they're done typing.
             clearTimeout(searchDelayTimer);
-            searchDelayTimer = setTimeout(searchAndDraw, searchDelayMs);
+            searchDelayTimer = window.setTimeout(searchAndDraw, searchDelayMs);
         }
     );
     el.searchInput.addEventListener("keydown",

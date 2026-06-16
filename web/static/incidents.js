@@ -543,7 +543,7 @@ function initSearchField() {
         // very slow, and it's super annoying for a user when
         // the page fully locks up before they're done typing.
         clearTimeout(_searchDelayTimer);
-        _searchDelayTimer = setTimeout(searchAndDraw, _searchDelayMs);
+        _searchDelayTimer = window.setTimeout(searchAndDraw, _searchDelayMs);
     });
     el.searchInput.addEventListener("keydown", function (e) {
         // No shortcuts when ctrl, alt, or meta is being held down

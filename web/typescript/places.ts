@@ -416,7 +416,7 @@ function destInitSearchField(): void {
             // very slow, and it's super annoying for a user when
             // the page fully locks up before they're done typing.
             clearTimeout(_destSearchDelayTimer);
-            _destSearchDelayTimer = setTimeout(searchAndDraw, _destSearchDelayMs);
+            _destSearchDelayTimer = window.setTimeout(searchAndDraw, _destSearchDelayMs);
         }
     );
     el.searchInput.addEventListener("keydown",

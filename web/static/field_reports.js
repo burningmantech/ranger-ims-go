@@ -324,7 +324,7 @@ function frInitSearchField() {
         // very slow, and it's super annoying for a user when
         // the page fully locks up before they're done typing.
         clearTimeout(_frSearchDelayTimer);
-        _frSearchDelayTimer = setTimeout(searchAndDraw, _frSearchDelayMs);
+        _frSearchDelayTimer = window.setTimeout(searchAndDraw, _frSearchDelayMs);
     });
     el.searchInput.addEventListener("keydown", function (e) {
         // No shortcuts when ctrl, alt, or meta is being held down

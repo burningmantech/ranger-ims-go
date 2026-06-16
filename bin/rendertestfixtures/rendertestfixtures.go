@@ -46,12 +46,24 @@ func main() {
 	const versionRef = "0123456789abcdef"
 
 	fixtures := map[string]templ.Component{
-		"login.html":        template.Login(deployment, versionName, versionRef),
-		"root.html":         template.Root(deployment, versionName, versionRef),
-		"admin_types.html":  template.AdminTypes(deployment, versionName, versionRef),
-		"admin_events.html": template.AdminEvents(deployment, versionName, versionRef),
+		"login.html":             template.Login(deployment, versionName, versionRef),
+		"root.html":              template.Root(deployment, versionName, versionRef),
+		"admin_types.html":       template.AdminTypes(deployment, versionName, versionRef),
+		"admin_events.html":      template.AdminEvents(deployment, versionName, versionRef),
+		"admin_action_logs.html": template.AdminActionLogs(deployment, versionName, versionRef),
+		"admin_debug.html":       template.AdminDebug(deployment, versionName, versionRef),
+		"admin_places.html":      template.AdminPlaces(deployment, versionName, versionRef),
+		"admin_root.html":        template.AdminRoot(deployment, versionName, versionRef),
+		"admin_streets.html":     template.AdminStreets(deployment, versionName, versionRef),
+		"settings.html":          template.Settings(deployment, versionName, versionRef),
 		// The event name must match the one in the test URLs (see incident.test.ts).
-		"incident.html": template.Incident(deployment, versionName, versionRef, "2025"),
+		"incident.html":         template.Incident(deployment, versionName, versionRef, "2025"),
+		"incidents.html":        template.Incidents(deployment, versionName, versionRef, "2025"),
+		"field_report.html":     template.FieldReport(deployment, versionName, versionRef, "2025"),
+		"field_reports.html":    template.FieldReports(deployment, versionName, versionRef, "2025"),
+		"places.html":           template.Places(deployment, versionName, versionRef, "2025"),
+		"sanctuary_visit.html":  template.SanctuaryVisit(deployment, versionName, versionRef, "2025"),
+		"sanctuary_visits.html": template.SanctuaryVisits(deployment, versionName, versionRef, "2025"),
 	}
 
 	repo, err := os.OpenRoot(repoRoot(ctx))

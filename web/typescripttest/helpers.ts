@@ -190,13 +190,31 @@ export class MockDataTable {
     private rowData: any[] = [];
     private initHandlers: (() => void)[] = [];
 
-    page = { len: (_n: number | null): void => {} };
+    // The most recent page.len() argument the page set.
+    pageLen: number | null = null;
+    // The most recent (query, isRegex, smartSearch) the page passed to search().
+    lastSearch: [string, boolean, boolean] | null = null;
+    // The fixed search predicates the page registered via search.fixed(name, fn),
+    // keyed by name. Tests call fixedSearch(name) to drive a row through one.
+    fixedSearches: Record<string, (searchStr: string, rowData: object, rowIndex: number) => boolean> = {};
+
+    page = { len: (n: number | null): void => void (this.pageLen = n) };
     ajax = { reload: (_data?: unknown, _draw?: boolean): void => void this.runAjax(false) };
     row = { add: (json: any): MockDataTable => { this.rowData.push(json); return this; } };
     // search(q, isRegex, smart) with a .fixed(name, fn) sub-method.
-    search = Object.assign((..._args: unknown[]): void => {}, {
-        fixed: (..._args: unknown[]): void => {},
+    search = Object.assign((q?: string, isRegex?: boolean, smart?: boolean): void => {
+        this.lastSearch = [q ?? "", isRegex ?? false, smart ?? false];
+    }, {
+        fixed: (name: string, fn: (searchStr: string, rowData: object, rowIndex: number) => boolean): void => {
+            this.fixedSearches[name] = fn;
+        },
     });
+
+    // Run a registered fixed search predicate against the row at rowIndex,
+    // returning whether the row passes the filter.
+    fixedSearch(name: string, rowIndex: number): boolean {
+        return this.fixedSearches[name]!("", {}, rowIndex);
+    }
 
     constructor(_selector: string, options: DataTableOptions) {
         this.options = options;
@@ -224,11 +242,21 @@ export class MockDataTable {
     }
 
     rows() {
-        const rowData = this.rowData;
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const table = this;
         return {
-            every(this: void, cb: (this: { data: () => any }) => void): void {
-                for (const datum of rowData) {
-                    cb.call({ data: (): any => datum });
+            every(this: void, cb: (this: { data: (json?: any) => any }) => void): void {
+                for (let index = 0; index < table.rowData.length; index++) {
+                    // data() reads the row; data(json) replaces it, mirroring the
+                    // DataTables row().data() getter/setter the update handlers use.
+                    cb.call({
+                        data: (json?: any): any => {
+                            if (json !== undefined) {
+                                table.rowData[index] = json;
+                            }
+                            return table.rowData[index];
+                        },
+                    });
                 }
             },
         };

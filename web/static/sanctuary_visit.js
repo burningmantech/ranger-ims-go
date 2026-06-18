@@ -472,7 +472,14 @@ async function onStrikeSuccess() {
     ims.clearErrorMessage();
 }
 ims.setOnStrikeSuccess(onStrikeSuccess);
+// Handle for the pending "Uploaded ✓" revert, so a fresh upload can cancel a
+// stale revert from a previous one.
+let attachFileRevertTimeout = null;
 async function attachFile() {
+    if (attachFileRevertTimeout != null) {
+        window.clearTimeout(attachFileRevertTimeout);
+        attachFileRevertTimeout = null;
+    }
     if (ims.pathIds.visitNumber == null) {
         // Visit doesn't exist yet. Create it first.
         const { err } = await sendEdits({});
@@ -487,17 +494,31 @@ async function attachFile() {
     }
     const attachURL = ims.urlReplace(url_visitAttachments)
         .replace("<visit_number>", (ims.pathIds.visitNumber ?? "").toString());
-    const { err } = await ims.fetchNoThrow(attachURL, {
-        body: formData
-    });
-    if (err != null) {
-        const message = `Failed to attach file: ${err}`;
-        ims.setErrorMessage(message);
-        return;
+    el.attachFile.disabled = true;
+    el.attachFile.value = "Uploading...";
+    try {
+        const { err } = await ims.fetchNoThrow(attachURL, {
+            body: formData,
+        });
+        if (err != null) {
+            const message = `Failed to attach file: ${err}`;
+            ims.setErrorMessage(message);
+            el.attachFile.value = "Attach file";
+            return;
+        }
+        ims.clearErrorMessage();
+        el.attachFileInput.value = "";
+        await loadAndDisplayVisit();
+        // Brief confirmation, then revert.
+        el.attachFile.value = "Uploaded ✓";
+        attachFileRevertTimeout = window.setTimeout(() => {
+            el.attachFile.value = "Attach file";
+            attachFileRevertTimeout = null;
+        }, 2000);
     }
-    ims.clearErrorMessage();
-    el.attachFileInput.value = "";
-    await loadAndDisplayVisit();
+    finally {
+        el.attachFile.disabled = false;
+    }
 }
 let personnel = null;
 async function loadPersonnel() {

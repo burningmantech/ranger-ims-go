@@ -17,10 +17,74 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/pull/528
+https://github.com/burningmantech/ranger-ims-go/pull/659
 -->
 
+## 2026-06
+
+### Added
+
+- Added a "not before" access mode and renamed the old "expired" concept to "not after". Together these let admins specify both when an event permission becomes active and when it lapses. https://github.com/burningmantech/ranger-ims-go/pull/648
+- Started using flatpickr for selecting the "not before" and "not after" permission times. https://github.com/burningmantech/ranger-ims-go/pull/649
+- Added an optional map link for each event, which surfaces as a "Map" link (e.g. on the Incident page) pointing to the official PDF map of public camps. https://github.com/burningmantech/ranger-ims-go/pull/652 https://github.com/burningmantech/ranger-ims-go/pull/653
+
+### Changed
+
+- Improved the event permissions display on the Admin Events page. https://github.com/burningmantech/ranger-ims-go/pull/655 https://github.com/burningmantech/ranger-ims-go/pull/656
+
+### Fixed
+
+- Distinguished access tokens from refresh tokens by adding a token-type claim, closing a gap in which the two were interchangeable. https://github.com/burningmantech/ranger-ims-go/pull/650
+- Told password managers that address fields aren't passwords, to stop spurious "save password" prompts. https://github.com/burningmantech/ranger-ims-go/pull/641
+
+## 2026-05
+
+### Added
+
+- Applied a batch of Sanctuary Visit enhancements requested by the Green Dot Cadre, including switching the Sanctuary Visit page over to accordions to make the information much easier to read. https://github.com/burningmantech/ranger-ims-go/pull/630 https://github.com/burningmantech/ranger-ims-go/pull/634
+
+### Fixed
+
+- Stopped an infinite redirect loop on /ims/app/. https://github.com/burningmantech/ranger-ims-go/pull/629
+- Tidied up a few client-side oddities. https://github.com/burningmantech/ranger-ims-go/pull/633
+- Made section capitalization consistent across the web UI. https://github.com/burningmantech/ranger-ims-go/pull/636
+
+## 2026-04
+
+### Changed
+
+- Renamed "Destinations" to "Places", and "Sanctuary Stays" to "Sanctuary Visits", since both names read better. https://github.com/burningmantech/ranger-ims-go/pull/610 https://github.com/burningmantech/ranger-ims-go/pull/603
+- Made MariaDB the default DB store type. https://github.com/burningmantech/ranger-ims-go/pull/612
+
+### Added
+
+- Added support for mutant vehicles in Places, alongside camps and art. https://github.com/burningmantech/ranger-ims-go/pull/599
+- Added a "what's new in 2026" summary to the home page for logged-in users. https://github.com/burningmantech/ranger-ims-go/pull/605
+
+### Fixed
+
+- Ordered events on the multisearch page. https://github.com/burningmantech/ranger-ims-go/pull/604
+
+## 2026-03
+
+### Added
+
+- Added the ability to filter the Sanctuary Stays table by current vs. all. https://github.com/burningmantech/ranger-ims-go/pull/590 https://github.com/burningmantech/ranger-ims-go/pull/589
+
+### Changed
+
+- Made a few small style tweaks. https://github.com/burningmantech/ranger-ims-go/pull/592
+
 ## 2026-02
+
+### Added
+
+- Introduced "Sanctuary Stays" (later renamed "Sanctuary Visits"), which lets the Green Dot Cadre track all Sanctuary visit information inside IMS and attach visits to Incidents. https://github.com/burningmantech/ranger-ims-go/pull/560 https://github.com/burningmantech/ranger-ims-go/pull/561
+- Started showing Stays in the navbar. https://github.com/burningmantech/ranger-ims-go/pull/561
+
+### Fixed
+
+- Removed broken filters on the Stays page. https://github.com/burningmantech/ranger-ims-go/pull/563
 
 ## 2026-01
 

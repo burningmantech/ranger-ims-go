@@ -185,8 +185,8 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
 
 // Import incident.ts with a fake server behind it, and wait for the page to
 // finish initializing (the loading overlay goes away at the end of init).
-async function initIncidentPage() {
-    const mock = mockFetch(incidentRoutes);
+async function initIncidentPage(handler: (url: string, init?: RequestInit) => Response | undefined = incidentRoutes) {
+    const mock = mockFetch(handler);
     await import("../typescript/incident.ts");
     await vi.waitFor((): void => {
         expect(document.getElementById("loading-overlay")!.style.display).toBe("none");
@@ -672,4 +672,53 @@ test("attachFile posts the file form data to the attachments endpoint", async ()
         ([url, init]): boolean =>
             url === "/ims/api/events/2025/incidents/1/attachments" && init?.body instanceof FormData);
     expect(attach).toBeDefined();
+});
+
+test("attachFile shows an uploading state, posts the file, then confirms and reverts", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    const button = document.getElementById("attach_file") as HTMLInputElement;
+    expect(button.value).toBe("Attach file");
+
+    vi.useFakeTimers();
+    try {
+        // The synchronous prefix of attachFile disables the button and relabels
+        // it before the upload fetch is awaited.
+        const pending = window.attachFile();
+        expect(button.disabled).toBe(true);
+        expect(button.value).toBe("Uploading...");
+
+        await pending;
+
+        // The file form data went to the attachments endpoint.
+        expect(mock.mock.calls.some(([url, init]) =>
+            url === `/ims/api/events/${eventName}/incidents/1/attachments` && init?.body instanceof FormData)).toBe(true);
+
+        // On success the button re-enables and briefly confirms.
+        expect(button.disabled).toBe(false);
+        expect(button.value).toBe("Uploaded ✓");
+
+        // The confirmation reverts to the default label after a moment.
+        vi.advanceTimersByTime(2000);
+        expect(button.value).toBe("Attach file");
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
+test("a failed attachment re-enables the button and surfaces the error", async (): Promise<void> => {
+    await initIncidentPage((url, init) => {
+        if (url === `/ims/api/events/${eventName}/incidents/1/attachments` && init?.body != null) {
+            return undefined;
+        }
+        return incidentRoutes(url, init);
+    });
+    const button = document.getElementById("attach_file") as HTMLInputElement;
+
+    await window.attachFile();
+
+    // The button is left usable, keeps its default label (no success), and the
+    // failure is shown to the user.
+    expect(button.disabled).toBe(false);
+    expect(button.value).toBe("Attach file");
+    expect(document.getElementById("error_text")!.textContent).toContain("Failed to attach file");
 });

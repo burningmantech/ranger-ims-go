@@ -1588,7 +1588,15 @@ async function onStrikeSuccess(): Promise<void> {
 }
 ims.setOnStrikeSuccess(onStrikeSuccess);
 
+// Handle for the pending "Uploaded ✓" revert, so a fresh upload can cancel a
+// stale revert from a previous one.
+let attachFileRevertTimeout: number|null = null;
+
 async function attachFile(): Promise<void> {
+    if (attachFileRevertTimeout != null) {
+        window.clearTimeout(attachFileRevertTimeout);
+        attachFileRevertTimeout = null;
+    }
     if (ims.pathIds.incidentNumber == null) {
         // Incident doesn't exist yet.  Create it first.
         const {err} = await sendEdits({});
@@ -1605,15 +1613,30 @@ async function attachFile(): Promise<void> {
 
     const attachURL = ims.urlReplace(url_incidentAttachments)
         .replace("<incident_number>", (ims.pathIds.incidentNumber??"").toString());
-    const {err} = await ims.fetchNoThrow(attachURL, {
-        body: formData
-    });
-    if (err != null) {
-        const message = `Failed to attach file: ${err}`;
-        ims.setErrorMessage(message);
-        return;
+
+    el.attachFile.disabled = true;
+    el.attachFile.value = "Uploading...";
+    try {
+        const {err} = await ims.fetchNoThrow(attachURL, {
+            body: formData,
+        });
+        if (err != null) {
+            const message = `Failed to attach file: ${err}`;
+            ims.setErrorMessage(message);
+            el.attachFile.value = "Attach file";
+            return;
+        }
+        ims.clearErrorMessage();
+        el.attachFileInput.value = "";
+        await loadAndDisplayIncident();
+
+        // Brief confirmation, then revert.
+        el.attachFile.value = "Uploaded ✓";
+        attachFileRevertTimeout = window.setTimeout((): void => {
+            el.attachFile.value = "Attach file";
+            attachFileRevertTimeout = null;
+        }, 2000);
+    } finally {
+        el.attachFile.disabled = false;
     }
-    ims.clearErrorMessage();
-    el.attachFileInput.value = "";
-    await loadAndDisplayIncident();
 }

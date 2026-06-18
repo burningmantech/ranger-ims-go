@@ -157,3 +157,52 @@ test("a viewer without field-report read access sees an authorization error", as
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
     expect(document.getElementById("error_text")!.textContent).toContain("not currently authorized");
 });
+
+test("attachFile shows an uploading state, posts the file, then confirms and reverts", async (): Promise<void> => {
+    const mock = await initFieldReportPage();
+    const button = document.getElementById("attach_file") as HTMLInputElement;
+    expect(button.value).toBe("Attach file");
+
+    vi.useFakeTimers();
+    try {
+        // The synchronous prefix of attachFile disables the button and relabels
+        // it before the upload fetch is awaited.
+        const pending = window.attachFile();
+        expect(button.disabled).toBe(true);
+        expect(button.value).toBe("Uploading...");
+
+        await pending;
+
+        // The file form data went to the attachments endpoint.
+        expect(mock.mock.calls.some(([url, init]) =>
+            url === `${frUrl}/7/attachments` && init?.body instanceof FormData)).toBe(true);
+
+        // On success the button re-enables and briefly confirms.
+        expect(button.disabled).toBe(false);
+        expect(button.value).toBe("Uploaded ✓");
+
+        // The confirmation reverts to the default label after a moment.
+        vi.advanceTimersByTime(2000);
+        expect(button.value).toBe("Attach file");
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
+test("a failed attachment re-enables the button and surfaces the error", async (): Promise<void> => {
+    await initFieldReportPage((url, init) => {
+        if (url === `${frUrl}/7/attachments` && init?.body != null) {
+            return undefined;
+        }
+        return frRoutes(url, init);
+    });
+    const button = document.getElementById("attach_file") as HTMLInputElement;
+
+    await window.attachFile();
+
+    // The button is left usable, keeps its default label (no success), and the
+    // failure is shown to the user.
+    expect(button.disabled).toBe(false);
+    expect(button.value).toBe("Attach file");
+    expect(document.getElementById("error_text")!.textContent).toContain("Failed to attach file");
+});

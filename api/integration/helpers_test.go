@@ -333,6 +333,16 @@ func (a ApiHelper) getEvents(ctx context.Context) (imsjson.Events, *http.Respons
 	return *bod.(*imsjson.Events), resp
 }
 
+func (a ApiHelper) getEventsIncludingGroups(ctx context.Context) (imsjson.Events, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/events")
+	q := path.Query()
+	q.Set("include_groups", "true")
+	path.RawQuery = q.Encode()
+	bod, resp := a.imsGet(ctx, path.String(), &imsjson.Events{})
+	return *bod.(*imsjson.Events), resp
+}
+
 func (a ApiHelper) addWriter(ctx context.Context, eventName, handle string) *http.Response {
 	a.t.Helper()
 	return a.editAccess(ctx, imsjson.EventsAccess{

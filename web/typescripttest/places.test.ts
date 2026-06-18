@@ -118,3 +118,168 @@ test("a viewer without incident-read or field-report-write access sees an author
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
     expect(document.getElementById("error_text")!.textContent).toContain("not currently authorized");
 });
+
+// Pull a column's render function off the table the page configured.
+function renderColumn(name: string): (value: any, type: string, row: ims.Place) => unknown {
+    const column = MockDataTable.lastInstance!.column(name)!;
+    return column.render!;
+}
+
+// Run the table's createdRow hook against a fresh row, then click it to open the
+// place-info modal. Returns the populated modal body for inspection.
+function openPlace(place: ims.Place): HTMLElement {
+    const row = document.createElement("tr");
+    MockDataTable.lastInstance!.options.createdRow!(row, place, 0);
+    row.dispatchEvent(new MouseEvent("click"));
+    return document.getElementById("placeBody")!;
+}
+
+test("the description column truncates for display and passes raw text for sort/filter", async (): Promise<void> => {
+    await initPlacesPage();
+    const render = renderColumn("place_description");
+    const place = serverPlaces.art![0]!;
+
+    expect(render("short", "display", place)).toBe("short");
+    expect(render("short", "sort", place)).toBe("short");
+    expect(render("short", "filter", place)).toBe("short");
+    expect(render(null, "filter", place)).toBe("");
+    expect(render("anything", "type", place)).toBe("");
+    expect(render("anything", "bogus", place)).toBeUndefined();
+
+    // Over the 200-char limit (plus a 3-char grace) gets clipped with an ellipsis.
+    const long = "z".repeat(300);
+    const display = render(long, "display", place) as string;
+    expect(display.length).toBe(203);
+    expect(display.endsWith("...")).toBe(true);
+});
+
+test("clicking a camp row fills the modal with its details", async (): Promise<void> => {
+    const camp: ims.Place = {
+        name: "Camp Friendly", type: "camp",
+        external_data: {
+            name: "Camp Friendly", location_string: "5:00 & C", description: "Friendly folks",
+            contact_email: "hi@camp.example", hometown: "Reno", landmark: "big flag",
+            url: "https://camp.example", uid: "camp-1",
+            images: [{ thumbnail_url: "https://img.example/c.jpg?sig=abc" }],
+            location: { frontage: null, intersection: null, intersection_type: "&", dimensions: "100x100", exact_location: "corner" },
+        } as ims.BMCamp,
+    };
+    await initPlacesPage();
+    const body = openPlace(camp);
+
+    expect(document.getElementById("placeInfoModalLabel")!.textContent).toBe("Camp Friendly");
+    expect(body.querySelector("#camp_name")!.textContent).toBe("Camp Friendly");
+    expect(body.querySelector("#location_label")!.textContent).toContain("intersection");
+    expect(body.querySelector("#description")!.textContent).toBe("Friendly folks");
+    expect(body.querySelector("#landmark")!.textContent).toBe("big flag");
+    // The image link drops any query string from the thumbnail URL.
+    expect(body.querySelector("#image_dd a")!.getAttribute("href")).toBe("https://img.example/c.jpg");
+    expect((body.querySelector("#email_link") as HTMLAnchorElement).href).toBe("mailto:hi@camp.example");
+    expect((body.querySelector("#website_url") as HTMLAnchorElement).href).toBe("https://camp.example/");
+    expect(body.querySelector("#hometown")!.textContent).toBe("Reno");
+    expect(body.querySelector("#uid")!.textContent).toBe("camp-1");
+});
+
+test("clicking an art row with full details renders GPS coordinates and links", async (): Promise<void> => {
+    const art: ims.Place = {
+        name: "Temple", type: "art",
+        external_data: {
+            name: "Temple", location_string: "9:00", description: "A big temple", artist: "Jane",
+            contact_email: "art@example", hometown: "Oakland", url: "https://art.example", uid: "art-1",
+            images: [{ thumbnail_url: "https://img.example/a.jpg" }],
+            location: { hour: 9, minute: 0, distance: null, category: null, gps_latitude: 40.781, gps_longitude: -119.234 },
+        } as ims.BMArt,
+    };
+    await initPlacesPage();
+    const body = openPlace(art);
+
+    expect(body.querySelector("#art_name")!.textContent).toBe("Temple");
+    expect(body.querySelector("#location_string")!.textContent).toContain("40.781000,-119.234000");
+    expect(body.querySelector("#artist")!.textContent).toBe("Jane");
+    expect((body.querySelector("#email_link") as HTMLAnchorElement).href).toBe("mailto:art@example");
+});
+
+test("clicking a mutant-vehicle row joins its tags and renders details", async (): Promise<void> => {
+    const mv: ims.Place = {
+        name: "Disco Bus", type: "mv",
+        external_data: {
+            name: "Disco Bus", description: "Boogie", artist: "DJ", contact_email: "mv@example",
+            hometown: "SF", url: "https://mv.example", uid: "mv-1", tags: ["loud", "shiny"],
+            images: [{ thumbnail_url: "https://img.example/mv.jpg" }],
+        } as ims.BMMV,
+    };
+    await initPlacesPage();
+    const body = openPlace(mv);
+
+    expect(body.querySelector("#mv_name")!.textContent).toBe("Disco Bus");
+    expect(body.querySelector("#tags")!.textContent).toBe("loud, shiny");
+    expect(body.querySelector("#artist")!.textContent).toBe("DJ");
+});
+
+test("clicking an 'other' place with missing details shows 'None provided' fallbacks", async (): Promise<void> => {
+    // "other" places reuse the camp template; with no external detail the optional
+    // fields fall back to their "None provided" placeholders.
+    const other: ims.Place = {
+        name: "First Camp", type: "other",
+        external_data: { name: "First Camp", location_string: null } as ims.OtherDest,
+    };
+    await initPlacesPage();
+    const body = openPlace(other);
+
+    expect(body.querySelector("#description")!.textContent).toBe("None provided");
+    expect(body.querySelector("#landmark")!.textContent).toBe("None provided");
+    expect(body.querySelector("#email_dd")!.textContent).toBe("None provided");
+    expect(body.querySelector("#website_dd")!.textContent).toBe("None provided");
+    expect(body.querySelector("#image_dd")!.textContent).toContain("None provided");
+});
+
+test("destShowRows updates the dropdown label, page length, and URL hash", async (): Promise<void> => {
+    await initPlacesPage();
+
+    window.destShowRows("50", true);
+    expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).not.toBe("");
+    expect(MockDataTable.lastInstance!.pageLen).toBe(50);
+    expect(window.location.hash).toContain("rows=50");
+});
+
+test("destShowRows('all') sets the page length to unlimited", async (): Promise<void> => {
+    await initPlacesPage();
+    window.destShowRows("all", false);
+    expect(MockDataTable.lastInstance!.pageLen).toBe(-1);
+});
+
+test("a q fragment applies a /regex/ search on load", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/places#q=${encodeURIComponent("/temple/")}`);
+    await initPlacesPage();
+
+    expect((document.getElementById("search_input") as HTMLInputElement).value).toBe("/temple/");
+    expect(MockDataTable.lastInstance!.lastSearch).toEqual(["temple", true, false]);
+});
+
+test("typing in the search box runs a debounced smart search", async (): Promise<void> => {
+    await initPlacesPage();
+    const input = document.getElementById("search_input") as HTMLInputElement;
+    input.value = "temple";
+    input.dispatchEvent(new Event("input"));
+
+    await vi.waitFor((): void => {
+        expect(MockDataTable.lastInstance!.lastSearch).toEqual(["temple", false, true]);
+    });
+    expect(window.location.hash).toContain("q=temple");
+});
+
+test("the map link is revealed when the current event has a map URL", async (): Promise<void> => {
+    serverEvents = [{ id: eventId, name: eventName, map_url: "https://map.example/2025" }];
+    await initPlacesPage();
+
+    const mapLink = document.getElementById("map-link") as HTMLAnchorElement;
+    expect(mapLink.href).toBe("https://map.example/2025");
+    expect(mapLink.classList.contains("d-none")).toBe(false);
+});
+
+test("the slash key focuses the search box", async (): Promise<void> => {
+    await initPlacesPage();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "/" }));
+    expect(document.activeElement).toBe(document.getElementById("search_input"));
+});

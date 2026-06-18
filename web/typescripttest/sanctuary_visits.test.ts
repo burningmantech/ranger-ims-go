@@ -32,6 +32,9 @@ let serverEvents: ims.EventData[];
 
 beforeEach((): void => {
     vi.resetModules();
+    // window globals persist across tests; clear the one the page assigns only
+    // once init fully settles, so waitFor tracks this test's init, not a prior one.
+    (window as unknown as Record<string, unknown>)["toggleMultisearchModal"] = undefined;
     loadFixture("sanctuary_visits.html");
     window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits`);
 
@@ -114,4 +117,184 @@ test("a viewer without visit read access sees an authorization error", async ():
 
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
     expect(document.getElementById("error_text")!.textContent).toContain("not currently authorized");
+});
+
+// Pull a column's render function off the table the page configured.
+function renderColumn(name: string): (value: any, type: string, row: ims.Visit) => unknown {
+    const column = MockDataTable.lastInstance!.column(name)!;
+    return column.render!;
+}
+
+test("the name column renders the guest's preferred name, falling back to legal name", async (): Promise<void> => {
+    serverVisits.push({ number: 4, guest_legal_name: "Legal Name", report_entries: [] });
+    await initVisitsPage();
+    const render = renderColumn("visit_name");
+
+    const preferred = serverVisits[0]!; // guest_preferred_name "Sparkle"
+    expect((render(null, "display", preferred) as Node).textContent).toBe("Sparkle");
+    expect(render(null, "sort", preferred)).toBe("Sparkle");
+
+    const legalOnly = serverVisits[2]!; // only guest_legal_name
+    expect((render(null, "display", legalOnly) as Node).textContent).toBe("Legal Name");
+    expect(render(null, "filter", legalOnly)).toBe("Legal Name");
+    expect(render(null, "bogus", preferred)).toBeUndefined();
+});
+
+test("the string columns render display, filter, and truncated text", async (): Promise<void> => {
+    serverVisits[0]!.resource_sitter = "Buddy";
+    await initVisitsPage();
+    const render = renderColumn("visit_sitter");
+
+    expect(render("Buddy", "display", serverVisits[0]!)).toBe("Buddy");
+    expect(render("Buddy", "filter", serverVisits[0]!)).toBe("Buddy");
+    expect(render(null, "display", serverVisits[0]!)).toBe("");
+    expect(render("Buddy", "bogus", serverVisits[0]!)).toBeUndefined();
+
+    const long = "y".repeat(400);
+    const display = render(long, "display", serverVisits[0]!) as string;
+    expect(display.length).toBe(250);
+    expect(display.endsWith("...")).toBe(true);
+});
+
+test("the status filter shows only current visits unless showing all", async (): Promise<void> => {
+    await initVisitsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    // data[0] has no departure_time (current); data[1] has one (departed).
+    window.showStatus("current", false);
+    expect(table.fixedSearch("status", 0)).toBe(true);
+    expect(table.fixedSearch("status", 1)).toBe(false);
+
+    window.showStatus("all", false);
+    expect(table.fixedSearch("status", 0)).toBe(true);
+    expect(table.fixedSearch("status", 1)).toBe(true);
+});
+
+test("the modification-date filter passes everything when no window is set", async (): Promise<void> => {
+    await initVisitsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    expect(table.fixedSearch("modification_date", 0)).toBe(true);
+    expect(table.fixedSearch("modification_date", 1)).toBe(true);
+});
+
+test("show* controls update the dropdown labels and the URL hash", async (): Promise<void> => {
+    await initVisitsPage();
+
+    window.showRows("50", true);
+    expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).not.toBe("");
+    expect(window.location.hash).toContain("rows=50");
+    expect(MockDataTable.lastInstance!.pageLen).toBe(50);
+
+    window.showStatus("all", true);
+    expect(document.getElementById("show_status")!.querySelector(".selection")!.textContent).not.toBe("");
+    expect(window.location.hash).toContain("status=all");
+});
+
+test("'all' rows sets the page length to unlimited", async (): Promise<void> => {
+    await initVisitsPage();
+    window.showRows("all", false);
+    expect(MockDataTable.lastInstance!.pageLen).toBe(-1);
+});
+
+test("pressing Enter on an integer search jumps to that visit", async (): Promise<void> => {
+    await initVisitsPage();
+    const input = document.getElementById("search_input") as HTMLInputElement;
+    input.value = "13";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    expect(input.value).toBe("");
+    expect(window.location.href).toContain("/visits/13");
+});
+
+test("a /regex/ search is handed to the table as a regex query", async (): Promise<void> => {
+    await initVisitsPage();
+    const table = MockDataTable.lastInstance!;
+    const input = document.getElementById("search_input") as HTMLInputElement;
+    input.value = "/spark/";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    expect(table.lastSearch).toEqual(["spark", true, false]);
+    expect(window.location.hash).toContain("q=");
+});
+
+test("a visit update broadcast reloads the table", async (): Promise<void> => {
+    await initVisitsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    serverVisits.push({ number: 9, guest_preferred_name: "Newcomer", report_entries: [] });
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ visit_number: 9, event_id: eventId });
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(3);
+    });
+    channel.close();
+});
+
+test("an update_all visit broadcast reloads the table", async (): Promise<void> => {
+    await initVisitsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    serverVisits.push({ number: 9, guest_preferred_name: "Newcomer", report_entries: [] });
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ update_all: true });
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(3);
+    });
+    channel.close();
+});
+
+test("a visit broadcast for a different event is ignored", async (): Promise<void> => {
+    await initVisitsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ visit_number: 2, event_id: eventId + 999 });
+    await new Promise((resolve): void => { setTimeout(resolve, 20); });
+    expect(table.data().length).toBe(2);
+    channel.close();
+});
+
+test("toggling the multisearch modal lists the available events", async (): Promise<void> => {
+    await initVisitsPage();
+    // The modal toggle and keyboard listeners are wired only after the events
+    // list resolves, which happens after the table is constructed.
+    await vi.waitFor((): void => {
+        expect(window.toggleMultisearchModal).toBeTypeOf("function");
+    });
+    window.toggleMultisearchModal();
+
+    const links = document.querySelectorAll("#multisearch-events-list a");
+    expect(links.length).toBe(1);
+    expect(links[0]!.textContent).toBe(eventName);
+});
+
+test("keyboard shortcuts trigger new-visit and focus the search box", async (): Promise<void> => {
+    await initVisitsPage();
+    await vi.waitFor((): void => {
+        expect(window.toggleMultisearchModal).toBeTypeOf("function");
+    });
+
+    const newClicked = vi.fn();
+    document.getElementById("new_visit")!.addEventListener("click", newClicked);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "n" }));
+    expect(newClicked).toHaveBeenCalled();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "/" }));
+    expect(document.activeElement).toBe(document.getElementById("search_input"));
 });

@@ -537,7 +537,11 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 	}
 
 	if len(logs) > 0 {
-		_, errHTTP := addVisitReportEntry(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, author, strings.Join(logs, "\n"), true, "", "", "")
+		_, errHTTP := addVisitReportEntry(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, newReportEntry{
+			author:    author,
+			text:      strings.Join(logs, "\n"),
+			generated: true,
+		})
 		if errHTTP != nil {
 			return errHTTP.From("[addVisitReportEntry]")
 		}
@@ -547,7 +551,10 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addVisitReportEntry(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, author, entry.Text, false, "", "", "")
+		_, errHTTP := addVisitReportEntry(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, newReportEntry{
+			author: author,
+			text:   entry.Text,
+		})
 		if errHTTP != nil {
 			return errHTTP.From("[addVisitReportEntry]")
 		}
@@ -562,39 +569,6 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 	es.notifyIncidentUpdates(storedVisit.Event, storedVisit.IncidentNumber.Int32, update.IncidentNumber.Int32)
 
 	return nil
-}
-
-func addVisitReportEntry(
-	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX,
-	eventID, visitNum int32, author, text string, generated bool,
-	attachment, attachmentOriginalName, attachmentMediaType string,
-) (int32, *herr.HTTPError) {
-	reID64, err := db.CreateReportEntry(ctx, dbtx,
-		imsdb.CreateReportEntryParams{
-			Author:                   author,
-			Text:                     text,
-			Created:                  conv.TimeToFloat(time.Now()),
-			Generated:                generated,
-			Stricken:                 false,
-			AttachedFile:             conv.StringToSql(&attachment, 128),
-			AttachedFileOriginalName: conv.StringToSql(&attachmentOriginalName, 128),
-			AttachedFileMediaType:    conv.StringToSql(&attachmentMediaType, 128),
-		},
-	)
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to create report entry", err).From("[MustInt32]")
-	}
-	// This column is an int32, so this is safe
-	reID := conv.MustInt32(reID64)
-	err = db.AttachReportEntryToVisit(ctx, dbtx, imsdb.AttachReportEntryToVisitParams{
-		Event:       eventID,
-		VisitNumber: visitNum,
-		ReportEntry: reID,
-	})
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToVisit]")
-	}
-	return reID, nil
 }
 
 type EditVisit struct {
@@ -641,158 +615,6 @@ func (action EditVisit) editVisit(req *http.Request) *herr.HTTPError {
 	if errHTTP != nil {
 		return errHTTP.From("[updateVisit]")
 	}
-
-	return nil
-}
-
-type AttachRangerToVisit struct {
-	imsDBQ    *store.DBQ
-	userStore *directory.UserStore
-	es        *EventSourcerer
-	imsAdmins []string
-}
-
-func (action AttachRangerToVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	errHTTP := action.attachRanger(req)
-	if errHTTP != nil {
-		errHTTP.From("[attachRanger]").WriteResponse(w)
-		return
-	}
-	herr.WriteNoContentResponse(w, "Success")
-}
-
-func (action AttachRangerToVisit) attachRanger(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
-	if errHTTP != nil {
-		return errHTTP.From("[getEventPermissions]")
-	}
-	if eventPermissions&authz.EventWriteVisits == 0 {
-		return herr.Forbidden("The requestor does not have EventWriteVisits permission for this Event", nil)
-	}
-	ctx := req.Context()
-
-	visitNumber, err := conv.ParseInt32(req.PathValue("visitNumber"))
-	if err != nil {
-		return herr.BadRequest("Invalid Visit Number", err).From("[ParseInt32]")
-	}
-
-	rangerName := req.PathValue("rangerName")
-	if rangerName == "" {
-		return herr.BadRequest("Empty Ranger Name", nil)
-	}
-
-	body, errHTTP := readBodyAs[imsjson.VisitRanger](req)
-	if errHTTP != nil {
-		return errHTTP.From("[readBodyAs]")
-	}
-	txn, err := action.imsDBQ.Begin()
-	if err != nil {
-		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
-
-	err = action.imsDBQ.DetachRangerFromVisit(ctx, txn, imsdb.DetachRangerFromVisitParams{
-		Event:        event.ID,
-		VisitNumber:  visitNumber,
-		RangerHandle: rangerName,
-	})
-	if err != nil {
-		return herr.InternalServerError("Failed to detach Ranger from Visit", err).From("[DetachRangerFromVisit]")
-	}
-
-	err = action.imsDBQ.AttachRangerToVisit(ctx, txn, imsdb.AttachRangerToVisitParams{
-		Event:        event.ID,
-		VisitNumber:  visitNumber,
-		RangerHandle: rangerName,
-		Role:         conv.StringToSql(body.Role, 128),
-	})
-	if err != nil {
-		return herr.InternalServerError("Failed to attach Ranger to Visit", err).From("[AttachRangerToVisit]")
-	}
-
-	_, errHTTP = addVisitReportEntry(
-		ctx, action.imsDBQ, txn, event.ID, visitNumber,
-		jwtCtx.Claims.RangerHandle(), fmt.Sprintf("Added Ranger: %v", rangerName),
-		true, "", "", "",
-	)
-	if errHTTP != nil {
-		return errHTTP.From("[addVisitReportEntry]")
-	}
-	err = txn.Commit()
-	if err != nil {
-		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
-	}
-
-	action.es.notifyVisitUpdate(event.ID, visitNumber)
-
-	return nil
-}
-
-type DetachRangerFromVisit struct {
-	imsDBQ    *store.DBQ
-	userStore *directory.UserStore
-	es        *EventSourcerer
-	imsAdmins []string
-}
-
-func (action DetachRangerFromVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	errHTTP := action.detachRanger(req)
-	if errHTTP != nil {
-		errHTTP.From("[detachRanger]").WriteResponse(w)
-		return
-	}
-	herr.WriteNoContentResponse(w, "Success")
-}
-
-func (action DetachRangerFromVisit) detachRanger(req *http.Request) *herr.HTTPError {
-	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
-	if errHTTP != nil {
-		return errHTTP.From("[getEventPermissions]")
-	}
-	if eventPermissions&authz.EventWriteVisits == 0 {
-		return herr.Forbidden("The requestor does not have EventWriteVisits permission for this Event", nil)
-	}
-	ctx := req.Context()
-
-	visitNumber, err := conv.ParseInt32(req.PathValue("visitNumber"))
-	if err != nil {
-		return herr.BadRequest("Invalid Visit Number", err).From("[ParseInt32]")
-	}
-
-	rangerName := req.PathValue("rangerName")
-	if rangerName == "" {
-		return herr.BadRequest("Empty Ranger Name", nil)
-	}
-
-	txn, err := action.imsDBQ.Begin()
-	if err != nil {
-		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
-
-	err = action.imsDBQ.DetachRangerFromVisit(ctx, txn, imsdb.DetachRangerFromVisitParams{
-		Event:        event.ID,
-		VisitNumber:  visitNumber,
-		RangerHandle: rangerName,
-	})
-	if err != nil {
-		return herr.InternalServerError("Failed to detach Ranger from Visit", err).From("[DetachRangerFromVisit]")
-	}
-	_, errHTTP = addVisitReportEntry(
-		ctx, action.imsDBQ, txn, event.ID, visitNumber,
-		jwtCtx.Claims.RangerHandle(), fmt.Sprintf("Removed Ranger: %v", rangerName),
-		true, "", "", "",
-	)
-	if errHTTP != nil {
-		return errHTTP.From("[addVisitReportEntry]")
-	}
-
-	err = txn.Commit()
-	if err != nil {
-		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
-	}
-
-	action.es.notifyVisitUpdate(event.ID, visitNumber)
 
 	return nil
 }

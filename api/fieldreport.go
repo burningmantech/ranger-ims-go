@@ -320,8 +320,11 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 
 	if requestFR.Summary != nil {
 		storedFR.Summary = conv.StringToSql(requestFR.Summary, 0)
-		text := "Changed summary to: " + *requestFR.Summary
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, text, true, "", "", "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, newReportEntry{
+			author:    author,
+			text:      "Changed summary to: " + *requestFR.Summary,
+			generated: true,
+		})
 		if errHTTP != nil {
 			return errHTTP.From("[addFRReportEntry]")
 		}
@@ -341,7 +344,10 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author, entry.Text, false, "", "", "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, newReportEntry{
+			author: author,
+			text:   entry.Text,
+		})
 		if errHTTP != nil {
 			return errHTTP.From("[addFRReportEntry]")
 		}
@@ -398,7 +404,11 @@ func (action EditFieldReport) handleLinkToIncident(
 		}
 		return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
 	}
-	_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, actor, entryText, true, "", "", "")
+	_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, newReportEntry{
+		author:    actor,
+		text:      entryText,
+		generated: true,
+	})
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
@@ -505,8 +515,11 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 	defer rollback(txn)
 
 	if fr.Summary != nil {
-		text := "Changed summary to: " + *fr.Summary
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, text, true, "", "", "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, newReportEntry{
+			author:    author,
+			text:      "Changed summary to: " + *fr.Summary,
+			generated: true,
+		})
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -516,7 +529,10 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 		if entry.Text == "" {
 			continue
 		}
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, author, entry.Text, false, "", "", "")
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, newReportEntry{
+			author: author,
+			text:   entry.Text,
+		})
 		if errHTTP != nil {
 			return 0, "", errHTTP.From("[addFRReportEntry]")
 		}
@@ -530,40 +546,4 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, fr.Number)
 	defer action.eventSource.notifyFieldReportUpdate(event.ID, fr.Number)
 	return fr.Number, loc, nil
-}
-
-func addFRReportEntry(
-	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX, eventID, frNum int32,
-	author, text string, generated bool,
-	attachment, attachmentOriginalName, attachmentMediaType string,
-) (int32, *herr.HTTPError) {
-	reID64, err := imsDBQ.CreateReportEntry(ctx,
-		dbtx,
-		imsdb.CreateReportEntryParams{
-			Author:                   author,
-			Text:                     text,
-			Created:                  conv.TimeToFloat(time.Now()),
-			Generated:                generated,
-			Stricken:                 false,
-			AttachedFile:             conv.StringToSql(&attachment, 128),
-			AttachedFileOriginalName: conv.StringToSql(&attachmentOriginalName, 128),
-			AttachedFileMediaType:    conv.StringToSql(&attachmentMediaType, 128),
-		},
-	)
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to create report entry", err).From("[CreateReportEntry]")
-	}
-	// This column is an int32, so this is always safe
-	reID := conv.MustInt32(reID64)
-	err = imsDBQ.AttachReportEntryToFieldReport(ctx, dbtx,
-		imsdb.AttachReportEntryToFieldReportParams{
-			Event:             eventID,
-			FieldReportNumber: frNum,
-			ReportEntry:       reID,
-		},
-	)
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToFieldReport]")
-	}
-	return reID, nil
 }

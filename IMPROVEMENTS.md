@@ -6,28 +6,21 @@ well-separated, strong test coverage push recently). The cleanup opportunities
 are concentrated in two places: the incident/field-report/visit triplication in
 `api/`, and the parallel page scripts in `web/typescript/`.
 
-## 1. De-duplicate the incident/visit/field-report handler triplet in `api/`
+## 1. De-duplicate the incident/visit/field-report handler triplet in `api/` — DONE
 
-This is the biggest win. `api/incident.go` (1043 lines), `api/visit.go` (798),
-and `api/fieldreport.go` (569) are largely the same file three times — and
-visit was clearly copy-pasted from incident, so drift has already started.
-Concretely:
+Implemented (−437/+181 lines across `api/`):
 
-- `AttachRangerToIncident`/`DetachRangerFromIncident` and
-  `AttachRangerToVisit`/`DetachRangerFromVisit` are line-for-line identical
-  (~300 lines total) except for the permission bit, path key, and which sqlc
-  query they call. One generic attach/detach handler parameterized by those
-  three things would collapse all four.
-- `addIncidentReportEntry`, `addVisitReportEntry`, and `addFRReportEntry` are
-  identical except for the final "attach to X" call — a shared helper taking an
-  attach callback removes two copies. While there, the `true, "", "", ""`
-  positional tail (generated + three attachment fields) should become an
-  options/struct parameter; call sites are unreadable now.
-- `fetchIncident`/`fetchVisit`/`fetchFieldReport` and the `*ToJSON` functions
-  follow the same parallel shape and could share scaffolding.
-
-This matters because `api/incident.go` is one of the highest-churn files in the
-repo — every future feature currently gets written three times.
+- The four Ranger attach/detach handlers now share one flow in `api/ranger.go`,
+  parameterized by a `rangerRoster` descriptor (permission bit, path key, noun,
+  and the entity-specific sqlc calls).
+- Report-entry creation is shared: `createReportEntry` in `api/reportentry.go`
+  does the insert, and the thin `addIncidentReportEntry`/`addFRReportEntry`/
+  `addVisitReportEntry` wrappers do the entity-specific attach. The
+  `true, "", "", ""` positional tail was replaced by a `newReportEntry` struct.
+- Not done: `fetchIncident`/`fetchVisit`/`fetchFieldReport` and the `*ToJSON`
+  functions were left as-is — their remaining "duplication" is mostly distinct
+  sqlc types and entity fields, and Go generics can't reach common struct
+  fields without more abstraction than the ~30 lines each would save.
 
 ## 2. Break up `updateIncident` (~375 lines) and `updateVisit` (~215 lines)
 

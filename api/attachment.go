@@ -368,10 +368,13 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
 		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
-	reID, errHTTP := addIncidentReportEntry(
-		ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber, jwtCtx.Claims.RangerHandle(),
-		reText, false, newFileName, fiHead.Filename, mtype.String(),
-	)
+	reID, errHTTP := addIncidentReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber, newReportEntry{
+		author:                   jwtCtx.Claims.RangerHandle(),
+		text:                     reText,
+		attachedFile:             newFileName,
+		attachedFileOriginalName: fiHead.Filename,
+		attachedFileMediaType:    mtype.String(),
+	})
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addIncidentReportEntry]")
 	}
@@ -480,11 +483,13 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type: %v",
 		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
-	reID, errHTTP := addFRReportEntry(
-		ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber,
-		jwtCtx.Claims.RangerHandle(), reText, false,
-		newFileName, fiHead.Filename, mtype.String(),
-	)
+	reID, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, newReportEntry{
+		author:                   jwtCtx.Claims.RangerHandle(),
+		text:                     reText,
+		attachedFile:             newFileName,
+		attachedFileOriginalName: fiHead.Filename,
+		attachedFileMediaType:    mtype.String(),
+	})
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addFRReportEntry]")
 	}
@@ -616,10 +621,13 @@ func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPE
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
 		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
-	reID, errHTTP := addVisitReportEntry(
-		ctx, action.imsDBQ, action.imsDBQ, event.ID, visitNumber, jwtCtx.Claims.RangerHandle(),
-		reText, false, newFileName, fiHead.Filename, mtype.String(),
-	)
+	reID, errHTTP := addVisitReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, visitNumber, newReportEntry{
+		author:                   jwtCtx.Claims.RangerHandle(),
+		text:                     reText,
+		attachedFile:             newFileName,
+		attachedFileOriginalName: fiHead.Filename,
+		attachedFileMediaType:    mtype.String(),
+	})
 	if errHTTP != nil {
 		return 0, errHTTP.From("[addVisitReportEntry]")
 	}

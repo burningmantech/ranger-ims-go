@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -29,6 +30,99 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 )
+
+// newReportEntry describes a report entry to be created and attached to an
+// Incident, Field Report, or Visit.
+type newReportEntry struct {
+	author    string
+	text      string
+	generated bool
+
+	// These fields are set only when the entry records a file attachment.
+	attachedFile             string
+	attachedFileOriginalName string
+	attachedFileMediaType    string
+}
+
+// createReportEntry inserts a ReportEntry row and returns its ID. The caller must
+// separately associate the entry with an Incident, Field Report, or Visit; see
+// addIncidentReportEntry, addFRReportEntry, and addVisitReportEntry.
+func createReportEntry(
+	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX, entry newReportEntry,
+) (int32, *herr.HTTPError) {
+	reID64, err := db.CreateReportEntry(ctx, dbtx, imsdb.CreateReportEntryParams{
+		Author:                   entry.author,
+		Text:                     entry.text,
+		Created:                  conv.TimeToFloat(time.Now()),
+		Generated:                entry.generated,
+		Stricken:                 false,
+		AttachedFile:             conv.StringToSql(&entry.attachedFile, 128),
+		AttachedFileOriginalName: conv.StringToSql(&entry.attachedFileOriginalName, 128),
+		AttachedFileMediaType:    conv.StringToSql(&entry.attachedFileMediaType, 128),
+	})
+	if err != nil {
+		return 0, herr.InternalServerError("Failed to create report entry", err).From("[CreateReportEntry]")
+	}
+	// This column is an int32, so this is safe
+	return conv.MustInt32(reID64), nil
+}
+
+func addIncidentReportEntry(
+	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX,
+	eventID, incidentNum int32, entry newReportEntry,
+) (int32, *herr.HTTPError) {
+	reID, errHTTP := createReportEntry(ctx, db, dbtx, entry)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[createReportEntry]")
+	}
+	err := db.AttachReportEntryToIncident(ctx, dbtx, imsdb.AttachReportEntryToIncidentParams{
+		Event:          eventID,
+		IncidentNumber: incidentNum,
+		ReportEntry:    reID,
+	})
+	if err != nil {
+		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToIncident]")
+	}
+	return reID, nil
+}
+
+func addFRReportEntry(
+	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX,
+	eventID, frNum int32, entry newReportEntry,
+) (int32, *herr.HTTPError) {
+	reID, errHTTP := createReportEntry(ctx, db, dbtx, entry)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[createReportEntry]")
+	}
+	err := db.AttachReportEntryToFieldReport(ctx, dbtx, imsdb.AttachReportEntryToFieldReportParams{
+		Event:             eventID,
+		FieldReportNumber: frNum,
+		ReportEntry:       reID,
+	})
+	if err != nil {
+		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToFieldReport]")
+	}
+	return reID, nil
+}
+
+func addVisitReportEntry(
+	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX,
+	eventID, visitNum int32, entry newReportEntry,
+) (int32, *herr.HTTPError) {
+	reID, errHTTP := createReportEntry(ctx, db, dbtx, entry)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[createReportEntry]")
+	}
+	err := db.AttachReportEntryToVisit(ctx, dbtx, imsdb.AttachReportEntryToVisitParams{
+		Event:       eventID,
+		VisitNumber: visitNum,
+		ReportEntry: reID,
+	})
+	if err != nil {
+		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToVisit]")
+	}
+	return reID, nil
+}
 
 type EditFieldReportReportEntry struct {
 	imsDBQ      *store.DBQ
@@ -106,7 +200,11 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
+	_, errHTTP = addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, newReportEntry{
+		author:    author,
+		text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
+		generated: true,
+	})
 	if errHTTP != nil {
 		return errHTTP.From("[addFRReportEntry]")
 	}
@@ -188,7 +286,11 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
+	_, errHTTP = addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, newReportEntry{
+		author:    author,
+		text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
+		generated: true,
+	})
 	if errHTTP != nil {
 		return errHTTP.From("[addIncidentReportEntry]")
 	}
@@ -277,7 +379,11 @@ func (action EditVisitReportEntry) editVisitReportEntry(req *http.Request) *herr
 	if !*re.Stricken {
 		struckVerb = "Unstruck"
 	}
-	_, errHTTP = addVisitReportEntry(ctx, action.imsDBQ, txn, event.ID, visitNumber, author, fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId), true, "", "", "")
+	_, errHTTP = addVisitReportEntry(ctx, action.imsDBQ, txn, event.ID, visitNumber, newReportEntry{
+		author:    author,
+		text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
+		generated: true,
+	})
 	if errHTTP != nil {
 		return errHTTP.From("[addVisitReportEntry]")
 	}

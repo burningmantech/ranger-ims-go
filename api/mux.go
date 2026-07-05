@@ -54,476 +54,121 @@ func AddToMux(
 	jwter := authz.JWTer{SecretKey: cfg.Core.JWTSecret}
 	attachmentsEnabled := cfg.AttachmentsStore.Type != conf.AttachmentsStoreNone
 
-	mux.Handle("GET /ims/api/access",
-		Adapt(
-			GetEventAccesses{db, userStore, cfg.Core.Admins},
+	// authed registers a route wrapped in the standard middleware stack for an
+	// authenticated endpoint: panic recovery, JWT authentication, action
+	// logging, and a request-size limit. logAction controls whether the request
+	// is written to the action log. Using this for every authenticated route
+	// makes it impossible to silently forget RequireAuthN.
+	authed := func(pattern string, handler http.Handler, logAction bool) {
+		mux.Handle(pattern, Adapt(
+			handler,
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
+			LogRequest(logAction, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+		))
+	}
 
-	mux.Handle("GET /ims/api/access_targets",
-		Adapt(
-			GetAccessTargets{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
+	// unauthed registers a route that deliberately skips JWT authentication.
+	// Zero or more auth adapters (e.g. OptionalAuthN) may still be supplied;
+	// pass none for endpoints that ignore the Authorization header entirely.
+	unauthed := func(pattern string, handler http.Handler, logAction bool, authN ...Adapter) {
+		adapters := append([]Adapter{RecoverFromPanic()}, authN...)
+		adapters = append(adapters,
+			LogRequest(logAction, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+		)
+		mux.Handle(pattern, Adapt(handler, adapters...))
+	}
 
-	mux.Handle("POST /ims/api/access",
-		Adapt(
-			PostEventAccess{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/access", GetEventAccesses{db, userStore, cfg.Core.Admins}, true)
+	authed("GET /ims/api/access_targets", GetAccessTargets{db, userStore, cfg.Core.Admins}, true)
+	authed("POST /ims/api/access", PostEventAccess{db, userStore, cfg.Core.Admins}, true)
+	authed("GET /ims/api/actionlogs", GetActionLogs{db, userStore, cfg.Core.Admins}, true)
 
-	mux.Handle("GET /ims/api/actionlogs",
-		Adapt(
-			GetActionLogs{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	// This endpoint does not require authentication, nor does it even consider
+	// the request's Authorization header, because the point of this is to make
+	// a new JWT.
+	unauthed("POST /ims/api/auth",
+		PostAuth{
+			db,
+			userStore,
+			cfg.Core.JWTSecret,
+			cfg.Core.AccessTokenLifetime,
+			cfg.Core.RefreshTokenLifetime,
+		}, true)
 
-	mux.Handle("POST /ims/api/auth",
-		Adapt(
-			PostAuth{
-				db,
-				userStore,
-				cfg.Core.JWTSecret,
-				cfg.Core.AccessTokenLifetime,
-				cfg.Core.RefreshTokenLifetime,
-			},
-			RecoverFromPanic(),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-			// This endpoint does not require authentication, nor
-			// does it even consider the request's Authorization header,
-			// because the point of this is to make a new JWT.
-		),
-	)
+	// This endpoint does not require authentication or authorization, by design.
+	unauthed("GET /ims/api/auth",
+		GetAuth{
+			db,
+			userStore,
+			cfg.Core.JWTSecret,
+			cfg.Core.Admins,
+			attachmentsEnabled,
+		}, true, OptionalAuthN(jwter))
 
-	mux.Handle("GET /ims/api/auth",
-		Adapt(
-			GetAuth{
-				db,
-				userStore,
-				cfg.Core.JWTSecret,
-				cfg.Core.Admins,
-				attachmentsEnabled,
-			},
-			RecoverFromPanic(),
-			// This endpoint does not require authentication or authorization, by design
-			OptionalAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	// This endpoint does not require authentication, nor does it even consider
+	// the request's Authorization header, because the point of this is to make
+	// a new access token.
+	unauthed("POST /ims/api/auth/refresh",
+		RefreshAccessToken{
+			db,
+			userStore,
+			cfg.Core.JWTSecret,
+			cfg.Core.AccessTokenLifetime,
+		}, false)
 
-	mux.Handle("POST /ims/api/auth/refresh",
-		Adapt(
-			RefreshAccessToken{
-				db,
-				userStore,
-				cfg.Core.JWTSecret,
-				cfg.Core.AccessTokenLifetime,
-			},
-			RecoverFromPanic(),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-			// This endpoint does not require authentication, nor
-			// does it even consider the request's Authorization header,
-			// because the point of this is to make a new access token.
-		),
-	)
+	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
+	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}", GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}", EditIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}", GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments", AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", AttachRangerToIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", DetachRangerFromIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}", EditIncidentReportEntry{db, userStore, es, cfg.Core.Admins}, true)
 
-	mux.Handle("GET /ims/api/events/{eventName}/incidents",
-		Adapt(
-			GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/events/{eventName}/field_reports", GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
+	authed("POST /ims/api/events/{eventName}/field_reports", NewFieldReport{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
+	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", EditFieldReport{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}", GetFieldReportAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments", AttachToFieldReport{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}", EditFieldReportReportEntry{db, userStore, es, cfg.Core.Admins}, true)
 
-	mux.Handle("POST /ims/api/events/{eventName}/incidents",
-		Adapt(
-			NewIncident{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/events/{eventName}/visits", GetVisits{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
+	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}", GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
+	authed("POST /ims/api/events/{eventName}/visits", NewVisit{db, userStore, es, cfg.Core.Admins}, false)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}", EditVisit{db, userStore, es, cfg.Core.Admins}, false)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", AttachRangerToVisit{db, userStore, es, cfg.Core.Admins}, true)
+	authed("DELETE /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", DetachRangerFromVisit{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}/attachments/{attachmentNumber}", GetVisitAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/attachments", AttachToVisit{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/report_entries/{reportEntryId}", EditVisitReportEntry{db, userStore, es, cfg.Core.Admins}, true)
 
-	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}",
-		Adapt(
-			GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/events/{eventName}/places", GetPlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
+	authed("POST /ims/api/events/{eventName}/places", UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
 
-	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}",
-		Adapt(
-			EditIncident{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/events", GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
+	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, true)
 
-	mux.Handle("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}",
-		Adapt(
-			GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/streets", GetStreets{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
+	authed("POST /ims/api/streets", EditStreets{db, userStore, cfg.Core.Admins}, true)
 
-	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments",
-		Adapt(
-			AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/incident_types", GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
+	authed("POST /ims/api/incident_types", EditIncidentTypes{db, userStore, cfg.Core.Admins}, true)
 
-	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}",
-		Adapt(
-			AttachRangerToIncident{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/personnel", GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 
-	mux.Handle("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}",
-		Adapt(
-			DetachRangerFromIncident{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	// The SSE stream only carries notification metadata (event and record
+	// numbers), not record contents; clients fetch the actual data through the
+	// authenticated endpoints above.
+	unauthed("GET /ims/api/eventsource", es.Server.Handler(EventSourceChannel), false)
 
-	mux.Handle("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}",
-		Adapt(
-			EditIncidentReportEntry{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events/{eventName}/field_reports",
-		Adapt(
-			GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/field_reports",
-		Adapt(
-			NewFieldReport{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
-		Adapt(
-			GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}",
-		Adapt(
-			EditFieldReport{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}",
-		Adapt(
-			GetFieldReportAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments",
-		Adapt(
-			AttachToFieldReport{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}",
-		Adapt(
-			EditFieldReportReportEntry{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events/{eventName}/visits",
-		Adapt(
-			GetVisits{db, userStore, cfg.Core.Admins, attachmentsEnabled},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events/{eventName}/visits/{visitNumber}",
-		Adapt(
-			GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/visits",
-		Adapt(
-			NewVisit{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}",
-		Adapt(
-			EditVisit{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}",
-		Adapt(
-			AttachRangerToVisit{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("DELETE /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}",
-		Adapt(
-			DetachRangerFromVisit{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events/{eventName}/visits/{visitNumber}/attachments/{attachmentNumber}",
-		Adapt(
-			GetVisitAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}/attachments",
-		Adapt(
-			AttachToVisit{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/visits/{visitNumber}/report_entries/{reportEntryId}",
-		Adapt(
-			EditVisitReportEntry{db, userStore, es, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events/{eventName}/places",
-		Adapt(
-			GetPlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events/{eventName}/places",
-		Adapt(
-			UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/events",
-		Adapt(
-			GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/events",
-		Adapt(
-			EditEvent{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/streets",
-		Adapt(
-			GetStreets{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/streets",
-		Adapt(
-			EditStreets{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/incident_types",
-		Adapt(
-			GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/incident_types",
-		Adapt(
-			EditIncidentTypes{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/personnel",
-		Adapt(
-			GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/eventsource",
-		Adapt(
-			es.Server.Handler(EventSourceChannel),
-			RecoverFromPanic(),
-			LogRequest(false, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/debug/buildinfo",
-		Adapt(
-			GetBuildInfo{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("GET /ims/api/debug/runtimemetrics",
-		Adapt(
-			GetRuntimeMetrics{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
-
-	mux.Handle("POST /ims/api/debug/gc",
-		Adapt(
-			PerformGC{db, userStore, cfg.Core.Admins},
-			RecoverFromPanic(),
-			RequireAuthN(jwter),
-			LogRequest(true, actionLogger, userStore),
-			LimitRequestBytes(cfg.Core.MaxRequestBytes),
-		),
-	)
+	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins}, true)
+	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, true)
+	authed("POST /ims/api/debug/gc", PerformGC{db, userStore, cfg.Core.Admins}, true)
 
 	// Uncomment these to add pprof into the program. Note that we'd probably want
 	// these endpoints to be restricted to admins only, were this going to run in

@@ -25,13 +25,39 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 )
+
+// applyStringChange overwrites dst if the client provided a new value, and
+// records a "Changed <label>: <value>" line in logs.
+func applyStringChange(dst *sql.NullString, newVal *string, label string, logs *[]string) {
+	if newVal == nil {
+		return
+	}
+	*dst = conv.StringToSql(newVal, 0)
+	*logs = append(*logs, fmt.Sprintf("Changed %v: %v", label, dst.String))
+}
+
+// applyInt16Change is applyStringChange for numeric string fields (e.g. radial
+// hour), where an empty or unparseable value clears the column.
+func applyInt16Change(dst *sql.NullInt16, newVal *string, label string, logs *[]string) {
+	if newVal == nil {
+		return
+	}
+	*dst = conv.ParseSqlInt16(newVal)
+	newValString := "(empty)"
+	if dst.Valid {
+		newValString = strconv.Itoa(int(dst.Int16))
+	}
+	*logs = append(*logs, fmt.Sprintf("Changed %v: %v", label, newValString))
+}
 
 func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 	empty := *new(T)

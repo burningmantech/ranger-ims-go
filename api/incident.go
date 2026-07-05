@@ -459,20 +459,79 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	defer rollback(txn)
 
+	update, logs := buildIncidentUpdate(storedIncident, newIncident)
+	err = imsDBQ.UpdateIncident(ctx, txn, update)
+	if err != nil {
+		return herr.InternalServerError("Failed to update incident", err).From("[UpdateIncident]")
+	}
+
+	typeLogs, errHTTP := applyIncidentTypeChanges(ctx, imsDBQ, txn, newIncident, incidentTypeIDs, allIncidentTypes)
+	if errHTTP != nil {
+		return errHTTP.From("[applyIncidentTypeChanges]")
+	}
+	logs = append(logs, typeLogs...)
+
+	frLogs, updatedFieldReports, errHTTP := applyIncidentFieldReportChanges(ctx, imsDBQ, txn, newIncident, fieldReportNumbers)
+	if errHTTP != nil {
+		return errHTTP.From("[applyIncidentFieldReportChanges]")
+	}
+	logs = append(logs, frLogs...)
+
+	visitLogs, updatedVisits, errHTTP := applyIncidentVisitChanges(ctx, imsDBQ, txn, newIncident, visitNumbers)
+	if errHTTP != nil {
+		return errHTTP.From("[applyIncidentVisitChanges]")
+	}
+	logs = append(logs, visitLogs...)
+
+	linkLogs, updatedLinkedIncidents, errHTTP := applyLinkedIncidentChanges(ctx, imsDBQ, txn, newIncident, linkedIncidents, eventNameById, author)
+	if errHTTP != nil {
+		return errHTTP.From("[applyLinkedIncidentChanges]")
+	}
+	logs = append(logs, linkLogs...)
+
+	errHTTP = addChangeReportEntries(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, author,
+		logs, newIncident.ReportEntries, addIncidentReportEntry)
+	if errHTTP != nil {
+		return errHTTP.From("[addChangeReportEntries]")
+	}
+
+	err = txn.Commit()
+	if err != nil {
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+	}
+
+	es.notifyIncidentUpdate(newIncident.EventID, newIncident.Number)
+	for _, fr := range updatedFieldReports {
+		es.notifyFieldReportUpdate(newIncident.EventID, fr)
+	}
+	for _, inc := range updatedLinkedIncidents {
+		es.notifyIncidentUpdate(inc.EventID, inc.Number)
+	}
+	for _, s := range updatedVisits {
+		es.notifyVisitUpdate(newIncident.EventID, s)
+	}
+
+	return nil
+}
+
+// buildIncidentUpdate merges the client-provided fields of newIncident over the
+// stored Incident, returning the update parameters along with change-log lines
+// describing each modified field.
+func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident) (imsdb.UpdateIncidentParams, []string) {
 	update := imsdb.UpdateIncidentParams{
-		Event:                storedIncident.Event,
-		Number:               storedIncident.Number,
-		Priority:             storedIncident.Priority,
-		State:                storedIncident.State,
-		Started:              storedIncident.Started,
-		Closed:               storedIncident.Closed,
-		Summary:              storedIncident.Summary,
-		LocationName:         storedIncident.LocationName,
-		LocationAddress:      storedIncident.LocationAddress,
-		LocationConcentric:   storedIncident.LocationConcentric,
-		LocationRadialHour:   storedIncident.LocationRadialHour,
-		LocationRadialMinute: storedIncident.LocationRadialMinute,
-		LocationDescription:  storedIncident.LocationDescription,
+		Event:                stored.Event,
+		Number:               stored.Number,
+		Priority:             stored.Priority,
+		State:                stored.State,
+		Started:              stored.Started,
+		Closed:               stored.Closed,
+		Summary:              stored.Summary,
+		LocationName:         stored.LocationName,
+		LocationAddress:      stored.LocationAddress,
+		LocationConcentric:   stored.LocationConcentric,
+		LocationRadialHour:   stored.LocationRadialHour,
+		LocationRadialMinute: stored.LocationRadialMinute,
+		LocationDescription:  stored.LocationDescription,
 	}
 
 	var logs []string
@@ -494,304 +553,267 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 		update.Started = conv.TimeToFloat(newIncident.Started)
 		logs = append(logs, fmt.Sprintf("Changed start time: %v", newIncident.Started.In(time.UTC).Format(time.RFC3339)))
 	}
-	if newIncident.Summary != nil {
-		update.Summary = conv.StringToSql(newIncident.Summary, 0)
-		logs = append(logs, fmt.Sprintf("Changed summary: %v", update.Summary.String))
-	}
-	if newIncident.Location.Name != nil {
-		update.LocationName = conv.StringToSql(newIncident.Location.Name, 0)
-		logs = append(logs, fmt.Sprintf("Changed location name: %v", update.LocationName.String))
-	}
-	if newIncident.Location.Address != nil {
-		update.LocationAddress = conv.StringToSql(newIncident.Location.Address, 0)
-		logs = append(logs, fmt.Sprintf("Changed location address: %v", update.LocationAddress.String))
-	}
-	if newIncident.Location.Concentric != nil {
-		update.LocationConcentric = conv.StringToSql(newIncident.Location.Concentric, 0)
-		logs = append(logs, fmt.Sprintf("Changed location concentric: %v", update.LocationConcentric.String))
-	}
-	if newIncident.Location.RadialHour != nil {
-		update.LocationRadialHour = conv.ParseSqlInt16(newIncident.Location.RadialHour)
-		newValString := "(empty)"
-		if update.LocationRadialHour.Valid {
-			newValString = strconv.Itoa(int(update.LocationRadialHour.Int16))
-		}
-		logs = append(logs, fmt.Sprintf("Changed location radial hour: %v", newValString))
-	}
-	if newIncident.Location.RadialMinute != nil {
-		update.LocationRadialMinute = conv.ParseSqlInt16(newIncident.Location.RadialMinute)
-		newValString := "(empty)"
-		if update.LocationRadialMinute.Valid {
-			newValString = strconv.Itoa(int(update.LocationRadialMinute.Int16))
-		}
-		logs = append(logs, fmt.Sprintf("Changed location radial minute: %v", newValString))
-	}
-	if newIncident.Location.Description != nil {
-		update.LocationDescription = conv.StringToSql(newIncident.Location.Description, 0)
-		logs = append(logs, fmt.Sprintf("Changed location description: %v", update.LocationDescription.String))
-	}
-	err = imsDBQ.UpdateIncident(ctx, txn, update)
-	if err != nil {
-		return herr.InternalServerError("Failed to update incident", err).From("[UpdateIncident]")
-	}
+	applyStringChange(&update.Summary, newIncident.Summary, "summary", &logs)
+	applyStringChange(&update.LocationName, newIncident.Location.Name, "location name", &logs)
+	applyStringChange(&update.LocationAddress, newIncident.Location.Address, "location address", &logs)
+	applyStringChange(&update.LocationConcentric, newIncident.Location.Concentric, "location concentric", &logs)
+	applyInt16Change(&update.LocationRadialHour, newIncident.Location.RadialHour, "location radial hour", &logs)
+	applyInt16Change(&update.LocationRadialMinute, newIncident.Location.RadialMinute, "location radial minute", &logs)
+	applyStringChange(&update.LocationDescription, newIncident.Location.Description, "location description", &logs)
 
-	if newIncident.IncidentTypeIDs != nil {
-		add := sliceSubtract(*newIncident.IncidentTypeIDs, incidentTypeIDs)
-		sub := sliceSubtract(incidentTypeIDs, *newIncident.IncidentTypeIDs)
-		if len(add) > 0 {
-			names := namesForIncidentTypes(allIncidentTypes, add)
-			logs = append(logs, fmt.Sprintf("Added type: %v", names))
-			for _, itype := range add {
-				err = imsDBQ.AttachIncidentTypeToIncident(ctx, txn,
-					imsdb.AttachIncidentTypeToIncidentParams{
-						Event:          newIncident.EventID,
-						IncidentNumber: newIncident.Number,
-						IncidentType:   itype,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to add Incident Type", err).From("[AttachIncidentTypeToIncident]")
-				}
-			}
-		}
-		if len(sub) > 0 {
-			names := namesForIncidentTypes(allIncidentTypes, sub)
-			logs = append(logs, fmt.Sprintf("Removed type: %v", names))
-			for _, rh := range sub {
-				err = imsDBQ.DetachIncidentTypeFromIncident(ctx, txn,
-					imsdb.DetachIncidentTypeFromIncidentParams{
-						Event:          newIncident.EventID,
-						IncidentNumber: newIncident.Number,
-						IncidentType:   rh,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to detach Incident Type", err).From("[AttachIncidentTypeToIncident]")
-				}
+	return update, logs
+}
+
+// applyIncidentTypeChanges reconciles the Incident's types with the
+// client-provided list, returning change-log lines for the differences.
+func applyIncidentTypeChanges(
+	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
+	newIncident imsjson.Incident, currentTypeIDs []int32, allIncidentTypes []imsdb.IncidentTypesRow,
+) ([]string, *herr.HTTPError) {
+	if newIncident.IncidentTypeIDs == nil {
+		return nil, nil
+	}
+	var logs []string
+	add := sliceSubtract(*newIncident.IncidentTypeIDs, currentTypeIDs)
+	sub := sliceSubtract(currentTypeIDs, *newIncident.IncidentTypeIDs)
+	if len(add) > 0 {
+		names := namesForIncidentTypes(allIncidentTypes, add)
+		logs = append(logs, fmt.Sprintf("Added type: %v", names))
+		for _, itype := range add {
+			err := imsDBQ.AttachIncidentTypeToIncident(ctx, dbtx,
+				imsdb.AttachIncidentTypeToIncidentParams{
+					Event:          newIncident.EventID,
+					IncidentNumber: newIncident.Number,
+					IncidentType:   itype,
+				},
+			)
+			if err != nil {
+				return nil, herr.InternalServerError("Failed to add Incident Type", err).From("[AttachIncidentTypeToIncident]")
 			}
 		}
 	}
-	var updatedFieldReports []int32
-	if newIncident.FieldReports != nil {
-		add := sliceSubtract(*newIncident.FieldReports, fieldReportNumbers)
-		sub := sliceSubtract(fieldReportNumbers, *newIncident.FieldReports)
-		updatedFieldReports = append(updatedFieldReports, add...)
-		updatedFieldReports = append(updatedFieldReports, sub...)
-
-		if len(add) > 0 {
-			logs = append(logs, fmt.Sprintf("Field Report added: %v", add))
-			for _, frNum := range add {
-				err = imsDBQ.AttachFieldReportToIncident(ctx, txn,
-					imsdb.AttachFieldReportToIncidentParams{
-						Event:          newIncident.EventID,
-						Number:         frNum,
-						IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to attach Field Report", err).From("[AttachFieldReportToIncident]")
-				}
-			}
-		}
-		if len(sub) > 0 {
-			logs = append(logs, fmt.Sprintf("Field Report removed: %v", sub))
-			for _, frNum := range sub {
-				err = imsDBQ.AttachFieldReportToIncident(ctx, txn,
-					imsdb.AttachFieldReportToIncidentParams{
-						Event:          newIncident.EventID,
-						Number:         frNum,
-						IncidentNumber: sql.NullInt32{},
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to detach Field Report", err).From("[AttachFieldReportToIncident]")
-				}
+	if len(sub) > 0 {
+		names := namesForIncidentTypes(allIncidentTypes, sub)
+		logs = append(logs, fmt.Sprintf("Removed type: %v", names))
+		for _, rh := range sub {
+			err := imsDBQ.DetachIncidentTypeFromIncident(ctx, dbtx,
+				imsdb.DetachIncidentTypeFromIncidentParams{
+					Event:          newIncident.EventID,
+					IncidentNumber: newIncident.Number,
+					IncidentType:   rh,
+				},
+			)
+			if err != nil {
+				return nil, herr.InternalServerError("Failed to detach Incident Type", err).From("[DetachIncidentTypeFromIncident]")
 			}
 		}
 	}
-	var updatedVisits []int32
-	if newIncident.Visits != nil {
-		add := sliceSubtract(*newIncident.Visits, visitNumbers)
-		sub := sliceSubtract(visitNumbers, *newIncident.Visits)
-		updatedVisits = append(updatedVisits, add...)
-		updatedVisits = append(updatedVisits, sub...)
+	return logs, nil
+}
 
-		if len(add) > 0 {
-			logs = append(logs, fmt.Sprintf("Visit added: %v", add))
-			for _, visitNum := range add {
-				err = imsDBQ.AttachVisitToIncident(ctx, txn,
-					imsdb.AttachVisitToIncidentParams{
-						Event:          newIncident.EventID,
-						Number:         visitNum,
-						IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to attach Visit", err).From("[AttachVisitToIncidentParams]")
-				}
-			}
-		}
-		if len(sub) > 0 {
-			logs = append(logs, fmt.Sprintf("Visit removed: %v", sub))
-			for _, visitNum := range sub {
-				err = imsDBQ.AttachVisitToIncident(ctx, txn,
-					imsdb.AttachVisitToIncidentParams{
-						Event:          newIncident.EventID,
-						Number:         visitNum,
-						IncidentNumber: sql.NullInt32{},
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to detach Visit", err).From("[AttachVisitToIncident]")
-				}
+// applyIncidentFieldReportChanges attaches and detaches Field Reports so the
+// Incident matches the client-provided list. It returns change-log lines and
+// the numbers of the Field Reports whose attachment changed.
+func applyIncidentFieldReportChanges(
+	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
+	newIncident imsjson.Incident, currentFRNumbers []int32,
+) ([]string, []int32, *herr.HTTPError) {
+	if newIncident.FieldReports == nil {
+		return nil, nil, nil
+	}
+	var logs []string
+	add := sliceSubtract(*newIncident.FieldReports, currentFRNumbers)
+	sub := sliceSubtract(currentFRNumbers, *newIncident.FieldReports)
+	if len(add) > 0 {
+		logs = append(logs, fmt.Sprintf("Field Report added: %v", add))
+		for _, frNum := range add {
+			err := imsDBQ.AttachFieldReportToIncident(ctx, dbtx,
+				imsdb.AttachFieldReportToIncidentParams{
+					Event:          newIncident.EventID,
+					Number:         frNum,
+					IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
+				},
+			)
+			if err != nil {
+				return nil, nil, herr.InternalServerError("Failed to attach Field Report", err).From("[AttachFieldReportToIncident]")
 			}
 		}
 	}
-	var updatedLinkedIncidents []imsjson.LinkedIncident
-	if newIncident.LinkedIncidents != nil {
-		var currentLinkedIncidents []imsjson.LinkedIncident
-		for _, cli := range linkedIncidents {
-			currentLinkedIncidents = append(currentLinkedIncidents, imsjson.LinkedIncident{
-				EventID: cli.LinkedEvent,
-				Number:  cli.LinkedIncident,
-			})
-		}
-		var desiredLinkedIncidents []imsjson.LinkedIncident
-		for _, dli := range *newIncident.LinkedIncidents {
-			desiredLinkedIncidents = append(desiredLinkedIncidents, imsjson.LinkedIncident{
-				EventID: dli.EventID,
-				Number:  dli.Number,
-			})
-		}
-
-		add := sliceSubtract(desiredLinkedIncidents, currentLinkedIncidents)
-		sub := sliceSubtract(currentLinkedIncidents, desiredLinkedIncidents)
-		updatedLinkedIncidents = append(updatedLinkedIncidents, add...)
-		updatedLinkedIncidents = append(updatedLinkedIncidents, sub...)
-
-		if len(add) > 0 {
-			names := namesForLinkedIncidents(add, eventNameById)
-			logs = append(logs, fmt.Sprintf("Incident linked: %v", names))
-			for _, otherIncident := range add {
-				err = imsDBQ.LinkIncidents(ctx, txn,
-					imsdb.LinkIncidentsParams{
-						Event1:          newIncident.EventID,
-						IncidentNumber1: newIncident.Number,
-						Event2:          otherIncident.EventID,
-						IncidentNumber2: otherIncident.Number,
-					},
-				)
-				if err != nil {
-					// We'll just assume in this case that the problem is that the otherIncident ID
-					// is invalid. This is probably the case...
-					return herr.BadRequest(fmt.Sprintf("Failed to link Incident. There may be no IMS #%v for the given event.", otherIncident.Number), err).From("[LinkIncidents]")
-				}
-				err = imsDBQ.LinkIncidents(ctx, txn,
-					imsdb.LinkIncidentsParams{
-						Event2:          newIncident.EventID,
-						IncidentNumber2: newIncident.Number,
-						Event1:          otherIncident.EventID,
-						IncidentNumber1: otherIncident.Number,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to link Incident", err).From("[LinkIncidents]")
-				}
-				_, errHTTP := addIncidentReportEntry(
-					ctx, imsDBQ, txn, otherIncident.EventID, otherIncident.Number,
-					newReportEntry{
-						author:    author,
-						text:      fmt.Sprintf("Incident linked: %v #%v", eventNameById[newIncident.EventID], newIncident.Number),
-						generated: true,
-					},
-				)
-				if errHTTP != nil {
-					return errHTTP.From("[addIncidentReportEntry]")
-				}
-			}
-		}
-		if len(sub) > 0 {
-			names := namesForLinkedIncidents(sub, eventNameById)
-			logs = append(logs, fmt.Sprintf("Incident unlinked: %v", names))
-			for _, otherIncident := range sub {
-				err = imsDBQ.UnlinkIncidents(ctx, txn,
-					imsdb.UnlinkIncidentsParams{
-						Event1:          newIncident.EventID,
-						IncidentNumber1: newIncident.Number,
-						Event2:          otherIncident.EventID,
-						IncidentNumber2: otherIncident.Number,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to unlink Incident", err).From("[UnlinkIncidents]")
-				}
-				err = imsDBQ.UnlinkIncidents(ctx, txn,
-					imsdb.UnlinkIncidentsParams{
-						Event2:          newIncident.EventID,
-						IncidentNumber2: newIncident.Number,
-						Event1:          otherIncident.EventID,
-						IncidentNumber1: otherIncident.Number,
-					},
-				)
-				if err != nil {
-					return herr.InternalServerError("Failed to unlink Incident", err).From("[UnlinkIncidents]")
-				}
-				_, errHTTP := addIncidentReportEntry(
-					ctx, imsDBQ, txn, otherIncident.EventID, otherIncident.Number,
-					newReportEntry{
-						author:    author,
-						text:      fmt.Sprintf("Incident unlinked: %v #%v", eventNameById[newIncident.EventID], newIncident.Number),
-						generated: true,
-					},
-				)
-				if errHTTP != nil {
-					return errHTTP.From("[addIncidentReportEntry]")
-				}
+	if len(sub) > 0 {
+		logs = append(logs, fmt.Sprintf("Field Report removed: %v", sub))
+		for _, frNum := range sub {
+			err := imsDBQ.AttachFieldReportToIncident(ctx, dbtx,
+				imsdb.AttachFieldReportToIncidentParams{
+					Event:          newIncident.EventID,
+					Number:         frNum,
+					IncidentNumber: sql.NullInt32{},
+				},
+			)
+			if err != nil {
+				return nil, nil, herr.InternalServerError("Failed to detach Field Report", err).From("[AttachFieldReportToIncident]")
 			}
 		}
 	}
+	return logs, slices.Concat(add, sub), nil
+}
 
-	if len(logs) > 0 {
-		_, errHTTP := addIncidentReportEntry(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, newReportEntry{
-			author:    author,
-			text:      strings.Join(logs, "\n"),
-			generated: true,
+// applyIncidentVisitChanges attaches and detaches Visits so the Incident
+// matches the client-provided list. It returns change-log lines and the
+// numbers of the Visits whose attachment changed.
+func applyIncidentVisitChanges(
+	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
+	newIncident imsjson.Incident, currentVisitNumbers []int32,
+) ([]string, []int32, *herr.HTTPError) {
+	if newIncident.Visits == nil {
+		return nil, nil, nil
+	}
+	var logs []string
+	add := sliceSubtract(*newIncident.Visits, currentVisitNumbers)
+	sub := sliceSubtract(currentVisitNumbers, *newIncident.Visits)
+	if len(add) > 0 {
+		logs = append(logs, fmt.Sprintf("Visit added: %v", add))
+		for _, visitNum := range add {
+			err := imsDBQ.AttachVisitToIncident(ctx, dbtx,
+				imsdb.AttachVisitToIncidentParams{
+					Event:          newIncident.EventID,
+					Number:         visitNum,
+					IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
+				},
+			)
+			if err != nil {
+				return nil, nil, herr.InternalServerError("Failed to attach Visit", err).From("[AttachVisitToIncident]")
+			}
+		}
+	}
+	if len(sub) > 0 {
+		logs = append(logs, fmt.Sprintf("Visit removed: %v", sub))
+		for _, visitNum := range sub {
+			err := imsDBQ.AttachVisitToIncident(ctx, dbtx,
+				imsdb.AttachVisitToIncidentParams{
+					Event:          newIncident.EventID,
+					Number:         visitNum,
+					IncidentNumber: sql.NullInt32{},
+				},
+			)
+			if err != nil {
+				return nil, nil, herr.InternalServerError("Failed to detach Visit", err).From("[AttachVisitToIncident]")
+			}
+		}
+	}
+	return logs, slices.Concat(add, sub), nil
+}
+
+// applyLinkedIncidentChanges links and unlinks other Incidents so this Incident
+// matches the client-provided list, adding a generated report entry on each
+// affected other Incident. It returns change-log lines and the Incidents whose
+// links changed.
+func applyLinkedIncidentChanges(
+	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
+	newIncident imsjson.Incident, currentLinks []imsdb.Incident_LinkedIncidentsRow,
+	eventNameById map[int32]string, author string,
+) ([]string, []imsjson.LinkedIncident, *herr.HTTPError) {
+	if newIncident.LinkedIncidents == nil {
+		return nil, nil, nil
+	}
+	var currentLinkedIncidents []imsjson.LinkedIncident
+	for _, cli := range currentLinks {
+		currentLinkedIncidents = append(currentLinkedIncidents, imsjson.LinkedIncident{
+			EventID: cli.LinkedEvent,
+			Number:  cli.LinkedIncident,
 		})
-		if errHTTP != nil {
-			return errHTTP.From("[addIncidentReportEntry]")
-		}
 	}
-
-	for _, entry := range newIncident.ReportEntries {
-		if entry.Text == "" {
-			continue
-		}
-		_, errHTTP := addIncidentReportEntry(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, newReportEntry{
-			author: author,
-			text:   entry.Text,
+	var desiredLinkedIncidents []imsjson.LinkedIncident
+	for _, dli := range *newIncident.LinkedIncidents {
+		desiredLinkedIncidents = append(desiredLinkedIncidents, imsjson.LinkedIncident{
+			EventID: dli.EventID,
+			Number:  dli.Number,
 		})
-		if errHTTP != nil {
-			return errHTTP.From("[addIncidentReportEntry]")
+	}
+
+	var logs []string
+	add := sliceSubtract(desiredLinkedIncidents, currentLinkedIncidents)
+	sub := sliceSubtract(currentLinkedIncidents, desiredLinkedIncidents)
+	if len(add) > 0 {
+		names := namesForLinkedIncidents(add, eventNameById)
+		logs = append(logs, fmt.Sprintf("Incident linked: %v", names))
+		for _, otherIncident := range add {
+			err := imsDBQ.LinkIncidents(ctx, dbtx,
+				imsdb.LinkIncidentsParams{
+					Event1:          newIncident.EventID,
+					IncidentNumber1: newIncident.Number,
+					Event2:          otherIncident.EventID,
+					IncidentNumber2: otherIncident.Number,
+				},
+			)
+			if err != nil {
+				// We'll just assume in this case that the problem is that the otherIncident ID
+				// is invalid. This is probably the case...
+				return nil, nil, herr.BadRequest(fmt.Sprintf("Failed to link Incident. There may be no IMS #%v for the given event.", otherIncident.Number), err).From("[LinkIncidents]")
+			}
+			err = imsDBQ.LinkIncidents(ctx, dbtx,
+				imsdb.LinkIncidentsParams{
+					Event2:          newIncident.EventID,
+					IncidentNumber2: newIncident.Number,
+					Event1:          otherIncident.EventID,
+					IncidentNumber1: otherIncident.Number,
+				},
+			)
+			if err != nil {
+				return nil, nil, herr.InternalServerError("Failed to link Incident", err).From("[LinkIncidents]")
+			}
+			_, errHTTP := addIncidentReportEntry(
+				ctx, imsDBQ, dbtx, otherIncident.EventID, otherIncident.Number,
+				newReportEntry{
+					author:    author,
+					text:      fmt.Sprintf("Incident linked: %v #%v", eventNameById[newIncident.EventID], newIncident.Number),
+					generated: true,
+				},
+			)
+			if errHTTP != nil {
+				return nil, nil, errHTTP.From("[addIncidentReportEntry]")
+			}
 		}
 	}
-
-	err = txn.Commit()
-	if err != nil {
-		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+	if len(sub) > 0 {
+		names := namesForLinkedIncidents(sub, eventNameById)
+		logs = append(logs, fmt.Sprintf("Incident unlinked: %v", names))
+		for _, otherIncident := range sub {
+			err := imsDBQ.UnlinkIncidents(ctx, dbtx,
+				imsdb.UnlinkIncidentsParams{
+					Event1:          newIncident.EventID,
+					IncidentNumber1: newIncident.Number,
+					Event2:          otherIncident.EventID,
+					IncidentNumber2: otherIncident.Number,
+				},
+			)
+			if err != nil {
+				return nil, nil, herr.InternalServerError("Failed to unlink Incident", err).From("[UnlinkIncidents]")
+			}
+			err = imsDBQ.UnlinkIncidents(ctx, dbtx,
+				imsdb.UnlinkIncidentsParams{
+					Event2:          newIncident.EventID,
+					IncidentNumber2: newIncident.Number,
+					Event1:          otherIncident.EventID,
+					IncidentNumber1: otherIncident.Number,
+				},
+			)
+			if err != nil {
+				return nil, nil, herr.InternalServerError("Failed to unlink Incident", err).From("[UnlinkIncidents]")
+			}
+			_, errHTTP := addIncidentReportEntry(
+				ctx, imsDBQ, dbtx, otherIncident.EventID, otherIncident.Number,
+				newReportEntry{
+					author:    author,
+					text:      fmt.Sprintf("Incident unlinked: %v #%v", eventNameById[newIncident.EventID], newIncident.Number),
+					generated: true,
+				},
+			)
+			if errHTTP != nil {
+				return nil, nil, errHTTP.From("[addIncidentReportEntry]")
+			}
+		}
 	}
-
-	es.notifyIncidentUpdate(newIncident.EventID, newIncident.Number)
-	for _, fr := range updatedFieldReports {
-		es.notifyFieldReportUpdate(newIncident.EventID, fr)
-	}
-	for _, inc := range updatedLinkedIncidents {
-		es.notifyIncidentUpdate(inc.EventID, inc.Number)
-	}
-	for _, s := range updatedVisits {
-		es.notifyVisitUpdate(newIncident.EventID, s)
-	}
-
-	return nil
+	return logs, slices.Concat(add, sub), nil
 }
 
 func namesForIncidentTypes(rows []imsdb.IncidentTypesRow, typeIDs []int32) string {

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -122,6 +123,41 @@ func addVisitReportEntry(
 		return 0, herr.InternalServerError("Failed to attach report entry", err).From("[AttachReportEntryToVisit]")
 	}
 	return reID, nil
+}
+
+// addChangeReportEntries records the accumulated change-log lines as a single
+// generated report entry, then adds each nonempty user-supplied entry. The add
+// argument (one of addIncidentReportEntry, addFRReportEntry, or
+// addVisitReportEntry) associates the entries with the parent object.
+func addChangeReportEntries(
+	ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX,
+	eventID, number int32, author string,
+	logs []string, entries []imsjson.ReportEntry,
+	add func(ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError),
+) *herr.HTTPError {
+	if len(logs) > 0 {
+		_, errHTTP := add(ctx, db, dbtx, eventID, number, newReportEntry{
+			author:    author,
+			text:      strings.Join(logs, "\n"),
+			generated: true,
+		})
+		if errHTTP != nil {
+			return errHTTP.From("[addReportEntry]")
+		}
+	}
+	for _, entry := range entries {
+		if entry.Text == "" {
+			continue
+		}
+		_, errHTTP := add(ctx, db, dbtx, eventID, number, newReportEntry{
+			author: author,
+			text:   entry.Text,
+		})
+		if errHTTP != nil {
+			return errHTTP.From("[addReportEntry]")
+		}
+	}
+	return nil
 }
 
 type EditFieldReportReportEntry struct {

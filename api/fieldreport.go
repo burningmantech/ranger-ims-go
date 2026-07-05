@@ -318,16 +318,10 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	}
 	defer rollback(txn)
 
+	var logs []string
 	if requestFR.Summary != nil {
 		storedFR.Summary = conv.StringToSql(requestFR.Summary, 0)
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, newReportEntry{
-			author:    author,
-			text:      "Changed summary to: " + *requestFR.Summary,
-			generated: true,
-		})
-		if errHTTP != nil {
-			return errHTTP.From("[addFRReportEntry]")
-		}
+		logs = append(logs, "Changed summary to: "+*requestFR.Summary)
 	}
 	err = action.imsDBQ.UpdateFieldReport(ctx, txn,
 		imsdb.UpdateFieldReportParams{
@@ -340,17 +334,10 @@ func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError
 	if err != nil {
 		return herr.InternalServerError("Failed to update Field Report", err).From("[UpdateFieldReport]")
 	}
-	for _, entry := range requestFR.ReportEntries {
-		if entry.Text == "" {
-			continue
-		}
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, newReportEntry{
-			author: author,
-			text:   entry.Text,
-		})
-		if errHTTP != nil {
-			return errHTTP.From("[addFRReportEntry]")
-		}
+	errHTTP = addChangeReportEntries(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author,
+		logs, requestFR.ReportEntries, addFRReportEntry)
+	if errHTTP != nil {
+		return errHTTP.From("[addChangeReportEntries]")
 	}
 
 	err = txn.Commit()
@@ -514,28 +501,14 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 	}
 	defer rollback(txn)
 
+	var logs []string
 	if fr.Summary != nil {
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, newReportEntry{
-			author:    author,
-			text:      "Changed summary to: " + *fr.Summary,
-			generated: true,
-		})
-		if errHTTP != nil {
-			return 0, "", errHTTP.From("[addFRReportEntry]")
-		}
+		logs = append(logs, "Changed summary to: "+*fr.Summary)
 	}
-
-	for _, entry := range fr.ReportEntries {
-		if entry.Text == "" {
-			continue
-		}
-		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fr.Number, newReportEntry{
-			author: author,
-			text:   entry.Text,
-		})
-		if errHTTP != nil {
-			return 0, "", errHTTP.From("[addFRReportEntry]")
-		}
+	errHTTP = addChangeReportEntries(ctx, action.imsDBQ, txn, event.ID, fr.Number, author,
+		logs, fr.ReportEntries, addFRReportEntry)
+	if errHTTP != nil {
+		return 0, "", errHTTP.From("[addChangeReportEntries]")
 	}
 
 	err = txn.Commit()

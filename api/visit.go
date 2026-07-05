@@ -362,48 +362,78 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 	}
 	storedVisit := storedVisitRow.Visit
 
-	allEvents, err := imsDBQ.Events(ctx, imsDBQ)
-	if err != nil {
-		return herr.InternalServerError("Failed to fetch events", err).From("[Events]")
-	}
-	eventNameById := make(map[int32]string)
-	for _, event := range allEvents {
-		eventNameById[event.Event.ID] = event.Event.Name
-	}
-
 	txn, err := imsDBQ.Begin()
 	if err != nil {
 		return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
 
+	update, logs, errHTTP := buildVisitUpdate(storedVisit, newVisit)
+	if errHTTP != nil {
+		return errHTTP.From("[buildVisitUpdate]")
+	}
+
+	err = imsDBQ.UpdateVisit(ctx, txn, update)
+	if err != nil {
+		const mySQLErNoReferencedRow2 = 1452
+		mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+		if ok && mysqlErr.Number == mySQLErNoReferencedRow2 {
+			// This is probably the source of the error, because there are no other foreign
+			// keys updates within this function.
+			return herr.NotFound("No such Incident", err).From("[UpdateVisit]")
+		}
+		return herr.InternalServerError("Failed to update visit", err).From("[UpdateVisit]")
+	}
+
+	errHTTP = addChangeReportEntries(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, author,
+		logs, newVisit.ReportEntries, addVisitReportEntry)
+	if errHTTP != nil {
+		return errHTTP.From("[addChangeReportEntries]")
+	}
+
+	err = txn.Commit()
+	if err != nil {
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+	}
+
+	es.notifyVisitUpdate(storedVisit.Event, storedVisit.Number)
+	es.notifyIncidentUpdates(storedVisit.Event, storedVisit.IncidentNumber.Int32, update.IncidentNumber.Int32)
+
+	return nil
+}
+
+// buildVisitUpdate merges the client-provided fields of newVisit over the
+// stored Visit, returning the update parameters along with change-log lines
+// describing each modified field. It rejects updates that would put the
+// arrival time after the departure time.
+func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit) (imsdb.UpdateVisitParams, []string, *herr.HTTPError) {
 	update := imsdb.UpdateVisitParams{
-		Event:                storedVisit.Event,
-		Number:               storedVisit.Number,
-		IncidentNumber:       storedVisit.IncidentNumber,
-		GuestPreferredName:   storedVisit.GuestPreferredName,
-		GuestLegalName:       storedVisit.GuestLegalName,
-		GuestDescription:     storedVisit.GuestDescription,
-		GuestActionPlan:      storedVisit.GuestActionPlan,
-		ResourceBedID:        storedVisit.ResourceBedID,
-		GuestCampName:        storedVisit.GuestCampName,
-		GuestCampAddress:     storedVisit.GuestCampAddress,
-		GuestCampDescription: storedVisit.GuestCampDescription,
-		GuestCampContacts:    storedVisit.GuestCampContacts,
-		ResourceSitter:       storedVisit.ResourceSitter,
-		ArrivalTime:          storedVisit.ArrivalTime,
-		ArrivalMethod:        storedVisit.ArrivalMethod,
-		ArrivalState:         storedVisit.ArrivalState,
-		ArrivalReason:        storedVisit.ArrivalReason,
-		ArrivalBelongings:    storedVisit.ArrivalBelongings,
-		DepartureTime:        storedVisit.DepartureTime,
-		DepartureMethod:      storedVisit.DepartureMethod,
-		DepartureState:       storedVisit.DepartureState,
-		ResourceRest:         storedVisit.ResourceRest,
-		ResourceClothes:      storedVisit.ResourceClothes,
-		ResourcePogs:         storedVisit.ResourcePogs,
-		ResourceFoodBev:      storedVisit.ResourceFoodBev,
-		ResourceOther:        storedVisit.ResourceOther,
+		Event:                stored.Event,
+		Number:               stored.Number,
+		IncidentNumber:       stored.IncidentNumber,
+		GuestPreferredName:   stored.GuestPreferredName,
+		GuestLegalName:       stored.GuestLegalName,
+		GuestDescription:     stored.GuestDescription,
+		GuestActionPlan:      stored.GuestActionPlan,
+		ResourceBedID:        stored.ResourceBedID,
+		GuestCampName:        stored.GuestCampName,
+		GuestCampAddress:     stored.GuestCampAddress,
+		GuestCampDescription: stored.GuestCampDescription,
+		GuestCampContacts:    stored.GuestCampContacts,
+		ResourceSitter:       stored.ResourceSitter,
+		ArrivalTime:          stored.ArrivalTime,
+		ArrivalMethod:        stored.ArrivalMethod,
+		ArrivalState:         stored.ArrivalState,
+		ArrivalReason:        stored.ArrivalReason,
+		ArrivalBelongings:    stored.ArrivalBelongings,
+		DepartureTime:        stored.DepartureTime,
+		DepartureMethod:      stored.DepartureMethod,
+		DepartureState:       stored.DepartureState,
+		ResourceRest:         stored.ResourceRest,
+		ResourceClothes:      stored.ResourceClothes,
+		ResourcePogs:         stored.ResourcePogs,
+		ResourceFoodBev:      stored.ResourceFoodBev,
+		ResourceOther:        stored.ResourceOther,
 	}
 
 	var logs []string
@@ -422,153 +452,46 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 		}
 	}
 
-	if newVisit.GuestPreferredName != nil {
-		update.GuestPreferredName = conv.StringToSql(newVisit.GuestPreferredName, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestPreferredName: %v", update.GuestPreferredName.String))
-	}
-	if newVisit.GuestLegalName != nil {
-		update.GuestLegalName = conv.StringToSql(newVisit.GuestLegalName, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestLegalName: %v", update.GuestLegalName.String))
-	}
-	if newVisit.GuestDescription != nil {
-		update.GuestDescription = conv.StringToSql(newVisit.GuestDescription, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestDescription: %v", update.GuestDescription.String))
-	}
-	if newVisit.GuestActionPlan != nil {
-		update.GuestActionPlan = conv.StringToSql(newVisit.GuestActionPlan, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestActionPlan: %v", update.GuestActionPlan.String))
-	}
-	if newVisit.ResourceBedID != nil {
-		update.ResourceBedID = conv.StringToSql(newVisit.ResourceBedID, 0)
-		logs = append(logs, fmt.Sprintf("Changed ResourceBedID: %v", update.ResourceBedID.String))
-	}
-	if newVisit.GuestCampName != nil {
-		update.GuestCampName = conv.StringToSql(newVisit.GuestCampName, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestCampName: %v", update.GuestCampName.String))
-	}
-	if newVisit.GuestCampAddress != nil {
-		update.GuestCampAddress = conv.StringToSql(newVisit.GuestCampAddress, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestCampAddress: %v", update.GuestCampAddress.String))
-	}
-	if newVisit.GuestCampDescription != nil {
-		update.GuestCampDescription = conv.StringToSql(newVisit.GuestCampDescription, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestCampDescription: %v", update.GuestCampDescription.String))
-	}
-	if newVisit.GuestCampContacts != nil {
-		update.GuestCampContacts = conv.StringToSql(newVisit.GuestCampContacts, 0)
-		logs = append(logs, fmt.Sprintf("Changed GuestCampContacts: %v", update.GuestCampContacts.String))
-	}
-	if newVisit.ResourceSitter != nil {
-		update.ResourceSitter = conv.StringToSql(newVisit.ResourceSitter, 0)
-		logs = append(logs, fmt.Sprintf("Changed ResourceSitter: %v", update.ResourceSitter.String))
-	}
+	applyStringChange(&update.GuestPreferredName, newVisit.GuestPreferredName, "GuestPreferredName", &logs)
+	applyStringChange(&update.GuestLegalName, newVisit.GuestLegalName, "GuestLegalName", &logs)
+	applyStringChange(&update.GuestDescription, newVisit.GuestDescription, "GuestDescription", &logs)
+	applyStringChange(&update.GuestActionPlan, newVisit.GuestActionPlan, "GuestActionPlan", &logs)
+	applyStringChange(&update.ResourceBedID, newVisit.ResourceBedID, "ResourceBedID", &logs)
+	applyStringChange(&update.GuestCampName, newVisit.GuestCampName, "GuestCampName", &logs)
+	applyStringChange(&update.GuestCampAddress, newVisit.GuestCampAddress, "GuestCampAddress", &logs)
+	applyStringChange(&update.GuestCampDescription, newVisit.GuestCampDescription, "GuestCampDescription", &logs)
+	applyStringChange(&update.GuestCampContacts, newVisit.GuestCampContacts, "GuestCampContacts", &logs)
+	applyStringChange(&update.ResourceSitter, newVisit.ResourceSitter, "ResourceSitter", &logs)
 
 	if newVisit.ArrivalTime != nil {
 		update.ArrivalTime = conv.TimeToNullFloat(*newVisit.ArrivalTime)
 		if update.ArrivalTime.Valid && update.DepartureTime.Valid && update.DepartureTime.Float64 < update.ArrivalTime.Float64 {
-			return herr.BadRequest("Arrival time cannot be after departure time", errors.New("arrival time cannot be after departure time"))
+			return update, nil, herr.BadRequest("Arrival time cannot be after departure time", errors.New("arrival time cannot be after departure time"))
 		}
 		logs = append(logs, fmt.Sprintf("Changed ArrivalTime: %v", newVisit.ArrivalTime.In(time.UTC).Format(time.RFC3339)))
 	}
-	if newVisit.ArrivalMethod != nil {
-		update.ArrivalMethod = conv.StringToSql(newVisit.ArrivalMethod, 0)
-		logs = append(logs, fmt.Sprintf("Changed ArrivalMethod: %v", update.ArrivalMethod.String))
-	}
-	if newVisit.ArrivalState != nil {
-		update.ArrivalState = conv.StringToSql(newVisit.ArrivalState, 0)
-		logs = append(logs, fmt.Sprintf("Changed ArrivalState: %v", update.ArrivalState.String))
-	}
-	if newVisit.ArrivalReason != nil {
-		update.ArrivalReason = conv.StringToSql(newVisit.ArrivalReason, 0)
-		logs = append(logs, fmt.Sprintf("Changed ArrivalReason: %v", update.ArrivalReason.String))
-	}
-	if newVisit.ArrivalBelongings != nil {
-		update.ArrivalBelongings = conv.StringToSql(newVisit.ArrivalBelongings, 0)
-		logs = append(logs, fmt.Sprintf("Changed ArrivalBelongings: %v", update.ArrivalBelongings.String))
-	}
+	applyStringChange(&update.ArrivalMethod, newVisit.ArrivalMethod, "ArrivalMethod", &logs)
+	applyStringChange(&update.ArrivalState, newVisit.ArrivalState, "ArrivalState", &logs)
+	applyStringChange(&update.ArrivalReason, newVisit.ArrivalReason, "ArrivalReason", &logs)
+	applyStringChange(&update.ArrivalBelongings, newVisit.ArrivalBelongings, "ArrivalBelongings", &logs)
 
 	if newVisit.DepartureTime != nil {
 		update.DepartureTime = conv.TimeToNullFloat(*newVisit.DepartureTime)
 		if update.ArrivalTime.Valid && update.DepartureTime.Valid && update.DepartureTime.Float64 < update.ArrivalTime.Float64 {
-			return herr.BadRequest("Departure time cannot be before arrival time", errors.New("departure time cannot be before arrival time"))
+			return update, nil, herr.BadRequest("Departure time cannot be before arrival time", errors.New("departure time cannot be before arrival time"))
 		}
 		logs = append(logs, fmt.Sprintf("Changed DepartureTime: %v", newVisit.DepartureTime.In(time.UTC).Format(time.RFC3339)))
 	}
-	if newVisit.DepartureMethod != nil {
-		update.DepartureMethod = conv.StringToSql(newVisit.DepartureMethod, 0)
-		logs = append(logs, fmt.Sprintf("Changed DepartureMethod: %v", update.DepartureMethod.String))
-	}
-	if newVisit.DepartureState != nil {
-		update.DepartureState = conv.StringToSql(newVisit.DepartureState, 0)
-		logs = append(logs, fmt.Sprintf("Changed DepartureState: %v", update.DepartureState.String))
-	}
+	applyStringChange(&update.DepartureMethod, newVisit.DepartureMethod, "DepartureMethod", &logs)
+	applyStringChange(&update.DepartureState, newVisit.DepartureState, "DepartureState", &logs)
 
-	if newVisit.ResourceRest != nil {
-		update.ResourceRest = conv.StringToSql(newVisit.ResourceRest, 0)
-		logs = append(logs, fmt.Sprintf("Changed ResourceRest: %v", update.ResourceRest.String))
-	}
-	if newVisit.ResourceClothes != nil {
-		update.ResourceClothes = conv.StringToSql(newVisit.ResourceClothes, 0)
-		logs = append(logs, fmt.Sprintf("Changed ResourceClothes: %v", update.ResourceClothes.String))
-	}
-	if newVisit.ResourcePogs != nil {
-		update.ResourcePogs = conv.StringToSql(newVisit.ResourcePogs, 0)
-		logs = append(logs, fmt.Sprintf("Changed ResourcePogs: %v", update.ResourcePogs.String))
-	}
-	if newVisit.ResourceFoodBev != nil {
-		update.ResourceFoodBev = conv.StringToSql(newVisit.ResourceFoodBev, 0)
-		logs = append(logs, fmt.Sprintf("Changed ResourceFoodBev: %v", update.ResourceFoodBev.String))
-	}
-	if newVisit.ResourceOther != nil {
-		update.ResourceOther = conv.StringToSql(newVisit.ResourceOther, 0)
-		logs = append(logs, fmt.Sprintf("Changed ResourceOther: %v", update.ResourceOther.String))
-	}
+	applyStringChange(&update.ResourceRest, newVisit.ResourceRest, "ResourceRest", &logs)
+	applyStringChange(&update.ResourceClothes, newVisit.ResourceClothes, "ResourceClothes", &logs)
+	applyStringChange(&update.ResourcePogs, newVisit.ResourcePogs, "ResourcePogs", &logs)
+	applyStringChange(&update.ResourceFoodBev, newVisit.ResourceFoodBev, "ResourceFoodBev", &logs)
+	applyStringChange(&update.ResourceOther, newVisit.ResourceOther, "ResourceOther", &logs)
 
-	err = imsDBQ.UpdateVisit(ctx, txn, update)
-	if err != nil {
-		const mySQLErNoReferencedRow2 = 1452
-		mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
-		if ok && mysqlErr.Number == mySQLErNoReferencedRow2 {
-			// This is probably the source of the error, because there are no other foreign
-			// keys updates within this function.
-			return herr.NotFound("No such Incident", err).From("[UpdateVisit]")
-		}
-		return herr.InternalServerError("Failed to update visit", err).From("[UpdateVisit]")
-	}
-
-	if len(logs) > 0 {
-		_, errHTTP := addVisitReportEntry(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, newReportEntry{
-			author:    author,
-			text:      strings.Join(logs, "\n"),
-			generated: true,
-		})
-		if errHTTP != nil {
-			return errHTTP.From("[addVisitReportEntry]")
-		}
-	}
-
-	for _, entry := range newVisit.ReportEntries {
-		if entry.Text == "" {
-			continue
-		}
-		_, errHTTP := addVisitReportEntry(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, newReportEntry{
-			author: author,
-			text:   entry.Text,
-		})
-		if errHTTP != nil {
-			return errHTTP.From("[addVisitReportEntry]")
-		}
-	}
-
-	err = txn.Commit()
-	if err != nil {
-		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
-	}
-
-	es.notifyVisitUpdate(storedVisit.Event, storedVisit.Number)
-	es.notifyIncidentUpdates(storedVisit.Event, storedVisit.IncidentNumber.Int32, update.IncidentNumber.Int32)
-
-	return nil
+	return update, logs, nil
 }
 
 type EditVisit struct {

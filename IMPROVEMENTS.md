@@ -41,20 +41,26 @@ Implemented:
 - Bonus: removed a dead `Events` query in `updateVisit` (it built an
   `eventNameById` map that was never read — copied from `updateIncident`).
 
-## 3. Collapse the middleware boilerplate in `api/mux.go`
+## 3. Collapse the middleware boilerplate in `api/mux.go` — DONE
 
-All 46 routes repeat the same 4–5 line `Adapt(handler, RecoverFromPanic(),
-RequireAuthN(jwter), LogRequest(true, actionLogger, userStore),
-LimitRequestBytes(...))` stack. A local helper like `std(h Handler)
-http.Handler` (with an explicit variant for the few unauthenticated routes like
-`POST /ims/api/auth`) would cut ~300 lines and — more importantly — make
-"forgot `RequireAuthN`" impossible to write silently.
+Implemented (−~370/+~90 lines in `api/mux.go`):
 
-Similarly, every handler struct carries the same `imsDBQ, userStore, es,
-imsAdmins` fields, and every action has an identical 8-line `ServeHTTP`
-wrapper; a shared base struct plus a generic
-`func jsonHandler[T](fn func(*http.Request) (T, *herr.HTTPError)) http.Handler`
-adapter would remove ~40 copies of each.
+- Two local helpers in `AddToMux` replace the 45 repeated `Adapt(...)` stacks:
+  `authed(pattern, handler, logAction)` for the 41 authenticated routes, and
+  `unauthed(pattern, handler, logAction, authN...)` for the 4 that skip
+  `RequireAuthN` (`POST /auth`, `GET /auth` with `OptionalAuthN`,
+  `POST /auth/refresh`, `GET /eventsource`). Each route is now a single line,
+  and authentication can no longer be silently omitted from the common path.
+- The per-route comments explaining *why* the unauthed routes skip auth were
+  preserved.
+
+- Not done: the shared base struct + generic `jsonHandler[T]` adapter. On
+  inspection the handler structs do **not** share a fixed field set — they
+  variously carry `es`, `cacheControlShort`, attachments/`s3Client`, or JWT
+  token lifetimes — and the `ServeHTTP` tails genuinely differ (Cache-Control
+  headers, the `IMS-Event-ID` header, `NoContent` vs JSON bodies). Forcing a
+  uniform base struct/adapter is the same over-abstraction that #1's notes
+  declined; it would complicate the mux construction sites more than it saves.
 
 ## 4. Same triplication on the TypeScript side
 

@@ -51,6 +51,12 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             <input id="edit_map_url" type="url" class="form-control form-control-sm" onchange="setMapURL(this);" placeholder="https://example.com/map.pdf" />
           </div>
         </div>
+        <div class="modal-footer">
+          <!-- The title tooltip goes on the wrapper span, since disabled buttons don't fire the events that show tooltips. -->
+          <span id="event_delete_wrapper">
+            <button id="event_delete" type="button" class="btn btn-sm btn-danger">Delete Event</button>
+          </span>
+        </div>
       </div>
     </div>
   </div>

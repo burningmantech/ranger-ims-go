@@ -33,10 +33,12 @@ interface AccessLike {
 
 let serverEvents: ims.EventData[];
 let serverACL: Record<string, Partial<Record<string, AccessLike[]>>>;
+let serverAuth: object;
 
 beforeEach((): void => {
     vi.resetModules();
     loadFixture("admin_events.html");
+    serverAuth = { authenticated: true, user: "Tester", admin: true };
     serverEvents = [
         { id: 1, name: "2025" },
     ];
@@ -63,7 +65,10 @@ beforeEach((): void => {
 async function initAdminEventsPage() {
     const mock = mockFetch((url, init) => {
         if (url === url_auth && init?.body == null) {
-            return jsonResponse({ authenticated: true, user: "Tester", admin: true });
+            return jsonResponse(serverAuth);
+        }
+        if (url === url_event.replace("<event_id>", "2025") && init?.method === "DELETE") {
+            return new Response(null, { status: 204 });
         }
         if ((url === url_events || url === url_events + "?include_groups=true") && init?.body == null) {
             return jsonResponse(serverEvents);
@@ -222,6 +227,45 @@ test("setLevel moves a rule to the other access mode", async (): Promise<void> =
     expect(edits["2025"].readers).toEqual([]);
     const writerExpressions = edits["2025"].writers.map((a: AccessLike) => a.expression);
     expect(writerExpressions).toEqual(["position:007", "person:Tool"]);
+});
+
+test("the delete button is disabled when the server disallows event deletion", async (): Promise<void> => {
+    await initAdminEventsPage();
+
+    const deleteButton = document.getElementById("event_delete") as HTMLButtonElement;
+    expect(deleteButton.disabled).toBe(true);
+    expect(document.getElementById("event_delete_wrapper")!.title).toContain("disabled");
+});
+
+test("the delete button DELETEs the event after confirmation", async (): Promise<void> => {
+    serverAuth = { authenticated: true, user: "Tester", admin: true, event_deletion_allowed: true };
+    const mock = await initAdminEventsPage();
+
+    const deleteButton = document.getElementById("event_delete") as HTMLButtonElement;
+    expect(deleteButton.disabled).toBe(false);
+
+    // Open the edit modal for the event, which is what tells the delete
+    // button which event it applies to.
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    const deleteCall = ([url, init]: [string, RequestInit|undefined]): boolean =>
+        url === url_event.replace("<event_id>", "2025") && init?.method === "DELETE";
+
+    // Declining the confirmation sends nothing.
+    const confirmMock = vi.fn().mockReturnValueOnce(false);
+    vi.stubGlobal("confirm", confirmMock);
+    deleteButton.click();
+    await vi.waitFor((): void => {
+        expect(confirmMock).toHaveBeenCalledTimes(1);
+    });
+    expect(mock.mock.calls.find(deleteCall)).toBeUndefined();
+
+    // Accepting it deletes the event.
+    confirmMock.mockReturnValueOnce(true);
+    deleteButton.click();
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.find(deleteCall)).toBeDefined();
+    });
 });
 
 test("removeAccess posts the ACL without the removed rule", async (): Promise<void> => {

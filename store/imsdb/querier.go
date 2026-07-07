@@ -6,6 +6,7 @@ package imsdb
 
 import (
 	"context"
+	"database/sql"
 )
 
 type Querier interface {
@@ -29,6 +30,21 @@ type Querier interface {
 	CreatePlace(ctx context.Context, db DBTX, arg CreatePlaceParams) error
 	CreateReportEntry(ctx context.Context, db DBTX, arg CreateReportEntryParams) (int64, error)
 	CreateVisit(ctx context.Context, db DBTX, arg CreateVisitParams) (int64, error)
+	DeleteEvent(ctx context.Context, db DBTX, id int32) error
+	DeleteEventAccessAll(ctx context.Context, db DBTX, event int32) error
+	DeleteEventFieldReportReportEntries(ctx context.Context, db DBTX, event int32) error
+	DeleteEventFieldReports(ctx context.Context, db DBTX, event int32) error
+	DeleteEventIncidentIncidentTypes(ctx context.Context, db DBTX, event int32) error
+	DeleteEventIncidentRangers(ctx context.Context, db DBTX, event int32) error
+	DeleteEventIncidentReportEntries(ctx context.Context, db DBTX, event int32) error
+	DeleteEventIncidents(ctx context.Context, db DBTX, event int32) error
+	DeleteEventLinkedIncidents(ctx context.Context, db DBTX, arg DeleteEventLinkedIncidentsParams) error
+	DeleteEventPlaces(ctx context.Context, db DBTX, event int32) error
+	DeleteEventVisitRangers(ctx context.Context, db DBTX, event int32) error
+	DeleteEventVisitReportEntries(ctx context.Context, db DBTX, event int32) error
+	DeleteEventVisits(ctx context.Context, db DBTX, event int32) error
+	DeleteReportEntries(ctx context.Context, db DBTX, ids []int32) error
+	DetachChildrenFromEventGroup(ctx context.Context, db DBTX, parentGroup sql.NullInt32) error
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerFromVisit(ctx context.Context, db DBTX, arg DetachRangerFromVisitParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
@@ -63,6 +79,10 @@ type Querier interface {
 	// will return nothing. That's intentional, and it helps prevent people
 	// from adding incidents or FRs to event groups as though those were events.
 	EventAndParentAccess(ctx context.Context, db DBTX, arg EventAndParentAccessParams) ([]EventAndParentAccessRow, error)
+	// The DeleteEvent* queries below support full deletion of an Event and all
+	// rows associated with it. They must run in the order used by the DeleteEvent
+	// API handler, so that no foreign key constraint is violated along the way.
+	EventReportEntryIDs(ctx context.Context, db DBTX, arg EventReportEntryIDsParams) ([]int32, error)
 	Events(ctx context.Context, db DBTX) ([]EventsRow, error)
 	FieldReport(ctx context.Context, db DBTX, arg FieldReportParams) (FieldReportRow, error)
 	FieldReport_ReportEntries(ctx context.Context, db DBTX, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error)

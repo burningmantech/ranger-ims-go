@@ -233,6 +233,12 @@ type ConfigCore struct {
 
 	// ActionLogEnabled is a global toggle switch for enabling writing to the ACTION_LOG table.
 	ActionLogEnabled bool
+
+	// EventDeletionEnabled allows admins to delete an Event and all its associated data.
+	// This is intended for local development and staging, where it's useful to clean up
+	// test events. It should stay false in production, where such a destructive operation
+	// shouldn't be needed.
+	EventDeletionEnabled bool
 }
 
 type DBStore struct {

@@ -312,6 +312,12 @@ func (a ApiHelper) createEvent(ctx context.Context, req imsjson.Event) (eventID 
 	return eventID, resp
 }
 
+func (a ApiHelper) deleteEvent(ctx context.Context, eventName string) (body string, resp *http.Response) {
+	a.t.Helper()
+	b, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/events/", eventName).String(), nil)
+	return string(b.([]byte)), resp
+}
+
 func (a ApiHelper) getEvents(ctx context.Context) (imsjson.Events, *http.Response) {
 	a.t.Helper()
 	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/events").String(), &imsjson.Events{})

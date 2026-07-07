@@ -223,3 +223,124 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 
 	return newEventID, nil
 }
+
+type DeleteEvent struct {
+	imsDBQ               *store.DBQ
+	userStore            *directory.UserStore
+	imsAdmins            []string
+	eventDeletionEnabled bool
+}
+
+func (action DeleteEvent) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	errHTTP := action.deleteEvent(req)
+	if errHTTP != nil {
+		errHTTP.From("[deleteEvent]").WriteResponse(w)
+		return
+	}
+	herr.WriteNoContentResponse(w, "Success")
+}
+
+// deleteEvent deletes an Event and all rows associated with it: incidents,
+// field reports, visits, report entries, places, and access rules. Any child
+// events of a deleted event group are detached from the group, not deleted.
+func (action DeleteEvent) deleteEvent(req *http.Request) *herr.HTTPError {
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return errHTTP.From("[getGlobalPermissions]")
+	}
+	if globalPermissions&authz.GlobalAdministrateEvents == 0 {
+		return herr.Forbidden("The requestor does not have GlobalAdministrateEvents permission", nil)
+	}
+	if !action.eventDeletionEnabled {
+		return herr.Forbidden("Event deletion is disabled on this server. "+
+			"It can be enabled by setting IMS_EVENT_DELETION_ENABLED=true", nil)
+	}
+	event, errHTTP := getEvent(req, req.PathValue("eventName"), action.imsDBQ)
+	if errHTTP != nil {
+		return errHTTP.From("[getEvent]")
+	}
+
+	ctx := req.Context()
+	txn, err := action.imsDBQ.BeginTx(ctx, nil)
+	if err != nil {
+		return herr.InternalServerError("Failed to begin transaction", err).From("[BeginTx]")
+	}
+	defer rollback(txn)
+
+	// These deletions are ordered so that no row is deleted before the rows
+	// holding foreign keys to it.
+	reportEntryIDs, err := action.imsDBQ.EventReportEntryIDs(ctx, txn, imsdb.EventReportEntryIDsParams{EventID: event.ID})
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[EventReportEntryIDs]")
+	}
+	err = action.imsDBQ.DeleteEventIncidentReportEntries(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidentReportEntries]")
+	}
+	err = action.imsDBQ.DeleteEventFieldReportReportEntries(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventFieldReportReportEntries]")
+	}
+	err = action.imsDBQ.DeleteEventVisitReportEntries(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventVisitReportEntries]")
+	}
+	if len(reportEntryIDs) > 0 {
+		err = action.imsDBQ.DeleteReportEntries(ctx, txn, reportEntryIDs)
+		if err != nil {
+			return herr.InternalServerError("Failed to delete event", err).From("[DeleteReportEntries]")
+		}
+	}
+	err = action.imsDBQ.DeleteEventIncidentRangers(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidentRangers]")
+	}
+	err = action.imsDBQ.DeleteEventIncidentIncidentTypes(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidentIncidentTypes]")
+	}
+	err = action.imsDBQ.DeleteEventLinkedIncidents(ctx, txn, imsdb.DeleteEventLinkedIncidentsParams{EventID: event.ID})
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventLinkedIncidents]")
+	}
+	err = action.imsDBQ.DeleteEventVisitRangers(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventVisitRangers]")
+	}
+	err = action.imsDBQ.DeleteEventVisits(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventVisits]")
+	}
+	err = action.imsDBQ.DeleteEventFieldReports(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventFieldReports]")
+	}
+	err = action.imsDBQ.DeleteEventIncidents(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidents]")
+	}
+	err = action.imsDBQ.DeleteEventAccessAll(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventAccessAll]")
+	}
+	err = action.imsDBQ.DeleteEventPlaces(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventPlaces]")
+	}
+	err = action.imsDBQ.DetachChildrenFromEventGroup(ctx, txn, sql.NullInt32{Int32: event.ID, Valid: true})
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DetachChildrenFromEventGroup]")
+	}
+	err = action.imsDBQ.DeleteEvent(ctx, txn, event.ID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEvent]")
+	}
+	err = txn.Commit()
+	if err != nil {
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+	}
+
+	// #nosec G706 // log injection
+	slog.Info("Deleted event", "eventName", event.Name, "id", event.ID)
+	return nil
+}

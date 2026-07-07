@@ -92,7 +92,6 @@ async function initIncidentPage() {
     window.submitReportEntry = ims.submitReportEntry;
     // load everything from the APIs concurrently
     await Promise.all([
-        await ims.loadStreets(ims.pathIds.eventId),
         await loadIncident(),
         await loadPersonnel(),
         await ims.loadIncidentTypes().then(value => {

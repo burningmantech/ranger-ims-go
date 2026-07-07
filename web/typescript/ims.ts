@@ -546,33 +546,6 @@ function stateSortKeyFromID(stateID: IncidentState): number|undefined {
     }
 }
 
-export let concentricStreetNameByID: Streets|undefined = undefined;
-
-export async function loadStreets(eventID: number|null): Promise<{err:string|null}> {
-    const {json, err} = await fetchNoThrow<EventsStreets>(url_streets + "?event_id=" + eventID, null);
-    if (err != null) {
-        const message = `Failed to load streets: ${err}`;
-        console.error(message);
-        window.alert(message);
-        return {err: message};
-    }
-    concentricStreetNameByID = json![eventID!];
-    return {err: null};
-}
-
-// Look up a concentric street's name given its ID.
-export function concentricStreetFromID(streetID: string|null|undefined): string {
-    if (streetID == null || typeof concentricStreetNameByID === "undefined") {
-        return "";
-    }
-
-    const name: string|undefined = concentricStreetNameByID[streetID];
-    if (name == null) {
-        return "";
-    }
-    return name;
-}
-
 // key is Ranger handle
 export type PersonnelMap = Record<string, Personnel>;
 
@@ -1772,12 +1745,6 @@ type AuthRefreshResponse = {
 export type PageInitResult = {
     authInfo: AuthInfo;
     eventDatas: Promise<EventData[]|null>;
-}
-
-export type Streets = Record<string, string>;
-export interface EventsStreets {
-    // key is event ID
-    [index: number]: Streets,
 }
 
 interface EventLocation {

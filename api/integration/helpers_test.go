@@ -130,21 +130,6 @@ func (a ApiHelper) getPlaces(ctx context.Context, eventName string) (imsjson.Pla
 	return *bod.(*imsjson.Places), resp
 }
 
-func (a ApiHelper) editStreets(ctx context.Context, req imsjson.EventsStreets) *http.Response {
-	a.t.Helper()
-	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/streets").String())
-}
-
-func (a ApiHelper) getStreets(ctx context.Context, eventID int32) (imsjson.EventsStreets, *http.Response) {
-	a.t.Helper()
-	path := a.serverURL.JoinPath("/ims/api/streets").String()
-	if eventID != 0 {
-		path += fmt.Sprintf("?event_id=%d", eventID)
-	}
-	bod, resp := a.imsGet(ctx, path, &imsjson.EventsStreets{})
-	return *bod.(*imsjson.EventsStreets), resp
-}
-
 func (a ApiHelper) newFieldReport(ctx context.Context, req imsjson.FieldReport) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/field_reports").String())

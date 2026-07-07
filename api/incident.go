@@ -267,12 +267,9 @@ func incidentToJSON(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inciden
 		Priority:     storedRow.Incident.Priority,
 		Summary:      conv.SqlToString(storedRow.Incident.Summary),
 		Location: imsjson.Location{
-			Name:         conv.SqlToString(storedRow.Incident.LocationName),
-			Address:      conv.SqlToString(storedRow.Incident.LocationAddress),
-			Concentric:   conv.SqlToString(storedRow.Incident.LocationConcentric),
-			RadialHour:   conv.FormatSqlInt16(storedRow.Incident.LocationRadialHour),
-			RadialMinute: conv.FormatSqlInt16(storedRow.Incident.LocationRadialMinute),
-			Description:  conv.SqlToString(storedRow.Incident.LocationDescription),
+			Name:        conv.SqlToString(storedRow.Incident.LocationName),
+			Address:     conv.SqlToString(storedRow.Incident.LocationAddress),
+			Description: conv.SqlToString(storedRow.Incident.LocationDescription),
 		},
 		IncidentTypeIDs: &incidentTypeIDs,
 		FieldReports:    &fieldReportNumbers,
@@ -519,19 +516,16 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 // describing each modified field.
 func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident) (imsdb.UpdateIncidentParams, []string) {
 	update := imsdb.UpdateIncidentParams{
-		Event:                stored.Event,
-		Number:               stored.Number,
-		Priority:             stored.Priority,
-		State:                stored.State,
-		Started:              stored.Started,
-		Closed:               stored.Closed,
-		Summary:              stored.Summary,
-		LocationName:         stored.LocationName,
-		LocationAddress:      stored.LocationAddress,
-		LocationConcentric:   stored.LocationConcentric,
-		LocationRadialHour:   stored.LocationRadialHour,
-		LocationRadialMinute: stored.LocationRadialMinute,
-		LocationDescription:  stored.LocationDescription,
+		Event:               stored.Event,
+		Number:              stored.Number,
+		Priority:            stored.Priority,
+		State:               stored.State,
+		Started:             stored.Started,
+		Closed:              stored.Closed,
+		Summary:             stored.Summary,
+		LocationName:        stored.LocationName,
+		LocationAddress:     stored.LocationAddress,
+		LocationDescription: stored.LocationDescription,
 	}
 
 	var logs []string
@@ -556,9 +550,6 @@ func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident) (i
 	applyStringChange(&update.Summary, newIncident.Summary, "summary", &logs)
 	applyStringChange(&update.LocationName, newIncident.Location.Name, "location name", &logs)
 	applyStringChange(&update.LocationAddress, newIncident.Location.Address, "location address", &logs)
-	applyStringChange(&update.LocationConcentric, newIncident.Location.Concentric, "location concentric", &logs)
-	applyInt16Change(&update.LocationRadialHour, newIncident.Location.RadialHour, "location radial hour", &logs)
-	applyInt16Change(&update.LocationRadialMinute, newIncident.Location.RadialMinute, "location radial minute", &logs)
 	applyStringChange(&update.LocationDescription, newIncident.Location.Description, "location description", &logs)
 
 	return update, logs

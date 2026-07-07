@@ -31,25 +31,6 @@ func FormatInt[T IntLike](i T) string {
 	return strconv.FormatInt(int64(i), 10)
 }
 
-func FormatSqlInt16(i sql.NullInt16) *string {
-	if i.Valid {
-		result := FormatInt(i.Int16)
-		return &result
-	}
-	return nil
-}
-
-func ParseSqlInt16(s *string) sql.NullInt16 {
-	if s == nil {
-		return sql.NullInt16{}
-	}
-	parsed, err := ParseInt16(*s)
-	return sql.NullInt16{
-		Int16: parsed,
-		Valid: err == nil,
-	}
-}
-
 func ParseInt16(s string) (int16, error) {
 	i, err := strconv.ParseInt(s, 10, 16)
 	if err != nil {

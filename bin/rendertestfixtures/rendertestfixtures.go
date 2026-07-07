@@ -55,7 +55,6 @@ func main() {
 		"admin_debug.html":       template.AdminDebug(deployment, versionName, versionRef),
 		"admin_places.html":      template.AdminPlaces(deployment, versionName, versionRef),
 		"admin_root.html":        template.AdminRoot(deployment, versionName, versionRef),
-		"admin_streets.html":     template.AdminStreets(deployment, versionName, versionRef),
 		"settings.html":          template.Settings(deployment, versionName, versionRef),
 		// The event name must match the one in the test URLs (see incident.test.ts).
 		"incident.html":         template.Incident(deployment, versionName, versionRef, "2025"),

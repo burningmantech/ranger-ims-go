@@ -50,7 +50,6 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		// It doesn't matter that this event doesn't exist, because the endpoint will deny access to
 		// a non-admin before it checks whether the event even exists.
 		{http.MethodPost, "/ims/api/events/SomeFakeEvent/places"},
-		{http.MethodPost, "/ims/api/streets"},
 		{http.MethodPost, "/ims/api/incident_types"},
 		{http.MethodGet, "/ims/api/debug/buildinfo"},
 		{http.MethodGet, "/ims/api/debug/runtimemetrics"},
@@ -81,7 +80,6 @@ func TestAnyUnauthenticatedUserEndpoints(t *testing.T) {
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 
 	anyAuthenticatedUserEndpoints := []MethodURL{
-		{http.MethodGet, "/ims/api/streets"},
 		{http.MethodGet, "/ims/api/personnel"},
 		{http.MethodGet, "/ims/api/incident_types"},
 		{http.MethodGet, "/ims/api/events"},

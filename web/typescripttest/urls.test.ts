@@ -37,7 +37,7 @@ test("representative API URLs are installed as globals with their expected value
 
 test("every API URL is rooted under the IMS prefix", (): void => {
     const apiUrls = [
-        url_auth, url_authRefresh, url_acl, url_accessTargets, url_streets,
+        url_auth, url_authRefresh, url_acl, url_accessTargets,
         url_personnel, url_incidentTypes, url_events, url_incidents,
         url_fieldReports, url_visits, url_places, url_eventSource,
     ];

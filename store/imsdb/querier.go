@@ -22,8 +22,6 @@ type Querier interface {
 	AttachVisitToIncident(ctx context.Context, db DBTX, arg AttachVisitToIncidentParams) error
 	ClearEventAccessForExpression(ctx context.Context, db DBTX, arg ClearEventAccessForExpressionParams) error
 	ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error
-	ConcentricStreets(ctx context.Context, db DBTX, event int32) ([]ConcentricStreetsRow, error)
-	CreateConcentricStreet(ctx context.Context, db DBTX, arg CreateConcentricStreetParams) error
 	CreateEvent(ctx context.Context, db DBTX, arg CreateEventParams) (int64, error)
 	CreateFieldReport(ctx context.Context, db DBTX, arg CreateFieldReportParams) error
 	CreateIncident(ctx context.Context, db DBTX, arg CreateIncidentParams) (int64, error)

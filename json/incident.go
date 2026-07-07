@@ -26,12 +26,9 @@ type Location struct {
 	// Various fields here are nilable, because client can set them empty, and the server must be able
 	// to distinguish empty from unset.
 
-	Name         *string `json:"name,omitempty"`
-	Address      *string `json:"address,omitempty"`
-	Concentric   *string `json:"concentric,omitempty"`
-	RadialHour   *string `json:"radial_hour,omitempty"`
-	RadialMinute *string `json:"radial_minute,omitempty"`
-	Description  *string `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Address     *string `json:"address,omitempty"`
+	Description *string `json:"description,omitempty"`
 }
 
 const (

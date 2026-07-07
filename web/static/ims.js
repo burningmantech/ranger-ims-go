@@ -303,6 +303,7 @@ function controlClear(element) {
 //
 export async function commonPageInit() {
     detectTouchDevice();
+    trackUncommittedInput();
     let authInfo = null;
     pathIds = idsFromPath();
     {
@@ -437,6 +438,54 @@ export function selectOptionWithValue(select, value) {
     for (const opt of select.options) {
         opt.selected = (opt.value === value);
     }
+}
+// The control the user has typed into since focusing it, if any. Only the
+// focused control can be receiving keystrokes, so one variable suffices.
+// Maintained by trackUncommittedInput.
+let uncommittedControl = null;
+// trackUncommittedInput watches for user input so that redraws can avoid
+// overwriting a field the user is in the middle of editing. Called once per
+// page by commonPageInit.
+function trackUncommittedInput() {
+    document.addEventListener("input", (e) => {
+        uncommittedControl = e.target;
+    }, true);
+    document.addEventListener("focusout", (e) => {
+        if (e.target === uncommittedControl) {
+            uncommittedControl = null;
+        }
+    }, true);
+}
+// hasUncommittedInput reports whether the user has typed into the given
+// control since focusing it and hasn't left the control yet, i.e. the
+// control may hold input that no "change" event has committed.
+export function hasUncommittedInput(element) {
+    return element === uncommittedControl && document.activeElement === element;
+}
+// Set a form control's value from server state, unless the control holds
+// the user's in-progress input. Overwriting it would discard the typing and
+// clear the browser's dirty flag, so the control's "change" event would
+// never fire on blur and the user's edit would be silently lost. Such a
+// control may briefly show a stale value; it gets reconciled on the next
+// redraw after blur.
+export function setInputValue(element, value) {
+    if (hasUncommittedInput(element)) {
+        return;
+    }
+    element.value = value;
+}
+// Set a flatpickr's date from server state, unless its (alt)input holds the
+// user's in-progress input, i.e. a partially typed date (see setInputValue).
+// Returns whether the date was applied, so callers can keep dependent UI
+// (e.g. title tooltips) consistent with what's displayed.
+export function setFlatpickrDate(element, date) {
+    const fp = element._flatpickr;
+    if ((fp.altInput != null && hasUncommittedInput(fp.altInput)) ||
+        (fp.input != null && hasUncommittedInput(fp.input))) {
+        return false;
+    }
+    fp.setDate(date, false, "Z");
+    return true;
 }
 //
 // Incident data

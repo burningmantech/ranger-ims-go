@@ -347,49 +347,47 @@ function drawVisitFields(): void {
     }
     document.getElementById("doc-title")!.textContent = docTitle;
     if (visit?.incident) {
-        el.parentIncident.value = (visit.incident?.toString())??"";
+        ims.setInputValue(el.parentIncident, (visit.incident?.toString())??"");
         el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${visit.incident}`);
     } else {
-        el.parentIncident.value = "";
+        ims.setInputValue(el.parentIncident, "");
     }
     el.parentIncident.placeholder = "(none)";
 
-    el.guestPreferredName.value = (visit?.guest_preferred_name?.toString())??"";
-    el.guestLegalName.value = (visit?.guest_legal_name?.toString())??"";
-    el.guestDescription.value = (visit?.guest_description?.toString())??"";
-    el.guestActionPlan.value = (visit?.guest_action_plan?.toString())??"";
-    el.guestCampName.value = (visit?.guest_camp_name?.toString())??"";
-    el.guestCampAddress.value = (visit?.guest_camp_address?.toString())??"";
-    el.guestCampDescription.value = (visit?.guest_camp_description?.toString())??"";
-    el.guestCampContacts.value = (visit?.guest_camp_contacts?.toString())??"";
+    ims.setInputValue(el.guestPreferredName, (visit?.guest_preferred_name?.toString())??"");
+    ims.setInputValue(el.guestLegalName, (visit?.guest_legal_name?.toString())??"");
+    ims.setInputValue(el.guestDescription, (visit?.guest_description?.toString())??"");
+    ims.setInputValue(el.guestActionPlan, (visit?.guest_action_plan?.toString())??"");
+    ims.setInputValue(el.guestCampName, (visit?.guest_camp_name?.toString())??"");
+    ims.setInputValue(el.guestCampAddress, (visit?.guest_camp_address?.toString())??"");
+    ims.setInputValue(el.guestCampDescription, (visit?.guest_camp_description?.toString())??"");
+    ims.setInputValue(el.guestCampContacts, (visit?.guest_camp_contacts?.toString())??"");
 
-    if (visit?.arrival_time) {
-        el.arrivalTime._flatpickr.setDate(visit.arrival_time, false, "Z");
+    if (visit?.arrival_time && ims.setFlatpickrDate(el.arrivalTime, visit.arrival_time)) {
         const fullDate = ims.longFormatDate(new Date(visit.arrival_time));
         el.arrivalTime._flatpickr.input!.title = fullDate;
         el.arrivalTime._flatpickr.altInput!.title = fullDate;
     }
-    el.arrivalMethod.value = (visit?.arrival_method?.toString())??"";
-    el.arrivalState.value = (visit?.arrival_state?.toString())??"";
-    el.arrivalReason.value = (visit?.arrival_reason?.toString())??"";
-    el.arrivalBelongings.value = (visit?.arrival_belongings?.toString())??"";
+    ims.setInputValue(el.arrivalMethod, (visit?.arrival_method?.toString())??"");
+    ims.setInputValue(el.arrivalState, (visit?.arrival_state?.toString())??"");
+    ims.setInputValue(el.arrivalReason, (visit?.arrival_reason?.toString())??"");
+    ims.setInputValue(el.arrivalBelongings, (visit?.arrival_belongings?.toString())??"");
 
-    if (visit?.departure_time) {
-        el.departureTime._flatpickr.setDate(visit.departure_time, false, "Z");
+    if (visit?.departure_time && ims.setFlatpickrDate(el.departureTime, visit.departure_time)) {
         const fullDate = ims.longFormatDate(new Date(visit.departure_time));
         el.departureTime._flatpickr.input!.title = fullDate;
         el.departureTime._flatpickr.altInput!.title = fullDate;
     }
-    el.departureMethod.value = (visit?.departure_method?.toString())??"";
-    el.departureState.value = (visit?.departure_state?.toString())??"";
+    ims.setInputValue(el.departureMethod, (visit?.departure_method?.toString())??"");
+    ims.setInputValue(el.departureState, (visit?.departure_state?.toString())??"");
 
-    el.resourceSitter.value = (visit?.resource_sitter?.toString())??"";
-    el.resourceBedID.value = (visit?.resource_bed_id?.toString())??"";
-    el.resourceRest.value = (visit?.resource_rest?.toString())??"";
-    el.resourceClothes.value = (visit?.resource_clothes?.toString())??"";
-    el.resourcePogs.value = (visit?.resource_pogs?.toString())??"";
-    el.resourceFoodBev.value = (visit?.resource_food_bev?.toString())??"";
-    el.resourceOther.value = (visit?.resource_other?.toString())??"";
+    ims.setInputValue(el.resourceSitter, (visit?.resource_sitter?.toString())??"");
+    ims.setInputValue(el.resourceBedID, (visit?.resource_bed_id?.toString())??"");
+    ims.setInputValue(el.resourceRest, (visit?.resource_rest?.toString())??"");
+    ims.setInputValue(el.resourceClothes, (visit?.resource_clothes?.toString())??"");
+    ims.setInputValue(el.resourcePogs, (visit?.resource_pogs?.toString())??"");
+    ims.setInputValue(el.resourceFoodBev, (visit?.resource_food_bev?.toString())??"");
+    ims.setInputValue(el.resourceOther, (visit?.resource_other?.toString())??"");
 
     drawRangers();
 }

@@ -34,6 +34,30 @@ type Querier interface {
 	DetachIncidentTypeFromIncident(ctx context.Context, db DBTX, arg DetachIncidentTypeFromIncidentParams) error
 	DetachRangerFromVisit(ctx context.Context, db DBTX, arg DetachRangerFromVisitParams) error
 	DetachRangerHandleFromIncident(ctx context.Context, db DBTX, arg DetachRangerHandleFromIncidentParams) error
+	DirectoryActivePersons(ctx context.Context, db DBTX) ([]DirectoryActivePersonsRow, error)
+	DirectoryActivePositions(ctx context.Context, db DBTX) ([]DirectoryActivePositionsRow, error)
+	DirectoryActiveTeams(ctx context.Context, db DBTX) ([]DirectoryActiveTeamsRow, error)
+	DirectoryAddPersonPosition(ctx context.Context, db DBTX, arg DirectoryAddPersonPositionParams) error
+	DirectoryAddPersonTeam(ctx context.Context, db DBTX, arg DirectoryAddPersonTeamParams) error
+	DirectoryAllPersons(ctx context.Context, db DBTX) ([]DirectoryAllPersonsRow, error)
+	DirectoryAllPositions(ctx context.Context, db DBTX) ([]DirectoryPosition, error)
+	DirectoryAllTeams(ctx context.Context, db DBTX) ([]DirectoryTeam, error)
+	DirectoryClearPersonPositions(ctx context.Context, db DBTX, personID int64) error
+	DirectoryClearPersonTeams(ctx context.Context, db DBTX, personID int64) error
+	DirectoryCreatePerson(ctx context.Context, db DBTX, arg DirectoryCreatePersonParams) (int64, error)
+	DirectoryCreatePosition(ctx context.Context, db DBTX, arg DirectoryCreatePositionParams) (int64, error)
+	DirectoryCreateTeam(ctx context.Context, db DBTX, arg DirectoryCreateTeamParams) (int64, error)
+	DirectoryDeletePerson(ctx context.Context, db DBTX, id int64) error
+	DirectoryDeletePosition(ctx context.Context, db DBTX, id int64) error
+	DirectoryDeleteTeam(ctx context.Context, db DBTX, id int64) error
+	DirectoryPersonByHandle(ctx context.Context, db DBTX, handle string) (DirectoryPersonByHandleRow, error)
+	DirectoryPersonByID(ctx context.Context, db DBTX, id int64) (DirectoryPersonByIDRow, error)
+	DirectoryPersonPositions(ctx context.Context, db DBTX) ([]DirectoryPersonPosition, error)
+	DirectoryPersonTeams(ctx context.Context, db DBTX) ([]DirectoryPersonTeam, error)
+	DirectorySetPersonPassword(ctx context.Context, db DBTX, arg DirectorySetPersonPasswordParams) error
+	DirectoryUpdatePerson(ctx context.Context, db DBTX, arg DirectoryUpdatePersonParams) error
+	DirectoryUpdatePosition(ctx context.Context, db DBTX, arg DirectoryUpdatePositionParams) error
+	DirectoryUpdateTeam(ctx context.Context, db DBTX, arg DirectoryUpdateTeamParams) error
 	Event(ctx context.Context, db DBTX, id int32) (EventRow, error)
 	EventAccessAll(ctx context.Context, db DBTX) ([]EventAccessAllRow, error)
 	// This returns access for a target event, as well as for that event's

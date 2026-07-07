@@ -612,6 +612,530 @@ func (q *Queries) DetachRangerHandleFromIncident(ctx context.Context, db DBTX, a
 	return err
 }
 
+const directoryActivePersons = `-- name: DirectoryActivePersons :many
+select ID, HANDLE, EMAIL, PASSWORD, ONSITE
+from DIRECTORY_PERSON
+where ACTIVE
+`
+
+type DirectoryActivePersonsRow struct {
+	ID       int64
+	Handle   string
+	Email    sql.NullString
+	Password string
+	Onsite   bool
+}
+
+func (q *Queries) DirectoryActivePersons(ctx context.Context, db DBTX) ([]DirectoryActivePersonsRow, error) {
+	rows, err := db.QueryContext(ctx, directoryActivePersons)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryActivePersonsRow
+	for rows.Next() {
+		var i DirectoryActivePersonsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Handle,
+			&i.Email,
+			&i.Password,
+			&i.Onsite,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directoryActivePositions = `-- name: DirectoryActivePositions :many
+select ID, TITLE from DIRECTORY_POSITION where ACTIVE
+`
+
+type DirectoryActivePositionsRow struct {
+	ID    int64
+	Title string
+}
+
+func (q *Queries) DirectoryActivePositions(ctx context.Context, db DBTX) ([]DirectoryActivePositionsRow, error) {
+	rows, err := db.QueryContext(ctx, directoryActivePositions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryActivePositionsRow
+	for rows.Next() {
+		var i DirectoryActivePositionsRow
+		if err := rows.Scan(&i.ID, &i.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directoryActiveTeams = `-- name: DirectoryActiveTeams :many
+select ID, TITLE from DIRECTORY_TEAM where ACTIVE
+`
+
+type DirectoryActiveTeamsRow struct {
+	ID    int64
+	Title string
+}
+
+func (q *Queries) DirectoryActiveTeams(ctx context.Context, db DBTX) ([]DirectoryActiveTeamsRow, error) {
+	rows, err := db.QueryContext(ctx, directoryActiveTeams)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryActiveTeamsRow
+	for rows.Next() {
+		var i DirectoryActiveTeamsRow
+		if err := rows.Scan(&i.ID, &i.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directoryAddPersonPosition = `-- name: DirectoryAddPersonPosition :exec
+insert into DIRECTORY_PERSON__POSITION (PERSON_ID, POSITION_ID) values (?, ?)
+`
+
+type DirectoryAddPersonPositionParams struct {
+	PersonID   int64
+	PositionID int64
+}
+
+func (q *Queries) DirectoryAddPersonPosition(ctx context.Context, db DBTX, arg DirectoryAddPersonPositionParams) error {
+	_, err := db.ExecContext(ctx, directoryAddPersonPosition, arg.PersonID, arg.PositionID)
+	return err
+}
+
+const directoryAddPersonTeam = `-- name: DirectoryAddPersonTeam :exec
+insert into DIRECTORY_PERSON__TEAM (PERSON_ID, TEAM_ID) values (?, ?)
+`
+
+type DirectoryAddPersonTeamParams struct {
+	PersonID int64
+	TeamID   int64
+}
+
+func (q *Queries) DirectoryAddPersonTeam(ctx context.Context, db DBTX, arg DirectoryAddPersonTeamParams) error {
+	_, err := db.ExecContext(ctx, directoryAddPersonTeam, arg.PersonID, arg.TeamID)
+	return err
+}
+
+const directoryAllPersons = `-- name: DirectoryAllPersons :many
+select ID, HANDLE, EMAIL, ACTIVE, ONSITE
+from DIRECTORY_PERSON
+`
+
+type DirectoryAllPersonsRow struct {
+	ID     int64
+	Handle string
+	Email  sql.NullString
+	Active bool
+	Onsite bool
+}
+
+func (q *Queries) DirectoryAllPersons(ctx context.Context, db DBTX) ([]DirectoryAllPersonsRow, error) {
+	rows, err := db.QueryContext(ctx, directoryAllPersons)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryAllPersonsRow
+	for rows.Next() {
+		var i DirectoryAllPersonsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Handle,
+			&i.Email,
+			&i.Active,
+			&i.Onsite,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directoryAllPositions = `-- name: DirectoryAllPositions :many
+select ID, TITLE, ACTIVE from DIRECTORY_POSITION
+`
+
+func (q *Queries) DirectoryAllPositions(ctx context.Context, db DBTX) ([]DirectoryPosition, error) {
+	rows, err := db.QueryContext(ctx, directoryAllPositions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryPosition
+	for rows.Next() {
+		var i DirectoryPosition
+		if err := rows.Scan(&i.ID, &i.Title, &i.Active); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directoryAllTeams = `-- name: DirectoryAllTeams :many
+select ID, TITLE, ACTIVE from DIRECTORY_TEAM
+`
+
+func (q *Queries) DirectoryAllTeams(ctx context.Context, db DBTX) ([]DirectoryTeam, error) {
+	rows, err := db.QueryContext(ctx, directoryAllTeams)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryTeam
+	for rows.Next() {
+		var i DirectoryTeam
+		if err := rows.Scan(&i.ID, &i.Title, &i.Active); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directoryClearPersonPositions = `-- name: DirectoryClearPersonPositions :exec
+delete from DIRECTORY_PERSON__POSITION where PERSON_ID = ?
+`
+
+func (q *Queries) DirectoryClearPersonPositions(ctx context.Context, db DBTX, personID int64) error {
+	_, err := db.ExecContext(ctx, directoryClearPersonPositions, personID)
+	return err
+}
+
+const directoryClearPersonTeams = `-- name: DirectoryClearPersonTeams :exec
+delete from DIRECTORY_PERSON__TEAM where PERSON_ID = ?
+`
+
+func (q *Queries) DirectoryClearPersonTeams(ctx context.Context, db DBTX, personID int64) error {
+	_, err := db.ExecContext(ctx, directoryClearPersonTeams, personID)
+	return err
+}
+
+const directoryCreatePerson = `-- name: DirectoryCreatePerson :execlastid
+insert into DIRECTORY_PERSON (HANDLE, EMAIL, PASSWORD, ACTIVE, ONSITE)
+values (?, ?, ?, ?, ?)
+`
+
+type DirectoryCreatePersonParams struct {
+	Handle   string
+	Email    sql.NullString
+	Password string
+	Active   bool
+	Onsite   bool
+}
+
+func (q *Queries) DirectoryCreatePerson(ctx context.Context, db DBTX, arg DirectoryCreatePersonParams) (int64, error) {
+	result, err := db.ExecContext(ctx, directoryCreatePerson,
+		arg.Handle,
+		arg.Email,
+		arg.Password,
+		arg.Active,
+		arg.Onsite,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+const directoryCreatePosition = `-- name: DirectoryCreatePosition :execlastid
+insert into DIRECTORY_POSITION (TITLE, ACTIVE) values (?, ?)
+`
+
+type DirectoryCreatePositionParams struct {
+	Title  string
+	Active bool
+}
+
+func (q *Queries) DirectoryCreatePosition(ctx context.Context, db DBTX, arg DirectoryCreatePositionParams) (int64, error) {
+	result, err := db.ExecContext(ctx, directoryCreatePosition, arg.Title, arg.Active)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+const directoryCreateTeam = `-- name: DirectoryCreateTeam :execlastid
+insert into DIRECTORY_TEAM (TITLE, ACTIVE) values (?, ?)
+`
+
+type DirectoryCreateTeamParams struct {
+	Title  string
+	Active bool
+}
+
+func (q *Queries) DirectoryCreateTeam(ctx context.Context, db DBTX, arg DirectoryCreateTeamParams) (int64, error) {
+	result, err := db.ExecContext(ctx, directoryCreateTeam, arg.Title, arg.Active)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+const directoryDeletePerson = `-- name: DirectoryDeletePerson :exec
+delete from DIRECTORY_PERSON where ID = ?
+`
+
+func (q *Queries) DirectoryDeletePerson(ctx context.Context, db DBTX, id int64) error {
+	_, err := db.ExecContext(ctx, directoryDeletePerson, id)
+	return err
+}
+
+const directoryDeletePosition = `-- name: DirectoryDeletePosition :exec
+delete from DIRECTORY_POSITION where ID = ?
+`
+
+func (q *Queries) DirectoryDeletePosition(ctx context.Context, db DBTX, id int64) error {
+	_, err := db.ExecContext(ctx, directoryDeletePosition, id)
+	return err
+}
+
+const directoryDeleteTeam = `-- name: DirectoryDeleteTeam :exec
+delete from DIRECTORY_TEAM where ID = ?
+`
+
+func (q *Queries) DirectoryDeleteTeam(ctx context.Context, db DBTX, id int64) error {
+	_, err := db.ExecContext(ctx, directoryDeleteTeam, id)
+	return err
+}
+
+const directoryPersonByHandle = `-- name: DirectoryPersonByHandle :one
+select ID, HANDLE, EMAIL, ACTIVE, ONSITE
+from DIRECTORY_PERSON
+where HANDLE = ?
+`
+
+type DirectoryPersonByHandleRow struct {
+	ID     int64
+	Handle string
+	Email  sql.NullString
+	Active bool
+	Onsite bool
+}
+
+func (q *Queries) DirectoryPersonByHandle(ctx context.Context, db DBTX, handle string) (DirectoryPersonByHandleRow, error) {
+	row := db.QueryRowContext(ctx, directoryPersonByHandle, handle)
+	var i DirectoryPersonByHandleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Handle,
+		&i.Email,
+		&i.Active,
+		&i.Onsite,
+	)
+	return i, err
+}
+
+const directoryPersonByID = `-- name: DirectoryPersonByID :one
+select ID, HANDLE, EMAIL, ACTIVE, ONSITE
+from DIRECTORY_PERSON
+where ID = ?
+`
+
+type DirectoryPersonByIDRow struct {
+	ID     int64
+	Handle string
+	Email  sql.NullString
+	Active bool
+	Onsite bool
+}
+
+func (q *Queries) DirectoryPersonByID(ctx context.Context, db DBTX, id int64) (DirectoryPersonByIDRow, error) {
+	row := db.QueryRowContext(ctx, directoryPersonByID, id)
+	var i DirectoryPersonByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Handle,
+		&i.Email,
+		&i.Active,
+		&i.Onsite,
+	)
+	return i, err
+}
+
+const directoryPersonPositions = `-- name: DirectoryPersonPositions :many
+select PERSON_ID, POSITION_ID from DIRECTORY_PERSON__POSITION
+`
+
+func (q *Queries) DirectoryPersonPositions(ctx context.Context, db DBTX) ([]DirectoryPersonPosition, error) {
+	rows, err := db.QueryContext(ctx, directoryPersonPositions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryPersonPosition
+	for rows.Next() {
+		var i DirectoryPersonPosition
+		if err := rows.Scan(&i.PersonID, &i.PositionID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directoryPersonTeams = `-- name: DirectoryPersonTeams :many
+select PERSON_ID, TEAM_ID from DIRECTORY_PERSON__TEAM
+`
+
+func (q *Queries) DirectoryPersonTeams(ctx context.Context, db DBTX) ([]DirectoryPersonTeam, error) {
+	rows, err := db.QueryContext(ctx, directoryPersonTeams)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryPersonTeam
+	for rows.Next() {
+		var i DirectoryPersonTeam
+		if err := rows.Scan(&i.PersonID, &i.TeamID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const directorySetPersonPassword = `-- name: DirectorySetPersonPassword :exec
+update DIRECTORY_PERSON
+set PASSWORD = ?
+where ID = ?
+`
+
+type DirectorySetPersonPasswordParams struct {
+	Password string
+	ID       int64
+}
+
+func (q *Queries) DirectorySetPersonPassword(ctx context.Context, db DBTX, arg DirectorySetPersonPasswordParams) error {
+	_, err := db.ExecContext(ctx, directorySetPersonPassword, arg.Password, arg.ID)
+	return err
+}
+
+const directoryUpdatePerson = `-- name: DirectoryUpdatePerson :exec
+update DIRECTORY_PERSON
+set
+    HANDLE = ?,
+    EMAIL = ?,
+    ACTIVE = ?,
+    ONSITE = ?
+where ID = ?
+`
+
+type DirectoryUpdatePersonParams struct {
+	Handle string
+	Email  sql.NullString
+	Active bool
+	Onsite bool
+	ID     int64
+}
+
+func (q *Queries) DirectoryUpdatePerson(ctx context.Context, db DBTX, arg DirectoryUpdatePersonParams) error {
+	_, err := db.ExecContext(ctx, directoryUpdatePerson,
+		arg.Handle,
+		arg.Email,
+		arg.Active,
+		arg.Onsite,
+		arg.ID,
+	)
+	return err
+}
+
+const directoryUpdatePosition = `-- name: DirectoryUpdatePosition :exec
+update DIRECTORY_POSITION
+set TITLE = ?, ACTIVE = ?
+where ID = ?
+`
+
+type DirectoryUpdatePositionParams struct {
+	Title  string
+	Active bool
+	ID     int64
+}
+
+func (q *Queries) DirectoryUpdatePosition(ctx context.Context, db DBTX, arg DirectoryUpdatePositionParams) error {
+	_, err := db.ExecContext(ctx, directoryUpdatePosition, arg.Title, arg.Active, arg.ID)
+	return err
+}
+
+const directoryUpdateTeam = `-- name: DirectoryUpdateTeam :exec
+update DIRECTORY_TEAM
+set TITLE = ?, ACTIVE = ?
+where ID = ?
+`
+
+type DirectoryUpdateTeamParams struct {
+	Title  string
+	Active bool
+	ID     int64
+}
+
+func (q *Queries) DirectoryUpdateTeam(ctx context.Context, db DBTX, arg DirectoryUpdateTeamParams) error {
+	_, err := db.ExecContext(ctx, directoryUpdateTeam, arg.Title, arg.Active, arg.ID)
+	return err
+}
+
 const event = `-- name: Event :one
 select e.id, e.name, e.is_group, e.parent_group, e.map_url from EVENT e where ID = ?
 `

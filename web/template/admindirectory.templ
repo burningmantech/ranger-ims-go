@@ -1,0 +1,194 @@
+//
+// See the file COPYRIGHT for copyright information.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package template
+
+templ AdminDirectory(deployment, versionName, versionRef string) {
+<!DOCTYPE html>
+<html lang="en">
+@Head("Edit User Directory", "admin_directory.js", false, versionRef)
+
+<body>
+<div class="container-fluid">
+@Header(deployment)
+@Nav("")
+<h1 id="doc-title">User Directory</h1>
+@LoadingOverlay()
+@ErrorInfo()
+
+    <div class="modal no-print" id="editPersonModal" tabindex="-1" aria-labelledby="editPersonModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <p class="modal-title fs-5" id="editPersonModalLabel">Edit Person</p>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+          </div>
+          <div class="modal-body row">
+            <div class="input-group mb-3">
+              <label for="edit_person_handle" class="control-label input-group-text">Handle</label>
+              <input id="edit_person_handle" type="text" class="form-control form-control-sm" onchange="setPersonHandle(this);" />
+            </div>
+            <div class="input-group mb-3">
+              <label for="edit_person_email" class="control-label input-group-text">Email</label>
+              <input id="edit_person_email" type="email" class="form-control form-control-sm" onchange="setPersonEmail(this);" />
+            </div>
+            <div class="form-check form-switch mb-3 ms-2">
+              <input id="edit_person_active" class="form-check-input" type="checkbox" onchange="setPersonActive(this);" />
+              <label for="edit_person_active" class="form-check-label">Active (may log in)</label>
+            </div>
+            <div class="form-check form-switch mb-3 ms-2">
+              <input id="edit_person_onsite" class="form-check-input" type="checkbox" onchange="setPersonOnsite(this);" />
+              <label for="edit_person_onsite" class="form-check-label">Onsite</label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Teams</label>
+              <div id="edit_person_teams"></div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Positions</label>
+              <div id="edit_person_positions"></div>
+            </div>
+            <div class="input-group mb-3">
+              <label for="edit_person_password" class="control-label input-group-text">New password</label>
+              <input id="edit_person_password" type="password" autocomplete="new-password" class="form-control form-control-sm" />
+              <button id="edit_person_password_save" type="button" class="btn btn-sm btn-primary" onclick="setPersonPassword(this);">
+                Set password
+              </button>
+            </div>
+            <div>
+              <button id="edit_person_delete" type="button" class="btn btn-sm btn-danger" onclick="deletePerson(this);">
+                Delete person
+              </button>
+              <div class="form-text">
+                Prefer deactivating over deleting, so that the person's handle
+                stays valid on old incidents.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <div class="row" id="directory_container">
+
+    <div id="directory_persons" class="col-sm-12 mb-3">
+      <div class="card">
+        <label class="card-header">Persons</label>
+        <div class="card-body table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Handle</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Onsite</th>
+                <th>Teams</th>
+                <th>Positions</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="persons_tbody">
+            </tbody>
+          </table>
+          <template id="person_row_template">
+            <tr data-person-id="">
+              <td class="person-handle"></td>
+              <td class="person-email"></td>
+              <td class="person-active"></td>
+              <td class="person-onsite"></td>
+              <td class="person-teams"></td>
+              <td class="person-positions"></td>
+              <td>
+                <button class="show-edit-modal badge btn btn-primary float-end">
+                  Edit
+                </button>
+              </td>
+            </tr>
+          </template>
+        </div>
+        <div class="card-footer">
+          <label>Add person:</label>
+          <input
+              class="form-control input-sm auto-width"
+              type="text" inputmode="verbatim"
+              disabled=""
+              placeholder="Handle"
+              onchange="createPerson(this)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div id="directory_teams" class="col-sm-6 mb-3">
+      <div class="card">
+        <label class="card-header">Teams</label>
+        <ul class="list-group list-group-small list-group-flush card-body" id="teams_list">
+          <template id="group_li_template">
+            <li class="list-group-item ps-3" data-group-id="">
+              <button class="badge btn btn-primary float-end group-active">
+                Active
+              </button>
+              <button class="badge btn btn-warning float-end group-inactive">
+                Inactive
+              </button>
+              <button class="group-rename badge btn btn-primary float-end me-2">
+                Rename
+              </button>
+              <button class="group-delete badge btn btn-danger float-end me-2">
+                Delete
+              </button>
+              <div class="group-title"></div>
+            </li>
+          </template>
+        </ul>
+        <div class="card-footer">
+          <label>Add team:</label>
+          <input
+              class="form-control input-sm auto-width"
+              type="text" inputmode="verbatim"
+              disabled=""
+              placeholder="Green Dot"
+              onchange="createTeam(this)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div id="directory_positions" class="col-sm-6 mb-3">
+      <div class="card">
+        <label class="card-header">Positions</label>
+        <ul class="list-group list-group-small list-group-flush card-body" id="positions_list">
+        </ul>
+        <div class="card-footer">
+          <label>Add position:</label>
+          <input
+              class="form-control input-sm auto-width"
+              type="text" inputmode="verbatim"
+              disabled=""
+              placeholder="Khaki"
+              onchange="createPosition(this)"
+          />
+        </div>
+      </div>
+    </div>
+
+  </div>
+@Footer(versionName, versionRef)
+</div>
+</body>
+</html>
+
+}

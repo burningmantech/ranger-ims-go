@@ -161,6 +161,18 @@ func AddToMux(
 
 	authed("GET /ims/api/personnel", GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 
+	// Admin management of the IMS-native user directory. These endpoints
+	// reject all requests unless the deployment uses IMS_DIRECTORY=ims.
+	directoryIsIMS := cfg.Directory.Directory == conf.DirectoryTypeIMS
+	authed("GET /ims/api/directory", GetDirectory{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("POST /ims/api/directory/persons", EditDirectoryPerson{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("POST /ims/api/directory/persons/{personId}/password", SetDirectoryPersonPassword{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("DELETE /ims/api/directory/persons/{personId}", DeleteDirectoryPerson{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("POST /ims/api/directory/teams", EditDirectoryTeam{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("DELETE /ims/api/directory/teams/{teamId}", DeleteDirectoryTeam{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("POST /ims/api/directory/positions", EditDirectoryPosition{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("DELETE /ims/api/directory/positions/{positionId}", DeleteDirectoryPosition{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+
 	// The SSE stream only carries notification metadata (event and record
 	// numbers), not record contents; clients fetch the actual data through the
 	// authenticated endpoints above.

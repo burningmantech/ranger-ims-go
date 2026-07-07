@@ -26,8 +26,22 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/cache"
 )
 
+// Source provides user, position, and team data from some backing directory,
+// e.g. a Clubhouse database or IMS's own directory tables. Implementations
+// should return fully-populated data on each call; caching is handled by
+// UserStore, not by the Source.
+type Source interface {
+	// FetchUsers returns all directory users who may use IMS, keyed by
+	// directory ID, with team and position memberships populated.
+	FetchUsers(ctx context.Context) (map[int64]*User, error)
+	// FetchPositions returns all position names, keyed by position ID.
+	FetchPositions(ctx context.Context) (map[int64]string, error)
+	// FetchTeams returns all team names, keyed by team ID.
+	FetchTeams(ctx context.Context) (map[int64]string, error)
+}
+
 type UserStore struct {
-	DBQ           *DBQ
+	source        Source
 	userCache     *cache.InMemory[map[int64]*User]
 	positionCache *cache.InMemory[map[int64]string]
 	teamCache     *cache.InMemory[map[int64]string]
@@ -49,24 +63,33 @@ type User struct {
 	OnDutyPositionName *string
 }
 
-func NewUserStore(dbq *DBQ, cacheTTL time.Duration) *UserStore {
+func NewUserStore(source Source, cacheTTL time.Duration) *UserStore {
 	us := &UserStore{
-		DBQ: dbq,
+		source: source,
 	}
 	us.userCache = cache.New(
 		cacheTTL,
-		us.refreshUserCache,
+		source.FetchUsers,
 	)
 	us.positionCache = cache.New(
 		cacheTTL,
-		us.refreshPositionCache,
+		source.FetchPositions,
 	)
 	us.teamCache = cache.New(
 		cacheTTL,
-		us.refreshTeamCache,
+		source.FetchTeams,
 	)
 
 	return us
+}
+
+// Flush invalidates all cached directory data, so that the next read
+// fetches fresh data from the Source. Call this after any write to the
+// backing directory.
+func (store *UserStore) Flush() {
+	store.userCache.Invalidate()
+	store.positionCache.Invalidate()
+	store.teamCache.Invalidate()
 }
 
 func (store *UserStore) GetAllUsers(ctx context.Context) (map[int64]*User, error) {
@@ -110,92 +133,4 @@ func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions, te
 		return nil, nil, fmt.Errorf("[GetPositionsAndTeams] %w", err)
 	}
 	return *posMap, *teamMap, nil
-}
-
-func (store *UserStore) refreshUserCache(ctx context.Context) (map[int64]*User, error) {
-	var errs []error
-	persons, err := store.DBQ.Persons(ctx, store.DBQ)
-	errs = append(errs, err)
-	teamRows, err := store.DBQ.Teams(ctx, store.DBQ)
-	errs = append(errs, err)
-	positionRows, err := store.DBQ.Positions(ctx, store.DBQ)
-	errs = append(errs, err)
-	personTeams, err := store.DBQ.PersonTeams(ctx, store.DBQ)
-	errs = append(errs, err)
-	personPositions, err := store.DBQ.PersonPositions(ctx, store.DBQ)
-	errs = append(errs, err)
-	personsOnDuty, err := store.DBQ.PersonsOnDuty(ctx, store.DBQ)
-	errs = append(errs, err)
-	err = errors.Join(errs...)
-	if err != nil {
-		return nil, fmt.Errorf("[Teams,Positions,PersonTeams,PersonPositions] %w", err)
-	}
-
-	m := make(map[int64]*User, len(persons))
-	for _, person := range persons {
-		m[person.ID] = &User{
-			ID:       person.ID,
-			Handle:   person.Callsign,
-			Email:    person.Email.String,
-			Status:   string(person.Status),
-			Onsite:   person.OnSite,
-			Password: person.Password.String,
-		}
-	}
-	positions := make(map[int64]string, len(positionRows))
-	for _, positionRow := range positionRows {
-		positions[positionRow.ID] = positionRow.Title
-	}
-	teams := make(map[int64]string, len(teamRows))
-	for _, teamRow := range teamRows {
-		teams[teamRow.ID] = teamRow.Title
-	}
-	for _, pp := range personPositions {
-		if _, ok := m[pp.PersonID]; ok {
-			person := m[pp.PersonID]
-			person.PositionIDs = append(person.PositionIDs, pp.PositionID)
-			person.PositionNames = append(person.PositionNames, positions[pp.PositionID])
-		}
-	}
-	for _, pt := range personTeams {
-		if _, ok := m[pt.PersonID]; ok {
-			person := m[pt.PersonID]
-			person.TeamIDs = append(person.TeamIDs, pt.TeamID)
-			person.TeamNames = append(person.TeamNames, teams[pt.TeamID])
-		}
-	}
-	for _, pod := range personsOnDuty {
-		if _, ok := m[int64(pod.PersonID)]; ok {
-			posID := int64(pod.PositionID)
-			m[int64(pod.PersonID)].OnDutyPositionID = &posID
-			if pos, ok := positions[int64(pod.PositionID)]; ok {
-				m[int64(pod.PersonID)].OnDutyPositionName = &pos
-			}
-		}
-	}
-	return m, nil
-}
-
-func (store *UserStore) refreshPositionCache(ctx context.Context) (map[int64]string, error) {
-	positionRows, err := store.DBQ.Positions(ctx, store.DBQ)
-	if err != nil {
-		return nil, fmt.Errorf("[Positions]: %w", err)
-	}
-	positions := make(map[int64]string, len(positionRows))
-	for _, row := range positionRows {
-		positions[row.ID] = row.Title
-	}
-	return positions, nil
-}
-
-func (store *UserStore) refreshTeamCache(ctx context.Context) (map[int64]string, error) {
-	teamRows, err := store.DBQ.Teams(ctx, store.DBQ)
-	if err != nil {
-		return nil, fmt.Errorf("[Teams]: %w", err)
-	}
-	teams := make(map[int64]string, len(teamRows))
-	for _, row := range teamRows {
-		teams[row.ID] = row.Title
-	}
-	return teams, nil
 }

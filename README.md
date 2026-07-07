@@ -26,10 +26,14 @@ server to rebuild and relaunch.
 There's good documentation in `docker-compose.dev.yml` that's worth a read.
 
 ```shell
-docker compose -f docker-compose.dev.yml up
-# or
 make compose/live
 ```
+
+This copies `.env.dev.example` to `.env.dev` on first run and passes it via
+`--env-file`, so the stack reads its own env file instead of the `./.env` used
+when you run `ims serve` directly — the two configs can't collide. Edit `.env.dev`
+(gitignored) to override defaults. The underlying command is
+`docker compose --env-file .env.dev -f docker-compose.dev.yml up`.
 
 ## Run IMS locally with MariaDB
 
@@ -55,6 +59,47 @@ make compose/live
    go run bin/build/build.go
    ./ranger-ims-go serve
    ```
+
+## Run IMS without a Clubhouse database (IMS-native directory)
+
+IMS normally reads its users, teams, and positions from a Ranger Clubhouse
+database. Organizations that don't have a Clubhouse can instead use the
+IMS-native directory, which stores users in the IMS database itself and is
+managed through IMS's admin web UI.
+
+The fastest way to try this is the quickstart compose stack, which runs the
+IMS server and its MariaDB with no Clubhouse anything (see the comments at the
+top of `docker-compose.quickstart.yml` for the full walkthrough):
+
+```shell
+make compose/quickstart
+```
+
+(This copies `.env.quickstart.example` to `.env.quickstart` on first run and runs
+`docker compose --env-file .env.quickstart -f docker-compose.quickstart.yml up --build`.)
+
+To set it up by hand instead:
+
+1. Set `IMS_DIRECTORY=ims` in your `.env`. The `IMS_DMS_*` (Clubhouse DB)
+   settings are then ignored and no Clubhouse database is needed.
+2. Start the server once (`./ranger-ims-go serve`) so it creates the database
+   tables, then bootstrap your first user:
+   ```shell
+   ./ranger-ims-go add-user --handle YourHandle --email you@example.org
+   ```
+3. Add that handle to `IMS_ADMINS` in `.env` and restart the server.
+4. Log in to the web UI and manage users, teams, and positions at
+   `/ims/app/admin/directory`.
+
+Notes:
+
+* Users log in with their handle (or email) and a password, which admins set
+  in the admin UI. Passwords are stored as argon2id hashes in the IMS DB.
+* Event access rules (`person:X`, `team:Y`, `position:Z`, `*`, and onsite
+  validity) work the same as with a Clubhouse directory. `onduty:` rules never
+  match, since the IMS-native directory has no shift/timesheet data.
+* Prefer deactivating users over deleting them, so their handles remain
+  attributable on old incidents.
 
 ## Run tests
 

@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (33);
+insert into SCHEMA_INFO (VERSION) values (34);
 
 
 create table `EVENT` (
@@ -300,4 +300,60 @@ create table VISIT__RANGER (
     foreign key (`EVENT`, VISIT_NUMBER) references VISIT (`EVENT`, NUMBER),
 
     primary key (ID)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- These tables are IMS's own user directory, used when IMS_DIRECTORY is set
+-- to "ims" rather than "clubhousedb". They are unused (and empty) on
+-- deployments that use a Clubhouse database as their directory.
+
+create table DIRECTORY_PERSON (
+    ID       bigint       not null auto_increment,
+    HANDLE   varchar(128) not null,
+    EMAIL    varchar(256),
+    -- An argon2id PHC-format hash. This may also hold a non-PHC placeholder
+    -- string that can never verify, for users who have no password set.
+    PASSWORD varchar(256) not null,
+    ACTIVE   boolean      not null default true,
+    ONSITE   boolean      not null default false,
+
+    primary key (ID),
+    unique key UNIQUE_HANDLE (HANDLE),
+    unique key UNIQUE_EMAIL (EMAIL)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table DIRECTORY_TEAM (
+    ID     bigint       not null auto_increment,
+    TITLE  varchar(128) not null,
+    ACTIVE boolean      not null default true,
+
+    primary key (ID),
+    unique key UNIQUE_TITLE (TITLE)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table DIRECTORY_POSITION (
+    ID     bigint       not null auto_increment,
+    TITLE  varchar(128) not null,
+    ACTIVE boolean      not null default true,
+
+    primary key (ID),
+    unique key UNIQUE_TITLE (TITLE)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table DIRECTORY_PERSON__TEAM (
+    PERSON_ID bigint not null,
+    TEAM_ID   bigint not null,
+
+    primary key (PERSON_ID, TEAM_ID),
+    foreign key (PERSON_ID) references DIRECTORY_PERSON (ID) on delete cascade,
+    foreign key (TEAM_ID)   references DIRECTORY_TEAM (ID)   on delete cascade
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table DIRECTORY_PERSON__POSITION (
+    PERSON_ID   bigint not null,
+    POSITION_ID bigint not null,
+
+    primary key (PERSON_ID, POSITION_ID),
+    foreign key (PERSON_ID)   references DIRECTORY_PERSON (ID)   on delete cascade,
+    foreign key (POSITION_ID) references DIRECTORY_POSITION (ID) on delete cascade
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

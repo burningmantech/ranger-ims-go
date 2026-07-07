@@ -286,6 +286,37 @@ type ConcentricStreet struct {
 	Name  string
 }
 
+type DirectoryPerson struct {
+	ID       int64
+	Handle   string
+	Email    sql.NullString
+	Password string
+	Active   bool
+	Onsite   bool
+}
+
+type DirectoryPersonPosition struct {
+	PersonID   int64
+	PositionID int64
+}
+
+type DirectoryPersonTeam struct {
+	PersonID int64
+	TeamID   int64
+}
+
+type DirectoryPosition struct {
+	ID     int64
+	Title  string
+	Active bool
+}
+
+type DirectoryTeam struct {
+	ID     int64
+	Title  string
+	Active bool
+}
+
 type Event struct {
 	ID          int32
 	Name        string

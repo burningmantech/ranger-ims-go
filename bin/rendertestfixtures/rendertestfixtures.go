@@ -48,6 +48,7 @@ func main() {
 	fixtures := map[string]templ.Component{
 		"login.html":             template.Login(deployment, versionName, versionRef),
 		"root.html":              template.Root(deployment, versionName, versionRef),
+		"admin_directory.html":   template.AdminDirectory(deployment, versionName, versionRef),
 		"admin_types.html":       template.AdminTypes(deployment, versionName, versionRef),
 		"admin_events.html":      template.AdminEvents(deployment, versionName, versionRef),
 		"admin_action_logs.html": template.AdminActionLogs(deployment, versionName, versionRef),

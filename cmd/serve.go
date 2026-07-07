@@ -109,20 +109,27 @@ func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printC
 		stderrPrintf("With JWTSecret: %v...%v\n", imsCfg.Core.JWTSecret[:1], imsCfg.Core.JWTSecret[len(imsCfg.Core.JWTSecret)-1:])
 	}
 
-	clubhouseDB, err := directory.MariaDB(ctx, imsCfg.Directory)
+	imsDB, err := store.SqlDB(ctx, imsCfg.Store, true)
 	must(err)
-	clubhouseDBQ := directory.NewDBQ(clubhouseDB, chqueries.New(), imsCfg.Directory.InMemoryCacheTTL)
-	userStore := directory.NewUserStore(clubhouseDBQ, imsCfg.Directory.InMemoryCacheTTL)
+	imsDBQ := store.NewDBQ(imsDB, imsdb.New())
+
+	var directorySource directory.Source
+	if imsCfg.Directory.Directory == conf.DirectoryTypeIMS {
+		// The IMS-native directory lives in the IMS database itself,
+		// so there's no separate directory database to connect to.
+		directorySource = directory.NewIMSSource(imsDBQ)
+	} else {
+		clubhouseDB, err := directory.MariaDB(ctx, imsCfg.Directory)
+		must(err)
+		directorySource = directory.NewClubhouseSource(directory.NewDBQ(clubhouseDB, chqueries.New()))
+	}
+	userStore := directory.NewUserStore(directorySource, imsCfg.Directory.InMemoryCacheTTL)
 
 	var s3Client *attachment.S3Client
 	if imsCfg.AttachmentsStore.Type == conf.AttachmentsStoreS3 {
 		s3Client, err = attachment.NewS3Client(ctx)
 		must(err)
 	}
-
-	imsDB, err := store.SqlDB(ctx, imsCfg.Store, true)
-	must(err)
-	imsDBQ := store.NewDBQ(imsDB, imsdb.New())
 	actionLogger := actionlog.NewLogger(ctx, imsDBQ, imsCfg.Core.ActionLogEnabled, false)
 
 	eventSource := api.NewEventSourcerer()

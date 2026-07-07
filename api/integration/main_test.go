@@ -145,12 +145,11 @@ func setup(ctx context.Context, tempDir string) {
 		if err != nil {
 			return err
 		}
-		clubhouseDBQ := directory.NewDBQ(
-			clubhouseDB,
-			chqueries.New(),
+		clubhouseDBQ := directory.NewDBQ(clubhouseDB, chqueries.New())
+		shared.userStore = directory.NewUserStore(
+			directory.NewClubhouseSource(clubhouseDBQ),
 			shared.cfg.Directory.InMemoryCacheTTL,
 		)
-		shared.userStore = directory.NewUserStore(clubhouseDBQ, shared.cfg.Directory.InMemoryCacheTTL)
 		return nil
 	})
 	g.Go(func() error {

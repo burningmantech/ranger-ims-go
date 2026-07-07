@@ -27,8 +27,11 @@ coverage/
 go.work
 go.work.sum
 
-# user-customized env file
+# user-customized env files (the *.example templates are checked in; the
+# compose make targets copy them to these names on first run)
 .env
+.env.dev
+.env.quickstart
 
 # compiled program
 ranger-ims-go

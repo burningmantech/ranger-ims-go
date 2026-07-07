@@ -1,6 +1,11 @@
 # This docker-compose brings up a local live-reloading IMS server, IMS DB, and Clubhouse DB.
 #
-# `docker compose -f docker-compose.dev.yml up`
+# `make compose/live`
+#
+# That copies .env.dev.example to .env.dev on first run (edit that copy to
+# override defaults) and runs the equivalent of:
+#
+# `docker compose --env-file .env.dev -f docker-compose.dev.yml up`
 #
 # Here's some helpful information:
 #
@@ -18,7 +23,7 @@ services:
     # This uses a Go hot-reload program: https://github.com/air-verse/air
     # If you want to rebuild this image (e.g. because you're updating
     # the go version in go.mod), then run the following:
-    #  docker compose -f docker-compose.dev.yml build --no-cache
+    #  docker compose --env-file .env.dev -f docker-compose.dev.yml build --no-cache
     build:
       context: .
       dockerfile: dev.Dockerfile
@@ -32,8 +37,11 @@ services:
 
     # IMS server configuration starts with
     # 1. DefaultIMS in imsconfig.go, which is overridden by
-    # 2. ./.env file, if present, which is overridden by
+    # 2. .env.dev (via --env-file), which supplies the ${...} defaults below,
+    #    which are overridden by
     # 3. The environment values here.
+    # Note: this stack reads .env.dev, NOT the ./.env used when running
+    # `ims serve` directly on your host, so the two can't leak into each other.
     environment:
       IMS_HOSTNAME: "0.0.0.0"
       IMS_PORT: "8080"

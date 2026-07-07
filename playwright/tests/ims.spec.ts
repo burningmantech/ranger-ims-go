@@ -111,6 +111,10 @@ async function addReporter(page: Page, eventName: string, reporter: string): Pro
   await addRule(page, eventName, reporter, "reporters");
 }
 
+async function addVisitWriter(page: Page, eventName: string, writer: string): Promise<void> {
+  await addRule(page, eventName, writer, "visit_writers");
+}
+
 async function maybeOpenNav(page: Page): Promise<void> {
   const toggler = page.getByLabel("Toggle navigation");
   await expect(async (): Promise<void> => {
@@ -535,5 +539,241 @@ test("field_reports", async ({ page, browser }) => {
       await frPage.close();
       await tablePage.close();
       await ctx.close();
+  }
+})
+
+// expandAccordion expands the named accordion section on a Sanctuary Visit
+// page, if it's collapsed.
+async function expandAccordion(page: Page, name: string): Promise<void> {
+  const toggle = page.getByRole("button", {name: name});
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+    await toggle.click();
+  }
+}
+
+// commitVisitField fills a Sanctuary Visit field and commits it with Tab.
+// Each save triggers a redraw of the whole page, and a redraw from a previous
+// field's save can clobber the typed value before it's committed; retry until
+// a save containing this field's value is observed.
+async function commitVisitField(page: Page, field: Locator, jsonField: string, value: string): Promise<void> {
+  await expect(async (): Promise<void> => {
+    await field.fill(value);
+    const responsePromise = page.waitForResponse(response =>
+        response.url().includes("/ims/api/events/")
+        && response.url().includes("/visits")
+        && response.request().method() === "POST"
+        && response.ok()
+        && (response.request().postData() ?? "").includes(`"${jsonField}":${JSON.stringify(value)}`),
+        {timeout: 3000},
+    );
+    await field.press("Tab");
+    await responsePromise;
+  }).toPass();
+}
+
+test("sanctuary_visits", async ({ page, browser }) => {
+  test.slow();
+
+  // make a new event in which our user may (only) write Sanctuary Visits
+  await login(page);
+  const eventName: string = randomName("event");
+  await addEvent(page, eventName);
+  await addVisitWriter(page, eventName, "person:" + username);
+  await page.close();
+
+  for (let i = 0; i < 2; i++) {
+    const ctx = await browser.newContext();
+    const tablePage = await ctx.newPage();
+    await login(tablePage);
+    await tablePage.goto(`http://localhost:8080/ims/app/events/${eventName}/visits`);
+
+    const visitPage = await ctx.newPage();
+    await visitPage.goto(`http://localhost:8080/ims/app/events/${eventName}/visits`);
+    await visitPage.getByRole("button", {name: "New"}).click();
+    await visitPage.waitForURL(`http://localhost:8080/ims/app/events/${eventName}/visits/new`);
+    await expect(visitPage.getByLabel("VS #")).toHaveValue("(new)");
+
+    // the first edit persists the visit and gives it a number
+    const guestName = randomName("guest");
+    await commitVisitField(visitPage, visitPage.getByLabel("Preferred name"), "guest_preferred_name", guestName);
+    await expect(visitPage.getByLabel("VS #")).toHaveValue(/^\d+$/);
+    const visitNumber = await visitPage.getByLabel("VS #").inputValue();
+    // creating the visit rewrites the URL from ".../new" to the visit number
+    expect(visitPage.url()).toBe(`http://localhost:8080/ims/app/events/${eventName}/visits/${visitNumber}`);
+    await expect(visitPage.locator("#doc-title")).toHaveText(`Current Sanctuary Visit (${guestName})`);
+
+    // check that the BroadcastChannel update to the table page worked
+    await expect(tablePage.getByText(guestName)).toBeVisible();
+
+    // fill in the rest of the Basics
+    await commitVisitField(visitPage, visitPage.getByLabel("Legal name"), "guest_legal_name", "Legal " + guestName);
+    await commitVisitField(visitPage, visitPage.getByLabel("Physical description"), "guest_description", "tall, dusty, faux fur coat");
+    await commitVisitField(visitPage, visitPage.getByLabel("Action plan"), "guest_action_plan", "water, rest, then walk home");
+
+    // arrival/departure details live in a collapsed accordion
+    await expandAccordion(visitPage, "Arrival/Departure");
+    await commitVisitField(visitPage, visitPage.getByLabel("Arrival method"), "arrival_method", "walked in");
+    await commitVisitField(visitPage, visitPage.getByLabel("Arrival state"), "arrival_state", "disoriented");
+    await commitVisitField(visitPage, visitPage.getByLabel("Reason"), "arrival_reason", "needed a quiet space");
+    await commitVisitField(visitPage, visitPage.getByLabel("Items brought"), "arrival_belongings", "backpack, goggles");
+
+    // camp and contact details
+    await expandAccordion(visitPage, "Camp and Contacts");
+    await commitVisitField(visitPage, visitPage.getByLabel("Camp name"), "guest_camp_name", "Camp Somewhere");
+    await commitVisitField(visitPage, visitPage.getByLabel("Camp address"), "guest_camp_address", "4:20 & F");
+    await commitVisitField(visitPage, visitPage.getByLabel("Guest camp contact information"), "guest_camp_contacts", "campmate: Dusty");
+
+    // resources; the sitter and bed ID show up in the visits table
+    await expandAccordion(visitPage, "Resources");
+    await commitVisitField(visitPage, visitPage.getByLabel("Sanctuary sitter"), "resource_sitter", "Sitter McSit");
+    await commitVisitField(visitPage, visitPage.getByLabel("Bed ID"), "resource_bed_id", "bed-42");
+
+    // add Rangers to the visit
+    {
+      async function addVisitRanger(page: Page, rangerName: string): Promise<void> {
+        await page.getByLabel("Add Ranger Handle").fill("");
+        await page.getByLabel("Add Ranger Handle").press("Tab");
+        await page.getByLabel("Add Ranger Handle").fill(rangerName);
+        await page.getByLabel("Add Ranger Handle").press("Tab");
+        await expect(page.locator("li", {hasText: rangerName})).toBeVisible({timeout: 5000});
+        await expect(page.getByLabel("Add Ranger Handle")).toHaveValue("");
+      }
+
+      await expandAccordion(visitPage, "Rangers Involved");
+      await addVisitRanger(visitPage, "Doggy");
+      await addVisitRanger(visitPage, "Runner");
+
+      await commitVisitField(visitPage, visitPage.getByLabel("Ranger role for Doggy"), "role", "Doggy Role");
+      // The value of the role field is checked after the reload below
+
+      // Remove a Ranger from the visit. The X button only shows while the
+      // row is hovered, and a redraw can replace the row under the cursor
+      // (losing the hover state), so retry the hover and click together.
+      const runnerLi = visitPage.locator("li", {hasText: "Runner"});
+      await expect(async (): Promise<void> => {
+        await runnerLi.hover();
+        await runnerLi.getByRole("button", {name: "X"}).click({timeout: 2000});
+      }).toPass();
+      await expect(runnerLi).toBeHidden();
+    }
+
+    // add a report entry
+    const reportEntry = `This is some text - ${randomName("text")}`;
+    {
+      await visitPage.getByLabel("New report entry text").fill(reportEntry);
+      // The save can transiently fail when the dev server is busy, leaving
+      // the entry text in place; retry the submit until it's accepted.
+      await expect(async (): Promise<void> => {
+        await visitPage.getByLabel("Submit report entry").click();
+        await expect(visitPage.getByLabel("New report entry text")).toBeEmpty({timeout: 3000});
+      }).toPass();
+      await expect(visitPage.getByText(reportEntry)).toBeVisible();
+    }
+    // strike the entry, verify it's stricken
+    {
+      await visitPage.getByText(reportEntry).hover();
+      await visitPage.getByRole("button", {name: "Strike"}).click();
+      await expect(visitPage.getByText(reportEntry)).toBeHidden();
+    }
+    // but the entry is shown when the right checkbox is ticked
+    {
+      await visitPage.getByLabel("Show history and stricken").check();
+      await expect(visitPage.getByText(reportEntry)).toBeVisible();
+    }
+    // unstrike the entry and see it return to the default view
+    {
+      await visitPage.getByText(reportEntry).hover();
+      await visitPage.getByRole("button", {name: "Unstrike"}).click();
+      await visitPage.getByLabel("Show history and stricken").uncheck();
+      await expect(visitPage.getByText(reportEntry)).toBeVisible();
+    }
+
+    // reload the page, make sure the data loads again
+    {
+      await visitPage.reload();
+      await expect(visitPage.getByLabel("VS #")).toHaveValue(visitNumber);
+      await expect(visitPage.getByLabel("Preferred name")).toHaveValue(guestName);
+      await expect(visitPage.getByLabel("Arrival method")).toHaveValue("walked in");
+      await expect(visitPage.getByLabel("Camp name")).toHaveValue("Camp Somewhere");
+      await expect(visitPage.getByLabel("Sanctuary sitter")).toHaveValue("Sitter McSit");
+      await expect(visitPage.getByLabel("Ranger role for Doggy")).toHaveValue("Doggy Role");
+    }
+
+    // the sitter and bed ID are shown in the visit's row in the table
+    {
+      const row = tablePage.locator("#visits_table tbody tr").filter({hasText: guestName});
+      await expect(row).toContainText("Sitter McSit");
+      await expect(row).toContainText("bed-42");
+    }
+
+    // try searching for the visit by guest name
+    {
+      await tablePage.getByRole("searchbox").fill(guestName);
+      await tablePage.getByRole("searchbox").press("Enter");
+      await expect(tablePage.getByText(guestName)).toBeVisible();
+      await tablePage.getByRole("searchbox").fill("The wrong text!");
+      await tablePage.getByRole("searchbox").press("Enter");
+      await expect(tablePage.getByText(guestName)).toBeHidden();
+      await tablePage.getByRole("searchbox").clear();
+      await tablePage.getByRole("searchbox").press("Enter");
+      await expect(tablePage.getByText(guestName)).toBeVisible();
+    }
+
+    // entering a visit number in the search box jumps to that visit
+    {
+      await tablePage.getByRole("searchbox").fill(visitNumber);
+      await tablePage.getByRole("searchbox").press("Enter");
+      await tablePage.waitForURL(`http://localhost:8080/ims/app/events/${eventName}/visits/${visitNumber}`);
+      await tablePage.goto(`http://localhost:8080/ims/app/events/${eventName}/visits`);
+      await expect(tablePage.getByText(guestName)).toBeVisible();
+    }
+
+    // override the arrival time, then set a departure time and see the visit
+    // disappear from the default "Current" view of the visits table
+    {
+      // On mobile, flatpickr swaps in a native date picker that's harder to
+      // drive, so skip date editing there (as in the incidents test).
+      const onMobile = await visitPage.locator(".flatpickr-mobile").first().isVisible();
+      if (!onMobile) {
+        // fillDatetime fills a flatpickr-backed datetime field and commits it
+        // with Tab, retrying until a save with the intended date is observed
+        // (as with the datetime field in the incidents test).
+        async function fillDatetime(field: Locator, value: string, jsonField: string): Promise<void> {
+          await expect(field).toBeVisible();
+          await expect(async (): Promise<void> => {
+            await field.clear();
+            await field.fill(value);
+            const responsePromise = visitPage.waitForResponse(response =>
+                response.url().includes(`/ims/api/events/${eventName}/visits/`)
+                && response.request().method() === "POST"
+                && response.ok()
+                && (response.request().postData() ?? "").includes(`"${jsonField}":"2025-01-2`),
+                {timeout: 3000},
+            );
+            // focus anywhere else, so that the field's onchange fires
+            await field.press("Tab");
+            await responsePromise;
+          }).toPass();
+        }
+
+        // The departure time may not precede the arrival time, so move the
+        // arrival time to the past first.
+        await fillDatetime(visitPage.locator("#alt_arrival_time"), "Mon 2025-01-27 @ 10:00", "arrival_time");
+        await fillDatetime(visitPage.locator("#alt_departure_time"), "Mon 2025-01-27 @ 11:11", "departure_time");
+        await expect(visitPage.locator("#doc-title")).toHaveText(`Past Sanctuary Visit (${guestName})`);
+
+        // the departed visit is hidden from the default "Current" view...
+        await expect(tablePage.getByText(guestName)).toBeHidden();
+        // ...but is shown under "All Statuses"
+        await tablePage.getByRole("button", {name: "Current"}).click();
+        await tablePage.getByRole("link", {name: "All Statuses"}).click();
+        await expect(tablePage.getByText(guestName)).toBeVisible();
+      }
+    }
+
+    await visitPage.close();
+    await tablePage.close();
+    await ctx.close();
   }
 })

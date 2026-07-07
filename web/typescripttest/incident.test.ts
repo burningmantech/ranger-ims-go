@@ -133,9 +133,6 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
     if (url === "/ims/api/events") {
         return jsonResponse(serverEvents);
     }
-    if (url === `/ims/api/streets?event_id=${eventId}`) {
-        return jsonResponse({ [eventId]: { "100": "Esplanade" } });
-    }
     if (url === `/ims/api/personnel?event_id=${eventName}`) {
         return jsonResponse(serverPersonnel);
     }

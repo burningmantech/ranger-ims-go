@@ -473,29 +473,6 @@ function stateSortKeyFromID(stateID) {
             return undefined;
     }
 }
-export let concentricStreetNameByID = undefined;
-export async function loadStreets(eventID) {
-    const { json, err } = await fetchNoThrow(url_streets + "?event_id=" + eventID, null);
-    if (err != null) {
-        const message = `Failed to load streets: ${err}`;
-        console.error(message);
-        window.alert(message);
-        return { err: message };
-    }
-    concentricStreetNameByID = json[eventID];
-    return { err: null };
-}
-// Look up a concentric street's name given its ID.
-export function concentricStreetFromID(streetID) {
-    if (streetID == null || typeof concentricStreetNameByID === "undefined") {
-        return "";
-    }
-    const name = concentricStreetNameByID[streetID];
-    if (name == null) {
-        return "";
-    }
-    return name;
-}
 export async function fetchPersonnel() {
     const { json, err } = await fetchNoThrow(urlReplace(url_personnel + "?event_id=<event_id>"), null);
     if (err != null) {

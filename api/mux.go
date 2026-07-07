@@ -153,9 +153,6 @@ func AddToMux(
 	authed("GET /ims/api/events", GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, true)
 
-	authed("GET /ims/api/streets", GetStreets{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
-	authed("POST /ims/api/streets", EditStreets{db, userStore, cfg.Core.Admins}, true)
-
 	authed("GET /ims/api/incident_types", GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 	authed("POST /ims/api/incident_types", EditIncidentTypes{db, userStore, cfg.Core.Admins}, true)
 

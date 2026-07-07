@@ -52,21 +52,6 @@ func TestFormatInt(t *testing.T) {
 	assert.Equal(t, "123", FormatInt(123))
 }
 
-func TestFormatSqlInt16(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "42", *FormatSqlInt16(sql.NullInt16{Valid: true, Int16: 42}))
-	assert.Nil(t, FormatSqlInt16(sql.NullInt16{}))
-}
-
-func TestParseSqlInt16(t *testing.T) {
-	t.Parallel()
-
-	s123 := "123"
-	assert.Equal(t, sql.NullInt16{Valid: true, Int16: 123}, ParseSqlInt16(&s123))
-	assert.Equal(t, sql.NullInt16{}, ParseSqlInt16(nil))
-}
-
 func TestMustInt(t *testing.T) {
 	t.Parallel()
 

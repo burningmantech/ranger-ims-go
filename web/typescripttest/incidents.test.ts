@@ -15,7 +15,7 @@
 //
 
 // Tests for incidents.ts against the real templ-rendered incidents list page
-// (incidents.templ). The page loads incident types, streets, field reports,
+// (incidents.templ). The page loads incident types, field reports,
 // visits, and incidents before handing rows to a DataTables grid; a stand-in
 // DataTable (MockDataTable) captures those rows.
 
@@ -81,9 +81,6 @@ function incidentsRoutes(url: string, _init?: RequestInit): Response | undefined
     }
     if (url === "/ims/api/incident_types") {
         return jsonResponse(serverTypes);
-    }
-    if (url === `/ims/api/streets?event_id=${eventId}`) {
-        return jsonResponse({ [eventId]: { "100": "Esplanade" } });
     }
     if (url === `/ims/api/events/${eventName}/field_reports?exclude_system_entries=true`) {
         return jsonResponse([]);

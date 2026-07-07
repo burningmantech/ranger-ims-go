@@ -185,7 +185,7 @@ async function loadEventVisits() {
 // Dispatch queue table
 //
 async function initIncidentsTable() {
-    // Fetch Incident Types and Streets asynchronously, so that the DataTables ajax
+    // Fetch Incident Types asynchronously, so that the DataTables ajax
     // handler can start its own API calls before these need to complete.
     const tablePrereqs = Promise.all([
         await ims.loadIncidentTypes().then(value => {
@@ -194,7 +194,6 @@ async function initIncidentsTable() {
             visibleIncidentTypes = value.types.filter(it => !it.hidden);
             visibleIncidentTypeIds = visibleIncidentTypes.map(it => it.id).filter(id => id != null);
         }),
-        ims.loadStreets(ims.pathIds.eventId),
     ]).then(_ => { });
     initDataTables(tablePrereqs);
     initTableButtons();

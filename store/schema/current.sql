@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (34);
+insert into SCHEMA_INFO (VERSION) values (35);
 
 
 create table `EVENT` (
@@ -20,15 +20,6 @@ create table `EVENT` (
     primary key (ID),
     unique key (NAME),
     foreign key `PARENT_GROUP_TO_PARENT`(PARENT_GROUP) references `EVENT`(ID)
-) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-create table CONCENTRIC_STREET (
-    `EVENT` integer    not null,
-    ID    varchar(16)  not null,
-    NAME  varchar(128) not null,
-
-    primary key (`EVENT`, ID)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -79,15 +70,9 @@ create table INCIDENT (
 
     LOCATION_NAME           varchar(1024),
     LOCATION_ADDRESS        varchar(1024),
-    LOCATION_CONCENTRIC     varchar(64),
-    LOCATION_RADIAL_HOUR    tinyint,
-    LOCATION_RADIAL_MINUTE  tinyint,
     LOCATION_DESCRIPTION    varchar(1024),
 
     foreign key (`EVENT`) references `EVENT`(ID),
-
-    foreign key (`EVENT`, LOCATION_CONCENTRIC)
-    references CONCENTRIC_STREET(`EVENT`, ID),
 
     primary key (`EVENT`, NUMBER)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

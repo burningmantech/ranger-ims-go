@@ -280,12 +280,6 @@ type ActionLog struct {
 	DurationMicros sql.NullInt64
 }
 
-type ConcentricStreet struct {
-	Event int32
-	ID    string
-	Name  string
-}
-
 type DirectoryPerson struct {
 	ID       int64
 	Handle   string
@@ -350,20 +344,17 @@ type FieldReportReportEntry struct {
 }
 
 type Incident struct {
-	Event                int32
-	Number               int32
-	Created              float64
-	Priority             int8
-	State                IncidentState
-	Started              float64
-	Closed               sql.NullFloat64
-	Summary              sql.NullString
-	LocationName         sql.NullString
-	LocationAddress      sql.NullString
-	LocationConcentric   sql.NullString
-	LocationRadialHour   sql.NullInt16
-	LocationRadialMinute sql.NullInt16
-	LocationDescription  sql.NullString
+	Event               int32
+	Number              int32
+	Created             float64
+	Priority            int8
+	State               IncidentState
+	Started             float64
+	Closed              sql.NullFloat64
+	Summary             sql.NullString
+	LocationName        sql.NullString
+	LocationAddress     sql.NullString
+	LocationDescription sql.NullString
 }
 
 type IncidentIncidentType struct {

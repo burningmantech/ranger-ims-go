@@ -212,3 +212,85 @@ test("a failed attachment re-enables the button and surfaces the error", async (
     expect(button.value).toBe("Attach file");
     expect(document.getElementById("error_text")!.textContent).toContain("Failed to attach file");
 });
+
+test("a broadcast redraw does not clobber a field the user is typing in", async (): Promise<void> => {
+    await initVisitPage();
+
+    // The user is mid-typing in the camp name field.
+    const campName = document.getElementById("guest_camp_name") as HTMLInputElement;
+    campName.focus();
+    campName.value = "Camp Half-Typed";
+    campName.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Meanwhile another client updates the visit, which broadcasts a reload.
+    serverVisit.guest_legal_name = "Updated Elsewhere";
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+
+    // The redraw applied the remote change to the unfocused field...
+    await vi.waitFor((): void => {
+        expect(inputValue("guest_legal_name")).toBe("Updated Elsewhere");
+    });
+    // ...but left the focused field's in-progress text alone.
+    expect(campName.value).toBe("Camp Half-Typed");
+
+    // Once the field is blurred, a later redraw applies server state again.
+    campName.blur();
+    serverVisit.guest_camp_name = "Camp Committed Elsewhere";
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+    await vi.waitFor((): void => {
+        expect(campName.value).toBe("Camp Committed Elsewhere");
+    });
+    channel.close();
+});
+
+test("a broadcast redraw does not clobber a datetime the user is typing in", async (): Promise<void> => {
+    await initVisitPage();
+
+    // The user is mid-typing in the arrival time's flatpickr text field.
+    const arrivalTime = document.getElementById("alt_arrival_time") as HTMLInputElement;
+    arrivalTime.focus();
+    arrivalTime.value = "2025-08-25 13:0";
+    arrivalTime.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Meanwhile another client sets the arrival time, broadcasting a reload.
+    serverVisit.arrival_time = "2025-08-25T12:00:00Z";
+    serverVisit.guest_legal_name = "Updated Elsewhere";
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+
+    // The redraw applied the remote change to the unfocused field...
+    await vi.waitFor((): void => {
+        expect(inputValue("guest_legal_name")).toBe("Updated Elsewhere");
+    });
+    // ...but left the focused datetime's in-progress text alone.
+    expect(arrivalTime.value).toBe("2025-08-25 13:0");
+
+    // Once the field is blurred, a later redraw applies server state again.
+    arrivalTime.blur();
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+    await vi.waitFor((): void => {
+        expect(arrivalTime.value).toBe("2025-08-25T12:00:00.000Z");
+    });
+    channel.close();
+});
+
+test("a broadcast redraw still updates a focused field the user hasn't typed in", async (): Promise<void> => {
+    await initVisitPage();
+
+    // The user has focused the camp name field, but hasn't typed anything.
+    const campName = document.getElementById("guest_camp_name") as HTMLInputElement;
+    campName.focus();
+
+    // Another client updates that same field, which broadcasts a reload.
+    serverVisit.guest_camp_name = "Camp Updated Elsewhere";
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+
+    // The remote change lands even though the field is focused.
+    await vi.waitFor((): void => {
+        expect(campName.value).toBe("Camp Updated Elsewhere");
+    });
+    expect(document.activeElement).toBe(campName);
+    channel.close();
+});

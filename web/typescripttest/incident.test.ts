@@ -622,6 +622,29 @@ test("an incident broadcast for this incident reloads it", async (): Promise<voi
     channel.close();
 });
 
+test("a broadcast redraw does not clobber a field the user is typing in", async (): Promise<void> => {
+    await initIncidentPage();
+
+    // The user is mid-typing in the location name field.
+    const locationName = document.getElementById("incident_location_name") as HTMLInputElement;
+    locationName.focus();
+    locationName.value = "Camp Half-Typed";
+    locationName.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Meanwhile another client updates the incident, broadcasting a reload.
+    serverIncident.summary = "Updated by someone else";
+    const channel = new BroadcastChannel("incident_update");
+    channel.postMessage({ event_id: eventId, incident_number: 1 });
+
+    // The redraw applied the remote change to the unfocused summary field...
+    await vi.waitFor((): void => {
+        expect(inputValue("incident_summary")).toBe("Updated by someone else");
+    });
+    // ...but left the focused field's in-progress text alone.
+    expect(locationName.value).toBe("Camp Half-Typed");
+    channel.close();
+});
+
 test("a field report broadcast refreshes that one field report", async (): Promise<void> => {
     await initIncidentPage();
 

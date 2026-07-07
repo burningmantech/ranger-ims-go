@@ -240,7 +240,7 @@ function drawNumber() {
 // Populate incident number or show "create incident" button
 //
 function drawIncident() {
-    el.incidentNumber.value = "";
+    ims.setInputValue(el.incidentNumber, "");
     // New Field Report. There can be no Incident
     if (fieldReport.number == null) {
         el.incidentNumber.placeholder = "(none)";
@@ -250,7 +250,7 @@ function drawIncident() {
     const incident = fieldReport.incident;
     if (incident != null) {
         const incidentURL = ims.urlReplace(url_viewIncidentNumber).replace("<number>", incident.toString());
-        el.incidentNumber.value = incident.toString();
+        ims.setInputValue(el.incidentNumber, incident.toString());
         el.incidentNumberLink.href = incidentURL;
     }
     el.incidentNumber.placeholder = "(none)";
@@ -273,11 +273,11 @@ function drawIncident() {
 function drawSummary() {
     el.fieldReportSummary.placeholder = "One-line summary. **Pretty-please include an IMS# here**";
     if (fieldReport.summary) {
-        el.fieldReportSummary.value = fieldReport.summary;
+        ims.setInputValue(el.fieldReportSummary, fieldReport.summary);
         el.fieldReportSummary.placeholder = "";
         return;
     }
-    el.fieldReportSummary.value = ims.summarizeIncidentOrFR(fieldReport);
+    ims.setInputValue(el.fieldReportSummary, ims.summarizeIncidentOrFR(fieldReport));
 }
 //
 // Editing

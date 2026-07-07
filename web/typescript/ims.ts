@@ -350,6 +350,7 @@ function controlClear(element: HTMLElement) {
 //
 export async function commonPageInit(): Promise<PageInitResult> {
     detectTouchDevice();
+    trackUncommittedInput();
     let authInfo: AuthInfo|null = null;
     pathIds = idsFromPath();
     {
@@ -503,6 +504,62 @@ export function selectOptionWithValue(select: HTMLSelectElement, value: string|n
     for (const opt of select.options) {
         opt.selected = (opt.value === value);
     }
+}
+
+// The control the user has typed into since focusing it, if any. Only the
+// focused control can be receiving keystrokes, so one variable suffices.
+// Maintained by trackUncommittedInput.
+let uncommittedControl: EventTarget|null = null;
+
+// trackUncommittedInput watches for user input so that redraws can avoid
+// overwriting a field the user is in the middle of editing. Called once per
+// page by commonPageInit.
+function trackUncommittedInput(): void {
+    document.addEventListener("input", (e: Event): void => {
+        uncommittedControl = e.target;
+    }, true);
+    document.addEventListener("focusout", (e: Event): void => {
+        if (e.target === uncommittedControl) {
+            uncommittedControl = null;
+        }
+    }, true);
+}
+
+// hasUncommittedInput reports whether the user has typed into the given
+// control since focusing it and hasn't left the control yet, i.e. the
+// control may hold input that no "change" event has committed.
+export function hasUncommittedInput(element: Element): boolean {
+    return element === uncommittedControl && document.activeElement === element;
+}
+
+// Set a form control's value from server state, unless the control holds
+// the user's in-progress input. Overwriting it would discard the typing and
+// clear the browser's dirty flag, so the control's "change" event would
+// never fire on blur and the user's edit would be silently lost. Such a
+// control may briefly show a stale value; it gets reconciled on the next
+// redraw after blur.
+export function setInputValue(
+    element: HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement,
+    value: string,
+): void {
+    if (hasUncommittedInput(element)) {
+        return;
+    }
+    element.value = value;
+}
+
+// Set a flatpickr's date from server state, unless its (alt)input holds the
+// user's in-progress input, i.e. a partially typed date (see setInputValue).
+// Returns whether the date was applied, so callers can keep dependent UI
+// (e.g. title tooltips) consistent with what's displayed.
+export function setFlatpickrDate(element: FlatpickrHTMLInputElement, date: string): boolean {
+    const fp = element._flatpickr;
+    if ((fp.altInput != null && hasUncommittedInput(fp.altInput)) ||
+        (fp.input != null && hasUncommittedInput(fp.input))) {
+        return false;
+    }
+    fp.setDate(date, false, "Z");
+    return true;
 }
 
 

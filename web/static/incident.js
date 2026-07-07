@@ -521,6 +521,10 @@ function drawIncidentNumber() {
 // Populate incident state
 //
 function drawState() {
+    // Don't overwrite a selection the user is making right now.
+    if (ims.hasUncommittedInput(el.incidentState)) {
+        return;
+    }
     ims.selectOptionWithValue(el.incidentState, ims.stateForIncident(incident));
 }
 //
@@ -533,7 +537,9 @@ function drawStarted() {
     }
     const dateNum = Date.parse(date);
     const dateDate = new Date(dateNum);
-    el.startedDatetime._flatpickr.setDate(date, false, "Z");
+    if (!ims.setFlatpickrDate(el.startedDatetime, date)) {
+        return;
+    }
     el.startedDatetimeTz.textContent = ims.localTzShortName(dateDate);
     el.startedDatetimeTz.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}\n\n` +
         `All date and time fields in IMS use your computer's time zone, not necessarily Gerlach time.`;
@@ -547,6 +553,10 @@ function drawPriority() {
     if (priorityElement == null) {
         return;
     }
+    // Don't overwrite a selection the user is making right now.
+    if (ims.hasUncommittedInput(priorityElement)) {
+        return;
+    }
     ims.selectOptionWithValue(priorityElement, (incident.priority ?? "").toString());
 }
 //
@@ -555,11 +565,11 @@ function drawPriority() {
 function drawIncidentSummary() {
     el.incidentSummary.placeholder = "One-line summary of incident";
     if (incident.summary) {
-        el.incidentSummary.value = incident.summary;
+        ims.setInputValue(el.incidentSummary, incident.summary);
         el.incidentSummary.placeholder = "";
         return;
     }
-    el.incidentSummary.value = ims.summarizeIncidentOrFR(incident);
+    ims.setInputValue(el.incidentSummary, ims.summarizeIncidentOrFR(incident));
 }
 //
 // Populate Rangers list
@@ -666,7 +676,7 @@ function drawIncidentTypeInfo() {
 //
 function drawLocationName() {
     if (incident?.location?.name) {
-        el.locationName.value = incident.location.name;
+        ims.setInputValue(el.locationName, incident.location.name);
     }
 }
 async function loadPlaces() {
@@ -719,14 +729,14 @@ function drawPlacesList() {
 }
 function drawLocationAddress() {
     if (!incident || !incident.location) {
-        el.locationAddress.value = "";
+        ims.setInputValue(el.locationAddress, "");
         return;
     }
-    el.locationAddress.value = incident.location.address ?? "";
+    ims.setInputValue(el.locationAddress, incident.location.address ?? "");
 }
 function drawLocationDescription() {
     if (incident.location?.description) {
-        el.locationDescription.value = incident.location.description;
+        ims.setInputValue(el.locationDescription, incident.location.description);
     }
 }
 //

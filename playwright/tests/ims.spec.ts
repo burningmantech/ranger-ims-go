@@ -672,8 +672,13 @@ test("sanctuary_visits", async ({ page, browser }) => {
     }
     // strike the entry, verify it's stricken
     {
-      await visitPage.getByText(reportEntry).hover();
-      await visitPage.getByRole("button", {name: "Strike"}).click();
+      // The Strike button only shows while the entry is hovered, and a
+      // redraw can replace the entry under the cursor (losing the hover
+      // state), so retry the hover and click together.
+      await expect(async (): Promise<void> => {
+        await visitPage.getByText(reportEntry).hover();
+        await visitPage.getByRole("button", {name: "Strike"}).click({timeout: 2000});
+      }).toPass();
       await expect(visitPage.getByText(reportEntry)).toBeHidden();
     }
     // but the entry is shown when the right checkbox is ticked
@@ -683,8 +688,10 @@ test("sanctuary_visits", async ({ page, browser }) => {
     }
     // unstrike the entry and see it return to the default view
     {
-      await visitPage.getByText(reportEntry).hover();
-      await visitPage.getByRole("button", {name: "Unstrike"}).click();
+      await expect(async (): Promise<void> => {
+        await visitPage.getByText(reportEntry).hover();
+        await visitPage.getByRole("button", {name: "Unstrike"}).click({timeout: 2000});
+      }).toPass();
       await visitPage.getByLabel("Show history and stricken").uncheck();
       await expect(visitPage.getByText(reportEntry)).toBeVisible();
     }

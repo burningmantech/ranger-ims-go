@@ -23,6 +23,64 @@ set
 where ID = ?
 ;
 
+-- The DeleteEvent* queries below support full deletion of an Event and all
+-- rows associated with it. They must run in the order used by the DeleteEvent
+-- API handler, so that no foreign key constraint is violated along the way.
+
+-- name: EventReportEntryIDs :many
+select ire.REPORT_ENTRY from INCIDENT__REPORT_ENTRY ire where ire.EVENT = sqlc.arg(event_id)
+union
+select fre.REPORT_ENTRY from FIELD_REPORT__REPORT_ENTRY fre where fre.EVENT = sqlc.arg(event_id)
+union
+select vre.REPORT_ENTRY from VISIT__REPORT_ENTRY vre where vre.EVENT = sqlc.arg(event_id)
+;
+
+-- name: DeleteEventIncidentReportEntries :exec
+delete from INCIDENT__REPORT_ENTRY where EVENT = ?;
+
+-- name: DeleteEventFieldReportReportEntries :exec
+delete from FIELD_REPORT__REPORT_ENTRY where EVENT = ?;
+
+-- name: DeleteEventVisitReportEntries :exec
+delete from VISIT__REPORT_ENTRY where EVENT = ?;
+
+-- name: DeleteReportEntries :exec
+delete from REPORT_ENTRY where ID in (sqlc.slice(ids));
+
+-- name: DeleteEventIncidentRangers :exec
+delete from INCIDENT__RANGER where EVENT = ?;
+
+-- name: DeleteEventIncidentIncidentTypes :exec
+delete from INCIDENT__INCIDENT_TYPE where EVENT = ?;
+
+-- name: DeleteEventLinkedIncidents :exec
+delete from INCIDENT__LINKED_INCIDENT
+where EVENT_1 = sqlc.arg(event_id) or EVENT_2 = sqlc.arg(event_id);
+
+-- name: DeleteEventVisitRangers :exec
+delete from VISIT__RANGER where EVENT = ?;
+
+-- name: DeleteEventVisits :exec
+delete from VISIT where EVENT = ?;
+
+-- name: DeleteEventFieldReports :exec
+delete from FIELD_REPORT where EVENT = ?;
+
+-- name: DeleteEventIncidents :exec
+delete from INCIDENT where EVENT = ?;
+
+-- name: DeleteEventAccessAll :exec
+delete from EVENT_ACCESS where EVENT = ?;
+
+-- name: DeleteEventPlaces :exec
+delete from PLACE where EVENT = ?;
+
+-- name: DetachChildrenFromEventGroup :exec
+update `EVENT` set PARENT_GROUP = null where PARENT_GROUP = ?;
+
+-- name: DeleteEvent :exec
+delete from `EVENT` where ID = ?;
+
 -- This returns access for a target event, as well as for that event's
 -- parent group, if any. If the target event *is* a group, this query
 -- will return nothing. That's intentional, and it helps prevent people

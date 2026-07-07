@@ -106,6 +106,7 @@ func AddToMux(
 			cfg.Core.JWTSecret,
 			cfg.Core.Admins,
 			attachmentsEnabled,
+			cfg.Core.EventDeletionEnabled,
 		}, true, OptionalAuthN(jwter))
 
 	// This endpoint does not require authentication, nor does it even consider
@@ -152,6 +153,7 @@ func AddToMux(
 
 	authed("GET /ims/api/events", GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, true)
+	authed("DELETE /ims/api/events/{eventName}", DeleteEvent{db, userStore, cfg.Core.Admins, cfg.Core.EventDeletionEnabled}, true)
 
 	authed("GET /ims/api/incident_types", GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 	authed("POST /ims/api/incident_types", EditIncidentTypes{db, userStore, cfg.Core.Admins}, true)

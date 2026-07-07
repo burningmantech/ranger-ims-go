@@ -56,13 +56,50 @@ async function addIncidentType(page: Page, incidentType: string): Promise<void> 
   await page.getByPlaceholder("Chooch").press("Enter");
 }
 
+// Events created by the current test, to be deleted again by the afterEach
+// hook below. A worker runs one test at a time, so it's fine for a test and
+// its cleanup hook to share this module-level list.
+const createdEvents: string[] = [];
+
 async function addEvent(page: Page, eventName: string): Promise<void> {
   await eventsPage(page);
   await page.getByPlaceholder("Burn-A-Matic-3000").fill(eventName);
   await page.getByPlaceholder("Burn-A-Matic-3000").press("Enter");
 
   await expect(eventCard(page, eventName)).toBeVisible();
+  createdEvents.push(eventName);
 }
+
+// deleteEvent deletes an event and all its data through the admin events
+// page's Edit modal. The Delete Event button in that modal is only enabled
+// because the dev server runs with IMS_EVENT_DELETION_ENABLED=true.
+async function deleteEvent(page: Page, eventName: string): Promise<void> {
+  await eventsPage(page);
+  // accept the deletion confirm dialog
+  autoAcceptDialogs(page);
+
+  const card = eventCard(page, eventName);
+  await card.getByRole("button", {name: "Edit"}).click();
+  await page.getByRole("button", {name: "Delete Event"}).click();
+  await expect(card).toBeHidden();
+}
+
+// Delete the events made by each test, so that test runs don't pile up
+// events on the server. This runs on failed tests too, and the pages the
+// test itself used may already be closed, so it uses a fresh context.
+test.afterEach(async ({ browser }): Promise<void> => {
+  if (createdEvents.length === 0) {
+    return;
+  }
+  const events = createdEvents.splice(0);
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await login(page);
+  for (const eventName of events) {
+    await deleteEvent(page, eventName);
+  }
+  await ctx.close();
+});
 
 function eventCard(page: Page, eventName: string): Locator {
   return page.locator(".event_access").filter({hasText: eventName});

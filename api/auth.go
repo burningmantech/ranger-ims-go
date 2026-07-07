@@ -172,11 +172,12 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 }
 
 type GetAuth struct {
-	imsDBQ             *store.DBQ
-	userStore          *directory.UserStore
-	jwtSecret          string
-	admins             []string
-	attachmentsEnabled bool
+	imsDBQ               *store.DBQ
+	userStore            *directory.UserStore
+	jwtSecret            string
+	admins               []string
+	attachmentsEnabled   bool
+	eventDeletionEnabled bool
 }
 
 type GetAuthResponse struct {
@@ -184,6 +185,10 @@ type GetAuthResponse struct {
 	User          string                    `json:"user,omitzero"`
 	Admin         bool                      `json:"admin"`
 	EventAccess   map[string]AccessForEvent `json:"event_access"`
+
+	// EventDeletionAllowed tells the admin events page whether this server
+	// permits deleting events (the EventDeletionEnabled server config).
+	EventDeletionAllowed bool `json:"event_deletion_allowed"`
 }
 
 type AccessForEvent struct {
@@ -222,9 +227,10 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 		roles = append(roles, authz.Administrator)
 	}
 	resp = GetAuthResponse{
-		Authenticated: true,
-		User:          handle,
-		Admin:         slices.Contains(roles, authz.Administrator),
+		Authenticated:        true,
+		User:                 handle,
+		Admin:                slices.Contains(roles, authz.Administrator),
+		EventDeletionAllowed: action.eventDeletionEnabled,
 	}
 	// event_id is an optional query param for this endpoint
 	eventName := req.FormValue("event_id")

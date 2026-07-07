@@ -9,6 +9,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
 )
 
 const actionLogs = `-- name: ActionLogs :many
@@ -504,6 +505,156 @@ func (q *Queries) CreateVisit(ctx context.Context, db DBTX, arg CreateVisitParam
 		return 0, err
 	}
 	return result.LastInsertId()
+}
+
+const deleteEvent = `-- name: DeleteEvent :exec
+delete from ` + "`" + `EVENT` + "`" + ` where ID = ?
+`
+
+func (q *Queries) DeleteEvent(ctx context.Context, db DBTX, id int32) error {
+	_, err := db.ExecContext(ctx, deleteEvent, id)
+	return err
+}
+
+const deleteEventAccessAll = `-- name: DeleteEventAccessAll :exec
+delete from EVENT_ACCESS where EVENT = ?
+`
+
+func (q *Queries) DeleteEventAccessAll(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventAccessAll, event)
+	return err
+}
+
+const deleteEventFieldReportReportEntries = `-- name: DeleteEventFieldReportReportEntries :exec
+delete from FIELD_REPORT__REPORT_ENTRY where EVENT = ?
+`
+
+func (q *Queries) DeleteEventFieldReportReportEntries(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventFieldReportReportEntries, event)
+	return err
+}
+
+const deleteEventFieldReports = `-- name: DeleteEventFieldReports :exec
+delete from FIELD_REPORT where EVENT = ?
+`
+
+func (q *Queries) DeleteEventFieldReports(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventFieldReports, event)
+	return err
+}
+
+const deleteEventIncidentIncidentTypes = `-- name: DeleteEventIncidentIncidentTypes :exec
+delete from INCIDENT__INCIDENT_TYPE where EVENT = ?
+`
+
+func (q *Queries) DeleteEventIncidentIncidentTypes(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventIncidentIncidentTypes, event)
+	return err
+}
+
+const deleteEventIncidentRangers = `-- name: DeleteEventIncidentRangers :exec
+delete from INCIDENT__RANGER where EVENT = ?
+`
+
+func (q *Queries) DeleteEventIncidentRangers(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventIncidentRangers, event)
+	return err
+}
+
+const deleteEventIncidentReportEntries = `-- name: DeleteEventIncidentReportEntries :exec
+delete from INCIDENT__REPORT_ENTRY where EVENT = ?
+`
+
+func (q *Queries) DeleteEventIncidentReportEntries(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventIncidentReportEntries, event)
+	return err
+}
+
+const deleteEventIncidents = `-- name: DeleteEventIncidents :exec
+delete from INCIDENT where EVENT = ?
+`
+
+func (q *Queries) DeleteEventIncidents(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventIncidents, event)
+	return err
+}
+
+const deleteEventLinkedIncidents = `-- name: DeleteEventLinkedIncidents :exec
+delete from INCIDENT__LINKED_INCIDENT
+where EVENT_1 = ? or EVENT_2 = ?
+`
+
+type DeleteEventLinkedIncidentsParams struct {
+	EventID int32
+}
+
+func (q *Queries) DeleteEventLinkedIncidents(ctx context.Context, db DBTX, arg DeleteEventLinkedIncidentsParams) error {
+	_, err := db.ExecContext(ctx, deleteEventLinkedIncidents, arg.EventID, arg.EventID)
+	return err
+}
+
+const deleteEventPlaces = `-- name: DeleteEventPlaces :exec
+delete from PLACE where EVENT = ?
+`
+
+func (q *Queries) DeleteEventPlaces(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventPlaces, event)
+	return err
+}
+
+const deleteEventVisitRangers = `-- name: DeleteEventVisitRangers :exec
+delete from VISIT__RANGER where EVENT = ?
+`
+
+func (q *Queries) DeleteEventVisitRangers(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventVisitRangers, event)
+	return err
+}
+
+const deleteEventVisitReportEntries = `-- name: DeleteEventVisitReportEntries :exec
+delete from VISIT__REPORT_ENTRY where EVENT = ?
+`
+
+func (q *Queries) DeleteEventVisitReportEntries(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventVisitReportEntries, event)
+	return err
+}
+
+const deleteEventVisits = `-- name: DeleteEventVisits :exec
+delete from VISIT where EVENT = ?
+`
+
+func (q *Queries) DeleteEventVisits(ctx context.Context, db DBTX, event int32) error {
+	_, err := db.ExecContext(ctx, deleteEventVisits, event)
+	return err
+}
+
+const deleteReportEntries = `-- name: DeleteReportEntries :exec
+delete from REPORT_ENTRY where ID in (/*SLICE:ids*/?)
+`
+
+func (q *Queries) DeleteReportEntries(ctx context.Context, db DBTX, ids []int32) error {
+	query := deleteReportEntries
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const detachChildrenFromEventGroup = `-- name: DetachChildrenFromEventGroup :exec
+update ` + "`" + `EVENT` + "`" + ` set PARENT_GROUP = null where PARENT_GROUP = ?
+`
+
+func (q *Queries) DetachChildrenFromEventGroup(ctx context.Context, db DBTX, parentGroup sql.NullInt32) error {
+	_, err := db.ExecContext(ctx, detachChildrenFromEventGroup, parentGroup)
+	return err
 }
 
 const detachIncidentTypeFromIncident = `-- name: DetachIncidentTypeFromIncident :exec
@@ -1197,6 +1348,45 @@ func (q *Queries) EventAndParentAccess(ctx context.Context, db DBTX, arg EventAn
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const eventReportEntryIDs = `-- name: EventReportEntryIDs :many
+
+select ire.REPORT_ENTRY from INCIDENT__REPORT_ENTRY ire where ire.EVENT = ?
+union
+select fre.REPORT_ENTRY from FIELD_REPORT__REPORT_ENTRY fre where fre.EVENT = ?
+union
+select vre.REPORT_ENTRY from VISIT__REPORT_ENTRY vre where vre.EVENT = ?
+`
+
+type EventReportEntryIDsParams struct {
+	EventID int32
+}
+
+// The DeleteEvent* queries below support full deletion of an Event and all
+// rows associated with it. They must run in the order used by the DeleteEvent
+// API handler, so that no foreign key constraint is violated along the way.
+func (q *Queries) EventReportEntryIDs(ctx context.Context, db DBTX, arg EventReportEntryIDsParams) ([]int32, error) {
+	rows, err := db.QueryContext(ctx, eventReportEntryIDs, arg.EventID, arg.EventID, arg.EventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var report_entry int32
+		if err := rows.Scan(&report_entry); err != nil {
+			return nil, err
+		}
+		items = append(items, report_entry)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

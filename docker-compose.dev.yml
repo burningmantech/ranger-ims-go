@@ -53,6 +53,7 @@ services:
       IMS_DMS_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
       IMS_DMS_USERNAME: "${IMS_DMS_USERNAME:-clubhouseuser}"
       IMS_DMS_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
+      IMS_EVENT_DELETION_ENABLED: "true"
     ports:
       # Override IMS_HOST_PORT to set the port mapping on the host.
       - "127.0.0.1:${IMS_HOST_PORT:-8080}:8080"

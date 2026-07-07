@@ -30,14 +30,24 @@ const el = {
     eventAccessTemplate: ims.typedElement("event_access_template", HTMLTemplateElement),
     accessRuleTemplate: ims.typedElement("access_rule_template", HTMLTemplateElement),
     accessTargetList: ims.typedElement("access_target_list", HTMLDataListElement),
+    eventDeleteWrapper: ims.typedElement("event_delete_wrapper", HTMLElement),
+    eventDelete: ims.typedElement("event_delete", HTMLButtonElement),
 };
 initAdminEventsPage();
+let eventDeletionAllowed = false;
 async function initAdminEventsPage() {
     const initResult = await ims.commonPageInit();
     if (!initResult.authInfo.authenticated) {
         await ims.redirectToLogin();
         return;
     }
+    eventDeletionAllowed = initResult.authInfo.event_deletion_allowed ?? false;
+    el.eventDelete.disabled = !eventDeletionAllowed;
+    el.eventDeleteWrapper.title = eventDeletionAllowed
+        ? "Delete this event and all data associated with it"
+        : "Event deletion is disabled on this server. It can be enabled by " +
+            "setting IMS_EVENT_DELETION_ENABLED=true in the server configuration.";
+    el.eventDelete.addEventListener("click", deleteEvent);
     window.setValidity = setValidity;
     window.setLevel = setLevel;
     window.addEvent = addEvent;
@@ -214,6 +224,7 @@ function eventCard(event) {
     editButton.addEventListener("click", (_e) => {
         el.editEventModal.querySelector(".modal-title").textContent = event.name;
         el.editEventModal.dataset["eventId"] = event.id.toString();
+        el.editEventModal.dataset["eventName"] = event.name;
         const isGroupInput = el.editEventModal.querySelector("#is_group");
         isGroupInput.disabled = true;
         isGroupInput.value = (event.is_group ?? false).toString();
@@ -764,6 +775,32 @@ async function setParentGroup(sender) {
         return;
     }
     ims.controlHasSuccess(sender);
+    await loadAccessControlList();
+    drawAccess();
+}
+// deleteEvent deletes the event shown in the edit modal, along with all the
+// data associated with it. The server only permits this when it's configured
+// with event deletion enabled, which is meant for dev and staging use.
+async function deleteEvent() {
+    const eventName = el.editEventModal.dataset["eventName"];
+    if (!eventName || !eventDeletionAllowed) {
+        return;
+    }
+    if (!confirm(`Delete the event "${eventName}"?\n\n` +
+        "This will permanently delete all of its data, including incidents, " +
+        "field reports, and visits. This cannot be undone.")) {
+        return;
+    }
+    const { err } = await ims.fetchNoThrow(url_event.replace("<event_id>", eventName), {
+        method: "DELETE",
+    });
+    if (err != null) {
+        const message = `Failed to delete event: ${err}`;
+        console.log(message);
+        window.alert(message);
+        return;
+    }
+    editEventModal?.hide();
     await loadAccessControlList();
     drawAccess();
 }

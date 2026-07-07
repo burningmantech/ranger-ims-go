@@ -2042,6 +2042,8 @@ export type AuthenticatedAuthInfo = {
     user: string,
     admin: boolean,
     event_access?: Record<string, AuthInfoEventAccess>,
+    // Whether this server permits deleting events (an admin-only, config-gated feature).
+    event_deletion_allowed?: boolean,
 }
 
 export type AuthInfo = UnauthenticatedAuthInfo | AuthenticatedAuthInfo;

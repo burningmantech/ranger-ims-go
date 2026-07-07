@@ -1,0 +1,94 @@
+# This docker-compose brings up an IMS server with NO Clubhouse database:
+# users, teams, and positions live in IMS's own database (IMS_DIRECTORY=ims)
+# and are managed in the IMS web UI. This is the quickest way for
+# organizations without a Ranger Clubhouse to try out IMS.
+#
+# Quickstart:
+#
+# 1. Bring up the stack (the server creates its database schema on startup):
+#
+#      make compose/quickstart
+#
+#    That copies .env.quickstart.example to .env.quickstart on first run (edit
+#    that copy to override defaults) and runs the equivalent of:
+#
+#      docker compose --env-file .env.quickstart -f docker-compose.quickstart.yml up --build
+#
+# 2. In another terminal, create your first user (you'll be prompted for a
+#    password):
+#
+#      docker compose --env-file .env.quickstart -f docker-compose.quickstart.yml exec ims-go \
+#        /opt/ims/bin/ims add-user --handle QuickstartAdmin --email you@example.org
+#
+#    "QuickstartAdmin" is the default IMS_ADMINS handle below, so this user
+#    is an IMS administrator. To use a different handle, set IMS_ADMINS to
+#    that handle when running `docker compose up`.
+#
+# 3. Open http://localhost:8080/ims/app and log in.
+#
+# 4. Add more users, teams, and positions in the web UI at
+#    http://localhost:8080/ims/app/admin/directory
+#
+# Notes:
+#
+# * The IMS database files persist in ./.docker/mysql/data-ims-quickstart/.
+#   Delete that directory to start fresh.
+# * Login sessions are invalidated when the server restarts, because the JWT
+#   signing secret defaults to a random value at startup. Set IMS_JWT_SECRET
+#   in the environment block below to keep sessions across restarts.
+# * The server is only reachable from localhost. Change the "ports" mapping
+#   below to expose it more widely, and if you do, put proper secrets on the
+#   database and IMS_JWT_SECRET first.
+# * Configuration overrides for this stack go in .env.quickstart (copied from
+#   .env.quickstart.example on first run and pointed at by --env-file above),
+#   NOT in ./.env. Keeping them separate means a ./.env set up for running `ims
+#   serve` directly on your host cannot leak into this stack. To override a
+#   value (e.g. IMS_ADMINS or IMS_JWT_SECRET), uncomment it in .env.quickstart
+#   or set it in the environment block below.
+
+services:
+
+  ims-go:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "ranger-ims-go:${IMAGE_TAG:-latest}"
+    container_name: "ranger-ims-quickstart"
+    environment:
+      # Use the IMS-native user directory: no Clubhouse database needed.
+      IMS_DIRECTORY: "ims"
+      IMS_ADMINS: "${IMS_ADMINS:-QuickstartAdmin}"
+      IMS_DB_HOST_NAME: "ims-db"
+      IMS_DB_DATABASE: "${IMS_DB_DATABASE:-ims}"
+      IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
+      IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
+      # IMS_JWT_SECRET: "some long random string"
+    ports:
+      # Override IMS_HOST_PORT to set the port mapping on the host.
+      - "127.0.0.1:${IMS_HOST_PORT:-8080}:80"
+    depends_on:
+      ims-db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "/opt/ims/bin/ims", "healthcheck", "--server_url", "http://ims-go:80" ]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  ims-db:
+    image: "mariadb:10.5.27"
+    container_name: "ranger-ims-quickstart-db"
+    environment:
+      MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"
+      MARIADB_USER: "${IMS_DB_USER_NAME:-ims}"
+      MARIADB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    ports:
+      - "3306"
+    volumes:
+      - ./.docker/mysql/data-ims-quickstart/:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10

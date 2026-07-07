@@ -44,15 +44,39 @@ run/live:
 	go tool air
 
 
+# The compose targets pass an explicit --env-file so the stacks read their own
+# env files instead of the ./.env used by `ims serve` run directly on your host.
+# The .env.dev / .env.quickstart files are gitignored and created on first run
+# from their checked-in *.example templates by the rules below, with each
+# replace_with_secure_random placeholder filled in with a distinct random value.
+define fill-secrets
+	@while grep -q 'replace_with_secure_random' $@; do \
+		secret=$$(openssl rand -hex 24) || exit 1; \
+		awk -v s="$$secret" '!done && sub(/replace_with_secure_random/, s) { done=1 } { print }' $@ > $@.tmp && mv $@.tmp $@; \
+	done
+endef
+
+.env.dev:
+	cp .env.dev.example .env.dev
+	$(fill-secrets)
+.env.quickstart:
+	cp .env.quickstart.example .env.quickstart
+	$(fill-secrets)
+
 ## compose/build: build the stack for live reloading
 .PHONY: compose/build
-compose/build:
-	docker compose -f docker-compose.dev.yml build --pull
+compose/build: .env.dev
+	docker compose --env-file .env.dev -f docker-compose.dev.yml build --pull
 
 ## compose/live: run the application stack with live reloading
 .PHONY: compose/live
-compose/live:
-	docker compose -f docker-compose.dev.yml up
+compose/live: .env.dev
+	docker compose --env-file .env.dev -f docker-compose.dev.yml up
+
+## compose/quickstart: run IMS with the IMS-native directory (no Clubhouse DB)
+.PHONY: compose/quickstart
+compose/quickstart: .env.quickstart
+	docker compose --env-file .env.quickstart -f docker-compose.quickstart.yml up --build
 
 ## upgrade-deps: upgrade all Go deps
 .PHONY: upgrade-deps

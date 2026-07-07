@@ -44,8 +44,12 @@ go tool air
 
 Run with Docker Compose (includes auto-seeded databases):
 ```bash
-docker compose -f docker-compose.dev.yml up
+make compose/live
 ```
+The compose make targets copy `.env.dev.example` / `.env.quickstart.example` to
+`.env.dev` / `.env.quickstart` (both gitignored) on first run and pass them via
+`--env-file`, so the stacks read their own env files instead of the `./.env`
+used when running `ims serve` directly — the two configs can't collide.
 
 ### Testing
 
@@ -150,15 +154,23 @@ The codebase follows a layered architecture:
 
 ### Database Architecture
 
-The system uses **two separate databases**:
+The system uses up to **two separate databases**:
 
-1. **IMS Database** (`store/` package) - Stores incident data, field reports, etc.
-2. **Directory Database** (`directory/` package) - User/personnel data (either ClubhouseDB or fake)
+1. **IMS Database** (`store/` package) - Stores incident data, field reports, etc., plus the
+   IMS-native user directory tables (`DIRECTORY_*`), which are used when `IMS_DIRECTORY=ims`
+2. **Directory Database** (`directory/` package) - User/personnel data from a Ranger Clubhouse
+   MariaDB, used when `IMS_DIRECTORY=clubhousedb`. Not needed at all when `IMS_DIRECTORY=ims`.
 
 Both use **sqlc** for type-safe SQL code generation:
 - SQL schemas: `store/schema/current.sql` and `directory/schema/current.sql`
 - SQL queries: `store/queries.sql` and `directory/queries.sql`
 - Generated Go code: `store/imsdb/` and `directory/clubhousedb/`
+
+The `directory.UserStore` caches user data fetched from a `directory.Source`, which has two
+implementations: `ClubhouseSource` (Clubhouse DB) and `IMSSource` (the `DIRECTORY_*` tables in
+the IMS DB). The IMS-native directory is administered via the `/ims/api/directory` endpoints
+and the `/ims/app/admin/directory` web page; the `add-user` CLI command bootstraps the first
+user on a fresh deployment.
 
 ### Database Migrations
 
@@ -180,7 +192,9 @@ To modify the IMS database schema:
 Configuration uses environment variables loaded from a `.env` file (copy from `.env.example`).
 
 Key configuration concepts:
-- **Directory types**: `fake` (test users from `directory/fakeclubhousedb/seed.sql`) or `ClubhouseDB` (real MariaDB)
+- **Directory types**: `clubhousedb` (real Clubhouse MariaDB; the docker-compose dev setup seeds one
+  from `directory/fakeclubhousedb/seed.sql`), `ims` (IMS-native directory tables in the IMS database),
+  or `noop` (testing only)
 - **DB store types**: `MariaDB` (persistent storage) or `noop` (no-op for testing only)
 - **Attachments stores**: `local` (filesystem) or `s3` (AWS S3)
 

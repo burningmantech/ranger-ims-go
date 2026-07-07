@@ -595,3 +595,95 @@ union
 select 1
 order by 1 desc
 limit 1;
+
+-- name: DirectoryActivePersons :many
+select ID, HANDLE, EMAIL, PASSWORD, ONSITE
+from DIRECTORY_PERSON
+where ACTIVE;
+
+-- name: DirectoryActivePositions :many
+select ID, TITLE from DIRECTORY_POSITION where ACTIVE;
+
+-- name: DirectoryActiveTeams :many
+select ID, TITLE from DIRECTORY_TEAM where ACTIVE;
+
+-- name: DirectoryPersonPositions :many
+select PERSON_ID, POSITION_ID from DIRECTORY_PERSON__POSITION;
+
+-- name: DirectoryPersonTeams :many
+select PERSON_ID, TEAM_ID from DIRECTORY_PERSON__TEAM;
+
+-- name: DirectoryAllPersons :many
+select ID, HANDLE, EMAIL, ACTIVE, ONSITE
+from DIRECTORY_PERSON;
+
+-- name: DirectoryAllPositions :many
+select ID, TITLE, ACTIVE from DIRECTORY_POSITION;
+
+-- name: DirectoryAllTeams :many
+select ID, TITLE, ACTIVE from DIRECTORY_TEAM;
+
+-- name: DirectoryPersonByHandle :one
+select ID, HANDLE, EMAIL, ACTIVE, ONSITE
+from DIRECTORY_PERSON
+where HANDLE = ?;
+
+-- name: DirectoryCreatePerson :execlastid
+insert into DIRECTORY_PERSON (HANDLE, EMAIL, PASSWORD, ACTIVE, ONSITE)
+values (?, ?, ?, ?, ?);
+
+-- name: DirectoryUpdatePerson :exec
+update DIRECTORY_PERSON
+set
+    HANDLE = ?,
+    EMAIL = ?,
+    ACTIVE = ?,
+    ONSITE = ?
+where ID = ?;
+
+-- name: DirectorySetPersonPassword :exec
+update DIRECTORY_PERSON
+set PASSWORD = ?
+where ID = ?;
+
+-- name: DirectoryDeletePerson :exec
+delete from DIRECTORY_PERSON where ID = ?;
+
+-- name: DirectoryCreateTeam :execlastid
+insert into DIRECTORY_TEAM (TITLE, ACTIVE) values (?, ?);
+
+-- name: DirectoryUpdateTeam :exec
+update DIRECTORY_TEAM
+set TITLE = ?, ACTIVE = ?
+where ID = ?;
+
+-- name: DirectoryDeleteTeam :exec
+delete from DIRECTORY_TEAM where ID = ?;
+
+-- name: DirectoryCreatePosition :execlastid
+insert into DIRECTORY_POSITION (TITLE, ACTIVE) values (?, ?);
+
+-- name: DirectoryUpdatePosition :exec
+update DIRECTORY_POSITION
+set TITLE = ?, ACTIVE = ?
+where ID = ?;
+
+-- name: DirectoryDeletePosition :exec
+delete from DIRECTORY_POSITION where ID = ?;
+
+-- name: DirectoryClearPersonTeams :exec
+delete from DIRECTORY_PERSON__TEAM where PERSON_ID = ?;
+
+-- name: DirectoryAddPersonTeam :exec
+insert into DIRECTORY_PERSON__TEAM (PERSON_ID, TEAM_ID) values (?, ?);
+
+-- name: DirectoryClearPersonPositions :exec
+delete from DIRECTORY_PERSON__POSITION where PERSON_ID = ?;
+
+-- name: DirectoryAddPersonPosition :exec
+insert into DIRECTORY_PERSON__POSITION (PERSON_ID, POSITION_ID) values (?, ?);
+
+-- name: DirectoryPersonByID :one
+select ID, HANDLE, EMAIL, ACTIVE, ONSITE
+from DIRECTORY_PERSON
+where ID = ?;

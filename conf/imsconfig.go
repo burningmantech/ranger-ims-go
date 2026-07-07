@@ -92,8 +92,8 @@ func (c *IMSConfig) Validate() error {
 	// Deployment
 	errs = append(errs, c.Core.Deployment.Validate())
 	if c.Core.Deployment != DeploymentTypeDev {
-		if c.Directory.Directory != DirectoryTypeClubhouseDB {
-			errs = append(errs, errors.New("non-dev environments must use a ClubhouseDB directory"))
+		if c.Directory.Directory != DirectoryTypeClubhouseDB && c.Directory.Directory != DirectoryTypeIMS {
+			errs = append(errs, errors.New("non-dev environments must use a ClubhouseDB or IMS directory"))
 		}
 		if c.Store.Type != DBStoreTypeMaria {
 			errs = append(errs, errors.New("non-dev environments must use a MariaDB datastore"))
@@ -154,6 +154,7 @@ type DBStoreType string
 // All these consts should have lowercase values to allow case-insensitive matching.
 const (
 	DirectoryTypeClubhouseDB DirectoryType        = "clubhousedb"
+	DirectoryTypeIMS         DirectoryType        = "ims"
 	DirectoryTypeNoOp        DirectoryType        = "noop"
 	AttachmentsStoreLocal    AttachmentsStoreType = "local"
 	AttachmentsStoreS3       AttachmentsStoreType = "s3"
@@ -177,7 +178,7 @@ func (d DBStoreType) Validate() error {
 
 func (d DirectoryType) Validate() error {
 	switch d {
-	case DirectoryTypeClubhouseDB, DirectoryTypeNoOp:
+	case DirectoryTypeClubhouseDB, DirectoryTypeIMS, DirectoryTypeNoOp:
 		return nil
 	default:
 		return fmt.Errorf("unknown directory type %v", d)

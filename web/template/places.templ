@@ -181,6 +181,31 @@ templ Places(deployment, versionName, versionRef, eventName string) {
             <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
           </li>
         </ul>
+        <button
+                id="show_type"
+                type="button"
+                class="btn btn-light btn-sm dropdown-toggle"
+                data-bs-toggle="dropdown"
+        >
+          <span class="selection">All Types</span>
+        </button>
+        <ul class="dropdown-menu">
+          <li id="show_type_all">
+            <a href="#" class="name dropdown-item" onclick="destShowType('all', true); return false;">All Types</a>
+          </li>
+          <li id="show_type_camp">
+            <a href="#" class="name dropdown-item" onclick="destShowType('camp', true); return false;">Camp</a>
+          </li>
+          <li id="show_type_art">
+            <a href="#" class="name dropdown-item" onclick="destShowType('art', true); return false;">Art</a>
+          </li>
+          <li id="show_type_mv">
+            <a href="#" class="name dropdown-item" onclick="destShowType('mv', true); return false;">Mutant Vehicle</a>
+          </li>
+          <li id="show_type_other">
+            <a href="#" class="name dropdown-item" onclick="destShowType('other', true); return false;">Other</a>
+          </li>
+        </ul>
         <a id="map-link" href="#" target="_blank" rel="noopener" class="link-body-emphasis ms-2 no-print d-none" title="Event map" tabindex="-1">
           Map
           <svg fill="currentColor" class="bi">

@@ -22,12 +22,15 @@ const _destSearchDelayMs = 250;
 let _destSearchDelayTimer = undefined;
 let _destShowRows = null;
 const destDefaultRows = "25";
+let _destShowType = null;
+const destDefaultType = "all";
 //
 // Initialize UI
 //
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
+    showTypeMenu: ims.typedElement("show_type", HTMLButtonElement),
     placeInfoModal: ims.typedElement("placeInfoModal", HTMLElement),
     placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
     placeBody: ims.typedElement("placeBody", HTMLElement),
@@ -46,6 +49,7 @@ async function initPlacesPage() {
         return;
     }
     window.destShowRows = destShowRows;
+    window.destShowType = destShowType;
     ims.setupMapLink(el.mapLink, await initResult.eventDatas);
     ims.disableEditing();
     initPlacesTable();
@@ -334,6 +338,7 @@ function destInitTableButtons() {
     const fragmentParams = ims.windowFragmentParams();
     // Set button defaults
     destShowRows(ims.coalesceRowsPerPage(fragmentParams.get("rows"), ims.getPreferredTableRowsPerPage(), destDefaultRows), false);
+    destShowType(fragmentParams.get("type") ?? destDefaultType, false);
 }
 //
 // Initialize search field
@@ -378,6 +383,13 @@ function destInitSearchField() {
 // Initialize search plug-in
 //
 function destInitSearch() {
+    placesTable.search.fixed("type", function (_searchStr, _rowData, rowIndex) {
+        if (_destShowType == null || _destShowType === "all") {
+            return true;
+        }
+        const place = placesTable.data()[rowIndex];
+        return place.type === _destShowType;
+    });
 }
 //
 // Show rows button handling
@@ -400,6 +412,21 @@ function destShowRows(rowsToShow, replaceState) {
     placesTable.draw();
 }
 //
+// Show type button handling
+//
+function destShowType(typeToShow, replaceState) {
+    _destShowType = typeToShow;
+    const item = document.getElementById("show_type_" + typeToShow);
+    // Get title from selected item
+    const selection = item.getElementsByClassName("name")[0].textContent;
+    // Update menu title to reflect selected item
+    el.showTypeMenu.getElementsByClassName("selection")[0].textContent = selection;
+    if (replaceState) {
+        destReplaceWindowState();
+    }
+    placesTable.draw();
+}
+//
 // Update the page URL based on the search input and other filters.
 //
 function destReplaceWindowState() {
@@ -410,6 +437,9 @@ function destReplaceWindowState() {
     }
     if (_destShowRows != null && _destShowRows !== destDefaultRows) {
         newParams.push(["rows", _destShowRows]);
+    }
+    if (_destShowType != null && _destShowType !== destDefaultType) {
+        newParams.push(["type", _destShowType]);
     }
     const newURL = `${ims.urlReplace(url_viewPlaces)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);

@@ -17,12 +17,33 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/pull/659
+https://github.com/burningmantech/ranger-ims-go/pull/673
 -->
+
+## 2026-07
+
+### Changed
+
+- Improved handling of concurrent edits: a field's contents are no longer replaced while a user is actively editing it (e.g. when someone else changes the same field), and rapid successive edits by one user no longer let a later change stomp an earlier one still in flight. https://github.com/burningmantech/ranger-ims-go/commit/62ac9f1
+
+### Added
+
+- Added an IMS-native user store, allowing IMS to run without a Clubhouse database. This includes a new admin page for managing users in the IMS-native user tables. https://github.com/burningmantech/ranger-ims-go/commit/7be7b05
+- Added the ability to delete events, gated behind a flag that is never enabled in production. This lets local/test runs (e.g. Playwright) clean up the events they create. https://github.com/burningmantech/ranger-ims-go/commit/9fe35d5
+
+### Removed
+
+- Removed the concentric streets feature and its Admin Streets page, which had been unused for many months. https://github.com/burningmantech/ranger-ims-go/pull/672
+
+### Fixed
+
+- Told password managers to ignore another field that isn't a password. https://github.com/burningmantech/ranger-ims-go/pull/671
 
 ## 2026-06
 
 ### Added
+
+- Showed an "uploading" indicator while a file attachment is in progress. https://github.com/burningmantech/ranger-ims-go/pull/661
 
 - Added a "not before" access mode and renamed the old "expired" concept to "not after". Together these let admins specify both when an event permission becomes active and when it lapses. https://github.com/burningmantech/ranger-ims-go/pull/648
 - Started using flatpickr for selecting the "not before" and "not after" permission times. https://github.com/burningmantech/ranger-ims-go/pull/649

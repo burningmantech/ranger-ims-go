@@ -248,6 +248,63 @@ test("destShowRows('all') sets the page length to unlimited", async (): Promise<
     expect(MockDataTable.lastInstance!.pageLen).toBe(-1);
 });
 
+test("the show-type control is wired and reflects the default selection", async (): Promise<void> => {
+    await initPlacesPage();
+
+    expect(window.destShowType).toBeTypeOf("function");
+    expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("All Types");
+});
+
+test("destShowType filters the table to the chosen type and updates the label and URL hash", async (): Promise<void> => {
+    await initPlacesPage();
+    await vi.waitFor((): void => {
+        expect(MockDataTable.lastInstance!.data().length).toBe(4);
+    });
+    // The ajax source pushes rows in category order: art, camp, mv, other.
+    const rows = MockDataTable.lastInstance!.data() as ims.Place[];
+    expect(rows.map(r => r.type)).toEqual(["art", "camp", "mv", "other"]);
+
+    window.destShowType("camp", true);
+
+    expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("Camp");
+    expect(window.location.hash).toContain("type=camp");
+    // Only the camp row passes the fixed "type" predicate.
+    expect(MockDataTable.lastInstance!.fixedSearch("type", 0)).toBe(false);
+    expect(MockDataTable.lastInstance!.fixedSearch("type", 1)).toBe(true);
+    expect(MockDataTable.lastInstance!.fixedSearch("type", 2)).toBe(false);
+    expect(MockDataTable.lastInstance!.fixedSearch("type", 3)).toBe(false);
+});
+
+test("destShowType('all') passes every row and drops the type from the URL hash", async (): Promise<void> => {
+    await initPlacesPage();
+    await vi.waitFor((): void => {
+        expect(MockDataTable.lastInstance!.data().length).toBe(4);
+    });
+
+    window.destShowType("mv", true);
+    expect(window.location.hash).toContain("type=mv");
+
+    window.destShowType("all", true);
+    expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("All Types");
+    expect(window.location.hash).not.toContain("type=");
+    for (let i = 0; i < 4; i++) {
+        expect(MockDataTable.lastInstance!.fixedSearch("type", i)).toBe(true);
+    }
+});
+
+test("a type fragment applies the type filter on load", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/places#type=art`);
+    await initPlacesPage();
+    await vi.waitFor((): void => {
+        expect(MockDataTable.lastInstance!.data().length).toBe(4);
+    });
+
+    expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("Art");
+    // Only the art row (index 0) survives the fixed "type" predicate.
+    expect(MockDataTable.lastInstance!.fixedSearch("type", 0)).toBe(true);
+    expect(MockDataTable.lastInstance!.fixedSearch("type", 1)).toBe(false);
+});
+
 test("a q fragment applies a /regex/ search on load", async (): Promise<void> => {
     window.history.replaceState(null, "", `/ims/app/events/${eventName}/places#q=${encodeURIComponent("/temple/")}`);
     await initPlacesPage();

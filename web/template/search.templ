@@ -33,6 +33,12 @@ templ Search(deployment, versionName, versionRef string) {
       Search Incidents, Field Reports, and Visits across every Event for which you have access.
     </p>
 
+    <p class="no-print">
+      This search works differently than searches elsewhere in IMS. This is still case-insensitive, but
+      it only looks for substrings. For example, if you search "cat dog", you will match "Bobcat Dog",
+      but not "cat. dog" or "cat and dog" or "cat &nbsp;dog" (two spaces between the words).
+    </p>
+
     <div class="row">
       <div id="search_container" class="form-group form-group-sm col-sm-6">
         <div class="flex-input-container no-print">

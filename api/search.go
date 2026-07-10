@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -250,7 +251,7 @@ func searchSnippet(text, query string) string {
 	if text == "" {
 		return ""
 	}
-	matchAt := max(strings.Index(strings.ToLower(text), strings.ToLower(query)), 0)
+	matchAt := max(indexFold(text, query), 0)
 
 	start := max(matchAt-searchSnippetPrefix, 0)
 	end := min(start+searchSnippetMaxLen, len(text))
@@ -270,4 +271,31 @@ func searchSnippet(text, query string) string {
 		snippet += searchSnippetMarker
 	}
 	return snippet
+}
+
+// indexFold returns the byte offset in s of the first case-insensitive match
+// of substr, or -1 if there is none. Indexing into ToLower(s) instead would
+// give offsets that are invalid in s, because lowercasing a rune can change
+// its encoded length (e.g. "Ⱥ" is 2 bytes and "ⱥ" is 3).
+func indexFold(s, substr string) int {
+	for i := range s {
+		if hasFoldPrefix(s[i:], substr) {
+			return i
+		}
+	}
+	return -1
+}
+
+func hasFoldPrefix(s, prefix string) bool {
+	for _, pr := range prefix {
+		r, size := utf8.DecodeRuneInString(s)
+		if size == 0 {
+			return false
+		}
+		if unicode.ToLower(r) != unicode.ToLower(pr) {
+			return false
+		}
+		s = s[size:]
+	}
+	return true
 }

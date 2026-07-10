@@ -83,6 +83,7 @@ func TestAnyUnauthenticatedUserEndpoints(t *testing.T) {
 		{http.MethodGet, "/ims/api/personnel"},
 		{http.MethodGet, "/ims/api/incident_types"},
 		{http.MethodGet, "/ims/api/events"},
+		{http.MethodGet, "/ims/api/search"},
 	}
 
 	for _, api := range anyAuthenticatedUserEndpoints {

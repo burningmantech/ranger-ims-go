@@ -733,3 +733,171 @@ insert into DIRECTORY_PERSON__POSITION (PERSON_ID, POSITION_ID) values (?, ?);
 select ID, HANDLE, EMAIL, ACTIVE, ONSITE
 from DIRECTORY_PERSON
 where ID = ?;
+
+-- The Search* queries below power the cross-event search API. Each matches a
+-- case-insensitive LIKE pattern (the handler escapes user input and wraps it
+-- in "%"), scoped to the events the requestor may read. The MATCHED_ENTRY_TEXT
+-- column carries the text of one matching report entry, for display as a
+-- search-result snippet.
+
+-- name: SearchIncidents :many
+select
+    i.EVENT,
+    e.NAME as EVENT_NAME,
+    i.NUMBER,
+    i.CREATED,
+    i.PRIORITY,
+    i.SUMMARY,
+    i.LOCATION_NAME,
+    coalesce((
+        select re.TEXT
+        from INCIDENT__REPORT_ENTRY ire
+            join REPORT_ENTRY re
+                on re.ID = ire.REPORT_ENTRY
+        where ire.EVENT = i.EVENT
+            and ire.INCIDENT_NUMBER = i.NUMBER
+            and re.GENERATED = false
+            and re.STRICKEN = false
+            and re.TEXT like sqlc.narg(text_like)
+        order by re.CREATED
+        limit 1
+    ), '') as MATCHED_ENTRY_TEXT
+from INCIDENT i
+    join EVENT e
+        on e.ID = i.EVENT
+where i.EVENT in (sqlc.slice(event_ids))
+    and (
+        i.SUMMARY like sqlc.narg(text_like)
+        or i.LOCATION_NAME like sqlc.narg(text_like)
+        or i.LOCATION_ADDRESS like sqlc.narg(text_like)
+        or i.LOCATION_DESCRIPTION like sqlc.narg(text_like)
+        or exists (
+            select 1
+            from INCIDENT__RANGER ir
+            where ir.EVENT = i.EVENT
+                and ir.INCIDENT_NUMBER = i.NUMBER
+                and ir.RANGER_HANDLE like sqlc.narg(text_like)
+        )
+        or exists (
+            select 1
+            from INCIDENT__INCIDENT_TYPE iit
+                join INCIDENT_TYPE it
+                    on it.ID = iit.INCIDENT_TYPE
+            where iit.EVENT = i.EVENT
+                and iit.INCIDENT_NUMBER = i.NUMBER
+                and it.NAME like sqlc.narg(text_like)
+        )
+        or exists (
+            select 1
+            from INCIDENT__REPORT_ENTRY ire
+                join REPORT_ENTRY re
+                    on re.ID = ire.REPORT_ENTRY
+            where ire.EVENT = i.EVENT
+                and ire.INCIDENT_NUMBER = i.NUMBER
+                and re.GENERATED = false
+                and re.STRICKEN = false
+                and re.TEXT like sqlc.narg(text_like)
+        )
+    )
+order by i.CREATED desc
+limit ?
+;
+
+-- name: SearchFieldReports :many
+select
+    fr.EVENT,
+    e.NAME as EVENT_NAME,
+    fr.NUMBER,
+    fr.CREATED,
+    fr.SUMMARY,
+    fr.INCIDENT_NUMBER,
+    coalesce((
+        select re.TEXT
+        from FIELD_REPORT__REPORT_ENTRY frre
+            join REPORT_ENTRY re
+                on re.ID = frre.REPORT_ENTRY
+        where frre.EVENT = fr.EVENT
+            and frre.FIELD_REPORT_NUMBER = fr.NUMBER
+            and re.GENERATED = false
+            and re.STRICKEN = false
+            and re.TEXT like sqlc.narg(text_like)
+        order by re.CREATED
+        limit 1
+    ), '') as MATCHED_ENTRY_TEXT
+from FIELD_REPORT fr
+    join EVENT e
+        on e.ID = fr.EVENT
+where fr.EVENT in (sqlc.slice(event_ids))
+    and (
+        fr.SUMMARY like sqlc.narg(text_like)
+        or exists (
+            select 1
+            from FIELD_REPORT__REPORT_ENTRY frre
+                join REPORT_ENTRY re
+                    on re.ID = frre.REPORT_ENTRY
+            where frre.EVENT = fr.EVENT
+                and frre.FIELD_REPORT_NUMBER = fr.NUMBER
+                and re.GENERATED = false
+                and re.STRICKEN = false
+                and re.TEXT like sqlc.narg(text_like)
+        )
+    )
+order by fr.CREATED desc
+limit ?
+;
+
+-- name: SearchVisits :many
+select
+    v.EVENT,
+    e.NAME as EVENT_NAME,
+    v.NUMBER,
+    v.CREATED,
+    v.INCIDENT_NUMBER,
+    v.GUEST_PREFERRED_NAME,
+    v.GUEST_LEGAL_NAME,
+    v.GUEST_CAMP_NAME,
+    coalesce((
+        select re.TEXT
+        from VISIT__REPORT_ENTRY vre
+            join REPORT_ENTRY re
+                on re.ID = vre.REPORT_ENTRY
+        where vre.EVENT = v.EVENT
+            and vre.VISIT_NUMBER = v.NUMBER
+            and re.GENERATED = false
+            and re.STRICKEN = false
+            and re.TEXT like sqlc.narg(text_like)
+        order by re.CREATED
+        limit 1
+    ), '') as MATCHED_ENTRY_TEXT
+from VISIT v
+    join EVENT e
+        on e.ID = v.EVENT
+where v.EVENT in (sqlc.slice(event_ids))
+    and (
+        v.GUEST_PREFERRED_NAME like sqlc.narg(text_like)
+        or v.GUEST_LEGAL_NAME like sqlc.narg(text_like)
+        or v.GUEST_DESCRIPTION like sqlc.narg(text_like)
+        or v.GUEST_CAMP_NAME like sqlc.narg(text_like)
+        or v.GUEST_CAMP_ADDRESS like sqlc.narg(text_like)
+        or exists (
+            select 1
+            from VISIT__RANGER vr
+            where vr.EVENT = v.EVENT
+                and vr.VISIT_NUMBER = v.NUMBER
+                and vr.RANGER_HANDLE like sqlc.narg(text_like)
+        )
+        or exists (
+            select 1
+            from VISIT__REPORT_ENTRY vre
+                join REPORT_ENTRY re
+                    on re.ID = vre.REPORT_ENTRY
+            where vre.EVENT = v.EVENT
+                and vre.VISIT_NUMBER = v.NUMBER
+                and re.GENERATED = false
+                and re.STRICKEN = false
+                and re.TEXT like sqlc.narg(text_like)
+        )
+    )
+order by v.CREATED desc
+limit ?
+;

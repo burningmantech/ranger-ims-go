@@ -155,6 +155,8 @@ func AddToMux(
 	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, true)
 	authed("DELETE /ims/api/events/{eventName}", DeleteEvent{db, userStore, cfg.Core.Admins, cfg.Core.EventDeletionEnabled}, true)
 
+	authed("GET /ims/api/search", GetSearch{db, userStore, cfg.Core.Admins}, false)
+
 	authed("GET /ims/api/incident_types", GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 	authed("POST /ims/api/incident_types", EditIncidentTypes{db, userStore, cfg.Core.Admins}, true)
 

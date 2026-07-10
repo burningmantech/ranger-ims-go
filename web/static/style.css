@@ -368,6 +368,10 @@ h1 {
   cursor: pointer;
 }
 
+#search_results_table>tbody>tr {
+  cursor: pointer;
+}
+
 .show-pointer {
   cursor: pointer;
 }

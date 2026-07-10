@@ -2253,6 +2253,373 @@ func (q *Queries) SchemaVersion(ctx context.Context, db DBTX) (int16, error) {
 	return version, err
 }
 
+const searchFieldReports = `-- name: SearchFieldReports :many
+select
+    fr.EVENT,
+    e.NAME as EVENT_NAME,
+    fr.NUMBER,
+    fr.CREATED,
+    fr.SUMMARY,
+    fr.INCIDENT_NUMBER,
+    coalesce((
+        select re.TEXT
+        from FIELD_REPORT__REPORT_ENTRY frre
+            join REPORT_ENTRY re
+                on re.ID = frre.REPORT_ENTRY
+        where frre.EVENT = fr.EVENT
+            and frre.FIELD_REPORT_NUMBER = fr.NUMBER
+            and re.GENERATED = false
+            and re.STRICKEN = false
+            and re.TEXT like ?
+        order by re.CREATED
+        limit 1
+    ), '') as MATCHED_ENTRY_TEXT
+from FIELD_REPORT fr
+    join EVENT e
+        on e.ID = fr.EVENT
+where fr.EVENT in (/*SLICE:event_ids*/?)
+    and (
+        fr.SUMMARY like ?
+        or exists (
+            select 1
+            from FIELD_REPORT__REPORT_ENTRY frre
+                join REPORT_ENTRY re
+                    on re.ID = frre.REPORT_ENTRY
+            where frre.EVENT = fr.EVENT
+                and frre.FIELD_REPORT_NUMBER = fr.NUMBER
+                and re.GENERATED = false
+                and re.STRICKEN = false
+                and re.TEXT like ?
+        )
+    )
+order by fr.CREATED desc
+limit ?
+`
+
+type SearchFieldReportsParams struct {
+	TextLike sql.NullString
+	EventIds []int32
+	Limit    int32
+}
+
+type SearchFieldReportsRow struct {
+	Event            int32
+	EventName        string
+	Number           int32
+	Created          float64
+	Summary          sql.NullString
+	IncidentNumber   sql.NullInt32
+	MatchedEntryText interface{}
+}
+
+func (q *Queries) SearchFieldReports(ctx context.Context, db DBTX, arg SearchFieldReportsParams) ([]SearchFieldReportsRow, error) {
+	query := searchFieldReports
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.TextLike)
+	if len(arg.EventIds) > 0 {
+		for _, v := range arg.EventIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:event_ids*/?", strings.Repeat(",?", len(arg.EventIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:event_ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.Limit)
+	rows, err := db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchFieldReportsRow
+	for rows.Next() {
+		var i SearchFieldReportsRow
+		if err := rows.Scan(
+			&i.Event,
+			&i.EventName,
+			&i.Number,
+			&i.Created,
+			&i.Summary,
+			&i.IncidentNumber,
+			&i.MatchedEntryText,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchIncidents = `-- name: SearchIncidents :many
+
+select
+    i.EVENT,
+    e.NAME as EVENT_NAME,
+    i.NUMBER,
+    i.CREATED,
+    i.PRIORITY,
+    i.SUMMARY,
+    i.LOCATION_NAME,
+    coalesce((
+        select re.TEXT
+        from INCIDENT__REPORT_ENTRY ire
+            join REPORT_ENTRY re
+                on re.ID = ire.REPORT_ENTRY
+        where ire.EVENT = i.EVENT
+            and ire.INCIDENT_NUMBER = i.NUMBER
+            and re.GENERATED = false
+            and re.STRICKEN = false
+            and re.TEXT like ?
+        order by re.CREATED
+        limit 1
+    ), '') as MATCHED_ENTRY_TEXT
+from INCIDENT i
+    join EVENT e
+        on e.ID = i.EVENT
+where i.EVENT in (/*SLICE:event_ids*/?)
+    and (
+        i.SUMMARY like ?
+        or i.LOCATION_NAME like ?
+        or i.LOCATION_ADDRESS like ?
+        or i.LOCATION_DESCRIPTION like ?
+        or exists (
+            select 1
+            from INCIDENT__RANGER ir
+            where ir.EVENT = i.EVENT
+                and ir.INCIDENT_NUMBER = i.NUMBER
+                and ir.RANGER_HANDLE like ?
+        )
+        or exists (
+            select 1
+            from INCIDENT__INCIDENT_TYPE iit
+                join INCIDENT_TYPE it
+                    on it.ID = iit.INCIDENT_TYPE
+            where iit.EVENT = i.EVENT
+                and iit.INCIDENT_NUMBER = i.NUMBER
+                and it.NAME like ?
+        )
+        or exists (
+            select 1
+            from INCIDENT__REPORT_ENTRY ire
+                join REPORT_ENTRY re
+                    on re.ID = ire.REPORT_ENTRY
+            where ire.EVENT = i.EVENT
+                and ire.INCIDENT_NUMBER = i.NUMBER
+                and re.GENERATED = false
+                and re.STRICKEN = false
+                and re.TEXT like ?
+        )
+    )
+order by i.CREATED desc
+limit ?
+`
+
+type SearchIncidentsParams struct {
+	TextLike sql.NullString
+	EventIds []int32
+	Limit    int32
+}
+
+type SearchIncidentsRow struct {
+	Event            int32
+	EventName        string
+	Number           int32
+	Created          float64
+	Priority         int8
+	Summary          sql.NullString
+	LocationName     sql.NullString
+	MatchedEntryText interface{}
+}
+
+// The Search* queries below power the cross-event search API. Each matches a
+// case-insensitive LIKE pattern (the handler escapes user input and wraps it
+// in "%"), scoped to the events the requestor may read. The MATCHED_ENTRY_TEXT
+// column carries the text of one matching report entry, for display as a
+// search-result snippet.
+func (q *Queries) SearchIncidents(ctx context.Context, db DBTX, arg SearchIncidentsParams) ([]SearchIncidentsRow, error) {
+	query := searchIncidents
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.TextLike)
+	if len(arg.EventIds) > 0 {
+		for _, v := range arg.EventIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:event_ids*/?", strings.Repeat(",?", len(arg.EventIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:event_ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.Limit)
+	rows, err := db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchIncidentsRow
+	for rows.Next() {
+		var i SearchIncidentsRow
+		if err := rows.Scan(
+			&i.Event,
+			&i.EventName,
+			&i.Number,
+			&i.Created,
+			&i.Priority,
+			&i.Summary,
+			&i.LocationName,
+			&i.MatchedEntryText,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchVisits = `-- name: SearchVisits :many
+select
+    v.EVENT,
+    e.NAME as EVENT_NAME,
+    v.NUMBER,
+    v.CREATED,
+    v.INCIDENT_NUMBER,
+    v.GUEST_PREFERRED_NAME,
+    v.GUEST_LEGAL_NAME,
+    v.GUEST_CAMP_NAME,
+    coalesce((
+        select re.TEXT
+        from VISIT__REPORT_ENTRY vre
+            join REPORT_ENTRY re
+                on re.ID = vre.REPORT_ENTRY
+        where vre.EVENT = v.EVENT
+            and vre.VISIT_NUMBER = v.NUMBER
+            and re.GENERATED = false
+            and re.STRICKEN = false
+            and re.TEXT like ?
+        order by re.CREATED
+        limit 1
+    ), '') as MATCHED_ENTRY_TEXT
+from VISIT v
+    join EVENT e
+        on e.ID = v.EVENT
+where v.EVENT in (/*SLICE:event_ids*/?)
+    and (
+        v.GUEST_PREFERRED_NAME like ?
+        or v.GUEST_LEGAL_NAME like ?
+        or v.GUEST_DESCRIPTION like ?
+        or v.GUEST_CAMP_NAME like ?
+        or v.GUEST_CAMP_ADDRESS like ?
+        or exists (
+            select 1
+            from VISIT__RANGER vr
+            where vr.EVENT = v.EVENT
+                and vr.VISIT_NUMBER = v.NUMBER
+                and vr.RANGER_HANDLE like ?
+        )
+        or exists (
+            select 1
+            from VISIT__REPORT_ENTRY vre
+                join REPORT_ENTRY re
+                    on re.ID = vre.REPORT_ENTRY
+            where vre.EVENT = v.EVENT
+                and vre.VISIT_NUMBER = v.NUMBER
+                and re.GENERATED = false
+                and re.STRICKEN = false
+                and re.TEXT like ?
+        )
+    )
+order by v.CREATED desc
+limit ?
+`
+
+type SearchVisitsParams struct {
+	TextLike sql.NullString
+	EventIds []int32
+	Limit    int32
+}
+
+type SearchVisitsRow struct {
+	Event              int32
+	EventName          string
+	Number             int32
+	Created            float64
+	IncidentNumber     sql.NullInt32
+	GuestPreferredName sql.NullString
+	GuestLegalName     sql.NullString
+	GuestCampName      sql.NullString
+	MatchedEntryText   interface{}
+}
+
+func (q *Queries) SearchVisits(ctx context.Context, db DBTX, arg SearchVisitsParams) ([]SearchVisitsRow, error) {
+	query := searchVisits
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.TextLike)
+	if len(arg.EventIds) > 0 {
+		for _, v := range arg.EventIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:event_ids*/?", strings.Repeat(",?", len(arg.EventIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:event_ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.Limit)
+	rows, err := db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchVisitsRow
+	for rows.Next() {
+		var i SearchVisitsRow
+		if err := rows.Scan(
+			&i.Event,
+			&i.EventName,
+			&i.Number,
+			&i.Created,
+			&i.IncidentNumber,
+			&i.GuestPreferredName,
+			&i.GuestLegalName,
+			&i.GuestCampName,
+			&i.MatchedEntryText,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setFieldReportReportEntryStricken = `-- name: SetFieldReportReportEntryStricken :exec
 update REPORT_ENTRY
 set STRICKEN = ?

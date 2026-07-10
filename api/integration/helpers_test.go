@@ -298,6 +298,14 @@ func (a ApiHelper) updateVisitReportEntry(ctx context.Context, eventName string,
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", conv.FormatInt(visit), "/report_entries/", conv.FormatInt(req.ID)).String())
 }
 
+func (a ApiHelper) search(ctx context.Context, params url.Values) (imsjson.SearchResults, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/search")
+	path.RawQuery = params.Encode()
+	bod, resp := a.imsGet(ctx, path.String(), &imsjson.SearchResults{})
+	return *bod.(*imsjson.SearchResults), resp
+}
+
 func (a ApiHelper) editEvent(ctx context.Context, req imsjson.Event) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events").String())

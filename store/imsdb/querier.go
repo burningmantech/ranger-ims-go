@@ -108,6 +108,14 @@ type Querier interface {
 	QueryEventID(ctx context.Context, db DBTX, name string) (QueryEventIDRow, error)
 	RemovePlaces(ctx context.Context, db DBTX, arg RemovePlacesParams) error
 	SchemaVersion(ctx context.Context, db DBTX) (int16, error)
+	SearchFieldReports(ctx context.Context, db DBTX, arg SearchFieldReportsParams) ([]SearchFieldReportsRow, error)
+	// The Search* queries below power the cross-event search API. Each matches a
+	// case-insensitive LIKE pattern (the handler escapes user input and wraps it
+	// in "%"), scoped to the events the requestor may read. The MATCHED_ENTRY_TEXT
+	// column carries the text of one matching report entry, for display as a
+	// search-result snippet.
+	SearchIncidents(ctx context.Context, db DBTX, arg SearchIncidentsParams) ([]SearchIncidentsRow, error)
+	SearchVisits(ctx context.Context, db DBTX, arg SearchVisitsParams) ([]SearchVisitsRow, error)
 	SetFieldReportReportEntryStricken(ctx context.Context, db DBTX, arg SetFieldReportReportEntryStrickenParams) error
 	//
 	// The "stricken" queries seem bloated at first blush, because the whole

@@ -19,13 +19,16 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockFlatpickr, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, problemResponse } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
 
 let serverEventAccess: ims.AuthInfoEventAccess;
 let serverIncident: ims.Incident;
+// The incident's current ETag; edits through incidentRoutes bump it, the way
+// the server's version counter would.
+let serverETag: string;
 let serverPersonnel: ims.Personnel[];
 let serverTypes: ims.IncidentType[];
 let serverEvents: ims.EventData[];
@@ -48,6 +51,7 @@ beforeEach((): void => {
         value: { request: (): Promise<undefined> => new Promise<undefined>((): void => {}) },
     });
 
+    serverETag = `"5"`;
     serverEventAccess = {
         event_id: eventId,
         readIncidents: true,
@@ -120,6 +124,11 @@ beforeEach((): void => {
     ];
 });
 
+// Increment a quoted-integer ETag, e.g. `"5"` -> `"6"`.
+function bumpETag(etag: string): string {
+    return `"${Number(etag.replaceAll(`"`, "")) + 1}"`;
+}
+
 function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
     const hasBody = init?.body != null;
     if (url === `/ims/api/auth?event_id=${eventName}`) {
@@ -149,7 +158,8 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
         return jsonResponse(serverVisits);
     }
     if (url.startsWith(`/ims/api/events/${eventName}/incidents/1/rangers/`)) {
-        return new Response(null, { status: 204 });
+        serverETag = bumpETag(serverETag);
+        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
     }
     if (url.startsWith(`/ims/api/events/${eventName}/incidents/1/report_entries/`) && hasBody) {
         return new Response(null, { status: 204 });
@@ -163,10 +173,11 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
         return new Response(null, { status: 201, headers: { "IMS-Incident-Number": "42" } });
     }
     if ((url === `/ims/api/events/${eventName}/incidents/1` || url === `/ims/api/events/${eventName}/incidents/42`) && !hasBody) {
-        return jsonResponse(serverIncident);
+        return jsonResponse(serverIncident, 200, { "ETag": serverETag });
     }
     if ((url === `/ims/api/events/${eventName}/incidents/1` || url === `/ims/api/events/${eventName}/incidents/42`) && hasBody) {
-        return new Response(null, { status: 204 });
+        serverETag = bumpETag(serverETag);
+        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
     }
     if (url === `/ims/api/events/${eventName}/field_reports/8` && !hasBody) {
         return jsonResponse(serverFieldReports.find((fr: ims.FieldReport): boolean => fr.number === 8));
@@ -200,6 +211,14 @@ function postedBodies(mock: ReturnType<typeof mockFetch>, url: string): unknown[
     return mock.mock.calls
         .filter(([u, init]): boolean => u === url && init?.body != null)
         .map(([, init]): unknown => JSON.parse(init!.body as string));
+}
+
+// The If-Match header of each POST to the given URL, oldest first
+// (null for a POST that carried no If-Match).
+function postedIfMatches(mock: ReturnType<typeof mockFetch>, url: string): (string|null)[] {
+    return mock.mock.calls
+        .filter(([u, init]): boolean => u === url && init?.body != null)
+        .map(([, init]): string|null => new Headers(init!.headers).get("If-Match"));
 }
 
 test("page init draws the incident fields from the API", async (): Promise<void> => {
@@ -343,6 +362,67 @@ test("editing the summary sends the edit and reloads the incident", async (): Pr
         { summary: "Bigger dust storm", number: 1 },
     ]);
     expect(summary.classList.contains("is-valid")).toBe(true);
+});
+
+test("field edits carry If-Match from the loaded ETag; note appends do not", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    const incidentURL = "/ims/api/events/2025/incidents/1";
+
+    // A field edit sends the ETag captured when the incident was loaded.
+    const summary = document.getElementById("incident_summary") as HTMLInputElement;
+    summary.value = "Bigger dust storm";
+    await window.editIncidentSummary();
+    expect(postedIfMatches(mock, incidentURL)).toEqual([`"5"`]);
+
+    // After the edit round-trip, the stored ETag is the server's new one.
+    mock.mockClear();
+    summary.value = "Even bigger dust storm";
+    await window.editIncidentSummary();
+    expect(postedIfMatches(mock, incidentURL)).toEqual([`"6"`]);
+
+    // A report-entry append is unconditional: it can't lose data, and it must
+    // not fail just because someone else edited a field.
+    mock.mockClear();
+    const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
+    textarea.value = "saw a thing";
+    window.reportEntryEdited();
+    await window.submitReportEntry();
+    expect(postedBodies(mock, incidentURL)).toEqual([
+        { report_entries: [{ text: "saw a thing", id: -1 }], number: 1 },
+    ]);
+    expect(postedIfMatches(mock, incidentURL)).toEqual([null]);
+});
+
+test("a 412 conflict shows the conflict banner and refetches the incident", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    const incidentURL = "/ims/api/events/2025/incidents/1";
+
+    // Someone else edited the incident: the next edit is rejected with a 412.
+    const conflictRoutes = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === incidentURL && init?.body != null) {
+            return problemResponse("Someone else got here first", 412);
+        }
+        return incidentRoutes(url, init);
+    };
+    mock.mockImplementation(async (url: string, init?: RequestInit): Promise<Response> => {
+        const response = conflictRoutes(url, init);
+        if (response == null) {
+            throw new Error(`no mocked fetch route for ${url}`);
+        }
+        return response;
+    });
+
+    serverIncident.summary = "Their conflicting edit";
+    const summary = document.getElementById("incident_summary") as HTMLInputElement;
+    summary.value = "My rejected edit";
+    const { err } = await window.editIncidentSummary().then((): {err: string|null} => ({err: null}), (e: Error): {err: string} => ({err: e.message}));
+    expect(err).toBeNull();
+
+    // The user is told what happened, and the page refetched the other
+    // person's version of the incident.
+    expect(document.getElementById("error_text")!.textContent).toContain(
+        "Someone else has edited this incident");
+    expect(inputValue("incident_summary")).toBe("Their conflicting edit");
 });
 
 test("editState warns when closing an incident that has no incident types", async (): Promise<void> => {

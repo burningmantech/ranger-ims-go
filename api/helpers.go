@@ -25,6 +25,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -57,6 +59,33 @@ func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 		return empty, herr.BadRequest("Failed to unmarshal request body", err).From("[Unmarshal]")
 	}
 	return t, nil
+}
+
+// parseIfMatch returns the record version from a request's If-Match header, or
+// nil if the header is absent or "*" (which matches any current version).
+// IMS ETags are strong and hold a single integer version, e.g. `"7"`.
+func parseIfMatch(req *http.Request) (*int32, *herr.HTTPError) {
+	raw := strings.TrimSpace(req.Header.Get("If-Match"))
+	if raw == "" || raw == "*" {
+		return nil, nil
+	}
+	if strings.Contains(raw, ",") {
+		return nil, herr.BadRequest("If-Match with multiple ETags is not supported", nil)
+	}
+	if strings.HasPrefix(raw, "W/") {
+		return nil, herr.BadRequest("Weak ETags are not valid in If-Match", nil)
+	}
+	version, err := conv.ParseInt32(strings.Trim(raw, `"`))
+	if err != nil {
+		return nil, herr.BadRequest("Invalid If-Match header", err)
+	}
+	return &version, nil
+}
+
+// setETag sets a strong ETag response header from a record version, e.g. `"7"`.
+// It must be called before the response status is written.
+func setETag(w http.ResponseWriter, version int32) {
+	w.Header().Set("ETag", `"`+strconv.FormatInt(int64(version), 10)+`"`)
 }
 
 func eventFromFormValue(req *http.Request, imsDBQ *store.DBQ) (imsdb.Event, *herr.HTTPError) {

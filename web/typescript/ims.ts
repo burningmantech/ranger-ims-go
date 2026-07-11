@@ -214,6 +214,14 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
     return {resp: response, json: json, err: err};
 }
 
+// etagOf reads the ETag header from a response, for optimistic concurrency:
+// pages remember the ETag from the last read of a record and send it back as
+// If-Match on edits, and the server rejects the edit with a 412 if the record
+// has changed in the meantime.
+export function etagOf(resp: Response|null): string|null {
+    return resp?.headers.get("ETag") ?? null;
+}
+
 
 //
 // Generic string formatting
@@ -1838,6 +1846,7 @@ export type Incident = {
     created?: string|null;
     started?: string|null;
     last_modified?: string|null;
+    version?: number|null;
     rangers?: IncidentRanger[]|null;
     incident_type_ids?: number[]|null;
     location?: EventLocation|null;
@@ -1851,6 +1860,7 @@ export type FieldReport = {
     event?: string|null;
     number?: number|null;
     created?: string|null;
+    version?: number|null;
     summary?: string|null;
     incident?: number|null;
     report_entries?: ReportEntry[]|null;
@@ -1864,6 +1874,7 @@ export type Visit = {
     event?: string|null;
     created?: string|null;
     last_modified?: string|null;
+    version?: number|null;
     incident?: number|null;
 
     guest_preferred_name?: string|null;

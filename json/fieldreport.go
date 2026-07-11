@@ -20,9 +20,11 @@ import "time"
 
 type FieldReports []FieldReport
 type FieldReport struct {
-	Event         string        `json:"event"`
-	Number        int32         `json:"number"`
-	Created       time.Time     `json:"created,omitzero"`
+	Event   string    `json:"event"`
+	Number  int32     `json:"number"`
+	Created time.Time `json:"created,omitzero"`
+	// Version is the optimistic-concurrency counter; see Incident.Version.
+	Version       int32         `json:"version,omitzero"`
 	Summary       *string       `json:"summary"`
 	Incident      *int32        `json:"incident,omitzero"`
 	ReportEntries []ReportEntry `json:"report_entries"`

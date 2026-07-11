@@ -85,6 +85,16 @@ func NotFound(userMessage string, err error) *HTTPError {
 	return New(http.StatusNotFound, userMessage, err)
 }
 
+// Conflict returns an http.StatusConflict HTTPError.
+func Conflict(userMessage string, err error) *HTTPError {
+	return New(http.StatusConflict, userMessage, err)
+}
+
+// PreconditionFailed returns an http.StatusPreconditionFailed HTTPError.
+func PreconditionFailed(userMessage string, err error) *HTTPError {
+	return New(http.StatusPreconditionFailed, userMessage, err)
+}
+
 // From wraps the InternalErr using fmt.Sprintf. This should be used to specify
 // the name of a function that returned an error. See httperror_test.go for
 // examples of wrapping.

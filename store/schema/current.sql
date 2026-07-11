@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (35);
+insert into SCHEMA_INFO (VERSION) values (36);
 
 
 create table `EVENT` (
@@ -71,6 +71,11 @@ create table INCIDENT (
     LOCATION_NAME           varchar(1024),
     LOCATION_ADDRESS        varchar(1024),
     LOCATION_DESCRIPTION    varchar(1024),
+
+    -- Optimistic-concurrency version counter, surfaced to clients as an ETag.
+    -- Bumped on every change to the incident's representation other than
+    -- report-entry appends.
+    `VERSION` integer not null default 1,
 
     foreign key (`EVENT`) references `EVENT`(ID),
 
@@ -160,6 +165,9 @@ create table FIELD_REPORT (
 
     SUMMARY         varchar(1024),
     INCIDENT_NUMBER integer,
+
+    -- Optimistic-concurrency version counter; see INCIDENT.VERSION.
+    `VERSION` integer not null default 1,
 
     foreign key (`EVENT`) references `EVENT`(ID),
     foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
@@ -253,6 +261,9 @@ create table VISIT (
     RESOURCE_POGS       varchar(256),
     RESOURCE_FOOD_BEV   varchar(256),
     RESOURCE_OTHER      varchar(256),
+
+    -- Optimistic-concurrency version counter; see INCIDENT.VERSION.
+    `VERSION` integer not null default 1,
 
     foreign key `VISIT_TO_EVENT` (`EVENT`) references `EVENT`(ID),
     foreign key `VISIT_TO_INCIDENT` (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),

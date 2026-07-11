@@ -451,6 +451,7 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	before.Started, after.Started = time.Time{}, time.Time{}
 	before.Closed, after.Closed = time.Time{}, time.Time{}
 	before.LastModified, after.LastModified = time.Time{}, time.Time{}
+	before.Version, after.Version = 0, 0
 	before.ReportEntries, after.ReportEntries = nil, nil
 
 	require.Equal(t, before, after)

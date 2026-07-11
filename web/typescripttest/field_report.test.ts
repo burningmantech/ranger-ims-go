@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -28,6 +28,9 @@ const frUrl = `/ims/api/events/${eventName}/field_reports`;
 let serverEventAccess: ims.AuthInfoEventAccess;
 let serverFieldReport: ims.FieldReport;
 let serverEvents: ims.EventData[];
+// The field report's current ETag; edits through frRoutes bump it, the way
+// the server's version counter would.
+let serverETag: string;
 
 beforeEach((): void => {
     vi.resetModules();
@@ -61,6 +64,7 @@ beforeEach((): void => {
         ],
     };
     serverEvents = [{ id: eventId, name: eventName }];
+    serverETag = `"3"`;
 });
 
 function frRoutes(url: string, init?: RequestInit): Response | undefined {
@@ -77,11 +81,12 @@ function frRoutes(url: string, init?: RequestInit): Response | undefined {
         return jsonResponse(serverEvents);
     }
     if (url === `${frUrl}/7` && !hasBody) {
-        return jsonResponse(serverFieldReport);
+        return jsonResponse(serverFieldReport, 200, { "ETag": serverETag });
     }
     if (url.startsWith(`${frUrl}/7`) && hasBody) {
         // Edits and attach/detach.
-        return new Response(null, { status: 204 });
+        serverETag = `"${Number(serverETag.replaceAll(`"`, "")) + 1}"`;
+        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
     }
     if (url === `/ims/api/events/${eventName}/incidents` && hasBody) {
         return new Response(null, { status: 201, headers: { "IMS-Incident-Number": "42" } });
@@ -156,6 +161,55 @@ test("a viewer without field-report read access sees an authorization error", as
 
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
     expect(document.getElementById("error_text")!.textContent).toContain("not currently authorized");
+});
+
+test("summary edits carry If-Match from the loaded ETag; note appends do not", async (): Promise<void> => {
+    const mock = await initFieldReportPage();
+
+    // A summary edit sends the ETag captured when the field report was loaded.
+    const summary = document.getElementById("field_report_summary") as HTMLInputElement;
+    summary.value = "Found the child";
+    await window.editSummary();
+    let posts = mock.mock.calls.filter(([u, init]) => u === `${frUrl}/7` && init?.body != null);
+    expect(posts).toHaveLength(1);
+    expect(new Headers(posts[0]![1]!.headers).get("If-Match")).toBe(`"3"`);
+
+    // A report-entry append is unconditional.
+    mock.mockClear();
+    const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
+    textarea.value = "an update from the field";
+    window.reportEntryEdited();
+    await window.submitReportEntry();
+    posts = mock.mock.calls.filter(([u, init]) => u === `${frUrl}/7` && init?.body != null);
+    expect(posts).toHaveLength(1);
+    expect(new Headers(posts[0]![1]!.headers).get("If-Match")).toBeNull();
+});
+
+test("a 412 conflict shows the conflict banner and refetches the field report", async (): Promise<void> => {
+    const mock = await initFieldReportPage();
+
+    const conflictRoutes = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `${frUrl}/7` && init?.body != null) {
+            return problemResponse("Someone else got here first", 412);
+        }
+        return frRoutes(url, init);
+    };
+    mock.mockImplementation(async (url: string, init?: RequestInit): Promise<Response> => {
+        const response = conflictRoutes(url, init);
+        if (response == null) {
+            throw new Error(`no mocked fetch route for ${url}`);
+        }
+        return response;
+    });
+
+    serverFieldReport.summary = "Their conflicting summary";
+    const summary = document.getElementById("field_report_summary") as HTMLInputElement;
+    summary.value = "My rejected summary";
+    await window.editSummary();
+
+    expect(document.getElementById("error_text")!.textContent).toContain(
+        "Someone else has edited this field report");
+    expect(inputValue("field_report_summary")).toBe("Their conflicting summary");
 });
 
 test("attachFile shows an uploading state, posts the file, then confirms and reverts", async (): Promise<void> => {

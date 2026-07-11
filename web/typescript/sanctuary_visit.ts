@@ -60,6 +60,10 @@ declare global {
 
 let visit: ims.Visit|null = null;
 
+// The ETag from the last read of this visit, sent back as If-Match on edits
+// so that the server can reject an edit based on stale data (HTTP 412).
+let visitETag: string|null = null;
+
 //
 // Initialize UI
 //
@@ -285,8 +289,9 @@ async function loadVisit(): Promise<{err: string|null}> {
         visit = {
             "number": null,
         };
+        visitETag = null;
     } else {
-        const {json, err} = await ims.fetchNoThrow<ims.Visit>(
+        const {resp, json, err} = await ims.fetchNoThrow<ims.Visit>(
             `${ims.urlReplace(url_visits)}/${number}`, null);
         if (err != null) {
             ims.disableEditing();
@@ -296,6 +301,7 @@ async function loadVisit(): Promise<{err: string|null}> {
             return {err: message};
         }
         visit = json;
+        visitETag = ims.etagOf(resp);
     }
     return {err: null};
 }
@@ -404,7 +410,19 @@ function drawVisitTitle(mode: "for_display"|"for_print_to_pdf"): void {
 }
 
 
-async function sendEdits(edits: ims.Visit): Promise<{err:string|null}> {
+// Sequences sendEdits calls, so that rapid autosaves don't race one another:
+// each edit must carry the ETag produced by the previous one.
+let sendEditsChain: Promise<{err:string|null}> = Promise.resolve({err: null});
+
+function sendEdits(edits: ims.Visit): Promise<{err:string|null}> {
+    sendEditsChain = sendEditsChain.then(
+        () => sendEditsNow(edits),
+        () => sendEditsNow(edits),
+    );
+    return sendEditsChain;
+}
+
+async function sendEditsNow(edits: ims.Visit): Promise<{err:string|null}> {
     const number = visit!.number;
     let url = ims.urlReplace(url_visits);
 
@@ -417,16 +435,31 @@ async function sendEdits(edits: ims.Visit): Promise<{err:string|null}> {
         url += `/${number}`;
     }
 
+    // Report-entry appends can't lose data, so they're sent unconditionally
+    // rather than failing on a stale ETag when someone else edits a field.
+    const noteOnly = Object.keys(edits).every(
+        (key) => key === "report_entries" || key === "number");
+    const headers: HeadersInit = {};
+    if (number != null && visitETag != null && !noteOnly) {
+        headers["If-Match"] = visitETag;
+    }
     const {resp, err} = await ims.fetchNoThrow(url, {
+        headers: headers,
         body: JSON.stringify(edits),
     });
 
     if (err != null) {
-        const message = `Failed to apply edit: ${err}`;
+        let message = `Failed to apply edit: ${err}`;
+        if (resp?.status === 412) {
+            message = "Someone else has edited this visit. " +
+                "The page has been refreshed with their changes; please retry your edit.";
+        }
         await loadAndDisplayVisit();
         ims.setErrorMessage(message);
         return {err: message};
     }
+
+    visitETag = ims.etagOf(resp) ?? visitETag;
 
     if (number == null && resp != null) {
         // We created a new visit.
@@ -695,7 +728,7 @@ async function addRanger(): Promise<void> {
             .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
             .replace("<ranger_name>", encodeURIComponent(handle))
     );
-    const {err} = await ims.fetchNoThrow(url, {
+    const {resp, err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify({
             handle: handle,
         }),
@@ -706,6 +739,8 @@ async function addRanger(): Promise<void> {
         el.addRanger.disabled = false;
         return;
     }
+    // The roster change moved the visit's version on the server.
+    visitETag = ims.etagOf(resp) ?? visitETag;
     el.addRanger.value = "";
     el.addRanger.disabled = false;
     ims.controlHasSuccess(el.addRanger);
@@ -724,9 +759,11 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
             .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
             .replace("<ranger_name>", encodeURIComponent(rangerHandle))
     );
-    await ims.fetchNoThrow(url, {
+    const {resp} = await ims.fetchNoThrow(url, {
         method: "DELETE",
     });
+    // The roster change moved the visit's version on the server.
+    visitETag = ims.etagOf(resp) ?? visitETag;
 }
 
 
@@ -742,7 +779,7 @@ async function setRangerRole(sender: HTMLInputElement): Promise<void> {
             .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
             .replace("<ranger_name>", encodeURIComponent(handle))
     );
-    const {err} = await ims.fetchNoThrow(url, {
+    const {resp, err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify({
             handle: handle,
             role: sender.value,
@@ -752,6 +789,7 @@ async function setRangerRole(sender: HTMLInputElement): Promise<void> {
         ims.controlHasError(sender);
         return;
     }
+    visitETag = ims.etagOf(resp) ?? visitETag;
     ims.controlHasSuccess(sender);
 
     return;

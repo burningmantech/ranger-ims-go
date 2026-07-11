@@ -19,6 +19,9 @@
 import * as ims from "./ims.js";
 import { fetchPersonnel } from "./ims.js";
 let incident = null;
+// The ETag from the last read of this incident, sent back as If-Match on
+// edits so that the server can reject an edit based on stale data (HTTP 412).
+let incidentETag = null;
 let allIncidentTypes = [];
 let allEvents = null;
 let places = {};
@@ -251,9 +254,10 @@ async function loadIncident() {
             "priority": 3,
             "summary": "",
         };
+        incidentETag = null;
     }
     else {
-        const { json, err } = await ims.fetchNoThrow(`${ims.urlReplace(url_incidents)}/${number}`, null);
+        const { resp, json, err } = await ims.fetchNoThrow(`${ims.urlReplace(url_incidents)}/${number}`, null);
         if (err != null) {
             ims.disableEditing();
             const message = `Failed to load Incident ${number}: ${err}`;
@@ -262,6 +266,7 @@ async function loadIncident() {
             return { err: message };
         }
         incident = json;
+        incidentETag = ims.etagOf(resp);
     }
     return { err: null };
 }
@@ -887,7 +892,14 @@ function drawFieldReportsToAttach() {
 //
 // Editing
 //
-async function sendEdits(edits) {
+// Sequences sendEdits calls, so that rapid autosaves don't race one another:
+// each edit must carry the ETag produced by the previous one.
+let sendEditsChain = Promise.resolve({ err: null });
+function sendEdits(edits) {
+    sendEditsChain = sendEditsChain.then(() => sendEditsNow(edits), () => sendEditsNow(edits));
+    return sendEditsChain;
+}
+async function sendEditsNow(edits) {
     const number = incident.number;
     let url = ims.urlReplace(url_incidents);
     if (number == null) {
@@ -905,15 +917,28 @@ async function sendEdits(edits) {
         edits.number = number;
         url += `/${number}`;
     }
+    // Report-entry appends can't lose data, so they're sent unconditionally
+    // rather than failing on a stale ETag when someone else edits a field.
+    const noteOnly = Object.keys(edits).every((key) => key === "report_entries" || key === "number");
+    const headers = {};
+    if (number != null && incidentETag != null && !noteOnly) {
+        headers["If-Match"] = incidentETag;
+    }
     const { resp, err } = await ims.fetchNoThrow(url, {
+        headers: headers,
         body: JSON.stringify(edits),
     });
     if (err != null) {
-        const message = `Failed to apply edit: ${err}`;
+        let message = `Failed to apply edit: ${err}`;
+        if (resp?.status === 412) {
+            message = "Someone else has edited this incident. " +
+                "The page has been refreshed with their changes; please retry your edit.";
+        }
         await loadAndDisplayIncident();
         ims.setErrorMessage(message);
         return { err: message };
     }
+    incidentETag = ims.etagOf(resp) ?? incidentETag;
     if (number == null && resp != null) {
         // We created a new incident.
         // We need to find out the created incident number so that future
@@ -1025,9 +1050,11 @@ async function removeRanger(sender) {
     const url = (ims.urlReplace(url_incidentRanger)
         .replace("<incident_number>", ims.pathIds.incidentNumber.toString())
         .replace("<ranger_name>", encodeURIComponent(rangerHandle)));
-    await ims.fetchNoThrow(url, {
+    const { resp } = await ims.fetchNoThrow(url, {
         method: "DELETE",
     });
+    // The roster change moved the incident's version on the server.
+    incidentETag = ims.etagOf(resp) ?? incidentETag;
 }
 async function setRangerRole(sender) {
     const handle = sender.closest("li")?.dataset["rangerHandle"];
@@ -1038,7 +1065,7 @@ async function setRangerRole(sender) {
     const url = (ims.urlReplace(url_incidentRanger)
         .replace("<incident_number>", ims.pathIds.incidentNumber.toString())
         .replace("<ranger_name>", encodeURIComponent(handle)));
-    const { err } = await ims.fetchNoThrow(url, {
+    const { resp, err } = await ims.fetchNoThrow(url, {
         body: JSON.stringify({
             handle: handle,
             role: sender.value,
@@ -1048,6 +1075,7 @@ async function setRangerRole(sender) {
         ims.controlHasError(sender);
         return;
     }
+    incidentETag = ims.etagOf(resp) ?? incidentETag;
     ims.controlHasSuccess(sender);
     return;
 }
@@ -1099,7 +1127,7 @@ async function addRanger() {
     const url = (ims.urlReplace(url_incidentRanger)
         .replace("<incident_number>", ims.pathIds.incidentNumber.toString())
         .replace("<ranger_name>", encodeURIComponent(handle)));
-    const { err } = await ims.fetchNoThrow(url, {
+    const { resp, err } = await ims.fetchNoThrow(url, {
         body: JSON.stringify({
             handle: handle,
         }),
@@ -1110,6 +1138,7 @@ async function addRanger() {
         el.rangerAdd.disabled = false;
         return;
     }
+    incidentETag = ims.etagOf(resp) ?? incidentETag;
     el.rangerAdd.value = "";
     el.rangerAdd.disabled = false;
     ims.controlHasSuccess(el.rangerAdd);
@@ -1186,6 +1215,9 @@ async function detachFieldReport(sender) {
         ims.setErrorMessage(message);
         return;
     }
+    // The detachment moved this incident's version on the server, and the
+    // response's ETag belongs to the field report/visit, not the incident.
+    await loadIncident();
     await loadAllVisits();
     await loadAllFieldReports();
     renderFieldReportData();
@@ -1229,6 +1261,9 @@ async function attachFieldReport() {
         ims.controlHasError(el.attachedFieldReportAdd);
         return;
     }
+    // The attachment moved this incident's version on the server, and the
+    // response's ETag belongs to the field report/visit, not the incident.
+    await loadIncident();
     await loadAllVisits();
     await loadAllFieldReports();
     renderFieldReportData();

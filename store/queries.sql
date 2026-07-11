@@ -775,10 +775,13 @@ select ID, HANDLE, EMAIL, ACTIVE, ONSITE
 from DIRECTORY_PERSON
 where ID = ?;
 
--- The Search* queries below power the cross-event search API. Each matches a
--- case-insensitive LIKE pattern (the handler escapes user input and wraps it
--- in "%"), scoped to the events the requestor may read. The MATCHED_ENTRY_TEXT
--- column carries the text of one matching report entry, for display as a
+-- The Search* queries below power the cross-event search API. Each matches
+-- either a case-insensitive LIKE pattern (the handler escapes user input and
+-- wraps it in "%") or a REGEXP pattern, scoped to the events the requestor may
+-- read. Exactly one of text_like and text_regexp must be non-null: comparing
+-- against a null pattern yields null, so the unused branch of each
+-- "like ... or ... regexp ..." pair drops out. The MATCHED_ENTRY_TEXT column
+-- carries the text of one matching report entry, for display as a
 -- search-result snippet.
 
 -- name: SearchIncidents :many
@@ -799,7 +802,7 @@ select
             and ire.INCIDENT_NUMBER = i.NUMBER
             and re.GENERATED = false
             and re.STRICKEN = false
-            and re.TEXT like sqlc.narg(text_like)
+            and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         order by re.CREATED
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
@@ -808,16 +811,16 @@ from INCIDENT i
         on e.ID = i.EVENT
 where i.EVENT in (sqlc.slice(event_ids))
     and (
-        i.SUMMARY like sqlc.narg(text_like)
-        or i.LOCATION_NAME like sqlc.narg(text_like)
-        or i.LOCATION_ADDRESS like sqlc.narg(text_like)
-        or i.LOCATION_DESCRIPTION like sqlc.narg(text_like)
+        (i.SUMMARY like sqlc.narg(text_like) or regexp_instr(i.SUMMARY, sqlc.narg(text_regexp)) > 0)
+        or (i.LOCATION_NAME like sqlc.narg(text_like) or regexp_instr(i.LOCATION_NAME, sqlc.narg(text_regexp)) > 0)
+        or (i.LOCATION_ADDRESS like sqlc.narg(text_like) or regexp_instr(i.LOCATION_ADDRESS, sqlc.narg(text_regexp)) > 0)
+        or (i.LOCATION_DESCRIPTION like sqlc.narg(text_like) or regexp_instr(i.LOCATION_DESCRIPTION, sqlc.narg(text_regexp)) > 0)
         or exists (
             select 1
             from INCIDENT__RANGER ir
             where ir.EVENT = i.EVENT
                 and ir.INCIDENT_NUMBER = i.NUMBER
-                and ir.RANGER_HANDLE like sqlc.narg(text_like)
+                and (ir.RANGER_HANDLE like sqlc.narg(text_like) or regexp_instr(ir.RANGER_HANDLE, sqlc.narg(text_regexp)) > 0)
         )
         or exists (
             select 1
@@ -826,7 +829,7 @@ where i.EVENT in (sqlc.slice(event_ids))
                     on it.ID = iit.INCIDENT_TYPE
             where iit.EVENT = i.EVENT
                 and iit.INCIDENT_NUMBER = i.NUMBER
-                and it.NAME like sqlc.narg(text_like)
+                and (it.NAME like sqlc.narg(text_like) or regexp_instr(it.NAME, sqlc.narg(text_regexp)) > 0)
         )
         or exists (
             select 1
@@ -837,7 +840,7 @@ where i.EVENT in (sqlc.slice(event_ids))
                 and ire.INCIDENT_NUMBER = i.NUMBER
                 and re.GENERATED = false
                 and re.STRICKEN = false
-                and re.TEXT like sqlc.narg(text_like)
+                and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         )
     )
 order by i.CREATED desc
@@ -861,7 +864,7 @@ select
             and frre.FIELD_REPORT_NUMBER = fr.NUMBER
             and re.GENERATED = false
             and re.STRICKEN = false
-            and re.TEXT like sqlc.narg(text_like)
+            and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         order by re.CREATED
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
@@ -870,7 +873,7 @@ from FIELD_REPORT fr
         on e.ID = fr.EVENT
 where fr.EVENT in (sqlc.slice(event_ids))
     and (
-        fr.SUMMARY like sqlc.narg(text_like)
+        (fr.SUMMARY like sqlc.narg(text_like) or regexp_instr(fr.SUMMARY, sqlc.narg(text_regexp)) > 0)
         or exists (
             select 1
             from FIELD_REPORT__REPORT_ENTRY frre
@@ -880,7 +883,7 @@ where fr.EVENT in (sqlc.slice(event_ids))
                 and frre.FIELD_REPORT_NUMBER = fr.NUMBER
                 and re.GENERATED = false
                 and re.STRICKEN = false
-                and re.TEXT like sqlc.narg(text_like)
+                and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         )
     )
 order by fr.CREATED desc
@@ -906,7 +909,7 @@ select
             and vre.VISIT_NUMBER = v.NUMBER
             and re.GENERATED = false
             and re.STRICKEN = false
-            and re.TEXT like sqlc.narg(text_like)
+            and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         order by re.CREATED
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
@@ -915,17 +918,17 @@ from VISIT v
         on e.ID = v.EVENT
 where v.EVENT in (sqlc.slice(event_ids))
     and (
-        v.GUEST_PREFERRED_NAME like sqlc.narg(text_like)
-        or v.GUEST_LEGAL_NAME like sqlc.narg(text_like)
-        or v.GUEST_DESCRIPTION like sqlc.narg(text_like)
-        or v.GUEST_CAMP_NAME like sqlc.narg(text_like)
-        or v.GUEST_CAMP_ADDRESS like sqlc.narg(text_like)
+        (v.GUEST_PREFERRED_NAME like sqlc.narg(text_like) or regexp_instr(v.GUEST_PREFERRED_NAME, sqlc.narg(text_regexp)) > 0)
+        or (v.GUEST_LEGAL_NAME like sqlc.narg(text_like) or regexp_instr(v.GUEST_LEGAL_NAME, sqlc.narg(text_regexp)) > 0)
+        or (v.GUEST_DESCRIPTION like sqlc.narg(text_like) or regexp_instr(v.GUEST_DESCRIPTION, sqlc.narg(text_regexp)) > 0)
+        or (v.GUEST_CAMP_NAME like sqlc.narg(text_like) or regexp_instr(v.GUEST_CAMP_NAME, sqlc.narg(text_regexp)) > 0)
+        or (v.GUEST_CAMP_ADDRESS like sqlc.narg(text_like) or regexp_instr(v.GUEST_CAMP_ADDRESS, sqlc.narg(text_regexp)) > 0)
         or exists (
             select 1
             from VISIT__RANGER vr
             where vr.EVENT = v.EVENT
                 and vr.VISIT_NUMBER = v.NUMBER
-                and vr.RANGER_HANDLE like sqlc.narg(text_like)
+                and (vr.RANGER_HANDLE like sqlc.narg(text_like) or regexp_instr(vr.RANGER_HANDLE, sqlc.narg(text_regexp)) > 0)
         )
         or exists (
             select 1
@@ -936,7 +939,7 @@ where v.EVENT in (sqlc.slice(event_ids))
                 and vre.VISIT_NUMBER = v.NUMBER
                 and re.GENERATED = false
                 and re.STRICKEN = false
-                and re.TEXT like sqlc.narg(text_like)
+                and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         )
     )
 order by v.CREATED desc

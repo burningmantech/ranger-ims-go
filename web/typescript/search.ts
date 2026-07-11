@@ -152,7 +152,10 @@ function replaceWindowState(): void {
 async function doSearch(): Promise<void> {
     replaceWindowState();
 
-    const query = el.searchInput.value.trim();
+    const rawQuery = el.searchInput.value.trim();
+    // A query enclosed in slashes, like /ab?c/, is a regular expression.
+    const isRegex = rawQuery.length > 2 && rawQuery.startsWith("/") && rawQuery.endsWith("/");
+    const query = isRegex ? rawQuery.slice(1, -1) : rawQuery;
     const kinds = selectedKinds();
     const sequence = ++_searchSequence;
 
@@ -166,11 +169,14 @@ async function doSearch(): Promise<void> {
     }
 
     const params = new URLSearchParams([["q", query]]);
+    if (isRegex) {
+        params.set("regex", "true");
+    }
     if (kinds.length < 3) {
         params.set("kinds", kinds.join(","));
     }
 
-    const {json, err} = await ims.fetchNoThrow<SearchResults>(
+    const {resp, json, err} = await ims.fetchNoThrow<SearchResults>(
         `${url_search}?${params.toString()}`, null,
     );
     if (sequence !== _searchSequence) {
@@ -178,6 +184,14 @@ async function doSearch(): Promise<void> {
         return;
     }
     if (err != null || json == null) {
+        if (resp?.status === 400) {
+            // The query itself was rejected (e.g. an invalid regular
+            // expression), so report that where the results would go.
+            renderResults([]);
+            el.resultsInfo.textContent = err ?? "Search failed";
+            ims.clearErrorMessage();
+            return;
+        }
         const message = `Search failed: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);

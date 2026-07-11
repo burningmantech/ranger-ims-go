@@ -19,7 +19,7 @@
 // the merged results table itself, with no DataTables involved.
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
 
 interface ServerSearchResults {
     hits: object[];
@@ -27,11 +27,14 @@ interface ServerSearchResults {
 }
 
 let serverResults: ServerSearchResults;
+// When set, the search route responds with this problem instead of results.
+let serverProblem: { detail: string; status: number } | null;
 
 beforeEach((): void => {
     vi.resetModules();
     loadFixture("search.html");
     window.history.replaceState(null, "", "/ims/app/search");
+    serverProblem = null;
 
     serverResults = {
         hits: [
@@ -80,6 +83,9 @@ async function initSearchPage() {
         }
         if (url.startsWith(`${url_search}?`) && init?.body == null) {
             searchCalls.push(url);
+            if (serverProblem != null) {
+                return problemResponse(serverProblem.detail, serverProblem.status);
+            }
             return jsonResponse(serverResults);
         }
         return undefined;
@@ -109,6 +115,8 @@ test("typing a query fetches results and renders one row per hit", async (): Pro
         expect(resultRows().length).toBe(3);
     });
     expect(searchCalls[0]).toContain("q=dusty");
+    // A plain query is a literal search, not a regexp one.
+    expect(searchCalls[0]).not.toContain("regex=");
 
     // The incident row shows its event, kind, and summary, and its number
     // links to the incident page.
@@ -177,6 +185,36 @@ test("unchecking every record type prompts to select one instead of searching", 
         expect(document.getElementById("search_results_info")!.textContent).toContain("at least one record type");
     });
     expect(searchCalls.length).toBe(0);
+});
+
+test("a slash-enclosed query is sent as a regular expression", async (): Promise<void> => {
+    const { searchCalls } = await initSearchPage();
+
+    searchInput().value = "/ab?c/";
+    searchInput().dispatchEvent(new Event("input"));
+
+    await vi.waitFor((): void => {
+        expect(searchCalls.length).toBe(1);
+    });
+    // The slashes are stripped and the pattern travels in "q", with the
+    // regexp mode flagged separately.
+    expect(searchCalls[0]).toContain("q=ab%3Fc");
+    expect(searchCalls[0]).toContain("regex=true");
+});
+
+test("an invalid regular expression shows the server's message in the results info", async (): Promise<void> => {
+    serverProblem = { detail: "Invalid regular expression", status: 400 };
+
+    await initSearchPage();
+
+    searchInput().value = "/ab(c/";
+    searchInput().dispatchEvent(new Event("input"));
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("search_results_info")!.textContent)
+            .toContain("Invalid regular expression");
+    });
+    expect(resultRows().length).toBe(0);
 });
 
 test("truncated results include a warning in the results info line", async (): Promise<void> => {

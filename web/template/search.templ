@@ -39,6 +39,11 @@ templ Search(deployment, versionName, versionRef string) {
       but not "cat. dog" or "cat and dog" or "cat &nbsp;dog" (two spaces between the words).
     </p>
 
+    <p class="no-print">
+      To search by regular expression instead, enclose a pattern in slashes, like "/ab?c/".
+      Regular expression matching is also case-insensitive.
+    </p>
+
     <div class="row">
       <div id="search_container" class="form-group form-group-sm col-sm-6">
         <div class="flex-input-container no-print">

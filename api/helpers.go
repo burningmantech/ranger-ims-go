@@ -34,7 +34,21 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"github.com/go-sql-driver/mysql"
 )
+
+// maxNumberAllocAttempts bounds the retries when creating an Incident, Field
+// Report, or Visit whose freshly allocated number was claimed by a concurrent
+// creator in the same event first.
+const maxNumberAllocAttempts = 3
+
+// isDuplicateKeyError reports whether err is a MySQL/MariaDB duplicate-key
+// error (ER_DUP_ENTRY), i.e. an INSERT lost a race for a unique key.
+func isDuplicateKeyError(err error) bool {
+	const mySQLErDupEntry = 1062
+	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+	return ok && mysqlErr.Number == mySQLErDupEntry
+}
 
 // applyStringChange overwrites dst if the client provided a new value, and
 // records a "Changed <label>: <value>" line in logs.

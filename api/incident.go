@@ -350,27 +350,40 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber, versio
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	// First create the incident, to lock in the incident number reservation
-	newIncidentNumber, err := action.imsDBQ.NextIncidentNumber(ctx, action.imsDBQ, event.ID)
-	if err != nil {
-		return 0, 0, "", herr.InternalServerError("Failed to find next Incident number", err).From("[NextIncidentNumber]")
+	// First create the incident, to lock in the incident number reservation.
+	// The number is allocated with a plain SELECT, so a concurrent creator in
+	// the same event can claim the same number first; the (EVENT, NUMBER)
+	// primary key turns that into a duplicate-key error, and the INSERT is
+	// retried with a freshly allocated number.
+	now := conv.TimeToFloat(time.Now())
+	var newIncidentNumber int32
+	for attempt := 1; ; attempt++ {
+		var err error
+		newIncidentNumber, err = action.imsDBQ.NextIncidentNumber(ctx, action.imsDBQ, event.ID)
+		if err != nil {
+			return 0, 0, "", herr.InternalServerError("Failed to find next Incident number", err).From("[NextIncidentNumber]")
+		}
+		_, err = action.imsDBQ.CreateIncident(ctx, action.imsDBQ, imsdb.CreateIncidentParams{
+			Event:    event.ID,
+			Number:   newIncidentNumber,
+			Created:  now,
+			Started:  now,
+			Priority: imsjson.IncidentPriorityNormal,
+			State:    imsdb.IncidentStateNew,
+		})
+		if err == nil {
+			break
+		}
+		if !isDuplicateKeyError(err) {
+			return 0, 0, "", herr.InternalServerError("Failed to create incident", err).From("[CreateIncident]")
+		}
+		if attempt == maxNumberAllocAttempts {
+			return 0, 0, "", herr.Conflict("Incidents are being created concurrently. Please try again.", err).From("[CreateIncident]")
+		}
 	}
 	newIncident.EventID = event.ID
 	newIncident.Event = event.Name
 	newIncident.Number = newIncidentNumber
-	now := conv.TimeToFloat(time.Now())
-	createTheIncident := imsdb.CreateIncidentParams{
-		Event:    newIncident.EventID,
-		Number:   newIncidentNumber,
-		Created:  now,
-		Started:  now,
-		Priority: imsjson.IncidentPriorityNormal,
-		State:    imsdb.IncidentStateNew,
-	}
-	_, err = action.imsDBQ.CreateIncident(ctx, action.imsDBQ, createTheIncident)
-	if err != nil {
-		return 0, 0, "", herr.InternalServerError("Failed to create incident", err).From("[CreateIncident]")
-	}
 
 	version, errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, nil)
 	if errHTTP != nil {

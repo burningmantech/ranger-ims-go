@@ -597,24 +597,35 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	newFrNum, err := action.imsDBQ.NextFieldReportNumber(ctx, action.imsDBQ, event.ID)
-	if err != nil {
-		return 0, "", herr.InternalServerError("Failed to find next Field Report number", err).From("[NextFieldReportNumber]")
+	// The number allocation can race a concurrent creator; see newIncident.
+	created := conv.TimeToFloat(time.Now())
+	var newFrNum int32
+	for attempt := 1; ; attempt++ {
+		var err error
+		newFrNum, err = action.imsDBQ.NextFieldReportNumber(ctx, action.imsDBQ, event.ID)
+		if err != nil {
+			return 0, "", herr.InternalServerError("Failed to find next Field Report number", err).From("[NextFieldReportNumber]")
+		}
+		err = action.imsDBQ.CreateFieldReport(ctx, action.imsDBQ,
+			imsdb.CreateFieldReportParams{
+				Event:          event.ID,
+				Number:         newFrNum,
+				Created:        created,
+				Summary:        conv.StringToSql(fr.Summary, 0),
+				IncidentNumber: sql.NullInt32{},
+			},
+		)
+		if err == nil {
+			break
+		}
+		if !isDuplicateKeyError(err) {
+			return 0, "", herr.InternalServerError("Failed to create Field Report", err).From("[CreateFieldReport]")
+		}
+		if attempt == maxNumberAllocAttempts {
+			return 0, "", herr.Conflict("Field Reports are being created concurrently. Please try again.", err).From("[CreateFieldReport]")
+		}
 	}
 	fr.Number = newFrNum
-
-	err = action.imsDBQ.CreateFieldReport(ctx, action.imsDBQ,
-		imsdb.CreateFieldReportParams{
-			Event:          event.ID,
-			Number:         newFrNum,
-			Created:        conv.TimeToFloat(time.Now()),
-			Summary:        conv.StringToSql(fr.Summary, 0),
-			IncidentNumber: sql.NullInt32{},
-		},
-	)
-	if err != nil {
-		return 0, "", herr.InternalServerError("Failed to create Field Report", err).From("[CreateFieldReport]")
-	}
 
 	txn, err := action.imsDBQ.Begin()
 	if err != nil {

@@ -70,6 +70,62 @@ func TestReadBodyAsErrors(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, errHTTP.Code)
 }
 
+func TestParseIfMatch(t *testing.T) {
+	t.Parallel()
+
+	requestWithIfMatch := func(value string) *http.Request {
+		req := &http.Request{Header: http.Header{}}
+		if value != "" {
+			req.Header.Set("If-Match", value)
+		}
+		return req
+	}
+
+	// absent header means no version check
+	version, errHTTP := parseIfMatch(requestWithIfMatch(""))
+	require.Nil(t, errHTTP)
+	assert.Nil(t, version)
+
+	// "*" matches any current version, so it also means no version check
+	version, errHTTP = parseIfMatch(requestWithIfMatch("*"))
+	require.Nil(t, errHTTP)
+	assert.Nil(t, version)
+
+	// a quoted ETag is the normal case
+	version, errHTTP = parseIfMatch(requestWithIfMatch(`"7"`))
+	require.Nil(t, errHTTP)
+	require.NotNil(t, version)
+	assert.Equal(t, int32(7), *version)
+
+	// an unquoted value is tolerated too
+	version, errHTTP = parseIfMatch(requestWithIfMatch("12"))
+	require.Nil(t, errHTTP)
+	require.NotNil(t, version)
+	assert.Equal(t, int32(12), *version)
+
+	// weak ETags aren't valid in If-Match
+	_, errHTTP = parseIfMatch(requestWithIfMatch(`W/"7"`))
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusBadRequest, errHTTP.Code)
+
+	// multiple ETags aren't supported
+	_, errHTTP = parseIfMatch(requestWithIfMatch(`"7", "8"`))
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusBadRequest, errHTTP.Code)
+
+	// garbage isn't a version
+	_, errHTTP = parseIfMatch(requestWithIfMatch(`"unversioned"`))
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusBadRequest, errHTTP.Code)
+}
+
+func TestSetETag(t *testing.T) {
+	t.Parallel()
+	rec := httptest.NewRecorder()
+	setETag(rec, 42)
+	assert.Equal(t, `"42"`, rec.Header().Get("ETag"))
+}
+
 func TestEventFromFormValue(t *testing.T) {
 	t.Parallel()
 

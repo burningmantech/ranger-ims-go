@@ -132,8 +132,13 @@ values (
    ?,?,?,?,?,?
 );
 
--- name: UpdateIncident :exec
+-- The VERSION bump must stay in the SET clause: the MySQL driver reports rows
+-- *changed* (not matched), so the bump guarantees that zero rows affected means
+-- the WHERE clause didn't match (stale version or missing row), never that the
+-- row matched but was already identical.
+-- name: UpdateIncident :execrows
 update INCIDENT set
+    VERSION = VERSION + 1,
     -- CREATED should be immutable, so it's not present in this UPDATE query
     PRIORITY = ?,
     STATE = ?,
@@ -146,7 +151,21 @@ update INCIDENT set
 where
     EVENT = ?
     and NUMBER = ?
+    and VERSION = ?
 ;
+
+-- BumpIncidentVersion is for mutations that change an incident's representation
+-- without going through the version-guarded UpdateIncident query (Ranger
+-- assignments, the peer of a link/unlink, field-report/visit reassignment).
+-- name: BumpIncidentVersion :exec
+update INCIDENT
+set VERSION = VERSION + 1
+where EVENT = ? and NUMBER = ?;
+
+-- name: IncidentVersion :one
+select VERSION
+from INCIDENT
+where EVENT = ? and NUMBER = ?;
 
 -- name: Incident :one
 select
@@ -309,7 +328,7 @@ where
 
 -- name: AttachFieldReportToIncident :exec
 update FIELD_REPORT
-set INCIDENT_NUMBER = ?
+set INCIDENT_NUMBER = ?, VERSION = VERSION + 1
 where EVENT = ? and NUMBER = ?
 ;
 
@@ -339,10 +358,16 @@ insert into FIELD_REPORT (
 )
 values (?, ?, ?, ?, ?);
 
--- name: UpdateFieldReport :exec
-update FIELD_REPORT
-set SUMMARY = ?, INCIDENT_NUMBER = ?
+-- name: FieldReportVersion :one
+select VERSION
+from FIELD_REPORT
 where EVENT = ? and NUMBER = ?;
+
+-- The VERSION bump must stay in the SET clause; see UpdateIncident.
+-- name: UpdateFieldReport :execrows
+update FIELD_REPORT
+set VERSION = VERSION + 1, SUMMARY = ?, INCIDENT_NUMBER = ?
+where EVENT = ? and NUMBER = ? and VERSION = ?;
 
 -- name: CreateReportEntry :execlastid
 insert into REPORT_ENTRY (
@@ -375,7 +400,7 @@ insert into VISIT__REPORT_ENTRY (
 
 -- name: AttachVisitToIncident :exec
 update VISIT
-set INCIDENT_NUMBER = ?
+set INCIDENT_NUMBER = ?, VERSION = VERSION + 1
 where EVENT = ? and NUMBER = ?
 ;
 
@@ -523,8 +548,10 @@ where
 -- name: CreateVisit :execlastid
 insert into VISIT (`EVENT`, NUMBER, CREATED) values (?, ?, ?);
 
--- name: UpdateVisit :exec
+-- The VERSION bump must stay in the SET clause; see UpdateIncident.
+-- name: UpdateVisit :execrows
 update VISIT set
+    VERSION = VERSION + 1,
     -- CREATED should be immutable, so it's not present in this UPDATE query
     INCIDENT_NUMBER = ?,
     GUEST_PREFERRED_NAME = ?,
@@ -556,7 +583,21 @@ update VISIT set
 where
     EVENT = ?
     and NUMBER = ?
+    and VERSION = ?
 ;
+
+-- BumpVisitVersion is for mutations that change a visit's representation
+-- without going through the version-guarded UpdateVisit query (Ranger
+-- assignments).
+-- name: BumpVisitVersion :exec
+update VISIT
+set VERSION = VERSION + 1
+where EVENT = ? and NUMBER = ?;
+
+-- name: VisitVersion :one
+select VERSION
+from VISIT
+where EVENT = ? and NUMBER = ?;
 
 -- name: Visit :one
 select

@@ -38,11 +38,15 @@ const (
 )
 
 type Incident struct {
-	Event           string            `json:"event"`
-	EventID         int32             `json:"event_id"`
-	Number          int32             `json:"number"`
-	Created         time.Time         `json:"created,omitzero"`
-	LastModified    time.Time         `json:"last_modified,omitzero"`
+	Event        string    `json:"event"`
+	EventID      int32     `json:"event_id"`
+	Number       int32     `json:"number"`
+	Created      time.Time `json:"created,omitzero"`
+	LastModified time.Time `json:"last_modified,omitzero"`
+	// Version is the optimistic-concurrency counter, surfaced as an ETag on
+	// single-Incident endpoints. Stored versions start at 1, so omitzero only
+	// elides it from client-sent edit bodies, never from server responses.
+	Version         int32             `json:"version,omitzero"`
 	State           string            `json:"state"`
 	Started         time.Time         `json:"started,omitzero"`
 	Closed          time.Time         `json:"closed,omitzero"`

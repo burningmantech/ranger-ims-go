@@ -192,6 +192,13 @@ export async function fetchNoThrow(url, init) {
     }
     return { resp: response, json: json, err: err };
 }
+// etagOf reads the ETag header from a response, for optimistic concurrency:
+// pages remember the ETag from the last read of a record and send it back as
+// If-Match on edits, and the server rejects the edit with a 412 if the record
+// has changed in the meantime.
+export function etagOf(resp) {
+    return resp?.headers.get("ETag") ?? null;
+}
 //
 // Generic string formatting
 //

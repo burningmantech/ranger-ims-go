@@ -46,10 +46,11 @@ export function loadFixture(name: string): void {
 
 // Make a JSON Response like the IMS API would return. fetchNoThrow only
 // parses the body when the content-type is exactly "application/json".
-export function jsonResponse(body: unknown, status: number = 200): Response {
+// Extra headers (e.g. an ETag) are merged over the content-type.
+export function jsonResponse(body: unknown, status: number = 200, headers?: Record<string, string>): Response {
     return new Response(JSON.stringify(body), {
         status: status,
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...headers },
     });
 }
 

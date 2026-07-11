@@ -335,6 +335,7 @@ type FieldReport struct {
 	Created        float64
 	Summary        sql.NullString
 	IncidentNumber sql.NullInt32
+	Version        int32
 }
 
 type FieldReportReportEntry struct {
@@ -355,6 +356,7 @@ type Incident struct {
 	LocationName        sql.NullString
 	LocationAddress     sql.NullString
 	LocationDescription sql.NullString
+	Version             int32
 }
 
 type IncidentIncidentType struct {
@@ -444,6 +446,7 @@ type Visit struct {
 	ResourcePogs         sql.NullString
 	ResourceFoodBev      sql.NullString
 	ResourceOther        sql.NullString
+	Version              int32
 }
 
 type VisitRanger struct {

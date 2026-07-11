@@ -289,6 +289,7 @@ func requireEqualFieldReport(t *testing.T, before, after imsjson.FieldReport) {
 		require.WithinDuration(t, time.Now(), after.Created, 20*time.Minute)
 	}
 	before.Created, after.Created = time.Time{}, time.Time{}
+	before.Version, after.Version = 0, 0
 
 	require.Equal(t, before, after)
 }

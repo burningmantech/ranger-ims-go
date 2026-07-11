@@ -412,6 +412,7 @@ func requireEqualVisit(t *testing.T, before, after imsjson.Visit) {
 	before.EventID, after.EventID = 0, 0
 	before.Created, after.Created = time.Time{}, time.Time{}
 	before.LastModified, after.LastModified = time.Time{}, time.Time{}
+	before.Version, after.Version = 0, 0
 	before.ArrivalTime, after.ArrivalTime = &time.Time{}, &time.Time{}
 	before.DepartureTime, after.DepartureTime = &time.Time{}, &time.Time{}
 	before.ReportEntries, after.ReportEntries = nil, nil

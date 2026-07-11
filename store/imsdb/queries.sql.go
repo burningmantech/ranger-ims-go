@@ -142,7 +142,7 @@ func (q *Queries) AddEventAccess(ctx context.Context, db DBTX, arg AddEventAcces
 
 const attachFieldReportToIncident = `-- name: AttachFieldReportToIncident :exec
 update FIELD_REPORT
-set INCIDENT_NUMBER = ?
+set INCIDENT_NUMBER = ?, VERSION = VERSION + 1
 where EVENT = ? and NUMBER = ?
 `
 
@@ -279,7 +279,7 @@ func (q *Queries) AttachReportEntryToVisit(ctx context.Context, db DBTX, arg Att
 
 const attachVisitToIncident = `-- name: AttachVisitToIncident :exec
 update VISIT
-set INCIDENT_NUMBER = ?
+set INCIDENT_NUMBER = ?, VERSION = VERSION + 1
 where EVENT = ? and NUMBER = ?
 `
 
@@ -291,6 +291,44 @@ type AttachVisitToIncidentParams struct {
 
 func (q *Queries) AttachVisitToIncident(ctx context.Context, db DBTX, arg AttachVisitToIncidentParams) error {
 	_, err := db.ExecContext(ctx, attachVisitToIncident, arg.IncidentNumber, arg.Event, arg.Number)
+	return err
+}
+
+const bumpIncidentVersion = `-- name: BumpIncidentVersion :exec
+update INCIDENT
+set VERSION = VERSION + 1
+where EVENT = ? and NUMBER = ?
+`
+
+type BumpIncidentVersionParams struct {
+	Event  int32
+	Number int32
+}
+
+// BumpIncidentVersion is for mutations that change an incident's representation
+// without going through the version-guarded UpdateIncident query (Ranger
+// assignments, the peer of a link/unlink, field-report/visit reassignment).
+func (q *Queries) BumpIncidentVersion(ctx context.Context, db DBTX, arg BumpIncidentVersionParams) error {
+	_, err := db.ExecContext(ctx, bumpIncidentVersion, arg.Event, arg.Number)
+	return err
+}
+
+const bumpVisitVersion = `-- name: BumpVisitVersion :exec
+update VISIT
+set VERSION = VERSION + 1
+where EVENT = ? and NUMBER = ?
+`
+
+type BumpVisitVersionParams struct {
+	Event  int32
+	Number int32
+}
+
+// BumpVisitVersion is for mutations that change a visit's representation
+// without going through the version-guarded UpdateVisit query (Ranger
+// assignments).
+func (q *Queries) BumpVisitVersion(ctx context.Context, db DBTX, arg BumpVisitVersionParams) error {
+	_, err := db.ExecContext(ctx, bumpVisitVersion, arg.Event, arg.Number)
 	return err
 }
 
@@ -1435,7 +1473,7 @@ func (q *Queries) Events(ctx context.Context, db DBTX) ([]EventsRow, error) {
 }
 
 const fieldReport = `-- name: FieldReport :one
-select fr.event, fr.number, fr.created, fr.summary, fr.incident_number
+select fr.event, fr.number, fr.created, fr.summary, fr.incident_number, fr.version
 from FIELD_REPORT fr
 where fr.EVENT = ?
     and fr.NUMBER = ?
@@ -1459,8 +1497,27 @@ func (q *Queries) FieldReport(ctx context.Context, db DBTX, arg FieldReportParam
 		&i.FieldReport.Created,
 		&i.FieldReport.Summary,
 		&i.FieldReport.IncidentNumber,
+		&i.FieldReport.Version,
 	)
 	return i, err
+}
+
+const fieldReportVersion = `-- name: FieldReportVersion :one
+select VERSION
+from FIELD_REPORT
+where EVENT = ? and NUMBER = ?
+`
+
+type FieldReportVersionParams struct {
+	Event  int32
+	Number int32
+}
+
+func (q *Queries) FieldReportVersion(ctx context.Context, db DBTX, arg FieldReportVersionParams) (int32, error) {
+	row := db.QueryRowContext(ctx, fieldReportVersion, arg.Event, arg.Number)
+	var version int32
+	err := row.Scan(&version)
+	return version, err
 }
 
 const fieldReport_ReportEntries = `-- name: FieldReport_ReportEntries :many
@@ -1518,7 +1575,7 @@ func (q *Queries) FieldReport_ReportEntries(ctx context.Context, db DBTX, arg Fi
 }
 
 const fieldReports = `-- name: FieldReports :many
-select fr.event, fr.number, fr.created, fr.summary, fr.incident_number
+select fr.event, fr.number, fr.created, fr.summary, fr.incident_number, fr.version
 from FIELD_REPORT fr
 where fr.EVENT = ?
 `
@@ -1542,6 +1599,7 @@ func (q *Queries) FieldReports(ctx context.Context, db DBTX, event int32) ([]Fie
 			&i.FieldReport.Created,
 			&i.FieldReport.Summary,
 			&i.FieldReport.IncidentNumber,
+			&i.FieldReport.Version,
 		); err != nil {
 			return nil, err
 		}
@@ -1615,7 +1673,7 @@ func (q *Queries) FieldReports_ReportEntries(ctx context.Context, db DBTX, arg F
 
 const incident = `-- name: Incident :one
 select
-    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_address, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_address, i.location_description, i.version,
     (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -1666,6 +1724,7 @@ func (q *Queries) Incident(ctx context.Context, db DBTX, arg IncidentParams) (In
 		&i.Incident.LocationName,
 		&i.Incident.LocationAddress,
 		&i.Incident.LocationDescription,
+		&i.Incident.Version,
 		&i.IncidentTypeIds,
 		&i.FieldReportNumbers,
 		&i.VisitNumbers,
@@ -1730,6 +1789,24 @@ func (q *Queries) IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRo
 		return nil, err
 	}
 	return items, nil
+}
+
+const incidentVersion = `-- name: IncidentVersion :one
+select VERSION
+from INCIDENT
+where EVENT = ? and NUMBER = ?
+`
+
+type IncidentVersionParams struct {
+	Event  int32
+	Number int32
+}
+
+func (q *Queries) IncidentVersion(ctx context.Context, db DBTX, arg IncidentVersionParams) (int32, error) {
+	row := db.QueryRowContext(ctx, incidentVersion, arg.Event, arg.Number)
+	var version int32
+	err := row.Scan(&version)
+	return version, err
 }
 
 const incident_LinkedIncidents = `-- name: Incident_LinkedIncidents :many
@@ -1897,7 +1974,7 @@ func (q *Queries) Incident_ReportEntries(ctx context.Context, db DBTX, arg Incid
 
 const incidents = `-- name: Incidents :many
 select
-    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_address, i.location_description,
+    i.event, i.number, i.created, i.priority, i.state, i.started, i.closed, i.summary, i.location_name, i.location_address, i.location_description, i.version,
     (
         select coalesce(json_arrayagg(iit.INCIDENT_TYPE), "[]")
         from INCIDENT__INCIDENT_TYPE iit
@@ -1952,6 +2029,7 @@ func (q *Queries) Incidents(ctx context.Context, db DBTX, event int32) ([]Incide
 			&i.Incident.LocationName,
 			&i.Incident.LocationAddress,
 			&i.Incident.LocationDescription,
+			&i.Incident.Version,
 			&i.IncidentTypeIds,
 			&i.FieldReportNumbers,
 			&i.VisitNumbers,
@@ -2767,10 +2845,10 @@ func (q *Queries) UpdateEvent(ctx context.Context, db DBTX, arg UpdateEventParam
 	return err
 }
 
-const updateFieldReport = `-- name: UpdateFieldReport :exec
+const updateFieldReport = `-- name: UpdateFieldReport :execrows
 update FIELD_REPORT
-set SUMMARY = ?, INCIDENT_NUMBER = ?
-where EVENT = ? and NUMBER = ?
+set VERSION = VERSION + 1, SUMMARY = ?, INCIDENT_NUMBER = ?
+where EVENT = ? and NUMBER = ? and VERSION = ?
 `
 
 type UpdateFieldReportParams struct {
@@ -2778,20 +2856,27 @@ type UpdateFieldReportParams struct {
 	IncidentNumber sql.NullInt32
 	Event          int32
 	Number         int32
+	Version        int32
 }
 
-func (q *Queries) UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error {
-	_, err := db.ExecContext(ctx, updateFieldReport,
+// The VERSION bump must stay in the SET clause; see UpdateIncident.
+func (q *Queries) UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) (int64, error) {
+	result, err := db.ExecContext(ctx, updateFieldReport,
 		arg.Summary,
 		arg.IncidentNumber,
 		arg.Event,
 		arg.Number,
+		arg.Version,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateIncident = `-- name: UpdateIncident :exec
+const updateIncident = `-- name: UpdateIncident :execrows
 update INCIDENT set
+    VERSION = VERSION + 1,
     -- CREATED should be immutable, so it's not present in this UPDATE query
     PRIORITY = ?,
     STATE = ?,
@@ -2804,6 +2889,7 @@ update INCIDENT set
 where
     EVENT = ?
     and NUMBER = ?
+    and VERSION = ?
 `
 
 type UpdateIncidentParams struct {
@@ -2817,10 +2903,15 @@ type UpdateIncidentParams struct {
 	LocationDescription sql.NullString
 	Event               int32
 	Number              int32
+	Version             int32
 }
 
-func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error {
-	_, err := db.ExecContext(ctx, updateIncident,
+// The VERSION bump must stay in the SET clause: the MySQL driver reports rows
+// *changed* (not matched), so the bump guarantees that zero rows affected means
+// the WHERE clause didn't match (stale version or missing row), never that the
+// row matched but was already identical.
+func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) (int64, error) {
+	result, err := db.ExecContext(ctx, updateIncident,
 		arg.Priority,
 		arg.State,
 		arg.Started,
@@ -2831,8 +2922,12 @@ func (q *Queries) UpdateIncident(ctx context.Context, db DBTX, arg UpdateInciden
 		arg.LocationDescription,
 		arg.Event,
 		arg.Number,
+		arg.Version,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateIncidentType = `-- name: UpdateIncidentType :exec
@@ -2860,8 +2955,9 @@ func (q *Queries) UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateInc
 	return err
 }
 
-const updateVisit = `-- name: UpdateVisit :exec
+const updateVisit = `-- name: UpdateVisit :execrows
 update VISIT set
+    VERSION = VERSION + 1,
     -- CREATED should be immutable, so it's not present in this UPDATE query
     INCIDENT_NUMBER = ?,
     GUEST_PREFERRED_NAME = ?,
@@ -2893,6 +2989,7 @@ update VISIT set
 where
     EVENT = ?
     and NUMBER = ?
+    and VERSION = ?
 `
 
 type UpdateVisitParams struct {
@@ -2922,10 +3019,12 @@ type UpdateVisitParams struct {
 	ResourceOther        sql.NullString
 	Event                int32
 	Number               int32
+	Version              int32
 }
 
-func (q *Queries) UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParams) error {
-	_, err := db.ExecContext(ctx, updateVisit,
+// The VERSION bump must stay in the SET clause; see UpdateIncident.
+func (q *Queries) UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParams) (int64, error) {
+	result, err := db.ExecContext(ctx, updateVisit,
 		arg.IncidentNumber,
 		arg.GuestPreferredName,
 		arg.GuestLegalName,
@@ -2952,13 +3051,17 @@ func (q *Queries) UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParam
 		arg.ResourceOther,
 		arg.Event,
 		arg.Number,
+		arg.Version,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const visit = `-- name: Visit :one
 select
-    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_action_plan, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.guest_camp_contacts, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_sitter, s.resource_bed_id, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
+    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_action_plan, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.guest_camp_contacts, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_sitter, s.resource_bed_id, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other, s.version
 from
     VISIT s
 where
@@ -3006,8 +3109,27 @@ func (q *Queries) Visit(ctx context.Context, db DBTX, arg VisitParams) (VisitRow
 		&i.Visit.ResourcePogs,
 		&i.Visit.ResourceFoodBev,
 		&i.Visit.ResourceOther,
+		&i.Visit.Version,
 	)
 	return i, err
+}
+
+const visitVersion = `-- name: VisitVersion :one
+select VERSION
+from VISIT
+where EVENT = ? and NUMBER = ?
+`
+
+type VisitVersionParams struct {
+	Event  int32
+	Number int32
+}
+
+func (q *Queries) VisitVersion(ctx context.Context, db DBTX, arg VisitVersionParams) (int32, error) {
+	row := db.QueryRowContext(ctx, visitVersion, arg.Event, arg.Number)
+	var version int32
+	err := row.Scan(&version)
+	return version, err
 }
 
 const visit_Rangers = `-- name: Visit_Rangers :many
@@ -3117,7 +3239,7 @@ func (q *Queries) Visit_ReportEntries(ctx context.Context, db DBTX, arg Visit_Re
 
 const visits = `-- name: Visits :many
 select
-    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_action_plan, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.guest_camp_contacts, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_sitter, s.resource_bed_id, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other
+    s.event, s.number, s.created, s.incident_number, s.guest_preferred_name, s.guest_legal_name, s.guest_description, s.guest_action_plan, s.guest_camp_name, s.guest_camp_address, s.guest_camp_description, s.guest_camp_contacts, s.arrival_time, s.arrival_method, s.arrival_state, s.arrival_reason, s.arrival_belongings, s.departure_time, s.departure_method, s.departure_state, s.resource_sitter, s.resource_bed_id, s.resource_rest, s.resource_clothes, s.resource_pogs, s.resource_food_bev, s.resource_other, s.version
 from
     VISIT s
 where
@@ -3167,6 +3289,7 @@ func (q *Queries) Visits(ctx context.Context, db DBTX, event int32) ([]VisitsRow
 			&i.Visit.ResourcePogs,
 			&i.Visit.ResourceFoodBev,
 			&i.Visit.ResourceOther,
+			&i.Visit.Version,
 		); err != nil {
 			return nil, err
 		}

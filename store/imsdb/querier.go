@@ -21,6 +21,14 @@ type Querier interface {
 	AttachReportEntryToIncident(ctx context.Context, db DBTX, arg AttachReportEntryToIncidentParams) error
 	AttachReportEntryToVisit(ctx context.Context, db DBTX, arg AttachReportEntryToVisitParams) error
 	AttachVisitToIncident(ctx context.Context, db DBTX, arg AttachVisitToIncidentParams) error
+	// BumpIncidentVersion is for mutations that change an incident's representation
+	// without going through the version-guarded UpdateIncident query (Ranger
+	// assignments, the peer of a link/unlink, field-report/visit reassignment).
+	BumpIncidentVersion(ctx context.Context, db DBTX, arg BumpIncidentVersionParams) error
+	// BumpVisitVersion is for mutations that change a visit's representation
+	// without going through the version-guarded UpdateVisit query (Ranger
+	// assignments).
+	BumpVisitVersion(ctx context.Context, db DBTX, arg BumpVisitVersionParams) error
 	ClearEventAccessForExpression(ctx context.Context, db DBTX, arg ClearEventAccessForExpressionParams) error
 	ClearEventAccessForMode(ctx context.Context, db DBTX, arg ClearEventAccessForModeParams) error
 	CreateEvent(ctx context.Context, db DBTX, arg CreateEventParams) (int64, error)
@@ -85,12 +93,14 @@ type Querier interface {
 	EventReportEntryIDs(ctx context.Context, db DBTX, arg EventReportEntryIDsParams) ([]int32, error)
 	Events(ctx context.Context, db DBTX) ([]EventsRow, error)
 	FieldReport(ctx context.Context, db DBTX, arg FieldReportParams) (FieldReportRow, error)
+	FieldReportVersion(ctx context.Context, db DBTX, arg FieldReportVersionParams) (int32, error)
 	FieldReport_ReportEntries(ctx context.Context, db DBTX, arg FieldReport_ReportEntriesParams) ([]FieldReport_ReportEntriesRow, error)
 	FieldReports(ctx context.Context, db DBTX, event int32) ([]FieldReportsRow, error)
 	FieldReports_ReportEntries(ctx context.Context, db DBTX, arg FieldReports_ReportEntriesParams) ([]FieldReports_ReportEntriesRow, error)
 	Incident(ctx context.Context, db DBTX, arg IncidentParams) (IncidentRow, error)
 	IncidentType(ctx context.Context, db DBTX, id int32) (IncidentTypeRow, error)
 	IncidentTypes(ctx context.Context, db DBTX) ([]IncidentTypesRow, error)
+	IncidentVersion(ctx context.Context, db DBTX, arg IncidentVersionParams) (int32, error)
 	Incident_LinkedIncidents(ctx context.Context, db DBTX, arg Incident_LinkedIncidentsParams) ([]Incident_LinkedIncidentsRow, error)
 	Incident_Rangers(ctx context.Context, db DBTX, arg Incident_RangersParams) ([]Incident_RangersRow, error)
 	Incident_ReportEntries(ctx context.Context, db DBTX, arg Incident_ReportEntriesParams) ([]Incident_ReportEntriesRow, error)
@@ -127,11 +137,18 @@ type Querier interface {
 	SetVisitReportEntryStricken(ctx context.Context, db DBTX, arg SetVisitReportEntryStrickenParams) error
 	UnlinkIncidents(ctx context.Context, db DBTX, arg UnlinkIncidentsParams) error
 	UpdateEvent(ctx context.Context, db DBTX, arg UpdateEventParams) error
-	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) error
-	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) error
+	// The VERSION bump must stay in the SET clause; see UpdateIncident.
+	UpdateFieldReport(ctx context.Context, db DBTX, arg UpdateFieldReportParams) (int64, error)
+	// The VERSION bump must stay in the SET clause: the MySQL driver reports rows
+	// *changed* (not matched), so the bump guarantees that zero rows affected means
+	// the WHERE clause didn't match (stale version or missing row), never that the
+	// row matched but was already identical.
+	UpdateIncident(ctx context.Context, db DBTX, arg UpdateIncidentParams) (int64, error)
 	UpdateIncidentType(ctx context.Context, db DBTX, arg UpdateIncidentTypeParams) error
-	UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParams) error
+	// The VERSION bump must stay in the SET clause; see UpdateIncident.
+	UpdateVisit(ctx context.Context, db DBTX, arg UpdateVisitParams) (int64, error)
 	Visit(ctx context.Context, db DBTX, arg VisitParams) (VisitRow, error)
+	VisitVersion(ctx context.Context, db DBTX, arg VisitVersionParams) (int32, error)
 	Visit_Rangers(ctx context.Context, db DBTX, arg Visit_RangersParams) ([]Visit_RangersRow, error)
 	Visit_ReportEntries(ctx context.Context, db DBTX, arg Visit_ReportEntriesParams) ([]Visit_ReportEntriesRow, error)
 	Visits(ctx context.Context, db DBTX, event int32) ([]VisitsRow, error)

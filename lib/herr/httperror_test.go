@@ -65,6 +65,27 @@ func TestSrcWrap(t *testing.T) {
 	assert.ErrorIs(t, err, errInternal)
 }
 
+func TestConflict(t *testing.T) {
+	t.Parallel()
+	err := Conflict("try again", errors.New("contention"))
+	assert.Equal(t, http.StatusConflict, err.Code)
+	assert.Equal(t, "try again", err.ResponseMessage)
+	assert.Equal(t, "contention", err.InternalErr.Error())
+	assert.False(t, err.ExpectedError)
+}
+
+func TestPreconditionFailed(t *testing.T) {
+	t.Parallel()
+	err := PreconditionFailed("someone else edited this", nil)
+	assert.Equal(t, http.StatusPreconditionFailed, err.Code)
+	assert.Equal(t, "someone else edited this", err.ResponseMessage)
+	assert.False(t, err.ExpectedError)
+
+	// A 412 is normal operation, so callers mark it expected to skip logging.
+	err = err.SetExpectedError()
+	assert.True(t, err.ExpectedError)
+}
+
 func TestAsHTTPError(t *testing.T) {
 	t.Parallel()
 	// take an HTTPError, convert it to error, then use AsHTTPError to recover it

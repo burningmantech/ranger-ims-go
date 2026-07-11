@@ -325,24 +325,34 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber, version int32, 
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	// First create the visit, to lock in the visit number reservation
-	newVisitNumber, err := action.imsDBQ.NextVisitNumber(ctx, action.imsDBQ, event.ID)
-	if err != nil {
-		return 0, 0, "", herr.InternalServerError("Failed to find next Visit number", err).From("[NextVisitNumber]")
+	// First create the visit, to lock in the visit number reservation.
+	// The number allocation can race a concurrent creator; see newIncident.
+	now := conv.TimeToFloat(time.Now())
+	var newVisitNumber int32
+	for attempt := 1; ; attempt++ {
+		var err error
+		newVisitNumber, err = action.imsDBQ.NextVisitNumber(ctx, action.imsDBQ, event.ID)
+		if err != nil {
+			return 0, 0, "", herr.InternalServerError("Failed to find next Visit number", err).From("[NextVisitNumber]")
+		}
+		_, err = action.imsDBQ.CreateVisit(ctx, action.imsDBQ, imsdb.CreateVisitParams{
+			Event:   event.ID,
+			Number:  newVisitNumber,
+			Created: now,
+		})
+		if err == nil {
+			break
+		}
+		if !isDuplicateKeyError(err) {
+			return 0, 0, "", herr.InternalServerError("Failed to create visit", err).From("[CreateVisit]")
+		}
+		if attempt == maxNumberAllocAttempts {
+			return 0, 0, "", herr.Conflict("Visits are being created concurrently. Please try again.", err).From("[CreateVisit]")
+		}
 	}
 	newVisit.EventID = event.ID
 	newVisit.Event = event.Name
 	newVisit.Number = newVisitNumber
-	now := conv.TimeToFloat(time.Now())
-	createTheVisit := imsdb.CreateVisitParams{
-		Event:   newVisit.EventID,
-		Number:  newVisitNumber,
-		Created: now,
-	}
-	_, err = action.imsDBQ.CreateVisit(ctx, action.imsDBQ, createTheVisit)
-	if err != nil {
-		return 0, 0, "", herr.InternalServerError("Failed to create visit", err).From("[CreateVisit]")
-	}
 
 	version, errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, nil)
 	if errHTTP != nil {

@@ -383,16 +383,21 @@ func TestVisitETagAndReassignmentBumpsIncidents(t *testing.T) {
 	require.Greater(t, incidentAfter.Version, incidentBefore.Version)
 }
 
-// casInterceptor wraps the sqlc Querier so a test can act in the window
-// between an edit's read of the stored record and its version-guarded UPDATE —
-// the interleaving where a concurrent writer causes a CAS conflict. A nil hook
-// leaves the corresponding query untouched.
+// casInterceptor wraps the sqlc Querier so a test can act in a race window:
+// between an edit's read of the stored record and its version-guarded UPDATE
+// (the interleaving where a concurrent writer causes a CAS conflict), or
+// between a creation's number allocation and its INSERT (the interleaving
+// where a concurrent creator claims the same number). A nil hook leaves the
+// corresponding query untouched.
 type casInterceptor struct {
 	imsdb.Querier
 
 	beforeUpdateIncident    func(ctx context.Context, arg imsdb.UpdateIncidentParams)
 	beforeUpdateFieldReport func(ctx context.Context, arg imsdb.UpdateFieldReportParams)
 	beforeUpdateVisit       func(ctx context.Context, arg imsdb.UpdateVisitParams)
+	beforeCreateIncident    func(ctx context.Context, arg imsdb.CreateIncidentParams)
+	beforeCreateFieldReport func(ctx context.Context, arg imsdb.CreateFieldReportParams)
+	beforeCreateVisit       func(ctx context.Context, arg imsdb.CreateVisitParams)
 }
 
 func (q casInterceptor) UpdateIncident(ctx context.Context, db imsdb.DBTX, arg imsdb.UpdateIncidentParams) (int64, error) {

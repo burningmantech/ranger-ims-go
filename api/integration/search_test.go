@@ -19,6 +19,7 @@ package integration_test
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -160,6 +161,91 @@ func TestSearchAcrossEvents(t *testing.T) {
 	assert.Empty(t, results.Hits)
 }
 
+func TestSearchRegexp(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	// A search term that won't collide with data from any other test.
+	token := "rgxtok" + rand.NonCryptoText()
+
+	eventName := rand.NonCryptoText()
+	_, resp := adminUser.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp = adminUser.addWriter(ctx, eventName, userAliceHandle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// An Incident matching on its summary, and a Field Report matching only
+	// via report entry text.
+	incidentNumber := aliceUser.newIncidentSuccess(ctx, imsjson.Incident{
+		Event:   eventName,
+		State:   "new",
+		Summary: new("Lost bicycle " + token),
+	})
+	fieldReportNumber := aliceUser.newFieldReportSuccess(ctx, imsjson.FieldReport{
+		Event:   eventName,
+		Summary: new("An FR summary"),
+		ReportEntries: []imsjson.ReportEntry{
+			{Text: "field report about " + token},
+		},
+	})
+
+	// A pattern with a "." wildcard finds both records. The pattern itself is
+	// not a substring of anything stored, so this only works if the query is
+	// matched as a regexp.
+	pattern := "rgxt.k" + strings.TrimPrefix(token, "rgxtok")
+	results, resp := aliceUser.search(ctx, url.Values{"q": []string{pattern}, "regex": []string{"true"}})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, results.Hits, 2)
+	for _, hit := range results.Hits {
+		switch hit.Kind {
+		case imsjson.SearchResultKindIncident:
+			assert.Equal(t, incidentNumber, hit.Number)
+			assert.Equal(t, "Lost bicycle "+token, hit.Summary)
+		case imsjson.SearchResultKindFieldReport:
+			assert.Equal(t, fieldReportNumber, hit.Number)
+			// The snippet comes from the matched report entry, located by the
+			// regexp rather than by literal search.
+			assert.Contains(t, hit.Snippet, token)
+		default:
+			t.Fatalf("unexpected kind %v in hit", hit.Kind)
+		}
+	}
+
+	// The same string searched literally matches nothing.
+	results, resp = aliceUser.search(ctx, url.Values{"q": []string{pattern}})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Empty(t, results.Hits)
+
+	// Regexp matching is case-insensitive, like literal matching.
+	results, resp = aliceUser.search(ctx, url.Values{"q": []string{strings.ToUpper(pattern)}, "regex": []string{"true"}})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Len(t, results.Hits, 2)
+
+	// Anchors are honored: nothing stored *starts* with the token.
+	results, resp = aliceUser.search(ctx, url.Values{"q": []string{"^" + token}, "regex": []string{"true"}})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Empty(t, results.Hits)
+
+	// Alternation matches too.
+	results, resp = aliceUser.search(ctx, url.Values{
+		"q":     []string{"(zebra|bicycle) " + token},
+		"regex": []string{"true"},
+		"kinds": []string{imsjson.SearchResultKindIncident},
+	})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Len(t, results.Hits, 1)
+}
+
 func TestSearchAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -234,6 +320,16 @@ func TestSearchBadRequests(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	_, resp = aliceUser.search(ctx, url.Values{"q": []string{"abcd"}, "limit": []string{"NaN"}})
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Invalid regular expression
+	_, resp = aliceUser.search(ctx, url.Values{"q": []string{"ab(c"}, "regex": []string{"true"}})
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Invalid regex parameter
+	_, resp = aliceUser.search(ctx, url.Values{"q": []string{"abcd"}, "regex": []string{"banana"}})
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 }

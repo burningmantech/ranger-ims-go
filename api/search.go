@@ -17,11 +17,15 @@
 package api
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -32,9 +36,11 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"github.com/go-sql-driver/mysql"
 )
 
-// GetSearch serves cross-event search: it matches a text query against
+// GetSearch serves cross-event search: it matches a text query — a literal
+// substring by default, or a regular expression with regex=true — against
 // Incidents, Field Reports, and Visits in every Event the requestor is
 // permitted to read, returning a single merged result list.
 type GetSearch struct {
@@ -47,6 +53,7 @@ const (
 	searchMinQueryRunes  = 2
 	searchDefaultLimit   = 100
 	searchMaxLimit       = 1000
+	searchQueryTimeout   = 10 * time.Second
 	searchSnippetPrefix  = 40
 	searchSnippetMaxLen  = 200
 	searchSnippetMarker  = "…"
@@ -78,6 +85,14 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	query := strings.TrimSpace(req.Form.Get("q"))
 	if utf8.RuneCountInString(query) < searchMinQueryRunes {
 		return resp, herr.BadRequest("The 'q' parameter must be at least 2 characters long", nil)
+	}
+
+	regex := false
+	if regexParam := req.Form.Get("regex"); regexParam != "" {
+		regex, err = strconv.ParseBool(regexParam)
+		if err != nil {
+			return resp, herr.BadRequest("The 'regex' parameter must be a boolean", nil)
+		}
 	}
 
 	kinds := req.Form.Get("kinds")
@@ -138,16 +153,54 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		}
 	}
 
-	textLike := sql.NullString{String: "%" + escapeLikePattern(query) + "%", Valid: true}
+	// The search queries scan every readable event's records, and regexp
+	// matching in particular can cost tens of milliseconds per row on
+	// pathological patterns, so bound the total database work.
+	ctx, cancel := context.WithTimeout(ctx, searchQueryTimeout)
+	defer cancel()
+
+	// Exactly one of textLike and textRegexp is non-null; the Search* queries
+	// use whichever is set and let the other drop out.
+	var textLike, textRegexp sql.NullString
+	var queryRegexp *regexp.Regexp
+	if regex {
+		// Compiling validates the pattern before it reaches the database. Go's
+		// RE2 syntax is essentially a subset of the PCRE syntax that MariaDB's
+		// REGEXP_INSTR uses, so a pattern accepted here is valid there too.
+		// The (?i) mirrors the database's case-insensitive collation.
+		queryRegexp, err = regexp.Compile("(?i)" + query)
+		if err != nil {
+			return resp, herr.BadRequest("Invalid regular expression", err)
+		}
+		textRegexp = sql.NullString{String: query, Valid: true}
+	} else {
+		textLike = sql.NullString{String: "%" + escapeLikePattern(query) + "%", Valid: true}
+	}
+
+	// snippet extracts a result excerpt from a MATCHED_ENTRY_TEXT column,
+	// locating the match with whichever mode the search used.
+	snippet := func(matchedEntryText any) string {
+		text := textColumn(matchedEntryText)
+		matchAt := -1
+		if queryRegexp != nil {
+			if loc := queryRegexp.FindStringIndex(text); loc != nil {
+				matchAt = loc[0]
+			}
+		} else {
+			matchAt = indexFold(text, query)
+		}
+		return searchSnippet(text, matchAt)
+	}
 
 	if searchIncidents && len(incidentEventIDs) > 0 {
 		rows, err := action.imsDBQ.SearchIncidents(ctx, action.imsDBQ, imsdb.SearchIncidentsParams{
-			TextLike: textLike,
-			EventIds: incidentEventIDs,
-			Limit:    limit,
+			TextLike:   textLike,
+			TextRegexp: textRegexp,
+			EventIds:   incidentEventIDs,
+			Limit:      limit,
 		})
 		if err != nil {
-			return resp, herr.InternalServerError("Failed to search Incidents", err).From("[SearchIncidents]")
+			return resp, searchQueryError("Incidents", err).From("[SearchIncidents]")
 		}
 		for _, row := range rows {
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
@@ -157,7 +210,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 				Number:  row.Number,
 				Created: conv.FloatToTime(row.Created),
 				Summary: row.Summary.String,
-				Snippet: searchSnippet(textColumn(row.MatchedEntryText), query),
+				Snippet: snippet(row.MatchedEntryText),
 			})
 		}
 		resp.Truncated = resp.Truncated || len(rows) == int(limit)
@@ -165,12 +218,13 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 
 	if searchFieldReports && len(fieldReportEventIDs) > 0 {
 		rows, err := action.imsDBQ.SearchFieldReports(ctx, action.imsDBQ, imsdb.SearchFieldReportsParams{
-			TextLike: textLike,
-			EventIds: fieldReportEventIDs,
-			Limit:    limit,
+			TextLike:   textLike,
+			TextRegexp: textRegexp,
+			EventIds:   fieldReportEventIDs,
+			Limit:      limit,
 		})
 		if err != nil {
-			return resp, herr.InternalServerError("Failed to search Field Reports", err).From("[SearchFieldReports]")
+			return resp, searchQueryError("Field Reports", err).From("[SearchFieldReports]")
 		}
 		for _, row := range rows {
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
@@ -180,7 +234,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 				Number:   row.Number,
 				Created:  conv.FloatToTime(row.Created),
 				Summary:  row.Summary.String,
-				Snippet:  searchSnippet(textColumn(row.MatchedEntryText), query),
+				Snippet:  snippet(row.MatchedEntryText),
 				Incident: conv.SqlToInt32(row.IncidentNumber),
 			})
 		}
@@ -189,12 +243,13 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 
 	if searchVisits && len(visitEventIDs) > 0 {
 		rows, err := action.imsDBQ.SearchVisits(ctx, action.imsDBQ, imsdb.SearchVisitsParams{
-			TextLike: textLike,
-			EventIds: visitEventIDs,
-			Limit:    limit,
+			TextLike:   textLike,
+			TextRegexp: textRegexp,
+			EventIds:   visitEventIDs,
+			Limit:      limit,
 		})
 		if err != nil {
-			return resp, herr.InternalServerError("Failed to search Visits", err).From("[SearchVisits]")
+			return resp, searchQueryError("Visits", err).From("[SearchVisits]")
 		}
 		for _, row := range rows {
 			summary := row.GuestPreferredName.String
@@ -208,7 +263,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 				Number:   row.Number,
 				Created:  conv.FloatToTime(row.Created),
 				Summary:  summary,
-				Snippet:  searchSnippet(textColumn(row.MatchedEntryText), query),
+				Snippet:  snippet(row.MatchedEntryText),
 				Incident: conv.SqlToInt32(row.IncidentNumber),
 			})
 		}
@@ -243,15 +298,32 @@ func textColumn(v any) string {
 	return ""
 }
 
-// searchSnippet returns an excerpt of text around the first occurrence of
-// query, for display in search results. Matching here is simpler than the
-// database's collation-based matching, so the query may not be found, in
-// which case the excerpt comes from the start of the text.
-func searchSnippet(text, query string) string {
+// searchQueryError converts a failure of one of the Search* queries into an
+// HTTP error. A pattern that Go's regexp compiler accepted but the database's
+// PCRE engine rejected (MariaDB error 1139) is the client's fault, not ours,
+// and hitting the search deadline deserves better advice than a plain 500.
+func searchQueryError(what string, err error) *herr.HTTPError {
+	const mySQLErRegexpError = 1139
+	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+	if ok && mysqlErr.Number == mySQLErRegexpError {
+		return herr.BadRequest("Invalid regular expression", err)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return herr.New(http.StatusServiceUnavailable, "Search took too long — try a more specific query", err)
+	}
+	return herr.InternalServerError("Failed to search "+what, err)
+}
+
+// searchSnippet returns an excerpt of text around a match at byte offset
+// matchAt, for display in search results. The caller locates the match with
+// simpler semantics than the database's collation-based matching, so the
+// match may not have been found (matchAt < 0), in which case the excerpt
+// comes from the start of the text.
+func searchSnippet(text string, matchAt int) string {
 	if text == "" {
 		return ""
 	}
-	matchAt := max(indexFold(text, query), 0)
+	matchAt = max(matchAt, 0)
 
 	start := max(matchAt-searchSnippetPrefix, 0)
 	end := min(start+searchSnippetMaxLen, len(text))

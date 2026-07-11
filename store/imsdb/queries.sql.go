@@ -2348,7 +2348,7 @@ select
             and frre.FIELD_REPORT_NUMBER = fr.NUMBER
             and re.GENERATED = false
             and re.STRICKEN = false
-            and re.TEXT like ?
+            and (re.TEXT like ? or regexp_instr(re.TEXT, ?) > 0)
         order by re.CREATED
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
@@ -2357,7 +2357,7 @@ from FIELD_REPORT fr
         on e.ID = fr.EVENT
 where fr.EVENT in (/*SLICE:event_ids*/?)
     and (
-        fr.SUMMARY like ?
+        (fr.SUMMARY like ? or regexp_instr(fr.SUMMARY, ?) > 0)
         or exists (
             select 1
             from FIELD_REPORT__REPORT_ENTRY frre
@@ -2367,7 +2367,7 @@ where fr.EVENT in (/*SLICE:event_ids*/?)
                 and frre.FIELD_REPORT_NUMBER = fr.NUMBER
                 and re.GENERATED = false
                 and re.STRICKEN = false
-                and re.TEXT like ?
+                and (re.TEXT like ? or regexp_instr(re.TEXT, ?) > 0)
         )
     )
 order by fr.CREATED desc
@@ -2375,9 +2375,10 @@ limit ?
 `
 
 type SearchFieldReportsParams struct {
-	TextLike sql.NullString
-	EventIds []int32
-	Limit    int32
+	TextLike   sql.NullString
+	TextRegexp sql.NullString
+	EventIds   []int32
+	Limit      int32
 }
 
 type SearchFieldReportsRow struct {
@@ -2394,6 +2395,7 @@ func (q *Queries) SearchFieldReports(ctx context.Context, db DBTX, arg SearchFie
 	query := searchFieldReports
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	if len(arg.EventIds) > 0 {
 		for _, v := range arg.EventIds {
 			queryParams = append(queryParams, v)
@@ -2403,7 +2405,9 @@ func (q *Queries) SearchFieldReports(ctx context.Context, db DBTX, arg SearchFie
 		query = strings.Replace(query, "/*SLICE:event_ids*/?", "NULL", 1)
 	}
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.Limit)
 	rows, err := db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
@@ -2454,7 +2458,7 @@ select
             and ire.INCIDENT_NUMBER = i.NUMBER
             and re.GENERATED = false
             and re.STRICKEN = false
-            and re.TEXT like ?
+            and (re.TEXT like ? or regexp_instr(re.TEXT, ?) > 0)
         order by re.CREATED
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
@@ -2463,16 +2467,16 @@ from INCIDENT i
         on e.ID = i.EVENT
 where i.EVENT in (/*SLICE:event_ids*/?)
     and (
-        i.SUMMARY like ?
-        or i.LOCATION_NAME like ?
-        or i.LOCATION_ADDRESS like ?
-        or i.LOCATION_DESCRIPTION like ?
+        (i.SUMMARY like ? or regexp_instr(i.SUMMARY, ?) > 0)
+        or (i.LOCATION_NAME like ? or regexp_instr(i.LOCATION_NAME, ?) > 0)
+        or (i.LOCATION_ADDRESS like ? or regexp_instr(i.LOCATION_ADDRESS, ?) > 0)
+        or (i.LOCATION_DESCRIPTION like ? or regexp_instr(i.LOCATION_DESCRIPTION, ?) > 0)
         or exists (
             select 1
             from INCIDENT__RANGER ir
             where ir.EVENT = i.EVENT
                 and ir.INCIDENT_NUMBER = i.NUMBER
-                and ir.RANGER_HANDLE like ?
+                and (ir.RANGER_HANDLE like ? or regexp_instr(ir.RANGER_HANDLE, ?) > 0)
         )
         or exists (
             select 1
@@ -2481,7 +2485,7 @@ where i.EVENT in (/*SLICE:event_ids*/?)
                     on it.ID = iit.INCIDENT_TYPE
             where iit.EVENT = i.EVENT
                 and iit.INCIDENT_NUMBER = i.NUMBER
-                and it.NAME like ?
+                and (it.NAME like ? or regexp_instr(it.NAME, ?) > 0)
         )
         or exists (
             select 1
@@ -2492,7 +2496,7 @@ where i.EVENT in (/*SLICE:event_ids*/?)
                 and ire.INCIDENT_NUMBER = i.NUMBER
                 and re.GENERATED = false
                 and re.STRICKEN = false
-                and re.TEXT like ?
+                and (re.TEXT like ? or regexp_instr(re.TEXT, ?) > 0)
         )
     )
 order by i.CREATED desc
@@ -2500,9 +2504,10 @@ limit ?
 `
 
 type SearchIncidentsParams struct {
-	TextLike sql.NullString
-	EventIds []int32
-	Limit    int32
+	TextLike   sql.NullString
+	TextRegexp sql.NullString
+	EventIds   []int32
+	Limit      int32
 }
 
 type SearchIncidentsRow struct {
@@ -2516,15 +2521,19 @@ type SearchIncidentsRow struct {
 	MatchedEntryText interface{}
 }
 
-// The Search* queries below power the cross-event search API. Each matches a
-// case-insensitive LIKE pattern (the handler escapes user input and wraps it
-// in "%"), scoped to the events the requestor may read. The MATCHED_ENTRY_TEXT
-// column carries the text of one matching report entry, for display as a
+// The Search* queries below power the cross-event search API. Each matches
+// either a case-insensitive LIKE pattern (the handler escapes user input and
+// wraps it in "%") or a REGEXP pattern, scoped to the events the requestor may
+// read. Exactly one of text_like and text_regexp must be non-null: comparing
+// against a null pattern yields null, so the unused branch of each
+// "like ... or ... regexp ..." pair drops out. The MATCHED_ENTRY_TEXT column
+// carries the text of one matching report entry, for display as a
 // search-result snippet.
 func (q *Queries) SearchIncidents(ctx context.Context, db DBTX, arg SearchIncidentsParams) ([]SearchIncidentsRow, error) {
 	query := searchIncidents
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	if len(arg.EventIds) > 0 {
 		for _, v := range arg.EventIds {
 			queryParams = append(queryParams, v)
@@ -2534,12 +2543,19 @@ func (q *Queries) SearchIncidents(ctx context.Context, db DBTX, arg SearchIncide
 		query = strings.Replace(query, "/*SLICE:event_ids*/?", "NULL", 1)
 	}
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.Limit)
 	rows, err := db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
@@ -2591,7 +2607,7 @@ select
             and vre.VISIT_NUMBER = v.NUMBER
             and re.GENERATED = false
             and re.STRICKEN = false
-            and re.TEXT like ?
+            and (re.TEXT like ? or regexp_instr(re.TEXT, ?) > 0)
         order by re.CREATED
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
@@ -2600,17 +2616,17 @@ from VISIT v
         on e.ID = v.EVENT
 where v.EVENT in (/*SLICE:event_ids*/?)
     and (
-        v.GUEST_PREFERRED_NAME like ?
-        or v.GUEST_LEGAL_NAME like ?
-        or v.GUEST_DESCRIPTION like ?
-        or v.GUEST_CAMP_NAME like ?
-        or v.GUEST_CAMP_ADDRESS like ?
+        (v.GUEST_PREFERRED_NAME like ? or regexp_instr(v.GUEST_PREFERRED_NAME, ?) > 0)
+        or (v.GUEST_LEGAL_NAME like ? or regexp_instr(v.GUEST_LEGAL_NAME, ?) > 0)
+        or (v.GUEST_DESCRIPTION like ? or regexp_instr(v.GUEST_DESCRIPTION, ?) > 0)
+        or (v.GUEST_CAMP_NAME like ? or regexp_instr(v.GUEST_CAMP_NAME, ?) > 0)
+        or (v.GUEST_CAMP_ADDRESS like ? or regexp_instr(v.GUEST_CAMP_ADDRESS, ?) > 0)
         or exists (
             select 1
             from VISIT__RANGER vr
             where vr.EVENT = v.EVENT
                 and vr.VISIT_NUMBER = v.NUMBER
-                and vr.RANGER_HANDLE like ?
+                and (vr.RANGER_HANDLE like ? or regexp_instr(vr.RANGER_HANDLE, ?) > 0)
         )
         or exists (
             select 1
@@ -2621,7 +2637,7 @@ where v.EVENT in (/*SLICE:event_ids*/?)
                 and vre.VISIT_NUMBER = v.NUMBER
                 and re.GENERATED = false
                 and re.STRICKEN = false
-                and re.TEXT like ?
+                and (re.TEXT like ? or regexp_instr(re.TEXT, ?) > 0)
         )
     )
 order by v.CREATED desc
@@ -2629,9 +2645,10 @@ limit ?
 `
 
 type SearchVisitsParams struct {
-	TextLike sql.NullString
-	EventIds []int32
-	Limit    int32
+	TextLike   sql.NullString
+	TextRegexp sql.NullString
+	EventIds   []int32
+	Limit      int32
 }
 
 type SearchVisitsRow struct {
@@ -2650,6 +2667,7 @@ func (q *Queries) SearchVisits(ctx context.Context, db DBTX, arg SearchVisitsPar
 	query := searchVisits
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	if len(arg.EventIds) > 0 {
 		for _, v := range arg.EventIds {
 			queryParams = append(queryParams, v)
@@ -2659,12 +2677,19 @@ func (q *Queries) SearchVisits(ctx context.Context, db DBTX, arg SearchVisitsPar
 		query = strings.Replace(query, "/*SLICE:event_ids*/?", "NULL", 1)
 	}
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.TextLike)
+	queryParams = append(queryParams, arg.TextRegexp)
 	queryParams = append(queryParams, arg.Limit)
 	rows, err := db.QueryContext(ctx, query, queryParams...)
 	if err != nil {

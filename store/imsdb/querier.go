@@ -119,10 +119,13 @@ type Querier interface {
 	RemovePlaces(ctx context.Context, db DBTX, arg RemovePlacesParams) error
 	SchemaVersion(ctx context.Context, db DBTX) (int16, error)
 	SearchFieldReports(ctx context.Context, db DBTX, arg SearchFieldReportsParams) ([]SearchFieldReportsRow, error)
-	// The Search* queries below power the cross-event search API. Each matches a
-	// case-insensitive LIKE pattern (the handler escapes user input and wraps it
-	// in "%"), scoped to the events the requestor may read. The MATCHED_ENTRY_TEXT
-	// column carries the text of one matching report entry, for display as a
+	// The Search* queries below power the cross-event search API. Each matches
+	// either a case-insensitive LIKE pattern (the handler escapes user input and
+	// wraps it in "%") or a REGEXP pattern, scoped to the events the requestor may
+	// read. Exactly one of text_like and text_regexp must be non-null: comparing
+	// against a null pattern yields null, so the unused branch of each
+	// "like ... or ... regexp ..." pair drops out. The MATCHED_ENTRY_TEXT column
+	// carries the text of one matching report entry, for display as a
 	// search-result snippet.
 	SearchIncidents(ctx context.Context, db DBTX, arg SearchIncidentsParams) ([]SearchIncidentsRow, error)
 	SearchVisits(ctx context.Context, db DBTX, arg SearchVisitsParams) ([]SearchVisitsRow, error)

@@ -74,7 +74,10 @@ create table INCIDENT (
 
     -- Optimistic-concurrency version counter, surfaced to clients as an ETag.
     -- Bumped on every change to the incident's representation other than
-    -- report-entry appends.
+    -- report-entry changes. Report entries are append-only except for the
+    -- STRICKEN flag, a reversible boolean toggle that is audited via generated
+    -- entries — neither appends nor strikes can silently lose data, so neither
+    -- moves the version.
     `VERSION` integer not null default 1,
 
     foreign key (`EVENT`) references `EVENT`(ID),

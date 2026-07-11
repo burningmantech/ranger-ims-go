@@ -311,6 +311,13 @@ func (action PostEventAccess) maybeSetAccess(
 	// This function is very prone to transaction deadlock, because it does
 	// multiple transactional deletes and inserts. Add a timeout in here too,
 	// just to be safe that we don't end up holding the lock forever.
+	//
+	// Event-access writes are deliberately last-write-wins, with no
+	// optimistic-concurrency VERSION/ETag like incidents have: two admins
+	// editing the same event and mode concurrently can overwrite each other.
+	// That's acceptable because writes are admin-only and rare, this mutex
+	// serializes them, and the result is immediately visible (and fixable)
+	// on the admin page.
 	eventAccessWriteMu.Lock()
 	defer eventAccessWriteMu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

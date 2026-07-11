@@ -160,6 +160,11 @@ func addChangeReportEntries(
 	return nil
 }
 
+// The strike/unstrike handlers below deliberately do not bump the parent
+// record's VERSION/ETag: like appends, strikes cannot silently lose data,
+// so they are exempt from optimistic concurrency (see the VERSION column
+// comment in store/schema/current.sql).
+
 type EditFieldReportReportEntry struct {
 	imsDBQ      *store.DBQ
 	userStore   *directory.UserStore

@@ -17,7 +17,7 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/pull/673
+https://github.com/burningmantech/ranger-ims-go/commit/93bde89
 -->
 
 ## 2026-07
@@ -28,6 +28,11 @@ https://github.com/burningmantech/ranger-ims-go/pull/673
 
 ### Added
 
+- Added a proper multi-event Search page, which searches over all events a user can access at once and supports regexp-based queries. https://github.com/burningmantech/ranger-ims-go/pull/678 https://github.com/burningmantech/ranger-ims-go/commit/a7e1d2e
+- Added versioning of Incidents, Field Reports, and Visits, using the ETag mechanism so that two users modifying the same record at the same time can no longer stomp on each other's changes. https://github.com/burningmantech/ranger-ims-go/pull/680
+- Added a type filter (camp, art, mutant vehicle) to the Places table. https://github.com/burningmantech/ranger-ims-go/commit/2b3a74e
+- Added usage instructions to the Sanctuary Visit page. https://github.com/burningmantech/ranger-ims-go/commit/7451c37
+- Added `/healthz` (liveness) and `/readyz` (readiness) endpoints. Readiness verifies that the IMS database is reachable at the schema version the binary expects and that the directory source is answering; the `healthcheck` command now probes `/readyz`, so container health checks fail when the server can't actually serve traffic.
 - Added an IMS-native user store, allowing IMS to run without a Clubhouse database. This includes a new admin page for managing users in the IMS-native user tables. https://github.com/burningmantech/ranger-ims-go/commit/7be7b05
 - Added the ability to delete events, gated behind a flag that is never enabled in production. This lets local/test runs (e.g. Playwright) clean up the events they create. https://github.com/burningmantech/ranger-ims-go/commit/9fe35d5
 
@@ -37,6 +42,8 @@ https://github.com/burningmantech/ranger-ims-go/pull/673
 
 ### Fixed
 
+- Stopped concurrent creations of new Incidents, Field Reports, and Visits in the same event from contending over the same new number, by retrying with a fresh number when an insert loses that race. https://github.com/burningmantech/ranger-ims-go/commit/93bde89
+- Reduced the server's write timeout from 30 minutes to 30 seconds, so a wedged handler can no longer hold a connection for half an hour. The 30-minute allowance was only ever needed for long-lived SSE connections, which now get their own per-connection deadline instead.
 - Told password managers to ignore another field that isn't a password. https://github.com/burningmantech/ranger-ims-go/pull/671
 
 ## 2026-06

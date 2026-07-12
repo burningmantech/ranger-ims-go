@@ -38,6 +38,11 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 )
 
+// sseConnectionLifetime is how long an SSE connection may stay open before
+// the write deadline expires and the client must reconnect. It replaces the
+// server-wide WriteTimeout for the eventsource endpoint only.
+const sseConnectionLifetime = 30 * time.Minute
+
 func AddToMux(
 	mux *http.ServeMux,
 	es *EventSourcerer,
@@ -177,7 +182,26 @@ func AddToMux(
 	// The SSE stream only carries notification metadata (event and record
 	// numbers), not record contents; clients fetch the actual data through the
 	// authenticated endpoints above.
-	unauthed("GET /ims/api/eventsource", es.Server.Handler(EventSourceChannel), false)
+	sseHandler := es.Server.Handler(EventSourceChannel)
+	unauthed("GET /ims/api/eventsource",
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// The server-wide WriteTimeout is sized for ordinary API
+			// responses, so this long-lived connection needs a deadline of
+			// its own. When it expires, the client is disconnected and
+			// forced to reconnect.
+			_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(sseConnectionLifetime))
+			sseHandler.ServeHTTP(w, r)
+		}), false)
+
+	// Readiness: this process can serve real traffic (database reachable at
+	// the expected schema version, directory source answering). Liveness is
+	// /healthz, registered in AddBasicHandlers. Both live off the /ims/api
+	// prefix, unauthenticated and outside the action-logging middleware, so
+	// frequent load-balancer probes never touch the action log.
+	mux.Handle("GET /readyz", Adapt(
+		GetReadiness{db, userStore},
+		RecoverFromPanic(),
+	))
 
 	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins}, true)
 	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, true)
@@ -214,6 +238,15 @@ func AddBasicHandlers(mux *http.ServeMux) *http.ServeMux {
 		},
 	)
 
+	// Liveness: the process is up and serving HTTP. This says nothing about
+	// whether the database or directory are reachable — that's /readyz's job
+	// (registered in AddToMux, since it needs those dependencies).
+	mux.HandleFunc("GET /healthz",
+		func(w http.ResponseWriter, req *http.Request) {
+			herr.WriteOKResponse(w, "ack")
+		},
+	)
+
 	return mux
 }
 
@@ -223,7 +256,6 @@ type Adapter func(http.Handler) http.Handler
 // capture details about the response.
 type responseWriter struct {
 	http.ResponseWriter
-	http.Flusher
 
 	code int
 }
@@ -231,6 +263,18 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.code = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+// Unwrap lets http.ResponseController see through this wrapper to the
+// underlying writer, e.g. for SetWriteDeadline on the SSE connection.
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
+// Flush implements http.Flusher for handlers that type-assert for it
+// directly (the eventsource library does, without a checked assertion).
+func (rw *responseWriter) Flush() {
+	_ = http.NewResponseController(rw.ResponseWriter).Flush()
 }
 
 func LimitRequestBytes(maxRequestBytes int64) Adapter {
@@ -257,7 +301,7 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			writ := &responseWriter{w, w.(http.Flusher), http.StatusOK}
+			writ := &responseWriter{w, http.StatusOK}
 
 			next.ServeHTTP(writ, r)
 

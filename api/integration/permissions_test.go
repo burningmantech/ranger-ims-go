@@ -303,6 +303,8 @@ func TestPublicAPIs_RequireNoAuthn(t *testing.T) {
 	public := []MethodURL{
 		{http.MethodGet, "/"},
 		{http.MethodGet, "/ims/api/ping"},
+		{http.MethodGet, "/healthz"},
+		{http.MethodGet, "/readyz"},
 	}
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
 	for _, api := range public {

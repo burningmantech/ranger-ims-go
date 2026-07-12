@@ -52,10 +52,12 @@ func runHealthCheck(cmd *cobra.Command, args []string) {
 func runHealthCheckInternal(ctx context.Context, serverURL string) int {
 	client := http.Client{Timeout: time.Second * 5}
 
-	pingURL, err := url.JoinPath(serverURL, "ims/api/ping")
+	// The readiness endpoint checks the server's dependencies (database,
+	// directory), not just that the process is up.
+	readyURL, err := url.JoinPath(serverURL, "readyz")
 	must(err)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, readyURL, nil)
 	must(err)
 
 	// #nosec G704 // SSRF via taint analysis. The URL is hardcoded.
@@ -70,8 +72,8 @@ func runHealthCheckInternal(ctx context.Context, serverURL string) int {
 		fmt.Println("wanted status code 200, got", resp.StatusCode) //nolint:forbidigo
 		return 5
 	}
-	if strings.TrimSpace(string(body)) != "ack" {
-		fmt.Printf("wanted response of 'ack', got '%v'\n", string(body)) //nolint:forbidigo
+	if strings.TrimSpace(string(body)) != "ready" {
+		fmt.Printf("wanted response of 'ready', got '%v'\n", string(body)) //nolint:forbidigo
 		return 6
 	}
 	fmt.Println("OK") //nolint:forbidigo

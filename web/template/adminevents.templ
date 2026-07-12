@@ -25,6 +25,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
+<main id="main" tabindex="-1">
 <h1 id="doc-title">Events and Permissions</h1>
 @LoadingOverlay()
 
@@ -113,11 +114,11 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             <table class="table table-sm align-middle mb-0">
               <thead>
                 <tr>
-                  <th class="ps-3">Access level</th>
-                  <th>Who</th>
-                  <th>When</th>
-                  <th>Dates</th>
-                  <th></th>
+                  <th scope="col" class="ps-3">Access level</th>
+                  <th scope="col">Who</th>
+                  <th scope="col">When</th>
+                  <th scope="col">Dates</th>
+                  <th scope="col"><span class="visually-hidden">Actions</span></th>
                 </tr>
               </thead>
               <tbody class="access_rules">
@@ -228,6 +229,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
       />
     </div>
   </div>
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

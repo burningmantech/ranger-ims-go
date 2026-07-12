@@ -42,13 +42,24 @@ class MockDataTable {
     };
 
     ajax = { reload: (): void => this.runAjax() };
+    private initHandlers: (() => void)[] = [];
 
     constructor(_selector: string, options: DataTableOptions) {
         this.options = options;
         MockDataTable.lastInstance = this;
     }
 
+    on(event: string, cb: () => void): MockDataTable {
+        if (event === "init") {
+            this.initHandlers.push(cb);
+        }
+        return this;
+    }
+
     draw(): void {
+        for (const cb of this.initHandlers.splice(0)) {
+            cb();
+        }
         this.runAjax();
     }
 

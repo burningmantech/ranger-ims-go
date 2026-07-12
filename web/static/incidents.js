@@ -208,7 +208,9 @@ async function initIncidentsTable() {
     }
     // Wait until the table is initialized before starting to listen for updates.
     // https://github.com/burningmantech/ranger-ims-go/issues/399
+    const announceUpdate = ims.newUpdateAnnouncer("Incident");
     incidentsTable.on("init", function () {
+        ims.enableKeyboardSorting("queue_table");
         console.log("Table initialized. Requesting EventSource lock");
         ims.requestEventSourceLock();
         ims.newIncidentChannel().onmessage = async function (e) {
@@ -216,6 +218,7 @@ async function initIncidentsTable() {
                 console.log("Reloading the whole table to be cautious, as an SSE was missed");
                 incidentsTable.ajax.reload();
                 ims.clearErrorMessage();
+                ims.announce("Incidents list reloaded");
                 return;
             }
             const number = e.data.incident_number;
@@ -251,6 +254,7 @@ async function initIncidentsTable() {
             incidentsTable.processing(false);
             // maintain page location if user is not on page 1
             incidentsTable.draw("full-hold");
+            announceUpdate();
         };
     });
 }
@@ -461,16 +465,16 @@ function renderIncidentTypes(ids, type, _incident) {
 function initTableButtons() {
     for (const type of visibleIncidentTypes) {
         const newLi = el.showTypeTemplate.content.cloneNode(true);
-        const newLink = newLi.querySelector("a");
-        newLink.dataset["incidentTypeId"] = type.id?.toString();
-        newLink.textContent = type.name ?? "";
+        const newItem = newLi.querySelector("button");
+        newItem.dataset["incidentTypeId"] = type.id?.toString();
+        newItem.textContent = type.name ?? "";
         el.ulShowType.append(newLi);
     }
     for (const el of document.getElementsByClassName("dropdown-item-checkable")) {
         const htmlEl = el;
         htmlEl.addEventListener("click", function (e) {
             e.preventDefault();
-            htmlEl.classList.toggle("dropdown-item-checked");
+            setChecked(htmlEl, !htmlEl.classList.contains("dropdown-item-checked"));
             showCheckedTypes(true);
         });
     }
@@ -661,18 +665,19 @@ function showDays(daysBackToShow, replaceState) {
 //
 // Show type button handling
 //
+// setChecked marks a type filter item as on or off. The checkmark is drawn from
+// the class; aria-pressed is what tells assistive tech the toggle's state.
+function setChecked(item, checked) {
+    item.classList.toggle("dropdown-item-checked", checked);
+    item.setAttribute("aria-pressed", checked ? "true" : "false");
+}
 function setCheckedTypes(types, includeBlanks, includeOthers) {
-    for (const type of document.querySelectorAll('#ul_show_type > li > a')) {
+    for (const type of document.querySelectorAll('#ul_show_type > li > button')) {
         const typeIdStr = type.dataset["incidentTypeId"];
         const typeIdNum = ims.parseInt10(typeIdStr);
-        if (types.includes(typeIdNum) ||
+        setChecked(type, types.includes(typeIdNum) ||
             (includeBlanks && type.id === "show_blank_type") ||
-            (includeOthers && type.id === "show_other_type")) {
-            type.classList.add("dropdown-item-checked");
-        }
-        else {
-            type.classList.remove("dropdown-item-checked");
-        }
+            (includeOthers && type.id === "show_other_type"));
     }
 }
 function toggleCheckAllTypes() {
@@ -686,7 +691,7 @@ function toggleCheckAllTypes() {
 }
 function readCheckedTypes() {
     _showTypes = [];
-    for (const type of document.querySelectorAll('#ul_show_type > li > a')) {
+    for (const type of document.querySelectorAll('#ul_show_type > li > button')) {
         if (type.id === "show_blank_type") {
             _showBlankType = type.classList.contains("dropdown-item-checked");
         }

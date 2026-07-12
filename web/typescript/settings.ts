@@ -23,6 +23,7 @@ declare global {
         setPreferredState: (el: HTMLSelectElement) => Promise<void>;
         setPreferredVisitsStatus: (el: HTMLSelectElement) => Promise<void>;
         setPreferredRowsPerPage: (el: HTMLSelectElement) => Promise<void>;
+        setKeyboardShortcuts: (el: HTMLInputElement) => Promise<void>;
     }
 }
 
@@ -34,6 +35,7 @@ const el = {
     preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
     preferredVisitsStatus: ims.typedElement("preferred_visits_status", HTMLSelectElement),
     preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
+    keyboardShortcuts: ims.typedElement("keyboard_shortcuts", HTMLInputElement),
 };
 
 initSettingsPage();
@@ -56,9 +58,12 @@ async function initSettingsPage(): Promise<void> {
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
+    el.keyboardShortcuts.checked = ims.keyboardShortcutsEnabled();
+
     window.setPreferredState = setPreferredState;
     window.setPreferredVisitsStatus = setPreferredVisitsStatus;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;
+    window.setKeyboardShortcuts = setKeyboardShortcuts;
 }
 
 async function setPreferredState(el: HTMLSelectElement): Promise<void> {
@@ -86,4 +91,9 @@ async function setPreferredRowsPerPage(el: HTMLSelectElement): Promise<void> {
         ims.setPreferredTableRowsPerPage(null);
     }
     ims.controlHasSuccess(el);
+}
+
+async function setKeyboardShortcuts(el: HTMLInputElement): Promise<void> {
+    ims.setKeyboardShortcutsEnabled(el.checked);
+    ims.announce(el.checked ? "Single-key shortcuts on" : "Single-key shortcuts off");
 }

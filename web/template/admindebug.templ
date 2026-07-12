@@ -25,30 +25,32 @@ templ AdminDebug(deployment, versionName, versionRef string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
+<main id="main" tabindex="-1">
 <h1 id="doc-title">Server Debugging Details</h1>
 
 @ErrorInfo()
 
-<h4>Server Info</h4>
+<h2 class="h4">Server Info</h2>
 <p><button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Server Info</button></p>
 <div id="build-info-div" style="display:none;">
   <p id="build-info-p"></p>
   <pre id="build-info"></pre>
 </div>
 
-<h4>Garbage Collection</h4>
+<h2 class="h4">Garbage Collection</h2>
 <p><button id="perform-gc" onclick="performGC()" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
 <div id="gc-div" style="display:none;">
   <pre id="gc"></pre>
 </div>
 
-<h4>Runtime Metrics</h4>
+<h2 class="h4">Runtime Metrics</h2>
 <p><button id="show-metrics" onclick="fetchRuntimeMetrics()" class="btn btn-sm btn-default btn-primary">Fetch Runtime Metrics</button></p>
 <div id="runtime-metrics-div" style="display:none;">
   <p id="runtime-metrics-p"><a href="https://pkg.go.dev/runtime/metrics#hdr-Supported_metrics">See the metric definitions here</a></p>
   <pre id="runtime-metrics"></pre>
 </div>
 
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

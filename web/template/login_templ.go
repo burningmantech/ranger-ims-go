@@ -81,7 +81,7 @@ func Login(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Incident Management System</h1>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<main id=\"main\" tabindex=\"-1\"><h1 id=\"doc-title\">Incident Management System</h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -89,7 +89,7 @@ func Login(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form method=\"POST\" id=\"login_form\" class=\"form-horizontal\"><button type=\"button\" class=\"btn btn-block btn-danger if-authentication-failed hidden\">Authentication Failed</button> <button type=\"button\" class=\"btn btn-block btn-danger if-logged-in hidden\">You are already logged in as <span class=\"logged-in-user\"></span></button><p>Please log in with your Ranger Secret Clubhouse credentials.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form method=\"POST\" id=\"login_form\" class=\"form-horizontal\"><div role=\"alert\" class=\"alert alert-danger if-authentication-failed hidden\">Authentication Failed</div><div role=\"status\" class=\"alert alert-secondary if-logged-in hidden\">You are already logged in as <span class=\"logged-in-user\"></span></div><p>Please log in with your Ranger Secret Clubhouse credentials.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -105,7 +105,7 @@ func Login(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></form></main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

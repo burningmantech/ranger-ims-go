@@ -86,12 +86,12 @@ test("loading places fills each JSON textarea and its count label", async (): Pr
     await window.loadPlaces();
 
     expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
-    expect(document.getElementById("art-data-label")!.textContent).toBe("JSON Data (1)");
+    expect(document.getElementById("art-data-label")!.textContent).toBe("Art JSON Data (1)");
     expect(JSON.parse(field("mv-data").value)).toEqual([{ name: "Art Car" }]);
-    expect(document.getElementById("mv-data-label")!.textContent).toBe("JSON Data (1)");
+    expect(document.getElementById("mv-data-label")!.textContent).toBe("Mutant vehicle JSON Data (1)");
     // An empty category still renders an empty array and a zero count.
     expect(JSON.parse(field("camp-data").value)).toEqual([]);
-    expect(document.getElementById("camp-data-label")!.textContent).toBe("JSON Data (0)");
+    expect(document.getElementById("camp-data-label")!.textContent).toBe("Camp JSON Data (0)");
 });
 
 test("submitting the form posts the parsed places to the event's places endpoint", async (): Promise<void> => {

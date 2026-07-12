@@ -106,6 +106,10 @@ function initPlacesTable() {
     destInitSearchField();
     destInitSearch();
     ims.clearErrorMessage();
+
+    placesTable!.on("init", function (): void {
+        ims.enableKeyboardSorting("places_table");
+    });
 }
 
 declare let DataTable: any;

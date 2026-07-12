@@ -18,6 +18,9 @@
 "use strict";
 import * as ims from "./ims.js";
 let visit = null;
+// Announces (to assistive tech) that someone else has changed this Visit while
+// it's open, which is otherwise a silent redraw of the page.
+const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Visit was updated");
 // The ETag from the last read of this visit, sent back as If-Match on edits
 // so that the server can reject an edit based on stale data (HTTP 412).
 let visitETag = null;
@@ -138,6 +141,7 @@ async function initSanctuaryVisitPage() {
         if (updateAll || (eventId === ims.pathIds.eventId && number === ims.pathIds.visitNumber)) {
             console.log("Got visit update: " + number);
             await loadAndDisplayVisit();
+            remoteUpdates.announceUpdate();
         }
     };
     const helpModal = ims.bsModal(document.getElementById("helpModal"));
@@ -328,6 +332,7 @@ function drawVisitTitle(mode) {
 // each edit must carry the ETag produced by the previous one.
 let sendEditsChain = Promise.resolve({ err: null });
 function sendEdits(edits) {
+    remoteUpdates.noteLocalEdit();
     sendEditsChain = sendEditsChain.then(() => sendEditsNow(edits), () => sendEditsNow(edits));
     return sendEditsChain;
 }
@@ -681,6 +686,7 @@ function drawRangers() {
         if (ranger.role) {
             rangerLi.querySelector("input").value = ranger.role;
         }
+        rangerLi.querySelector("button").ariaLabel = `Remove Ranger ${handle}`;
         rangersElement.append(rangerFragment);
     }
 }

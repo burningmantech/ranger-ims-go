@@ -32,6 +32,7 @@ const accessTokenRefreshAfterKey = "access_token_refresh_after";
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
 const visitsPreferredStatusKey = "preferred_visits_status";
+const keyboardShortcutsKey = "keyboard_shortcuts_enabled";
 export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 //
 // HTML encoding
@@ -284,18 +285,27 @@ export function unhide(selector) {
         el.classList.remove("hidden");
     });
 }
-// Add an error indication to a control
+// Add an error indication to a control.
+//
+// The is-invalid class is a red border, which is no use to a screen reader (or
+// to anyone who can't distinguish the color), so also mark the control invalid
+// in the accessibility tree. Callers pair this with setErrorMessage, which is
+// what actually announces what went wrong.
 export function controlHasError(element, clearTimeout = 5000) {
     element.classList.remove("is-valid");
     element.classList.add("is-invalid");
+    element.setAttribute("aria-invalid", "true");
     setTimeout(() => {
         controlClear(element);
     }, clearTimeout);
 }
-// Add a success indication to a control
+// Add a success indication to a control. The green border is likewise invisible
+// to assistive tech, so say that the edit was saved.
 export function controlHasSuccess(element, clearTimeout = 1000) {
     element.classList.remove("is-invalid");
+    element.removeAttribute("aria-invalid");
     element.classList.add("is-valid");
+    announce("Saved");
     setTimeout(() => {
         controlClear(element);
     }, clearTimeout);
@@ -304,6 +314,7 @@ export function controlHasSuccess(element, clearTimeout = 1000) {
 function controlClear(element) {
     element.classList.remove("is-invalid");
     element.classList.remove("is-valid");
+    element.removeAttribute("aria-invalid");
 }
 //
 // Initialize the page. This should be called by each page after loading the DOM.
@@ -1340,17 +1351,82 @@ function subscribeToUpdates(closed) {
     });
 }
 // Set the user-visible error information on the page to the provided string.
+//
+// The banner is a role="alert" live region, but a live region that is
+// display:none is not in the accessibility tree, so text written into it while
+// it's still hidden is never announced. Unhide the banner *before* filling it
+// in, so that a screen reader sees an alert appear with something in it.
 export function setErrorMessage(msg) {
     msg = `Error: ${msg}`;
-    const errText = document.getElementById("error_text");
-    if (errText) {
-        errText.textContent = msg;
-    }
     const errInfo = document.getElementById("error_info");
     if (errInfo) {
         errInfo.classList.remove("hidden");
         errInfo.scrollIntoView();
     }
+    const errText = document.getElementById("error_text");
+    if (errText) {
+        errText.textContent = msg;
+    }
+}
+// announce says something to assistive tech via the page's polite live region,
+// for changes that are otherwise only visual. Callers should keep these terse
+// and infrequent: a screen reader reads every one of them aloud.
+export function announce(msg) {
+    const region = document.getElementById("aria_live");
+    if (!region) {
+        return;
+    }
+    // Rewriting a live region with the text it already holds is not a mutation,
+    // so a repeated message ("Saved", then "Saved" again) would be announced
+    // only once. Clear it, then set the text in a later task so the two land as
+    // separate mutations.
+    region.textContent = "";
+    setTimeout(() => {
+        region.textContent = msg;
+    }, 0);
+}
+// newUpdateAnnouncer returns a function to call on each live (SSE) update of a
+// table. On a busy night these arrive in bursts, and a screen reader that reads
+// out every single row change is unusable, so the burst is coalesced: nothing
+// is said until the updates stop for debounceMs, and then only how many rows
+// changed.
+export function newUpdateAnnouncer(noun, debounceMs = 3000) {
+    let count = 0;
+    let timer;
+    return () => {
+        count++;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            announce(count === 1 ? `1 ${noun} updated` : `${count} ${noun}s updated`);
+            count = 0;
+        }, debounceMs);
+    };
+}
+// newRemoteUpdateAnnouncer is the same idea for a detail page, which redraws
+// itself whenever its record changes. Those changes include the user's own
+// saves, which the server echoes back over SSE and which already announce
+// "Saved" — so only an update that didn't follow a local edit is worth saying
+// out loud. That's the one the user can't otherwise know about: someone else
+// editing the record they're looking at.
+export function newRemoteUpdateAnnouncer(msg, debounceMs = 3000) {
+    let lastLocalEdit = 0;
+    let timer;
+    return {
+        noteLocalEdit: () => {
+            lastLocalEdit = Date.now();
+        },
+        announceUpdate: () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                // The echo of our own save lands ~debounceMs ago by the time
+                // this fires; anything older than that came from elsewhere.
+                if (Date.now() - lastLocalEdit < debounceMs + 1000) {
+                    return;
+                }
+                announce(msg);
+            }, debounceMs);
+        },
+    };
 }
 export function clearErrorMessage() {
     const errText = document.getElementById("error_text");
@@ -1361,6 +1437,53 @@ export function clearErrorMessage() {
     if (errInfo) {
         errInfo.classList.add("hidden");
     }
+}
+// DataTables renders each column's sort control as a <span role="button"> that
+// has an aria-label but no tabindex, so a keyboard-only user can't reach it and
+// can't sort any table at all (WCAG 2.1.1). Make those controls focusable, and
+// activatable with Enter and Space like the buttons they claim to be.
+//
+// Call this from the table's "init" handler, once the headers exist.
+export function enableKeyboardSorting(tableId) {
+    const table = document.getElementById(tableId);
+    // DataTables renders the header the user actually sees as a *clone*, in a
+    // separate table alongside the original, whose own header is then hidden.
+    // Both live inside the DataTables container, so work on that: pinning the
+    // original's header alone would put the tabindex on invisible elements and
+    // the key handler somewhere the events never reach.
+    const container = table?.closest(".dt-container");
+    if (!container) {
+        return;
+    }
+    function makeSortControlsFocusable() {
+        for (const order of container.querySelectorAll("thead .dt-column-order")) {
+            if (order.tabIndex !== 0) {
+                order.tabIndex = 0;
+            }
+        }
+    }
+    makeSortControlsFocusable();
+    // DataTables rebuilds the header cells after init (when it works out the
+    // column types) and again on redraws, discarding the tabindex each time.
+    // Watch for that and put it back. Only childList mutations are observed, so
+    // the tabIndex writes above don't retrigger this.
+    new MutationObserver(makeSortControlsFocusable).observe(container, {
+        childList: true,
+        subtree: true,
+    });
+    // Delegated, so it too survives the header being rebuilt.
+    container.addEventListener("keydown", function (e) {
+        const target = e.target;
+        if (!(target instanceof HTMLElement) || !target.classList.contains("dt-column-order")) {
+            return;
+        }
+        if (e.key !== "Enter" && e.key !== " ") {
+            return;
+        }
+        // Space would otherwise scroll the page.
+        e.preventDefault();
+        target.click();
+    });
 }
 export function bsModal(el) {
     const modal = new bootstrap.Modal(el);
@@ -1471,6 +1594,7 @@ export function clearLocalStorage() {
     localStorage.removeItem(incidentsPreferredStateKey);
     localStorage.removeItem(visitsPreferredStatusKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
+    localStorage.removeItem(keyboardShortcutsKey);
 }
 export function clearSessionStorage() {
     sessionStorage.clear();
@@ -1506,7 +1630,16 @@ export function hideLoadingOverlay() {
 // Returns whether an input text-ish field is active. This is meant to talk about fields
 // for which keyboard a-z letters are used, such as text field and select fields.
 export function blockKeyboardShortcutFieldActive() {
+    // IMS's shortcuts are single characters with no modifier, which speech-input
+    // users trigger by accident just by talking. WCAG 2.1.4 therefore requires
+    // that they be switchable; the Settings page offers the switch.
+    if (!keyboardShortcutsEnabled()) {
+        return true;
+    }
     if (document.activeElement === document.body) {
+        return false;
+    }
+    if (document.activeElement?.id === "main") {
         return false;
     }
     if (document.activeElement instanceof HTMLElement && document.activeElement.classList.contains("modal")) {
@@ -1518,7 +1651,22 @@ export function blockKeyboardShortcutFieldActive() {
     if (document.activeElement instanceof HTMLButtonElement) {
         return false;
     }
+    if (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable) {
+        return true;
+    }
     return true;
+}
+// Single-key shortcuts are on unless the user has turned them off in Settings.
+export function keyboardShortcutsEnabled() {
+    return localStorage.getItem(keyboardShortcutsKey) !== "false";
+}
+export function setKeyboardShortcutsEnabled(enabled) {
+    if (enabled) {
+        localStorage.removeItem(keyboardShortcutsKey);
+    }
+    else {
+        localStorage.setItem(keyboardShortcutsKey, "false");
+    }
 }
 // Remove the old LocalStorage caches that IMS no longer uses, so that
 // they can't act against the ~5 MB per-domain limit of HTML5 LocalStorage.

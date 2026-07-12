@@ -182,6 +182,10 @@ async function initAdminActionLogsPage(): Promise<void> {
         ],
     });
 
+    actionLogsTable!.on("init", function (): void {
+        ims.enableKeyboardSorting("action_logs_table");
+    });
+
     actionLogsTable!.draw();
 }
 

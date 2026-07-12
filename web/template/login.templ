@@ -27,15 +27,16 @@ templ Login(deployment, versionName, versionRef string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
+<main id="main" tabindex="-1">
 <h1 id="doc-title">Incident Management System</h1>
 
 @ErrorInfo()
 
 <form method="POST" id="login_form" class="form-horizontal">
 
-<button type="button" class="btn btn-block btn-danger if-authentication-failed hidden">Authentication Failed</button>
-<button type="button" class="btn btn-block btn-danger if-logged-in hidden">You are already logged in as <span
-        class="logged-in-user"/></button>
+<div role="alert" class="alert alert-danger if-authentication-failed hidden">Authentication Failed</div>
+<div role="status" class="alert alert-secondary if-logged-in hidden">You are already logged in as <span
+        class="logged-in-user"/></div>
 
 <p>
   Please log in with your Ranger Secret Clubhouse credentials.
@@ -66,6 +67,7 @@ templ Login(deployment, versionName, versionRef string) {
 </div>
 
 </form>
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

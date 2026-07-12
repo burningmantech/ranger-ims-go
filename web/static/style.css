@@ -32,7 +32,7 @@
 
 .card {
   --bs-card-spacer-x: 0.5rem;
-  --bs-card-spacer-y: 0;
+  --bs-card-spacer-y: 0.25rem;
   --bs-card-cap-padding-x: 0.7rem;
   --bs-card-cap-padding-y: 0.2rem;
   --bs-card-cap-bg: rgba(var(--bs-body-color-rgb), 0.09);
@@ -192,7 +192,34 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--font-size-smaller);
 }
 
+/*
+ * IMS links are flat by default, which suits the app's chrome (nav, dropdowns,
+ * list groups, table cells) but not prose: a link sitting in a block of text
+ * and distinguished from it only by color fails WCAG 1.4.1. So underline links
+ * in running text, and give other plain links an underline on hover/focus as a
+ * non-color cue that they're interactive.
+ *
+ * Links that are styled as components -- buttons, nav items, dropdown items,
+ * pagination -- already look interactive, so they stay flat throughout.
+ */
 a {
+  text-decoration: none;
+}
+
+a:not(.btn, .nav-link, .navbar-brand, .dropdown-item, .page-link):hover,
+a:not(.btn, .nav-link, .navbar-brand, .dropdown-item, .page-link):focus-visible {
+  text-decoration: underline;
+}
+
+main :is(p, li) a:not(.btn),
+.modal-body :is(p, li) a:not(.btn) {
+  text-decoration: underline;
+}
+
+/* ...but list groups and cards are chrome, not prose. */
+main .list-group-item a,
+main .card-header a,
+main .dropdown-item {
   text-decoration: none;
 }
 
@@ -262,6 +289,29 @@ h1 {
 
 .badge-hidden {
   float: right !important;
+}
+
+/*
+ * Bootstrap's .badge forces white text, which is unreadable on the light
+ * backgrounds of .btn-warning and .btn-light. Defer to the button's own
+ * (theme-aware, contrast-checked) foreground color instead.
+ */
+.badge.btn-warning,
+.badge.btn-light {
+  color: var(--bs-btn-color);
+}
+
+/*
+ * Bootstrap's .btn-outline-secondary keeps its light-theme grey (#6c757d) in
+ * dark mode, where it doesn't have enough contrast against the dark background.
+ * Use the theme's own body/border colors, which do.
+ */
+[data-bs-theme="dark"] .btn-outline-secondary {
+  --bs-btn-color: var(--bs-body-color);
+  --bs-btn-border-color: var(--bs-border-color);
+  --bs-btn-hover-color: var(--bs-body-color);
+  --bs-btn-hover-bg: var(--bs-secondary-bg);
+  --bs-btn-hover-border-color: var(--bs-border-color);
 }
 
 .hide-history .report_entry_system {
@@ -339,6 +389,19 @@ h1 {
 
 .hidden {
   display: none !important;
+}
+
+/* Bootstrap's .visually-hidden-focusable reveals this on keyboard focus; these
+   rules just make it look like a button when it appears. */
+.skip-link:focus-visible {
+  display: inline-block;
+  margin: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  outline: 2px solid var(--bs-primary);
+  text-decoration: none;
 }
 
 .dropdown-item-checkable {

@@ -155,7 +155,7 @@ async function loadPlaces() {
             arts.push(ed.external_data);
         }
         el.artData.value = JSON.stringify(arts, null, 2);
-        el.artDataLabel.textContent = `JSON Data (${arts.length})`;
+        el.artDataLabel.textContent = `Art JSON Data (${arts.length})`;
     }
     {
         const camps = [];
@@ -163,7 +163,7 @@ async function loadPlaces() {
             camps.push(ed.external_data);
         }
         el.campData.value = JSON.stringify(camps, null, 2);
-        el.campDataLabel.textContent = `JSON Data (${camps.length})`;
+        el.campDataLabel.textContent = `Camp JSON Data (${camps.length})`;
     }
     {
         const mvs = [];
@@ -171,7 +171,7 @@ async function loadPlaces() {
             mvs.push(ed.external_data);
         }
         el.mvData.value = JSON.stringify(mvs, null, 2);
-        el.mvDataLabel.textContent = `JSON Data (${mvs.length})`;
+        el.mvDataLabel.textContent = `Mutant vehicle JSON Data (${mvs.length})`;
     }
     {
         const others = [];
@@ -179,6 +179,6 @@ async function loadPlaces() {
             others.push(ed.external_data);
         }
         el.otherData.value = JSON.stringify(others, null, 2);
-        el.otherDataLabel.textContent = `JSON Data (${others.length})`;
+        el.otherDataLabel.textContent = `Other JSON Data (${others.length})`;
     }
 }

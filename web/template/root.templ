@@ -25,6 +25,7 @@ templ Root(deployment, versionName, versionRef string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
+<main id="main" tabindex="-1">
 <h1 id="doc-title">Incident Management System</h1>
 
 @ErrorInfo()
@@ -64,6 +65,7 @@ templ Root(deployment, versionName, versionRef string) {
     Log Out
   </a>
 </div>
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

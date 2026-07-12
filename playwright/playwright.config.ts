@@ -43,6 +43,9 @@ export default defineConfig({
   ],
   /* Possibly wait upto this long for expectations. IMS can be slow. */
   expect: { timeout: 15_000 },
+  /* With a 15s expect timeout, the default 30s per-test budget leaves room
+   * for barely two slow expectations; give tests more headroom. */
+  timeout: 60_000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -55,30 +58,43 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
-  /* Configure projects for major browsers */
+  /* Configure projects for major browsers. The functional suite runs on all
+   * of them; the accessibility suite runs only on chromium, since axe-core
+   * evaluates the same DOM and ARIA semantics in every browser. */
   projects: [
     {
+      name: 'a11y',
+      testMatch: /a11y\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+    {
       name: 'chromium',
+      testIgnore: /a11y\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
 
     {
       name: 'firefox',
+      testIgnore: /a11y\.spec\.ts/,
       use: { ...devices['Desktop Firefox'] },
     },
 
     {
       name: 'webkit',
+      testIgnore: /a11y\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
 
     /* Test against mobile viewports. */
     {
       name: 'Mobile Chrome',
+      testIgnore: /a11y\.spec\.ts/,
       use: { ...devices['Pixel 5'] },
     },
     {
       name: 'Mobile Safari',
+      testIgnore: /a11y\.spec\.ts/,
       use: { ...devices['iPhone 12'] },
     },
 

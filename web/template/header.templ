@@ -20,9 +20,17 @@ import "strings"
 
 templ Header(deployment string) {
 <header>
+    <a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>
     if strings.ToLower(deployment) != "production" {
-        <div class="nonprod-warning text-center" title="This environment is designed for testing or training, and permissions are generally open to all Rangers. Don't add anything to this IMS instance about real participants or pertaining to sensitive Ranger operational details.">
+        <!-- The detail is a hover tooltip for sighted mouse users; the same text is
+             repeated for assistive tech, which doesn't reliably surface `title`. -->
+        <div class="nonprod-warning text-center" role="note"
+             title="This environment is designed for testing or training, and permissions are generally open to all Rangers. Don't add anything to this IMS instance about real participants or pertaining to sensitive Ranger operational details.">
         This is a {strings.ToLower(deployment)} server. <wbr />Use fake data only!
+        <span class="visually-hidden">
+        This environment is designed for testing or training, and permissions are generally open to all Rangers.
+        Don't add anything to this IMS instance about real participants or pertaining to sensitive Ranger operational details.
+        </span>
         </div>
     }
 </header>

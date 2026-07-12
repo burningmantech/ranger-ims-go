@@ -16,8 +16,20 @@
 
 package template
 
+// ErrorInfo is the page's error banner. role="alert" makes a screen reader
+// announce the message as soon as it appears; see setErrorMessage in ims.ts,
+// which must unhide the banner before writing the text into it.
 templ ErrorInfo() {
-<div id="error_info" class="hidden text-danger">
+<div id="error_info" class="hidden text-danger-emphasis" role="alert">
   <p id="error_text"></p>
 </div>
+@LiveRegion()
+}
+
+// LiveRegion is an off-screen region that announce() in ims.ts writes to, so
+// that changes which are only visual (a save landing, rows arriving over SSE)
+// are also reported to assistive tech. It's polite: announcements wait for a
+// pause rather than interrupting.
+templ LiveRegion() {
+<div id="aria_live" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 }

@@ -126,7 +126,7 @@ test("the filter controls and per-type checkboxes are wired", async (): Promise<
 
     // The type filter list gets one checkable entry per visible incident type.
     await vi.waitFor((): void => {
-        expect(document.querySelectorAll("#ul_show_type a[data-incident-type-id]").length).toBe(2);
+        expect(document.querySelectorAll("#ul_show_type button[data-incident-type-id]").length).toBe(2);
     });
 });
 
@@ -251,7 +251,7 @@ test("clicking a single type checkbox narrows the type filter", async (): Promis
     // Start from a clean slate with nothing checked.
     window.toggleCheckAllTypes();
     // Check only the "Junk" type (id 1), which is on incident[0] but not incident[1].
-    const junk = document.querySelector('#ul_show_type a[data-incident-type-id="1"]') as HTMLElement;
+    const junk = document.querySelector('#ul_show_type button[data-incident-type-id="1"]') as HTMLElement;
     junk.click();
 
     expect(table.fixedSearch("type", 0)).toBe(true); // has type 1

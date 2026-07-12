@@ -45,6 +45,10 @@ declare global {
 
 let incident: ims.Incident|null = null;
 
+// Announces (to assistive tech) that someone else has changed this Incident
+// while it's open, which is otherwise a silent redraw of the page.
+const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Incident was updated");
+
 // The ETag from the last read of this incident, sent back as If-Match on
 // edits so that the server can reject an edit based on stale data (HTTP 412).
 let incidentETag: string|null = null;
@@ -197,6 +201,7 @@ async function initIncidentPage(): Promise<void> {
             await loadAllVisits();
             await loadAllFieldReports();
             renderFieldReportData();
+            remoteUpdates.announceUpdate();
         }
     };
 
@@ -747,6 +752,7 @@ function drawRangers() {
         if (ranger.role) {
             rangerLi.querySelector("input")!.value = ranger.role;
         }
+        rangerLi.querySelector("button")!.ariaLabel = `Remove Ranger ${handle}`;
 
         el.rangersList.append(rangerFragment);
     }
@@ -797,6 +803,7 @@ function drawIncidentTypes() {
             typeSpan.textContent = validType.name??"";
             item.append(typeSpan);
             item.dataset["incidentTypeId"] = (validType.id??-1).toString();
+            item.querySelector("button")!.ariaLabel = `Remove Incident Type ${validType.name??""}`;
             el.incidentTypesList.append(fragment);
         }
     }
@@ -953,6 +960,7 @@ function drawAttachedFieldReportsVisits() {
         item.classList.remove("hidden");
         item.append(link);
         item.dataset["frNumber"] = report.number!.toString();
+        item.querySelector("button")!.ariaLabel = `Detach Field Report #${report.number}`;
 
         el.attachedFieldReports.append(item);
     }
@@ -967,6 +975,7 @@ function drawAttachedFieldReportsVisits() {
         item.classList.remove("hidden");
         item.append(link);
         item.dataset["visitNumber"] = visit.number!.toString();
+        item.querySelector("button")!.ariaLabel = `Detach Visit #${visit.number}`;
 
         el.attachedFieldReports.append(item);
     }
@@ -1014,6 +1023,8 @@ function drawLinkedIncidents(): void {
         item.dataset["eventId"] = linked.event_id?.toString();
         item.dataset["eventName"] = linked.event_name?.toString();
         item.dataset["incidentNumber"] = linked.number?.toString();
+        item.querySelector("button")!.ariaLabel =
+            `Unlink Incident ${linked.event_name??""} #${linked.number}`;
 
         el.linkedIncidents.append(item);
     }
@@ -1093,6 +1104,7 @@ function drawFieldReportsToAttach() {
 let sendEditsChain: Promise<{err:string|null}> = Promise.resolve({err: null});
 
 function sendEdits(edits: ims.Incident): Promise<{err:string|null}> {
+    remoteUpdates.noteLocalEdit();
     sendEditsChain = sendEditsChain.then(
         () => sendEditsNow(edits),
         () => sendEditsNow(edits),

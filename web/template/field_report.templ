@@ -25,6 +25,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav(eventName)
+<main id="main" tabindex="-1">
 <h1 id="doc-title">Field Report Details</h1>
 
 @LoadingOverlay()
@@ -43,6 +44,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
           <code>n</code>: create (n)ew Field Report <br/>
           <code>a</code>: jump to (a)dd new report text<br/>
           <code>h</code>: toggle showing system-generated (h)istory <br/>
+          <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
         </div>
       </div>
     </div>
@@ -163,7 +165,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
   <div class="row py-1">
     <div class="col-sm-12">
       <div class="card">
-        <label class="control-label card-header">Details</label>
+        <h2 class="control-label card-header h6 mb-0">Details</h2>
         <div id="report_entry_well" class="card-body">
           <label class="control-label">
             <input id="history_checkbox" type="checkbox" onchange="toggleShowHistory()"/>
@@ -205,6 +207,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
     </div>
   </div>
 
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

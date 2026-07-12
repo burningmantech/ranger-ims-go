@@ -64,7 +64,7 @@ services:
         condition: service_healthy
 
   ims-db:
-    image: "mariadb:10.5.27"
+    image: "mariadb:10.5.29"
     container_name: "ranger-ims-db"
     environment:
       MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"
@@ -84,7 +84,7 @@ services:
       retries: 10
 
   clubhouse-db:
-    image: "mariadb:10.5.27"
+    image: "mariadb:10.5.29"
     container_name: "ranger-clubhouse-db"
     environment:
       MARIADB_DATABASE: "${IMS_DMS_DATABASE:-rangers}"

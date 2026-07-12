@@ -65,7 +65,7 @@ func newIMSDirectoryServer(t *testing.T, ctx context.Context) *url.URL {
 	cfg.Core.Admins = []string{dirAdminHandle}
 
 	dirAdminOnce.Do(func() {
-		hashed := argon2id.CreateHash(dirAdminPassword, argon2id.DevelopmentParams)
+		hashed := argon2id.CreateHash(dirAdminPassword, argon2id.ClubhouseParams)
 		_, dirAdminErr = shared.imsDBQ.DirectoryCreatePerson(ctx, shared.imsDBQ,
 			imsdb.DirectoryCreatePersonParams{
 				Handle:   dirAdminHandle,

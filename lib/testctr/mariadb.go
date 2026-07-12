@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	MariaDBVersion     = "10.5.27"
+	MariaDBVersion     = "10.5.29"
 	MariaDBDockerImage = "mariadb:" + MariaDBVersion
 )
 

@@ -47,7 +47,7 @@ when you run `ims serve` directly — the two configs can't collide. Edit `.env.
 	 -e MARIADB_DATABASE=ims \
 	 -e MARIADB_USER=rangers \
 	 -e MARIADB_PASSWORD=${password} \
-     -p 3306:3306 mariadb:10.5.27
+     -p 3306:3306 mariadb:10.5.29
    ```
 2. Copy `.env.example` as `.env`, and set the various flags. Especially read the part in
    `.env.example` about `IMS_DIRECTORY` if you want to use TestUsers rather than a Clubhouse DB.

@@ -60,6 +60,10 @@ declare global {
 
 let visit: ims.Visit|null = null;
 
+// Announces (to assistive tech) that someone else has changed this Visit while
+// it's open, which is otherwise a silent redraw of the page.
+const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Visit was updated");
+
 // The ETag from the last read of this visit, sent back as If-Match on edits
 // so that the server can reject an edit based on stale data (HTTP 412).
 let visitETag: string|null = null;
@@ -211,6 +215,7 @@ async function initSanctuaryVisitPage(): Promise<void> {
         if (updateAll || (eventId === ims.pathIds.eventId && number === ims.pathIds.visitNumber)) {
             console.log("Got visit update: " + number);
             await loadAndDisplayVisit();
+            remoteUpdates.announceUpdate();
         }
     }
 
@@ -415,6 +420,7 @@ function drawVisitTitle(mode: "for_display"|"for_print_to_pdf"): void {
 let sendEditsChain: Promise<{err:string|null}> = Promise.resolve({err: null});
 
 function sendEdits(edits: ims.Visit): Promise<{err:string|null}> {
+    remoteUpdates.noteLocalEdit();
     sendEditsChain = sendEditsChain.then(
         () => sendEditsNow(edits),
         () => sendEditsNow(edits),
@@ -832,6 +838,7 @@ function drawRangers() {
         if (ranger.role) {
             rangerLi.querySelector("input")!.value = ranger.role;
         }
+        rangerLi.querySelector("button")!.ariaLabel = `Remove Ranger ${handle}`;
 
         rangersElement.append(rangerFragment);
     }

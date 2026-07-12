@@ -35,9 +35,20 @@ async function login(page: Page): Promise<void> {
 }
 
 async function adminPage(page: Page): Promise<void> {
-  await maybeOpenNav(page);
-  await page.getByRole("button", { name: username }).click();
-  await page.getByRole("link", { name: "Admin" }).click();
+  // A click on a just-opened Bootstrap dropdown's item can be swallowed if
+  // the menu gets repositioned between Playwright's hit-test and the actual
+  // event dispatch, in which case no navigation happens (seen as a flake on
+  // Mobile Safari). Bound each step and retry the whole sequence until we
+  // actually arrive on the admin page.
+  const adminLink = page.getByRole("link", { name: "Admin" });
+  await expect(async (): Promise<void> => {
+    await maybeOpenNav(page);
+    if (!await adminLink.isVisible()) {
+      await page.getByRole("button", { name: username }).click({ timeout: 5_000 });
+    }
+    await adminLink.click({ timeout: 5_000 });
+    await expect(page).toHaveURL(/\/ims\/app\/admin\/?$/, { timeout: 5_000 });
+  }).toPass();
 }
 
 async function incidentTypePage(page: Page): Promise<void> {
@@ -157,8 +168,39 @@ async function maybeOpenNav(page: Page): Promise<void> {
   await expect(async (): Promise<void> => {
     if (await toggler.isVisible() && (await toggler.getAttribute("aria-expanded")) === "false") {
       await page.locator(".navbar-toggler").click();
-      expect(toggler.getAttribute("aria-expanded")).toEqual("true");
+      expect(await toggler.getAttribute("aria-expanded")).toEqual("true");
     }
+  }).toPass();
+}
+
+// strikeReportEntry strikes the report entry with the given text and waits
+// for it to disappear from the default (non-history) view. The Strike button
+// only shows while the entry is hovered, and a redraw can replace the entry
+// under the cursor (losing the hover state, so a click lands on a stale row),
+// so retry the hover and click together until the strike takes effect.
+async function strikeReportEntry(page: Page, reportEntry: string): Promise<void> {
+  const entryText = page.getByText(reportEntry);
+  await expect(async (): Promise<void> => {
+    if (await entryText.isVisible()) {
+      await entryText.hover();
+      await page.getByRole("button", {name: "Strike", exact: true}).click({timeout: 2_000});
+    }
+    await expect(entryText).toBeHidden({timeout: 3_000});
+  }).toPass();
+}
+
+// unstrikeReportEntry unstrikes the report entry with the given text, which
+// must currently be shown (i.e. "Show history and stricken" is checked).
+// Same hover/redraw race as strikeReportEntry, so retry until the entry
+// loses its stricken styling.
+async function unstrikeReportEntry(page: Page, reportEntry: string): Promise<void> {
+  const strickenEntry = page.locator(".report_entry_stricken", {hasText: reportEntry});
+  await expect(async (): Promise<void> => {
+    if (await strickenEntry.isVisible()) {
+      await strickenEntry.hover();
+      await page.getByRole("button", {name: "Unstrike", exact: true}).click({timeout: 2_000});
+    }
+    await expect(strickenEntry).toBeHidden({timeout: 3_000});
   }).toPass();
 }
 
@@ -299,7 +341,7 @@ test("incidents", async ({ page, browser }) => {
 
     const incidentPage = await ctx.newPage();
     await incidentPage.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
-    await incidentPage.getByRole("button", {name: "New"}).click();
+    await incidentPage.getByRole("link", {name: "New"}).click();
 
     await expect(incidentPage.getByLabel("IMS #", {exact: true})).toHaveValue("(new)");
     const incidentSummary = randomName("summary");
@@ -412,11 +454,7 @@ test("incidents", async ({ page, browser }) => {
       await expect(incidentPage.getByText(reportEntry)).toBeVisible();
     }
     // strike the entry, verified it's stricken
-    {
-      await incidentPage.getByText(reportEntry).hover();
-      await incidentPage.getByRole("button", {name: "Strike"}).click();
-      await expect(incidentPage.getByText(reportEntry)).toBeHidden();
-    }
+    await strikeReportEntry(incidentPage, reportEntry);
     // but the entry is shown when the right checkbox is ticked
     {
       await incidentPage.getByLabel("Show history and stricken").check();
@@ -424,8 +462,7 @@ test("incidents", async ({ page, browser }) => {
     }
     // unstrike the entry and see it return to the default view
     {
-      await incidentPage.getByText(reportEntry).hover();
-      await incidentPage.getByRole("button", {name: "Unstrike"}).click();
+      await unstrikeReportEntry(incidentPage, reportEntry);
       await incidentPage.getByLabel("Show history and stricken").uncheck();
       await expect(incidentPage.getByText(reportEntry)).toBeVisible();
     }
@@ -443,9 +480,9 @@ test("incidents", async ({ page, browser }) => {
     // reload the page, make sure some data loads again
     {
       await incidentPage.reload();
-      const runnerRanger = incidentPage.getByLabel("Runner");
-      await expect(runnerRanger).toBeVisible();
-      const runnerRow = incidentPage.getByRole("listitem").filter({has: runnerRanger}).getByRole("textbox");
+      const runnerRole = incidentPage.getByLabel("Ranger role for Runner", {exact: true});
+      await expect(runnerRole).toBeVisible();
+      const runnerRow = incidentPage.getByRole("listitem").filter({has: runnerRole}).getByRole("textbox");
       await expect(runnerRow).toHaveValue("Runner Role");
       if (!ignoreDatetimeCheck) {
         await expect(altStartedDatetime).toBeVisible();
@@ -510,7 +547,7 @@ test("field_reports", async ({ page, browser }) => {
 
     const frPage = await ctx.newPage();
     await frPage.goto(`http://localhost:8080/ims/app/events/${eventName}/field_reports`);
-    await frPage.getByRole("button", {name: "New"}).click();
+    await frPage.getByRole("link", {name: "New"}).click();
 
     await expect(frPage.getByLabel("FR #")).toHaveValue("(new)");
     const frSummary = randomName("summary");
@@ -542,11 +579,7 @@ test("field_reports", async ({ page, browser }) => {
         await expect(frPage.getByText(reportEntry)).toBeVisible();
       }
       // strike the entry, verified it's stricken
-      {
-        await frPage.getByText(reportEntry).hover();
-        await frPage.getByRole("button", {name: "Strike"}).click({force: true});
-        await expect(frPage.getByText(reportEntry)).toBeHidden();
-      }
+      await strikeReportEntry(frPage, reportEntry);
       // but the entry is shown when the right checkbox is ticked
       {
         await frPage.getByLabel("Show history and stricken").check();
@@ -554,8 +587,7 @@ test("field_reports", async ({ page, browser }) => {
       }
       // unstrike the entry and see it return to the default view
       {
-        await frPage.getByText(reportEntry).hover();
-        await frPage.getByRole("button", {name: "Unstrike"}).click({force: true});
+        await unstrikeReportEntry(frPage, reportEntry);
         await frPage.getByLabel("Show history and stricken").uncheck();
         await expect(frPage.getByText(reportEntry)).toBeVisible();
       }
@@ -580,13 +612,19 @@ test("field_reports", async ({ page, browser }) => {
 })
 
 // expandAccordion expands the named accordion section on a Sanctuary Visit
-// page, if it's collapsed.
+// page, if it's collapsed. A click on the toggle can occasionally be lost
+// (e.g. when layout shifts between Playwright's hit-test and the event
+// dispatch), so check that the panel actually opened and retry otherwise.
 async function expandAccordion(page: Page, name: string): Promise<void> {
   const toggle = page.getByRole("button", {name: name});
-  await expect(toggle).toBeVisible();
-  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
-    await toggle.click();
-  }
+  const panelId = await toggle.getAttribute("aria-controls");
+  const panel = page.locator(`#${panelId}`);
+  await expect(async (): Promise<void> => {
+    if (!await panel.isVisible()) {
+      await toggle.click({timeout: 2_000});
+    }
+    await expect(panel).toBeVisible({timeout: 2_000});
+  }).toPass();
 }
 
 // commitVisitField fills a Sanctuary Visit field and commits it with Tab.
@@ -627,7 +665,7 @@ test("sanctuary_visits", async ({ page, browser }) => {
 
     const visitPage = await ctx.newPage();
     await visitPage.goto(`http://localhost:8080/ims/app/events/${eventName}/visits`);
-    await visitPage.getByRole("button", {name: "New"}).click();
+    await visitPage.getByRole("link", {name: "New"}).click();
     await visitPage.waitForURL(`http://localhost:8080/ims/app/events/${eventName}/visits/new`);
     await expect(visitPage.getByLabel("VS #")).toHaveValue("(new)");
 
@@ -690,7 +728,7 @@ test("sanctuary_visits", async ({ page, browser }) => {
       const runnerLi = visitPage.locator("li", {hasText: "Runner"});
       await expect(async (): Promise<void> => {
         await runnerLi.hover();
-        await runnerLi.getByRole("button", {name: "X"}).click({timeout: 2000});
+        await runnerLi.getByRole("button", {name: "Remove Ranger Runner"}).click({timeout: 2000});
       }).toPass();
       await expect(runnerLi).toBeHidden();
     }
@@ -708,16 +746,7 @@ test("sanctuary_visits", async ({ page, browser }) => {
       await expect(visitPage.getByText(reportEntry)).toBeVisible();
     }
     // strike the entry, verify it's stricken
-    {
-      // The Strike button only shows while the entry is hovered, and a
-      // redraw can replace the entry under the cursor (losing the hover
-      // state), so retry the hover and click together.
-      await expect(async (): Promise<void> => {
-        await visitPage.getByText(reportEntry).hover();
-        await visitPage.getByRole("button", {name: "Strike"}).click({timeout: 2000});
-      }).toPass();
-      await expect(visitPage.getByText(reportEntry)).toBeHidden();
-    }
+    await strikeReportEntry(visitPage, reportEntry);
     // but the entry is shown when the right checkbox is ticked
     {
       await visitPage.getByLabel("Show history and stricken").check();
@@ -725,10 +754,7 @@ test("sanctuary_visits", async ({ page, browser }) => {
     }
     // unstrike the entry and see it return to the default view
     {
-      await expect(async (): Promise<void> => {
-        await visitPage.getByText(reportEntry).hover();
-        await visitPage.getByRole("button", {name: "Unstrike"}).click({timeout: 2000});
-      }).toPass();
+      await unstrikeReportEntry(visitPage, reportEntry);
       await visitPage.getByLabel("Show history and stricken").uncheck();
       await expect(visitPage.getByText(reportEntry)).toBeVisible();
     }
@@ -811,7 +837,7 @@ test("sanctuary_visits", async ({ page, browser }) => {
         await expect(tablePage.getByText(guestName)).toBeHidden();
         // ...but is shown under "All Statuses"
         await tablePage.getByRole("button", {name: "Current"}).click();
-        await tablePage.getByRole("link", {name: "All Statuses"}).click();
+        await tablePage.getByRole("button", {name: "All Statuses"}).click();
         await expect(tablePage.getByText(guestName)).toBeVisible();
       }
     }

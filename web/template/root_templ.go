@@ -79,7 +79,7 @@ func Root(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 id=\"doc-title\">Incident Management System</h1>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<main id=\"main\" tabindex=\"-1\"><h1 id=\"doc-title\">Incident Management System</h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,7 +87,7 @@ func Root(deployment, versionName, versionRef string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mt-3 if-logged-in hidden\"><a id=\"current-year-link\" href=\"/ims/app/events/2026/incidents\">Jump to the 2026 event</a> or select another event from the dropdown above.</p><div class=\"mt-3 if-logged-in hidden\"><p>Summary of what's new in 2026:</p><ul><li>The new <a href=\"/ims/app/events/2026/places\">Places page</a> will have camp/art/mv info and a detailed city map</li><li>Those camp/art/mv details will help autopopulate locations on Incidents</li><li>Ranger \"roles\" can be set on Incidents, indicating how each Ranger was involved</li><li>Incidents may now be linked together, even across years, to permit easier navigation between related Incidents</li><li>Sanctuary Visits can be tracked fully inside IMS, and Visits can be attached to Incidents</li></ul></div><div class=\"btn-group mb-3\" role=\"group\"><a id=\"login-button\" href=\"/ims/auth/login\" role=\"button\" class=\"btn btn-md btn-default btn-primary if-not-logged-in hidden\">Log In</a></div><div class=\"btn-group mb-3\" role=\"group\"><a href=\"/ims/auth/logout\" role=\"button\" class=\"btn btn-md btn-default btn-danger if-logged-in hidden\">Log Out</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mt-3 if-logged-in hidden\"><a id=\"current-year-link\" href=\"/ims/app/events/2026/incidents\">Jump to the 2026 event</a> or select another event from the dropdown above.</p><div class=\"mt-3 if-logged-in hidden\"><p>Summary of what's new in 2026:</p><ul><li>The new <a href=\"/ims/app/events/2026/places\">Places page</a> will have camp/art/mv info and a detailed city map</li><li>Those camp/art/mv details will help autopopulate locations on Incidents</li><li>Ranger \"roles\" can be set on Incidents, indicating how each Ranger was involved</li><li>Incidents may now be linked together, even across years, to permit easier navigation between related Incidents</li><li>Sanctuary Visits can be tracked fully inside IMS, and Visits can be attached to Incidents</li></ul></div><div class=\"btn-group mb-3\" role=\"group\"><a id=\"login-button\" href=\"/ims/auth/login\" role=\"button\" class=\"btn btn-md btn-default btn-primary if-not-logged-in hidden\">Log In</a></div><div class=\"btn-group mb-3\" role=\"group\"><a href=\"/ims/auth/logout\" role=\"button\" class=\"btn btn-md btn-default btn-danger if-logged-in hidden\">Log Out</a></div></main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

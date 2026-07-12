@@ -157,6 +157,9 @@ async function initAdminActionLogsPage() {
             [1, "dsc"],
         ],
     });
+    actionLogsTable.on("init", function () {
+        ims.enableKeyboardSorting("action_logs_table");
+    });
     actionLogsTable.draw();
 }
 function renderPage(pagePath, type, _data) {

@@ -32,6 +32,10 @@ declare global {
 
 let fieldReport: ims.FieldReport|null = null;
 
+// Announces (to assistive tech) that someone else has changed this Field Report
+// while it's open, which is otherwise a silent redraw of the page.
+const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Field Report was updated");
+
 // The ETag from the last read of this field report, sent back as If-Match on
 // edits so that the server can reject an edit based on stale data (HTTP 412).
 let fieldReportETag: string|null = null;
@@ -115,6 +119,7 @@ async function initFieldReportPage(): Promise<void> {
         if (updateAll || (eventId === ims.pathIds.eventName && number === ims.pathIds.fieldReportNumber)) {
             console.log(`Got field report update. number = ${number}, update_all = ${updateAll}`);
             await loadAndDisplayFieldReport();
+            remoteUpdates.announceUpdate();
         }
     };
 
@@ -350,6 +355,7 @@ function drawSummary(): void {
 let frSendEditsChain: Promise<{err:string|null}> = Promise.resolve({err: null});
 
 function frSendEdits(edits: ims.FieldReport): Promise<{err:string|null}> {
+    remoteUpdates.noteLocalEdit();
     frSendEditsChain = frSendEditsChain.then(
         () => frSendEditsNow(edits),
         () => frSendEditsNow(edits),

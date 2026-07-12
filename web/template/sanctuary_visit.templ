@@ -25,6 +25,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav(eventName)
+<main id="main" tabindex="-1">
 <h1 id="doc-title">Sanctuary Visit</h1>
 
 @LoadingOverlay()
@@ -43,6 +44,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
             <code>n</code>: create (n)ew Sanctuary Visit<br/>
             <code>a</code>: jump to (a)dd new report text<br/>
             <code>h</code>: toggle showing system-generated (h)istory <br/>
+            <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
           </div>
         </div>
       </div>
@@ -302,7 +304,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
              class="link-body-emphasis position-absolute end-0 top-50 translate-middle-y me-5 no-print"
              title="Camps, art, etc." tabindex="-1">
             Places
-            <svg fill="currentColor" class="bi">
+            <svg fill="currentColor" class="bi" aria-hidden="true" focusable="false">
               <use href="#box-arrow-up-right"></use>
             </svg>
           </a>
@@ -486,7 +488,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     <input aria-label="Description of Ranger role" type="text" class="form-control form-control-sm short-input auto-width hover-placeholder border-0"
                         placeholder="Short description of role" onchange="setRangerRole(this)" maxlength="50"
                     />
-                    <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)" tabindex="-1">
+                    <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)" tabindex="-1" aria-label="Remove Ranger">
                       X
                     </button>
                   </li>
@@ -564,6 +566,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
 
     </div>
 
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

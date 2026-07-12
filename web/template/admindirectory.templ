@@ -25,6 +25,7 @@ templ AdminDirectory(deployment, versionName, versionRef string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
+<main id="main" tabindex="-1">
 <h1 id="doc-title">User Directory</h1>
 @LoadingOverlay()
 @ErrorInfo()
@@ -86,18 +87,18 @@ templ AdminDirectory(deployment, versionName, versionRef string) {
 
     <div id="directory_persons" class="col-sm-12 mb-3">
       <div class="card">
-        <label class="card-header">Persons</label>
+        <h2 class="card-header h6 mb-0">Persons</h2>
         <div class="card-body table-responsive">
           <table class="table table-sm table-hover">
             <thead>
               <tr>
-                <th>Handle</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Onsite</th>
-                <th>Teams</th>
-                <th>Positions</th>
-                <th></th>
+                <th scope="col">Handle</th>
+                <th scope="col">Email</th>
+                <th scope="col">Status</th>
+                <th scope="col">Onsite</th>
+                <th scope="col">Teams</th>
+                <th scope="col">Positions</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
               </tr>
             </thead>
             <tbody id="persons_tbody">
@@ -134,7 +135,7 @@ templ AdminDirectory(deployment, versionName, versionRef string) {
 
     <div id="directory_teams" class="col-sm-6 mb-3">
       <div class="card">
-        <label class="card-header">Teams</label>
+        <h2 class="card-header h6 mb-0">Teams</h2>
         <ul class="list-group list-group-small list-group-flush card-body" id="teams_list">
           <template id="group_li_template">
             <li class="list-group-item ps-3" data-group-id="">
@@ -169,7 +170,7 @@ templ AdminDirectory(deployment, versionName, versionRef string) {
 
     <div id="directory_positions" class="col-sm-6 mb-3">
       <div class="card">
-        <label class="card-header">Positions</label>
+        <h2 class="card-header h6 mb-0">Positions</h2>
         <ul class="list-group list-group-small list-group-flush card-body" id="positions_list">
         </ul>
         <div class="card-footer">
@@ -186,6 +187,7 @@ templ AdminDirectory(deployment, versionName, versionRef string) {
     </div>
 
   </div>
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

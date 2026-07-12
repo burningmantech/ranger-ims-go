@@ -174,7 +174,7 @@ async function loadPlaces(): Promise<void> {
             arts.push(ed.external_data! as ims.BMArt);
         }
         el.artData.value = JSON.stringify(arts, null, 2);
-        el.artDataLabel.textContent = `JSON Data (${arts.length})`;
+        el.artDataLabel.textContent = `Art JSON Data (${arts.length})`;
     }
     {
         const camps: ims.BMCamp[] = [];
@@ -182,7 +182,7 @@ async function loadPlaces(): Promise<void> {
             camps.push(ed.external_data! as ims.BMCamp);
         }
         el.campData.value = JSON.stringify(camps, null, 2);
-        el.campDataLabel.textContent = `JSON Data (${camps.length})`;
+        el.campDataLabel.textContent = `Camp JSON Data (${camps.length})`;
     }
     {
         const mvs: ims.BMMV[] = [];
@@ -190,7 +190,7 @@ async function loadPlaces(): Promise<void> {
             mvs.push(ed.external_data! as ims.BMMV);
         }
         el.mvData.value = JSON.stringify(mvs, null, 2);
-        el.mvDataLabel.textContent = `JSON Data (${mvs.length})`;
+        el.mvDataLabel.textContent = `Mutant vehicle JSON Data (${mvs.length})`;
     }
     {
         const others: ims.OtherDest[] = [];
@@ -198,6 +198,6 @@ async function loadPlaces(): Promise<void> {
             others.push(ed.external_data! as ims.OtherDest);
         }
         el.otherData.value = JSON.stringify(others, null, 2);
-        el.otherDataLabel.textContent = `JSON Data (${others.length})`;
+        el.otherDataLabel.textContent = `Other JSON Data (${others.length})`;
     }
 }

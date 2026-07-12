@@ -44,7 +44,7 @@ const frDefaultRows = "25";
 
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
-    newFieldReport: ims.typedElement("new_field_report", HTMLButtonElement),
+    newFieldReport: ims.typedElement("new_field_report", HTMLAnchorElement),
 
     showDaysMenu: ims.typedElement("show_days", HTMLButtonElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
@@ -159,7 +159,11 @@ function initFieldReportsTable() {
 
     // Wait until the table is initialized before starting to listen for updates.
     // https://github.com/burningmantech/ranger-ims-go/issues/399
+    const announceUpdate = ims.newUpdateAnnouncer("Field Report");
+
     fieldReportsTable!.on("init", function (): void {
+        ims.enableKeyboardSorting("field_reports_table");
+
         console.log("Table initialized. Requesting EventSource lock");
         ims.requestEventSourceLock();
 
@@ -168,6 +172,7 @@ function initFieldReportsTable() {
                 console.log("Reloading the whole table to be cautious, as an SSE was missed");
                 fieldReportsTable!.ajax.reload();
                 ims.clearErrorMessage();
+                ims.announce("Field Reports list reloaded");
                 return;
             }
 
@@ -186,6 +191,7 @@ function initFieldReportsTable() {
             //  bringing those errors into the console constantly.
             fieldReportsTable!.ajax.reload(null, false);
             ims.clearErrorMessage();
+            announceUpdate();
         };
     });
 }

@@ -80,6 +80,9 @@ function initPlacesTable() {
     destInitSearchField();
     destInitSearch();
     ims.clearErrorMessage();
+    placesTable.on("init", function () {
+        ims.enableKeyboardSorting("places_table");
+    });
 }
 //
 // Initialize DataTables

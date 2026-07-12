@@ -18,6 +18,9 @@
 "use strict";
 import * as ims from "./ims.js";
 let fieldReport = null;
+// Announces (to assistive tech) that someone else has changed this Field Report
+// while it's open, which is otherwise a silent redraw of the page.
+const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Field Report was updated");
 // The ETag from the last read of this field report, sent back as If-Match on
 // edits so that the server can reject an edit based on stale data (HTTP 412).
 let fieldReportETag = null;
@@ -84,6 +87,7 @@ async function initFieldReportPage() {
         if (updateAll || (eventId === ims.pathIds.eventName && number === ims.pathIds.fieldReportNumber)) {
             console.log(`Got field report update. number = ${number}, update_all = ${updateAll}`);
             await loadAndDisplayFieldReport();
+            remoteUpdates.announceUpdate();
         }
     };
     const helpModal = ims.bsModal(el.helpModal);
@@ -291,6 +295,7 @@ function drawSummary() {
 // each edit must carry the ETag produced by the previous one.
 let frSendEditsChain = Promise.resolve({ err: null });
 function frSendEdits(edits) {
+    remoteUpdates.noteLocalEdit();
     frSendEditsChain = frSendEditsChain.then(() => frSendEditsNow(edits), () => frSendEditsNow(edits));
     return frSendEditsChain;
 }

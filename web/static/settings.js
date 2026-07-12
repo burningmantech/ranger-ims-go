@@ -24,6 +24,7 @@ const el = {
     preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
     preferredVisitsStatus: ims.typedElement("preferred_visits_status", HTMLSelectElement),
     preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
+    keyboardShortcuts: ims.typedElement("keyboard_shortcuts", HTMLInputElement),
 };
 initSettingsPage();
 async function initSettingsPage() {
@@ -44,9 +45,11 @@ async function initSettingsPage() {
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
+    el.keyboardShortcuts.checked = ims.keyboardShortcutsEnabled();
     window.setPreferredState = setPreferredState;
     window.setPreferredVisitsStatus = setPreferredVisitsStatus;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;
+    window.setKeyboardShortcuts = setKeyboardShortcuts;
 }
 async function setPreferredState(el) {
     if (ims.isValidIncidentsTableState(el.value)) {
@@ -74,4 +77,8 @@ async function setPreferredRowsPerPage(el) {
         ims.setPreferredTableRowsPerPage(null);
     }
     ims.controlHasSuccess(el);
+}
+async function setKeyboardShortcuts(el) {
+    ims.setKeyboardShortcutsEnabled(el.checked);
+    ims.announce(el.checked ? "Single-key shortcuts on" : "Single-key shortcuts off");
 }

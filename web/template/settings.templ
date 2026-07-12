@@ -25,11 +25,12 @@ templ Settings(deployment, versionName, versionRef string) {
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
+<main id="main" tabindex="-1">
 <h1 id="doc-title">Settings</h1>
 
 @ErrorInfo()
 
-<h5>Preferred Table Filters</h5>
+<h2 class="h5">Preferred Table Filters</h2>
 <div class="py-1">
   <div class="input-group mb-1 flex-nowrap">
     <label
@@ -88,9 +89,30 @@ templ Settings(deployment, versionName, versionRef string) {
 </div>
 
 
+<h2 class="h5 mt-3">Accessibility</h2>
+<div class="py-1">
+  <div class="form-check">
+    <input
+      class="form-check-input"
+      type="checkbox"
+      id="keyboard_shortcuts"
+      checked
+      onchange="setKeyboardShortcuts(this)"
+      aria-describedby="keyboard_shortcuts_help"
+    />
+    <label class="form-check-label" for="keyboard_shortcuts">Single-key shortcuts</label>
+    <div id="keyboard_shortcuts_help" class="form-text">
+      Keys like <code>n</code>, <code>a</code> and <code>/</code> act as shortcuts when no
+      field is focused. Turn this off if they fire when you don't mean them to, which can
+      happen when using speech input. Press <code>?</code> on a page to see its shortcuts.
+    </div>
+  </div>
+</div>
+
 <p class="mt-3">These settings exist only in the browser, and they will be reset on logout.
 <br>Got any other ideas for settings that should go here? Email the Tech Cadre!</p>
 
+</main>
 @Footer(versionName, versionRef)
 </div>
 </body>

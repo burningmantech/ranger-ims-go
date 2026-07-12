@@ -32,7 +32,7 @@ const defaultStatus = "current";
 //
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
-    newVisit: ims.typedElement("new_visit", HTMLButtonElement),
+    newVisit: ims.typedElement("new_visit", HTMLAnchorElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
     showStatusMenu: ims.typedElement("show_status", HTMLButtonElement),
     helpModal: ims.typedElement("helpModal", HTMLDivElement),
@@ -126,7 +126,9 @@ function initVisitsTable() {
     }
     // Wait until the table is initialized before starting to listen for updates.
     // https://github.com/burningmantech/ranger-ims-go/issues/399
+    const announceUpdate = ims.newUpdateAnnouncer("Visit");
     visitsTable.on("init", function () {
+        ims.enableKeyboardSorting("visits_table");
         console.log("Table initialized. Requesting EventSource lock");
         ims.requestEventSourceLock();
         ims.newVisitChannel().onmessage = function (e) {
@@ -134,6 +136,7 @@ function initVisitsTable() {
                 console.log("Reloading the whole table to be cautious, as an SSE was missed");
                 visitsTable.ajax.reload();
                 ims.clearErrorMessage();
+                ims.announce("Visits list reloaded");
                 return;
             }
             const number = e.data.visit_number;
@@ -145,6 +148,7 @@ function initVisitsTable() {
             // TODO: could just replace the row that's updated (assuming not update_all).
             visitsTable.ajax.reload(null, false);
             ims.clearErrorMessage();
+            announceUpdate();
         };
     });
 }

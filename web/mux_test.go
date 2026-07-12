@@ -45,6 +45,7 @@ var templEndpoints = []string{
 	"/ims/app/events/SomeEvent/visits",
 	"/ims/app/events/SomeEvent/visits/123",
 	"/ims/app/settings",
+	"/ims/app/help",
 	"/ims/app/search",
 	"/ims/auth/login",
 	"/ims/auth/logout",

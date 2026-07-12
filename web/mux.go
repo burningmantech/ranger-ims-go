@@ -99,6 +99,9 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/app/settings",
 		AdaptTempl(template.Settings(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)
+	mux.Handle("GET /ims/app/help",
+		AdaptTempl(template.Help(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+	)
 	mux.Handle("GET /ims/app/search",
 		AdaptTempl(template.Search(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
 	)

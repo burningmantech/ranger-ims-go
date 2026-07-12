@@ -35,6 +35,7 @@ const el = {
     placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
     placeBody: ims.typedElement("placeBody", HTMLElement),
     mapLink: ims.typedElement("map-link", HTMLAnchorElement),
+    helpModal: ims.typedElement("helpModal", HTMLDivElement),
 };
 initPlacesPage();
 async function initPlacesPage() {
@@ -53,6 +54,7 @@ async function initPlacesPage() {
     ims.setupMapLink(el.mapLink, await initResult.eventDatas);
     ims.disableEditing();
     initPlacesTable();
+    const helpModal = ims.bsModal(el.helpModal);
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         // No shortcuts when an input field is active
@@ -63,11 +65,24 @@ async function initPlacesPage() {
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
         }
+        // ? --> show help modal
+        if (e.key === "?") {
+            helpModal.toggle();
+        }
         // / --> jump to search box
         if (e.key === "/") {
             // don't immediately input a "/" into the search box
             e.preventDefault();
             el.searchInput.focus();
+        }
+    });
+    el.helpModal.addEventListener("keydown", function (e) {
+        if (e.key === "?") {
+            helpModal.toggle();
+            // This is needed to prevent the document's listener for "?" to trigger the modal to
+            // toggle back on immediately. This is fallout from the fix for
+            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            e.stopPropagation();
         }
     });
 }

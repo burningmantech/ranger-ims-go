@@ -30,6 +30,30 @@ templ Places(deployment, versionName, versionRef, eventName string) {
 
 @ErrorInfo()
 
+    <!-- Help modal for places page -->
+    <div class="modal no-print" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <p class="modal-title fs-5" id="helpModalLabel">Places help</p>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+          </div>
+          <div class="modal-body">
+            <p class="mt-2 mb-0">Keyboard shortcuts</p>
+            <ul>
+              <li><code>/</code>: jump to search field <br/></li>
+            </ul>
+            <p class="mt-2 mb-0">In the search field</p>
+            <ul>
+              <li>Search by regular expression by enclosing a pattern with slashes, e.g. <code>/r.nger/</code> or <code>/\b(dog|cat)\b/</code></li>
+              <li>All searches are case insensitive</li>
+            </ul>
+            <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Place info -->
     <div class="modal no-print" id="placeInfoModal" tabindex="-1" aria-labelledby="placeInfoModalLabel" aria-hidden="true">
       <div class="modal-dialog">

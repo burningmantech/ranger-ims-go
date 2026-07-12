@@ -36,7 +36,11 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  /* List gives live per-test terminal output; the html report only pops open on failure. */
+  reporter: [
+    ['list'],
+    ['html', { open: process.env.CI ? 'never' : 'on-failure' }],
+  ],
   /* Possibly wait upto this long for expectations. IMS can be slow. */
   expect: { timeout: 15_000 },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -89,10 +93,19 @@ export default defineConfig({
     // },
   ],
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://127.0.0.1:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  /* Run the IMS stack before starting the tests. If something is already
+   * serving on :8080 (e.g. your own `make compose/live`), it's reused and
+   * left running; otherwise the compose stack is started and torn down
+   * when the tests finish. */
+  webServer: {
+    command: 'make -C .. compose/live',
+    url: 'http://localhost:8080/ims/api/ping',
+    reuseExistingServer: true,
+    /* A cold start may build the docker images and compile the server,
+     * which can take a few minutes. */
+    timeout: 300_000,
+    /* `docker compose up` stops its containers on SIGTERM; give it time
+     * to do so instead of the default SIGKILL. */
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
+  },
 });

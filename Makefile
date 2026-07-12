@@ -20,6 +20,12 @@ test/ts:
 	npm install
 	npm test
 
+## test/e2e: run Playwright browser tests. Reuses a running IMS stack on
+## :8080 if there is one; otherwise starts (and later stops) compose/live.
+.PHONY: test/e2e
+test/e2e:
+	cd playwright && npm install && npx playwright install && npx playwright test
+
 ## cover: run all go tests and open a coverage report
 .PHONY: cover
 cover:

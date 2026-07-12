@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ranger IMS is an Incident Management System for the Black Rock Rangers, used to track incidents at Black Rock City. This is a Go implementation that replaced a previous Python version.
 
+The main domain entities, all scoped to an Event (e.g. a burn year): **Incidents**, **Field Reports** (attachable to an Incident), **Sanctuary Visits** (guest visits to the Sanctuary space, also attachable to an Incident), and **Places** (camps/art/etc. used for locations).
+
 ## Development Commands
 
 ### Initial Setup
@@ -42,7 +44,8 @@ make run/live
 go tool air
 ```
 
-Run with Docker Compose (includes auto-seeded databases):
+Run with Docker Compose (includes auto-seeded databases — IMS data from
+`store/fakeimsdb/seed.sql`, Clubhouse users from `directory/fakeclubhousedb/seed.sql`):
 ```bash
 make compose/live
 ```
@@ -83,8 +86,12 @@ These run against templ-rendered HTML fixtures, which are regenerated automatica
 by the `pretest` script (`bin/rendertestfixtures`) into the gitignored
 `web/typescripttest/fixtures/` directory.
 
-Run Playwright browser tests (requires Playwright installed):
+Run Playwright browser tests. The Playwright config's `webServer` reuses an
+IMS stack already serving on :8080 (e.g. from `make compose/live`) or starts
+the compose stack itself, tearing it down afterward:
 ```bash
+make test/e2e
+# or, with deps already installed:
 cd playwright
 npx playwright test
 ```
@@ -144,7 +151,7 @@ make upgrade-deps
 The codebase follows a layered architecture:
 
 - **`main.go`** - Entry point that delegates to `cmd` package
-- **`cmd/`** - Cobra CLI commands (`serve`, `healthcheck`, `hashpassword`)
+- **`cmd/`** - Cobra CLI commands (`serve`, `healthcheck`, `hash_password`, `add-user`)
 - **`api/`** - HTTP API handlers and middleware for the REST/JSON API
 - **`web/`** - Web UI handlers, templates (templ), TypeScript, and static assets
 - **`store/`** - Database layer for the IMS database (incidents, field reports, etc.)
@@ -206,6 +213,8 @@ The API (`api/` package) uses a custom middleware adapter pattern:
 - Middleware includes: authentication, logging, panic recovery, request size limits
 - Handlers return `*herr.HTTPError` (`lib/herr/`), which carries both an internal error and a client-safe response message
 - Real-time updates are pushed to clients via Server-Sent Events (`api/eventsource.go`); mutations publish events that the web UI listens for
+- Incidents, Field Reports, and Visits use optimistic concurrency: each row carries a `VERSION` counter, surfaced to clients as a strong ETag; writes send `If-Match` and get a 412 on version mismatch (see `parseIfMatch`/`setETag` in `api/helpers.go`)
+- Cross-event search (`api/search.go`) matches a substring or regex query against Incidents, Field Reports, and Visits across all events the requestor can read
 
 ### Web UI
 
@@ -253,7 +262,8 @@ JWT-based authentication with separate access and refresh tokens:
 ### Authorization
 
 Event-based access control defined in `lib/authz/`:
-- Users have specific access modes per event (read, write, report)
+- Per-event roles (`EventReporter`, `EventReader`, `EventWriter`, `EventVisitWriter`) map to bitmask permissions (`EventPermissionMask`) covering incidents, field reports, visits, and places
+- Global (non-event) permissions (`GlobalPermissionMask`) cover listing events, reading personnel/incident types, and the admin pages
 - Admins (defined in `IMS_ADMINS`) have unrestricted access
 
 ### Action Logging

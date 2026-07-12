@@ -76,7 +76,7 @@ services:
       retries: 30
 
   ims-db:
-    image: "mariadb:10.5.27"
+    image: "mariadb:10.5.29"
     container_name: "ranger-ims-quickstart-db"
     environment:
       MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"

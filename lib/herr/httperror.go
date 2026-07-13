@@ -70,6 +70,11 @@ func RequestEntityTooLarge(userMessage string, err error) *HTTPError {
 	return New(http.StatusRequestEntityTooLarge, userMessage, err)
 }
 
+// UnsupportedMediaType returns an http.StatusUnsupportedMediaType HTTPError.
+func UnsupportedMediaType(userMessage string, err error) *HTTPError {
+	return New(http.StatusUnsupportedMediaType, userMessage, err)
+}
+
 // Unauthorized returns an http.StatusUnauthorized HTTPError.
 func Unauthorized(userMessage string, err error) *HTTPError {
 	return New(http.StatusUnauthorized, userMessage, err)

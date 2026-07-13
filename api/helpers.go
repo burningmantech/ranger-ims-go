@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
@@ -41,6 +42,11 @@ import (
 // Report, or Visit whose freshly allocated number was claimed by a concurrent
 // creator in the same event first.
 const maxNumberAllocAttempts = 3
+
+var (
+	errNoContentType      = errors.New("request has no Content-Type header")
+	errNonJSONContentType = errors.New("request Content-Type is not application/json")
+)
 
 // isDuplicateKeyError reports whether err is a MySQL/MariaDB duplicate-key
 // error (ER_DUP_ENTRY), i.e. an INSERT lost a race for a unique key.
@@ -63,6 +69,10 @@ func applyStringChange(dst *sql.NullString, newVal *string, label string, logs *
 func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 	empty := *new(T)
 	defer shut(req.Body)
+	errHTTP := requireJSONContentType(req)
+	if errHTTP != nil {
+		return empty, errHTTP.From("[requireJSONContentType]")
+	}
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		return empty, herr.BadRequest("Failed to read request body", err).From("[io.ReadAll]")
@@ -73,6 +83,41 @@ func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {
 		return empty, herr.BadRequest("Failed to unmarshal request body", err).From("[Unmarshal]")
 	}
 	return t, nil
+}
+
+// requireJSONContentType rejects a request whose body isn't declared as JSON.
+//
+// This is what keeps a malicious page from forging a cross-site request to IMS
+// on a signed-in Ranger's behalf. Without JavaScript (which the same-origin
+// policy already blocks, since IMS sends no CORS headers), another origin can
+// only send us a body via an HTML form, and a form can only be text/plain,
+// application/x-www-form-urlencoded, or multipart/form-data. Requiring
+// application/json means a cross-site body-carrying request must first pass a
+// CORS preflight, which IMS never approves. Notably, this closes login CSRF on
+// the unauthenticated POST /ims/api/auth, where an attacker could otherwise
+// silently swap a Ranger's session for one of the attacker's own.
+func requireJSONContentType(req *http.Request) *herr.HTTPError {
+	header := req.Header.Get("Content-Type")
+	if header == "" {
+		return herr.UnsupportedMediaType(
+			"Request Content-Type must be application/json",
+			errNoContentType,
+		)
+	}
+	mediaType, _, err := mime.ParseMediaType(header)
+	if err != nil {
+		return herr.UnsupportedMediaType(
+			"Request Content-Type must be application/json",
+			fmt.Errorf("%w: %w", errNonJSONContentType, err),
+		).From("[ParseMediaType]")
+	}
+	if !strings.EqualFold(mediaType, "application/json") {
+		return herr.UnsupportedMediaType(
+			"Request Content-Type must be application/json",
+			fmt.Errorf("%w: got %v", errNonJSONContentType, mediaType),
+		)
+	}
+	return nil
 }
 
 // parseIfMatch returns the record version from a request's If-Match header, or

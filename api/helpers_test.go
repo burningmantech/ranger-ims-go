@@ -55,7 +55,8 @@ func TestReadBodyAsErrors(t *testing.T) {
 
 	// error if the request body read fails
 	req := &http.Request{
-		Body: angryReader{},
+		Header: jsonContentType(),
+		Body:   angryReader{},
 	}
 	_, errHTTP := readBodyAs[any](req)
 	require.NotNil(t, errHTTP)
@@ -63,11 +64,75 @@ func TestReadBodyAsErrors(t *testing.T) {
 
 	// error if the request body isn't valid JSON
 	req = &http.Request{
-		Body: io.NopCloser(strings.NewReader("this isn't json")),
+		Header: jsonContentType(),
+		Body:   io.NopCloser(strings.NewReader("this isn't json")),
 	}
 	_, errHTTP = readBodyAs[any](req)
 	require.NotNil(t, errHTTP)
 	require.Equal(t, http.StatusBadRequest, errHTTP.Code)
+}
+
+// TestReadBodyAsRequiresJSONContentType covers the CSRF defense in readBodyAs:
+// only a JSON Content-Type is accepted, so no cross-site HTML form can reach a
+// handler that reads a request body.
+func TestReadBodyAsRequiresJSONContentType(t *testing.T) {
+	t.Parallel()
+
+	bodyOf := func(header http.Header) *http.Request {
+		return &http.Request{
+			Header: header,
+			Body:   io.NopCloser(strings.NewReader(`{"identification": "Hardware"}`)),
+		}
+	}
+
+	// a plain JSON Content-Type is accepted
+	req := bodyOf(http.Header{"Content-Type": []string{"application/json"}})
+	body, errHTTP := readBodyAs[map[string]string](req)
+	require.Nil(t, errHTTP)
+	assert.Equal(t, "Hardware", body["identification"])
+
+	// a JSON Content-Type with parameters and odd casing is accepted too
+	req = bodyOf(http.Header{"Content-Type": []string{"Application/JSON; charset=utf-8"}})
+	body, errHTTP = readBodyAs[map[string]string](req)
+	require.Nil(t, errHTTP)
+	assert.Equal(t, "Hardware", body["identification"])
+
+	// a missing Content-Type is rejected
+	req = bodyOf(http.Header{})
+	_, errHTTP = readBodyAs[map[string]string](req)
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusUnsupportedMediaType, errHTTP.Code)
+	require.ErrorIs(t, errHTTP, errNoContentType)
+
+	// text/plain is rejected. This is the Content-Type a cross-site HTML form
+	// would use to smuggle a JSON body to IMS.
+	req = bodyOf(http.Header{"Content-Type": []string{"text/plain"}})
+	_, errHTTP = readBodyAs[map[string]string](req)
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusUnsupportedMediaType, errHTTP.Code)
+	require.ErrorIs(t, errHTTP, errNonJSONContentType)
+
+	// form encodings are rejected
+	req = bodyOf(http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}})
+	_, errHTTP = readBodyAs[map[string]string](req)
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusUnsupportedMediaType, errHTTP.Code)
+
+	req = bodyOf(http.Header{"Content-Type": []string{"multipart/form-data; boundary=xyz"}})
+	_, errHTTP = readBodyAs[map[string]string](req)
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusUnsupportedMediaType, errHTTP.Code)
+
+	// an unparseable Content-Type is rejected
+	req = bodyOf(http.Header{"Content-Type": []string{"application/json; charset"}})
+	_, errHTTP = readBodyAs[map[string]string](req)
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusUnsupportedMediaType, errHTTP.Code)
+	require.ErrorIs(t, errHTTP, errNonJSONContentType)
+}
+
+func jsonContentType() http.Header {
+	return http.Header{"Content-Type": []string{"application/json"}}
 }
 
 func TestParseIfMatch(t *testing.T) {

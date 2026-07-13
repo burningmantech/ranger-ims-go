@@ -17,6 +17,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -234,4 +235,64 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 	require.Equal(t, userAliceHandle, claims.RangerHandle())
 	// this new token should expire no earlier than the old one
 	require.GreaterOrEqual(t, refreshResp.ExpiresUnixMs, response.ExpiresUnixMs)
+}
+
+// TestPostAuthRejectsCrossSiteFormPost guards against login CSRF. A page on another
+// origin can't run JavaScript against IMS (no CORS headers) or read our responses,
+// but it can make a browser submit an HTML form to us. Such a form can only send a
+// text/plain, urlencoded, or multipart body, so IMS requires application/json on any
+// request body. Without that, an attacker could silently log a Ranger's browser into
+// the attacker's own account, and then harvest whatever the Ranger typed next.
+func TestPostAuthRejectsCrossSiteFormPost(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	// This is what a cross-site form POST looks like on the wire: real credentials
+	// in a JSON body, but a Content-Type that a form (and only a form) would send.
+	// #nosec G117 // Test credentials
+	postBody, err := json.Marshal(api.PostAuthRequest{
+		Identification: userAliceEmail,
+		Password:       userAlicePassword,
+	})
+	require.NoError(t, err)
+	authURL := shared.serverURL.JoinPath("/ims/api/auth").String()
+
+	formPost := func(contentType string) *http.Response {
+		httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(postBody))
+		require.NoError(t, err)
+		httpPost.Header.Set("Content-Type", contentType)
+		client := &http.Client{Timeout: 10 * time.Second}
+		// #nosec G704 // SSRF via taint analysis. We control the URL.
+		resp, err := client.Do(httpPost)
+		require.NoError(t, err)
+		return resp
+	}
+
+	// The text/plain form encoding is rejected, and hands out no refresh cookie.
+	resp := formPost("text/plain;charset=UTF-8")
+	require.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+	assert.Empty(t, resp.Header.Get("Set-Cookie"))
+	require.NoError(t, resp.Body.Close())
+
+	// So is the urlencoded form encoding.
+	resp = formPost("application/x-www-form-urlencoded")
+	require.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+	assert.Empty(t, resp.Header.Get("Set-Cookie"))
+	require.NoError(t, resp.Body.Close())
+
+	// So is the multipart form encoding.
+	resp = formPost("multipart/form-data; boundary=whatever")
+	require.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+	assert.Empty(t, resp.Header.Get("Set-Cookie"))
+	require.NoError(t, resp.Body.Close())
+
+	// The same credentials sent the way the IMS web app sends them still work.
+	statusCode, _, token := ApiHelper{t: t, serverURL: shared.serverURL}.postAuth(ctx,
+		api.PostAuthRequest{
+			Identification: userAliceEmail,
+			Password:       userAlicePassword,
+		},
+	)
+	require.Equal(t, http.StatusOK, statusCode)
+	require.NotEmpty(t, token)
 }

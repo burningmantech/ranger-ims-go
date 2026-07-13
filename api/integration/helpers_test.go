@@ -520,6 +520,7 @@ func (a ApiHelper) imsPostIfMatch(ctx context.Context, body any, path, ifMatch s
 	require.NoError(a.t, err)
 	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, path, bytes.NewReader(postBody))
 	require.NoError(a.t, err)
+	httpPost.Header.Set("Content-Type", "application/json")
 	if a.jwt != "" {
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}

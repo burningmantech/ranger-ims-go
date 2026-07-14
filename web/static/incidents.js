@@ -45,6 +45,7 @@ let visibleIncidentTypeIds = [];
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     newIncident: ims.typedElement("new_incident", HTMLElement),
+    stateSelectTemplate: ims.typedElement("incident_state_template", HTMLTemplateElement),
     showState: ims.typedElement("show_state", HTMLButtonElement),
     showDays: ims.typedElement("show_days", HTMLButtonElement),
     showType: ims.typedElement("show_type", HTMLElement),
@@ -341,7 +342,7 @@ function initDataTables(tablePrereqs) {
                 "className": "incident_state text-center",
                 "data": "state",
                 "defaultContent": null,
-                "render": ims.renderState,
+                "render": renderState,
                 "responsivePriority": 3,
             },
             {
@@ -392,8 +393,9 @@ function initDataTables(tablePrereqs) {
         ],
         "createdRow": function (row, incident, _index) {
             const openLink = function (e) {
-                // If the user clicked on a link, then let them access that link without the JS below.
-                if (e.target?.constructor?.name === "HTMLAnchorElement") {
+                // If the user clicked on a link or on the row's State dropdown, let them use
+                // that control, rather than navigating away to the Incident.
+                if (e.target instanceof Element && e.target.closest("a, select") != null) {
                     return;
                 }
                 const isLeftClick = e.type === "click";
@@ -458,6 +460,79 @@ function renderIncidentTypes(ids, type, _incident) {
         default:
             return undefined;
     }
+}
+//
+// Incident state, which is editable from this page
+//
+// Render the State cell as a dropdown, so that an Incident's state can be changed
+// without opening the Incident. Users who can't write Incidents, and Incidents whose
+// state IMS doesn't recognize, get the plain text that every other page shows.
+//
+// This has to happen in the renderer, rather than in a createdCell callback, because
+// DataTables rewrites a cell from its "display" value whenever the row's data changes,
+// which here is on every update that arrives over SSE.
+function renderState(state, type, incident) {
+    const currentState = ims.stateForIncident(incident);
+    if (type !== "display" || !ims.eventAccess?.writeIncidents ||
+        incident.number == null || currentState === "null") {
+        return ims.renderState(state, type, incident);
+    }
+    const fragment = el.stateSelectTemplate.content.cloneNode(true);
+    const select = fragment.querySelector("select");
+    select.value = currentState;
+    select.ariaLabel = `State of Incident ${incident.number}`;
+    // The Incident this dropdown was drawn from is the one the user is looking at, so
+    // it's the right thing to diff against and to send an If-Match version from. A row
+    // that changes gets a new dropdown, drawn from the new data.
+    select.addEventListener("change", () => {
+        editIncidentState(select, incident);
+    });
+    return select;
+}
+async function editIncidentState(select, incident) {
+    if (incident.number == null) {
+        return;
+    }
+    const newState = select.value;
+    if (newState === "closed" && (incident.incident_type_ids ?? []).length === 0) {
+        window.alert("Closing out this incident?\n" +
+            "Please add an incident type!\n\n" +
+            "Special cases:\n" +
+            "    Junk: for erroneously-created Incidents\n" +
+            "    Admin: for administrative information, i.e. not Incidents at all\n\n" +
+            "See the Incident Types help link for more details.\n");
+    }
+    // Send the version we drew this row from as If-Match, so that the server rejects the
+    // edit (412) if someone else has changed the Incident in the meantime.
+    const headers = {};
+    if (incident.version != null) {
+        headers["If-Match"] = `"${incident.version}"`;
+    }
+    select.disabled = true;
+    const { resp, err } = await ims.fetchNoThrow(ims.urlReplace(url_incidentNumber).replace("<incident_number>", incident.number.toString()), {
+        headers: headers,
+        body: JSON.stringify({
+            number: incident.number,
+            state: newState,
+        }),
+    });
+    select.disabled = false;
+    if (err != null) {
+        let message = `Failed to update state of Incident ${incident.number}: ${err}`;
+        if (resp?.status === 412) {
+            message = `Someone else has edited Incident ${incident.number}. ` +
+                "That row will refresh with their changes; please retry your edit.";
+        }
+        console.error(message);
+        ims.setErrorMessage(message);
+        ims.controlHasError(select);
+        // Put the dropdown back to the state we last read from the server. If the row has
+        // since been redrawn, this select is detached and the redraw already did the job.
+        select.value = ims.stateForIncident(incident);
+        return;
+    }
+    ims.clearErrorMessage();
+    ims.controlHasSuccess(select);
 }
 //
 // Initialize table buttons

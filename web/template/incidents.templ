@@ -216,6 +216,17 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
 
     </div>
 
+    <!-- The State cell of each row, for users who are allowed to edit Incidents. -->
+    <template id="incident_state_template">
+      <select class="form-select form-select-sm incident-state-select">
+        <option value="new">New</option>
+        <option value="on_hold">On Hold</option>
+        <option value="dispatched">Dispatched</option>
+        <option value="on_scene">On Scene</option>
+        <option value="closed">Closed</option>
+      </select>
+    </template>
+
     <table id="queue_table" class="table table-striped table-hover">
       <caption class="visually-hidden">Incidents</caption>
       <thead>

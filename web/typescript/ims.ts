@@ -983,7 +983,7 @@ export function renderDate(date: string|undefined, type: string, _incidentOrFROr
     }
 }
 
-export function renderState(state: IncidentState, type: string, incident: Incident): RenderValue {
+export function renderState(state: IncidentState, type: RenderType, incident: Incident): RenderValue {
     if (state == null) {
         state = stateForIncident(incident);
     }

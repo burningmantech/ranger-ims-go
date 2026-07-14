@@ -152,8 +152,7 @@ func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
 // when an error is known to actually be an HTTPError, but when it's declared
 // as a different type. This function then asserts it's actually an HTTPError.
 func AsHTTPError(err error) *HTTPError {
-	errHTTP := &HTTPError{}
-	if errors.As(err, &errHTTP) {
+	if errHTTP, ok := errors.AsType[*HTTPError](err); ok {
 		return errHTTP
 	}
 	return InternalServerError(

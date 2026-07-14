@@ -488,9 +488,9 @@ func (action EditFieldReport) handleLinkToIncident(
 		},
 	)
 	if err != nil {
-		var mysqlErr *mysql.MySQLError
 		const mySQLErNoReferencedRow2 = 1452
-		if errors.As(err, &mysqlErr) && mysqlErr.Number == mySQLErNoReferencedRow2 {
+		mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+		if ok && mysqlErr.Number == mySQLErNoReferencedRow2 {
 			return herr.NotFound("No such Incident", err).From("[AttachFieldReportToIncident]")
 		}
 		return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")

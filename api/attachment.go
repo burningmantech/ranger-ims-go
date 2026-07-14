@@ -335,8 +335,7 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
-		var mbe *http.MaxBytesError
-		if errors.As(err, &mbe) {
+		if mbe, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			return 0, herr.RequestEntityTooLarge(fmt.Sprintf("The supplied file is above the server limit of %v", format.HumanByteSize(mbe.Limit)), err)
 		}
 		return 0, herr.BadRequest("Failed to parse file", err)
@@ -450,8 +449,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
-		var mbe *http.MaxBytesError
-		if errors.As(err, &mbe) {
+		if mbe, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			return 0, herr.RequestEntityTooLarge(fmt.Sprintf("The supplied file is above the server limit of %v", format.HumanByteSize(mbe.Limit)), err)
 		}
 		return 0, herr.BadRequest("Failed to parse file", err)
@@ -588,8 +586,7 @@ func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPE
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
 	if err != nil {
-		var mbe *http.MaxBytesError
-		if errors.As(err, &mbe) {
+		if mbe, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			return 0, herr.RequestEntityTooLarge(fmt.Sprintf("The supplied file is above the server limit of %v", format.HumanByteSize(mbe.Limit)), err)
 		}
 		return 0, herr.BadRequest("Failed to parse file", err)

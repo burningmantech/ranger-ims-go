@@ -21,11 +21,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
+
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/go-sql-driver/mysql"
-	"log/slog"
-	"strings"
 )
 
 type schemaVersion int16
@@ -59,8 +60,8 @@ func dbSchemaVersion(ctx context.Context, db *sql.DB) (schemaVersion, error) {
 	}
 
 	const tableUnknownError = 1146
-	var mysqlErr *mysql.MySQLError
-	if errors.As(err, &mysqlErr) && mysqlErr.Number == tableUnknownError {
+	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+	if ok && mysqlErr.Number == tableUnknownError {
 		slog.Info("No SCHEMA_INFO table found. This must be a new database.")
 		return 0, nil
 	}

@@ -17,6 +17,18 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Pre-compile the code generators into the Go build cache. The only inputs to
+# this layer are go.mod and go.sum, so it stays cached when only source changes,
+# leaving the generate step below with just a link to do.
+#
+# Deliberately not a `RUN --mount=type=cache` on GOCACHE: BuildKit cache mounts
+# aren't exported by `cache-to: type=gha`, so they don't survive across CI
+# runners. The warm build cache has to live in the layer itself to be restorable.
+RUN CGO_ENABLED=0 go build -o /tmp/tools/ \
+      github.com/sqlc-dev/sqlc/cmd/sqlc \
+      github.com/a-h/templ/cmd/templ \
+      github.com/microsoft/typescript-go/cmd/tsgo
+
 # Fetch client deps that we need to embed in the binary
 COPY ./bin/fetchbuilddeps/ ./bin/fetchbuilddeps/
 RUN go run ./bin/fetchbuilddeps/fetchbuilddeps.go
@@ -25,6 +37,11 @@ RUN go run ./bin/fetchbuilddeps/fetchbuilddeps.go
 # because we want Go to bake the repo's state into the build.
 # See https://pkg.go.dev/debug/buildinfo#BuildInfo
 COPY ./ ./
+
+# None of the sqlc/templ/tsgo output is checked in, so generate it here. This
+# re-runs fetchbuilddeps too, but that's a no-op: it hash-checks the files the
+# layer above already fetched and skips the download.
+RUN CGO_ENABLED=0 go run bin/build/build.go -generate-only
 
 # Build the server
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/ranger-ims-go

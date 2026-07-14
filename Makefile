@@ -9,6 +9,13 @@ binary_name = ranger-ims-go
 build:
 	go run bin/build/build.go
 
+## generate: run the code generators (sqlc, templ, tsgo) without building the server.
+## None of the generated code is checked in, so a fresh clone needs this (or `build`)
+## before `go test`, `go vet` or your editor's language server will work.
+.PHONY: generate
+generate:
+	go run bin/build/build.go -generate-only
+
 ## test: run all go tests
 .PHONY: test
 test:

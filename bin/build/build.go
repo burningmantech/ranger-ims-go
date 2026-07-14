@@ -33,6 +33,7 @@ import (
 )
 
 var outputApp = flag.String("output-app", "ranger-ims-go", "Output app name")
+var generateOnly = flag.Bool("generate-only", false, "Generate code, but don't build the app")
 
 func main() {
 	flag.Parse()
@@ -73,6 +74,11 @@ func main() {
 		return nil
 	})
 	must(eg.Wait())
+
+	if *generateOnly {
+		log.Printf("Code generation done in %v", time.Since(start))
+		return
+	}
 
 	// #nosec G204
 	mustRunInDir(exec.CommandContext(ctx, "go", "build", "-o", *outputApp), repo.Name())

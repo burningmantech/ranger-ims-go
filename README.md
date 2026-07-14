@@ -9,10 +9,14 @@ that occur in Black Rock City.
 2. Install Go and have `go` on your PATH. https://go.dev/dl
 3. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
 4. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
-5. Do a one-time fetch of external build dependencies into your repo, by running
+5. Generate code and fetch external build dependencies into your repo, by running
    ```shell
-    go run bin/fetchbuilddeps/fetchbuilddeps.go
+   make generate
    ```
+   None of the generated code (sqlc, templ, tsgo) is checked in, so a fresh clone
+   won't compile until you've run this. Rerun it whenever you change a `.templ`,
+   `.ts`, or `.sql` file — or just use `make build` / `make run/live`, which run the
+   generators for you.
 
 ## Run IMS locally with docker compose
 

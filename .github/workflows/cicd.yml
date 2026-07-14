@@ -67,8 +67,10 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Fetch external build dependencies
-        run: go run bin/fetchbuilddeps/fetchbuilddeps.go
+      # Generated code isn't checked in, so it has to exist before anything can
+      # compile. This also fetches the external client deps that static.go embeds.
+      - name: Generate code and fetch external build dependencies
+        run: go run bin/build/build.go -generate-only
 
       - name: Install Python
         uses: actions/setup-python@v6
@@ -120,15 +122,12 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Fetch external build dependencies
-        run: go run bin/fetchbuilddeps/fetchbuilddeps.go
-
-      # TODO: maybe install sqlc, templ, and tsc code generation
-      #  here as well. They would add some additional build time
-      #  (mostly due to fetching their deps and building them),
-      #  which is less than ideal. For now, it should be fine to
-      #  do these on the developer's computer, and this can be
-      #  enforced by pre-commit.
+      # Generated code isn't checked in, so it has to exist before anything can
+      # compile. This also fetches the external client deps that static.go embeds.
+      # tsgo is the TypeScript type checker, so this step is what makes a type
+      # error in web/typescript/ fail the build.
+      - name: Generate code and fetch external build dependencies
+        run: go run bin/build/build.go -generate-only
 
       - name: Compile, test, and cover
         run: go test -race -covermode=atomic -coverprofile=coverage.txt --coverpkg ./... ./...
@@ -163,12 +162,16 @@ jobs:
             *.github.com:443
             *.githubusercontent.com:443
             *.golang.org:443
+            cdn.datatables.net:443
+            cdn.jsdelivr.net:443
+            code.jquery.com:443
             dl.google.com:443
             github.com:443
             go.dev:443
             golang.org:443
             registry.npmjs.org:443
             storage.googleapis.com:443
+
 
       - name: Checkout source code
         uses: actions/checkout@v7
@@ -183,8 +186,19 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
+      # The templ-generated Go isn't checked in, and the fixture renderer below
+      # needs it in order to compile.
+      - name: Generate code and fetch external build dependencies
+        run: go run bin/build/build.go -generate-only
+
       - name: Install npm dependencies
         run: npm ci
+
+      # Vitest transpiles the TypeScript without type-checking it, so this is a
+      # separate step. The web/typescript sources are covered by the tsgo run in
+      # the generate step above; this covers the test sources.
+      - name: Type-check TypeScript tests
+        run: npm run typecheck
 
       # The "pretest" npm script renders the templ HTML fixtures (via Go)
       # that the Vitest tests run against; `npm test` runs it automatically.
@@ -206,8 +220,11 @@ jobs:
         with:
           egress-policy: block
           allowed-endpoints: >
+            *.actions.githubusercontent.com:443
+            *.blob.core.windows.net:443
             *.docker.com:443
             *.docker.io:443
+            *.githubusercontent.com:443
             *.golang.org:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
@@ -219,11 +236,29 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v7
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # The image now compiles sqlc/templ/tsgo and runs them, because none of
+      # their output is checked in. `mode=max` on the cache export is what keeps
+      # that affordable: the default `mode=min` only caches the last layer of the
+      # final stage, which caches nothing useful in a multi-stage build. The
+      # Dockerfile builds the generators in a layer keyed only on go.mod/go.sum,
+      # so source-only changes restore it from cache instead of rebuilding.
       - name: Build Docker image
-        run: docker build --tag "ranger-ims-go:${{ github.sha }}" .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: "ranger-ims-go:${{ github.sha }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # `load: true` exports to the local Docker daemon, which can't take the
+          # attestation manifest list that buildx would otherwise attach.
+          provenance: false
 
       - name: Save Docker image
-        run: docker image save ranger-ims-go | gzip -9 > docker_image.tgz
+        run: docker image save "ranger-ims-go:${{ github.sha }}" | gzip -9 > docker_image.tgz
 
       - name: Upload Docker image artifacts
         uses: actions/upload-artifact@v7

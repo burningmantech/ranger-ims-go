@@ -15,6 +15,17 @@ ims-attachments
 # the temp dir for `go tool air`
 air_tmp
 
+# generated code and fetched client deps. The image produces these itself, so
+# excluding them here keeps a developer's stale local output out of the build.
+# The hand-written doc.go in each generated package stays; see .gitignore.
+/store/imsdb/*.go
+!/store/imsdb/doc.go
+/directory/clubhousedb/*.go
+!/directory/clubhousedb/doc.go
+/web/template/*_templ.go
+/web/static/*.js
+web/static/ext
+
 # playwright generated stuff, including any node_modules anywhere
 **/node_modules
 playwright/test-results

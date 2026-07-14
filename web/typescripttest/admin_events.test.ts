@@ -248,7 +248,7 @@ test("the delete button DELETEs the event after confirmation", async (): Promise
     // button which event it applies to.
     (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
 
-    const deleteCall = ([url, init]: [string, RequestInit|undefined]): boolean =>
+    const deleteCall = ([url, init]: [url: string, init?: RequestInit | undefined]): boolean =>
         url === url_event.replace("<event_id>", "2025") && init?.method === "DELETE";
 
     // Declining the confirmation sends nothing.

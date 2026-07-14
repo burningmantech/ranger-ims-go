@@ -1,17 +1,25 @@
 # Generated JavaScript
 
-We're now using TypeScript as the source of truth for frontend code.
-The js files in this dir are transpiled from that TypeScript, and so
-you **should not** modified the js directly!
+TypeScript is the source of truth for frontend code. The js files in this dir
+are transpiled from it by `tsgo`, they are **not** checked in, and you should
+not edit them directly.
 
-Instead, you should make changes to the TypeScript in
+Instead, make your changes to the TypeScript in
 
 ```
-src/ims/element/typescript
+web/typescript
 ```
 
-then run the `tsc` tool locally, which will automatically update all
-the js files in this directory.
+then regenerate:
 
-Ideally we'll have this automated someday, so that no manual running
-of `tsc` and checking-in of generated js files is necessary.
+```shell
+make generate
+```
+
+`make build`, `make run/live` and the Docker build all run the generators too,
+as does CI, so there's nothing to check in. Note that `tsgo` is also the
+TypeScript *type checker*, so a type error in `web/typescript` fails the build.
+
+The hand-written assets here (`style.css`, `logos/`) are checked in as normal.
+The third-party client libraries under `ext/` aren't checked in either; they're
+fetched by `bin/fetchbuilddeps`.

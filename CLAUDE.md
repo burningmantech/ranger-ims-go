@@ -12,9 +12,11 @@ The main domain entities, all scoped to an Event (e.g. a burn year): **Incidents
 
 ### Initial Setup
 
-First-time setup to fetch external build dependencies:
+Generated code and external build dependencies aren't checked in, so a fresh clone won't compile until you produce them:
 ```bash
-go run bin/fetchbuilddeps/fetchbuilddeps.go
+make generate
+# or
+go run bin/build/build.go -generate-only
 ```
 
 ### Building
@@ -238,7 +240,16 @@ The project uses several code generators (all invoked by the build script):
 2. **templ** - Compiles `.templ` templates to Go code
 3. **tsgo** - TypeScript compiler wrapper that transpiles to JavaScript
 
-**Never hand-edit generated files**: `*_templ.go` files in `web/template/`, everything in `store/imsdb/` and `directory/clubhousedb/`, and the JavaScript in `web/static/` (generated from `web/typescript/`). Edit the source (`.templ`, `.sql`, `.ts`) and rebuild instead.
+**Generated code is not checked in.** These paths are all gitignored and produced by the generators:
+
+- `web/template/*_templ.go` — from the `.templ` files alongside them
+- `store/imsdb/` and `directory/clubhousedb/` — from `*/queries.sql` + `*/schema/current.sql`
+- `web/static/*.js` — from `web/typescript/*.ts`
+- `web/static/ext/` — third-party client libs, fetched by `bin/fetchbuilddeps`
+
+Never hand-edit them; edit the source (`.templ`, `.sql`, `.ts`) and regenerate. A fresh clone won't compile until you do — `go test ./...`, `go vet`, and gopls all need the generated code to exist. Run `make generate` (generators only) or `make build` (generators + `go build`) first. CI, the Dockerfile, and `make run/live` all run the generators themselves, so there is never anything to commit.
+
+Because `tsgo` is the TypeScript type checker, a type error in `web/typescript/` fails `make generate` and fails CI.
 
 ## Development Patterns
 

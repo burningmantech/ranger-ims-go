@@ -51,4 +51,12 @@ USER daemon:daemon
 # This should match the IMS_PORT above
 EXPOSE 80
 
+# Probes the readiness endpoint, so the container only reports healthy when
+# the database is reachable at the expected schema version and the directory
+# source is answering. Compose files' healthcheck blocks override this, and
+# ECS Fargate ignores it (only task-definition health checks apply there).
+# Shell form, so that a runtime IMS_PORT override is respected.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s \
+  CMD /opt/ims/bin/ims healthcheck --server_url "http://localhost:${IMS_PORT}"
+
 CMD [ "/opt/ims/bin/ims", "serve" ]

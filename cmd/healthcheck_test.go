@@ -17,7 +17,6 @@
 package cmd
 
 import (
-	"github.com/burningmantech/ranger-ims-go/api"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,8 +25,14 @@ import (
 func TestHealthCheckSuccess(t *testing.T) {
 	t.Parallel()
 
-	// this serves the real endpoint used in the server
-	ser := httptest.NewServer(api.AddBasicHandlers(nil))
+	// This mimics the /readyz endpoint on a ready server. The real endpoint
+	// needs a database and directory behind it, so the api/integration tests
+	// cover it end-to-end.
+	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/readyz" {
+			http.Error(w, "ready", http.StatusOK)
+		}
+	}))
 
 	exitCode := runHealthCheckInternal(t.Context(), ser.URL)
 	if exitCode != 0 {
@@ -39,9 +44,8 @@ func TestHealthCheckBadStatus(t *testing.T) {
 	t.Parallel()
 
 	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ims/api/ping" {
-			w.WriteHeader(http.StatusTeapot)
-			_, _ = w.Write([]byte("ack"))
+		if r.URL.Path == "/readyz" {
+			http.Error(w, "IMS database is not ready", http.StatusServiceUnavailable)
 		}
 	}))
 
@@ -55,7 +59,7 @@ func TestHealthCheckBadResponse(t *testing.T) {
 	t.Parallel()
 
 	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// the server returns a 200, but not the expected text ("ack")
+		// the server returns a 200, but not the expected text ("ready")
 		w.WriteHeader(http.StatusOK)
 	}))
 

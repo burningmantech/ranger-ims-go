@@ -68,6 +68,25 @@ func dbSchemaVersion(ctx context.Context, db *sql.DB) (schemaVersion, error) {
 	return 0, fmt.Errorf("[schemaVersion]: %w", err)
 }
 
+// CheckSchemaCurrent returns nil if the IMS database is reachable and its
+// schema version matches the version this binary was built against. It's
+// intended for readiness checks: a failure means this process should not
+// be serving traffic yet.
+func CheckSchemaCurrent(ctx context.Context, db *sql.DB) error {
+	repoVersion, err := repoSchemaVersion()
+	if err != nil {
+		return fmt.Errorf("[repoSchemaVersion]: %w", err)
+	}
+	dbVersion, err := dbSchemaVersion(ctx, db)
+	if err != nil {
+		return fmt.Errorf("[dbSchemaVersion]: %w", err)
+	}
+	if dbVersion != repoVersion {
+		return fmt.Errorf("the DB schema version (%v) does not match the version this binary requires (%v)", dbVersion, repoVersion)
+	}
+	return nil
+}
+
 func runScript(ctx context.Context, imsDBQ *sql.DB, script string) error {
 	_, err := imsDBQ.ExecContext(ctx, script)
 	if err != nil {

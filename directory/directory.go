@@ -92,6 +92,17 @@ func (store *UserStore) Flush() {
 	store.teamCache.Invalidate()
 }
 
+// Ping checks that the backing directory Source is reachable and answering.
+// It deliberately bypasses the caches, since a readiness check that reports
+// on stale cached data would mask an unreachable directory.
+func (store *UserStore) Ping(ctx context.Context) error {
+	_, err := store.source.FetchPositions(ctx)
+	if err != nil {
+		return fmt.Errorf("[FetchPositions] %w", err)
+	}
+	return nil
+}
+
 func (store *UserStore) GetAllUsers(ctx context.Context) (map[int64]*User, error) {
 	users, err := store.userCache.Get(ctx)
 	if err != nil {

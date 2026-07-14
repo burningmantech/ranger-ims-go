@@ -61,3 +61,4 @@ air_tmp
 !/directory/clubhousedb/doc.go
 /web/template/*_templ.go
 /web/static/*.js
+/web/static/ext

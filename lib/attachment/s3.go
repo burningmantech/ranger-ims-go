@@ -78,8 +78,8 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 		},
 	)
 	if err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchKey" {
+		apiErr, ok := errors.AsType[smithy.APIError](err)
+		if ok && apiErr.ErrorCode() == "NoSuchKey" {
 			slog.Debug("No such key in S3", "bucket", bucketName, "object", objectName)
 
 			return nil, herr.NotFound("File does not exist", err).From("[GetObject]")

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "fixtures": "go run bin/rendertestfixtures/rendertestfixtures.go",
-    "pretest": "npm run fixtures",
+    "pretest": "npm run fixtures && npm run typecheck",
     "test": "vitest run",
     "pretest:watch": "npm run fixtures",
     "test:watch": "vitest",

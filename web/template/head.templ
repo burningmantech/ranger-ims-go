@@ -38,7 +38,7 @@ templ Head(title string, module string, usesDataTables bool, cacheVersion string
     if usesDataTables {
     <link rel="stylesheet" href="/ims/static/ext/datatables/dataTables.bootstrap5.min.css" type="text/css">
     }
-    <link rel="stylesheet" href="/ims/static/style.css" type="text/css">
+    <link rel="stylesheet" href={"/ims/static/style.css?v=" + v} type="text/css">
     <title>{title}</title>
     <script src="/ims/static/ext/jquery.min.js" defer></script>
     <script src="/ims/static/ext/bootstrap/bootstrap.bundle.min.js" defer></script>

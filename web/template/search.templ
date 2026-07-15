@@ -19,14 +19,14 @@ package template
 templ Search(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Search", "search.js", false, versionRef)
+@Head("Search Anywhere", "search.js", false, versionRef)
 
 <body>
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
 <main id="main" tabindex="-1">
-<h1 id="doc-title">Search</h1>
+<h1 id="doc-title">Search Anywhere</h1>
 
 @ErrorInfo()
 

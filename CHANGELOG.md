@@ -17,7 +17,7 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/pull/673
+https://github.com/burningmantech/ranger-ims-go/pull/700
 -->
 
 ## 2026-07
@@ -25,18 +25,27 @@ https://github.com/burningmantech/ranger-ims-go/pull/673
 ### Changed
 
 - Improved handling of concurrent edits: a field's contents are no longer replaced while a user is actively editing it (e.g. when someone else changes the same field), and rapid successive edits by one user no longer let a later change stomp an earlier one still in flight. https://github.com/burningmantech/ranger-ims-go/commit/62ac9f1
+- Made the web app much friendlier to screen readers and other assistive technology, and started actively testing every page for accessibility problems with axe-core. https://github.com/burningmantech/ranger-ims-go/commit/84f4ff6
 
 ### Added
 
 - Added an IMS-native user store, allowing IMS to run without a Clubhouse database. This includes a new admin page for managing users in the IMS-native user tables. https://github.com/burningmantech/ranger-ims-go/commit/7be7b05
+- Added versioning of Incidents, Field Reports, and Sanctuary Visits. Each is now served with a version (as an HTTP ETag), and a write that's based on a stale version is rejected rather than silently stomping someone else's concurrent change. https://github.com/burningmantech/ranger-ims-go/pull/680
+- Added a proper multi-event search page, which also supports regular expression searches across all the events a user can read. https://github.com/burningmantech/ranger-ims-go/pull/678 https://github.com/burningmantech/ranger-ims-go/commit/a7e1d2e
+- Added a help page to IMS, with documentation of how to use the system. https://github.com/burningmantech/ranger-ims-go/commit/bcf2490
+- Added a type filter to the Places table. https://github.com/burningmantech/ranger-ims-go/commit/2b3a74e
+- Added instructions to the Sanctuary Visit page. https://github.com/burningmantech/ranger-ims-go/commit/7451c37
 - Added the ability to delete events, gated behind a flag that is never enabled in production. This lets local/test runs (e.g. Playwright) clean up the events they create. https://github.com/burningmantech/ranger-ims-go/commit/9fe35d5
 
 ### Removed
 
 - Removed the concentric streets feature and its Admin Streets page, which had been unused for many months. https://github.com/burningmantech/ranger-ims-go/pull/672
+- Removed some unhelpful placeholder text. https://github.com/burningmantech/ranger-ims-go/pull/679
 
 ### Fixed
 
+- Prevented a subtle (and low-risk) CSRF attack. https://github.com/burningmantech/ranger-ims-go/pull/688
+- Avoided database contention over the next number to assign when creating Incidents, Field Reports, and Sanctuary Visits. https://github.com/burningmantech/ranger-ims-go/commit/93bde89
 - Told password managers to ignore another field that isn't a password. https://github.com/burningmantech/ranger-ims-go/pull/671
 
 ## 2026-06

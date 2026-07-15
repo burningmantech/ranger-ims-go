@@ -88,7 +88,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
     <li><strong>Always</strong> - valid all year long</li>
     <li><strong>On-Site</strong> - valid only when a matching Ranger is marked "on-site" in Clubhouse</li>
   </ul>
-  <p>Click "Set dates" on a rule to set a <strong>not-after</strong> time, after which the rule will stop granting access, and/or a <strong>not-before</strong> time, before which the rule will not yet grant access. Times are shown in your time zone (<span id="browser_tz"></span>).</p>
+  <p>Use a rule's date fields to set a <strong>not-after</strong> time, after which the rule will stop granting access, and/or a <strong>not-before</strong> time, before which the rule will not yet grant access. Type a time like <strong id="date_format_example"></strong> and clear the field to remove it. Times are in your time zone (<span id="browser_tz"></span>).</p>
   <p>A rule with an invalid person, position, or team name is highlighted as an "Unknown target", and the event's header shows a count of such issues. Use the rule's "Fix" button to correct a typo.</p>
   <p>You can click the "Explain" button to see which Rangers currently match which rules, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
   <datalist id="access_target_list"></datalist>
@@ -176,22 +176,20 @@ templ AdminEvents(deployment, versionName, versionRef string) {
       </td>
       <td>
         <span class="d-flex align-items-center flex-wrap column-gap-2">
-          <button type="button" class="access_dates_toggle btn btn-sm btn-link p-0 d-none" title="Set not-before/not-after times for this rule">Set dates</button>
-          <button type="button" class="access_dates_badge badge btn btn-secondary d-none" title="Click to edit the not-before/not-after times"></button>
           <span class="access_interval_text badge text-bg-warning d-none"></span>
-          <span class="access_dates d-none">
+          <span class="access_dates">
             <input
-                class="access_not_before p-1 me-1 auto-width"
+                class="access_not_before form-control form-control-sm auto-width me-1"
                 type="text"
                 aria-label="Not before time"
-                title="Not before: permission does not grant access before this time (your browser's time zone)"
+                title="Not before: permission does not grant access before this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
                 placeholder="Not before"
             />
             <input
-                class="access_not_after p-1 auto-width"
+                class="access_not_after form-control form-control-sm auto-width"
                 type="text"
                 aria-label="Not after time"
-                title="Not after: permission stops granting access after this time (your browser's time zone)"
+                title="Not after: permission stops granting access after this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
                 placeholder="Not after"
             />
           </span>

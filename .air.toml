@@ -11,6 +11,7 @@ tmp_dir = "air_tmp"
     "node_modules",
     "playwright",
     "ims-attachments",
+    "web/typescripttest",
     ".git",
     ".idea",
   ]
@@ -18,7 +19,6 @@ tmp_dir = "air_tmp"
     "compose.ranger-ims-go",
     "web/template/*_templ.go",
     "web/static/*.js",
-    "web/typescripttest/*",
     "store/imsdb/*.go",
     "directory/clubhousedb/*.go",
     "coverage.out",

@@ -144,29 +144,66 @@ test("a rule with an unknown target is flagged and its event auto-expands", asyn
     expect(row.querySelector(".fix_button")!.classList.contains("d-none")).toBe(false);
 });
 
-test("a rule with dates shows a badge that reveals the date editors on click", async (): Promise<void> => {
+test("date fields are always shown, with a rule's dates displayed in them", async (): Promise<void> => {
     await initAdminEventsPage();
 
     const rows = ruleRows(eventCards()[0]!);
 
-    // The dateless reader rule offers the "Set dates" button, no badge.
+    // Both rows show their date editors inline, with no toggle or badge.
     const reader = rows[0]!;
-    expect(reader.querySelector(".access_dates_toggle")!.classList.contains("d-none")).toBe(false);
-    expect(reader.querySelector(".access_dates_badge")!.classList.contains("d-none")).toBe(true);
+    expect(reader.querySelector(".access_dates")!.classList.contains("d-none")).toBe(false);
+    // The dateless reader rule has empty date inputs.
+    expect((reader.querySelector(".access_not_before") as HTMLInputElement).value).toBe("");
+    expect((reader.querySelector(".access_not_after") as HTMLInputElement).value).toBe("");
 
-    // The writer rule has dates, summarized in a badge; the date editors stay
-    // hidden until the badge is clicked.
+    // The writer rule has dates, shown formatted like "Sun 2025-08-24 @ 12:00"
+    // in the browser's time zone (so an exact match here would be TZ-dependent).
     const writer = rows[1]!;
-    const badge = writer.querySelector(".access_dates_badge") as HTMLButtonElement;
-    expect(badge.classList.contains("d-none")).toBe(false);
-    expect(badge.textContent).toContain("→");
-    expect(writer.querySelector(".access_dates_toggle")!.classList.contains("d-none")).toBe(true);
-    const editors = writer.querySelector(".access_dates")!;
-    expect(editors.classList.contains("d-none")).toBe(true);
+    expect(writer.querySelector(".access_dates")!.classList.contains("d-none")).toBe(false);
+    const dateFormat = /^[A-Z][a-z]{2} \d{4}-\d{2}-\d{2} @ \d{2}:\d{2}$/;
+    expect((writer.querySelector(".access_not_before") as HTMLInputElement).value).toMatch(dateFormat);
+    expect((writer.querySelector(".access_not_after") as HTMLInputElement).value).toMatch(dateFormat);
+});
 
-    badge.click();
-    expect(editors.classList.contains("d-none")).toBe(false);
-    expect(badge.classList.contains("d-none")).toBe(true);
+test("typing a date into a rule's field posts the parsed not-before time", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const reader = ruleRows(eventCards()[0]!)[0]!;
+    const notBefore = reader.querySelector(".access_not_before") as HTMLInputElement;
+    notBefore.value = "Sun 2025-08-24 @ 12:00";
+    notBefore.dispatchEvent(new Event("change"));
+
+    const postCall = await vi.waitFor(() => {
+        const call = mock.mock.calls.find(
+            ([url, init]) => url === url_acl && init?.body != null,
+        );
+        expect(call).toBeDefined();
+        return call!;
+    });
+    const body = JSON.parse(postCall[1]!.body as string);
+    const rule = body["2025"].readers[0];
+    expect(rule.expression).toBe("person:Tool");
+    // The typed local time is serialized as a UTC ISO instant.
+    expect(rule.not_before).toBe(new Date(2025, 7, 24, 12, 0).toISOString());
+});
+
+test("clearing a rule's date field posts a null not-before time", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const writer = ruleRows(eventCards()[0]!)[1]!;
+    const notBefore = writer.querySelector(".access_not_before") as HTMLInputElement;
+    notBefore.value = "";
+    notBefore.dispatchEvent(new Event("change"));
+
+    const postCall = await vi.waitFor(() => {
+        const call = mock.mock.calls.find(
+            ([url, init]) => url === url_acl && init?.body != null,
+        );
+        expect(call).toBeDefined();
+        return call!;
+    });
+    const body = JSON.parse(postCall[1]!.body as string);
+    expect(body["2025"].writers[0].not_before).toBe(null);
 });
 
 test("clicking the card header toggles the collapse, except on its buttons", async (): Promise<void> => {

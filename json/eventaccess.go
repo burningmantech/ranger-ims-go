@@ -25,6 +25,10 @@ type AccessRule struct {
 	Validity   string    `json:"validity"`
 	NotAfter   time.Time `json:"not_after,omitzero"`
 
+	// Description is a shared, grant-level note explaining the purpose of the
+	// grant this rule belongs to. Every rule in a grant carries the same value.
+	Description string `json:"description,omitempty"`
+
 	// Expired is a read-only field, saying if the AccessRule's NotAfter time is in the past.
 	Expired bool `json:"expired,omitzero"`
 

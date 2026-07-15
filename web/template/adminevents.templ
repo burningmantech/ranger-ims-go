@@ -76,21 +76,15 @@ templ AdminEvents(deployment, versionName, versionRef string) {
     </div>
   </div>
 
-  <p>For each event, you can configure permission rules. Each rule grants an access level to individuals, positions, onduty positions, or teams. For example:</p>
+  <p>For each event, you configure permission <strong>grants</strong>. A grant pairs an access level and validity window with any number of targets &mdash; individuals, positions, onduty positions, or teams &mdash; so you can hand the same access to a whole batch of people without repeating yourself. Targets look like:</p>
   <ul>
     <li><strong>person:Tool</strong></li>
     <li><strong>position:007</strong> - grants access to Rangers who are eligible to work shifts for the provided position</li>
     <li><strong>onduty:Operations Manager</strong> - grants access to Rangers currently on-duty for the provided position</li>
     <li><strong>team:Council</strong></li>
   </ul>
-  <p>You can also choose when each rule is valid:</p>
-  <ul>
-    <li><strong>Always</strong> - valid all year long</li>
-    <li><strong>On-Site</strong> - valid only when a matching Ranger is marked "on-site" in Clubhouse</li>
-  </ul>
-  <p>Use a rule's date fields to set a <strong>not-after</strong> time, after which the rule will stop granting access, and/or a <strong>not-before</strong> time, before which the rule will not yet grant access. Type a time like <strong id="date_format_example"></strong> and clear the field to remove it. Times are in your time zone (<span id="browser_tz"></span>).</p>
-  <p>A rule with an invalid person, position, or team name is highlighted as an "Unknown target", and the event's header shows a count of such issues. Use the rule's "Fix" button to correct a typo.</p>
-  <p>You can click the "Explain" button to see which Rangers currently match which rules, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
+  <p>Each grant is valid either <strong>Always</strong> (all year long) or only <strong>On-Site</strong> (valid only when a matching Ranger is marked "on-site" in Clubhouse). Use a grant's date fields to set a <strong>not-after</strong> time, after which it stops granting access, and/or a <strong>not-before</strong> time, before which it does not yet grant access. Type a time like <strong id="date_format_example"></strong> and clear the field to remove it. Times are in your time zone (<span id="browser_tz"></span>). Each grant also has an optional <strong>description</strong> &mdash; a note explaining the grant's purpose or reasoning &mdash; shared by every target in the grant; editing it via "Edit terms" updates them all at once.</p>
+  <p>A target with an unknown person, position, or team name is flagged in red as an "Unknown target", and the event's header shows a count of such issues. Use the target's "Fix" button to correct a typo. Click "Explain" to see which Rangers currently match each grant, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
   <datalist id="access_target_list"></datalist>
   <div class="row" id="event_access_container">
     <!-- event_access_template elements go here -->
@@ -102,104 +96,104 @@ templ AdminEvents(deployment, versionName, versionRef string) {
           <button type="button" class="access_collapse_toggle btn fw-bold fs-5 p-0 border-0" data-bs-toggle="collapse">
             <span class="access_collapse_chevron me-1" aria-hidden="true">&#9656;</span><span class="event_name"></span>
           </button>
-          <span class="rule_count badge text-bg-secondary" title="Number of access rules for this event"></span>
-          <span class="issue_count badge text-bg-danger d-none" title="Number of rules with problems, such as unknown targets"></span>
+          <span class="rule_count badge text-bg-secondary" title="Grants and people for this event"></span>
+          <span class="issue_count badge text-bg-danger d-none" title="Number of targets with problems, such as unknown targets"></span>
           <span class="ms-auto">
             <button type="button" class="explain_button badge btn btn-primary me-2">Explain</button>
-            <button type="button" class="show-edit-modal badge btn btn-primary">Edit</button>
+            <button type="button" class="show-edit-modal badge btn btn-primary">Edit Event</button>
           </span>
         </div>
         <div class="collapse access_rules_collapse">
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th scope="col" class="ps-3">Access level</th>
-                  <th scope="col">Who</th>
-                  <th scope="col">When</th>
-                  <th scope="col">Dates</th>
-                  <th scope="col"><span class="visually-hidden">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody class="access_rules">
-                <!-- access_rule_template elements go here -->
-              </tbody>
-            </table>
+          <div class="card-body d-flex flex-column gap-2 py-2 grants_container">
+            <!-- grant_template elements go here -->
           </div>
-          <div class="card-footer d-flex align-items-center flex-wrap column-gap-2">
-            <span>Add:</span>
-            <select class="access_add_level form-select form-select-sm auto-width" aria-label="Access level for new rule">
-              <option value="readers">Read all</option>
-              <option value="writers">Write all</option>
-              <option value="reporters">Report own</option>
-              <option value="visit_writers">Write visits</option>
-            </select>
-            <input
-              class="access_add form-control form-control-sm auto-width"
-              type="text" inputmode="verbatim"
-              list="access_target_list"
-              placeholder="person:Tool"
-              aria-label="New rule target"
-              onchange="addAccess(this)"
-            />
+          <div class="card-footer">
+            <button type="button" class="new_grant_button btn btn-sm btn-outline-secondary">+ New grant</button>
           </div>
         </div>
       </div>
     </div>
   </template>
-  <template id="access_rule_template">
-    <tr class="access_rule">
-      <td class="ps-3">
-        <select class="access_level form-select form-select-sm auto-width" aria-label="Access level" onchange="setLevel(this)">
-          <option value="readers">Read all</option>
-          <option value="writers">Write all</option>
-          <option value="reporters">Report own</option>
-          <option value="visit_writers">Write visits</option>
-        </select>
-      </td>
-      <td>
-        <span class="access_expression"></span>
-        <input
-          class="access_fix form-control form-control-sm auto-width d-none"
+  <template id="grant_template">
+    <div class="grant">
+      <div class="grant-header d-flex align-items-center flex-wrap column-gap-2 row-gap-1">
+        <!-- Read-only display of the grant's terms. -->
+        <span class="grant_terms_display d-flex align-items-center flex-wrap column-gap-2 row-gap-1">
+          <span class="grant_level_badge badge text-bg-primary"></span>
+          <span class="grant_when_badge badge"></span>
+          <span class="grant_not_before_badge badge border text-body-secondary d-none"></span>
+          <span class="grant_not_after_badge badge border text-body-secondary d-none"></span>
+          <span class="grant_interval_badge badge text-bg-warning d-none"></span>
+          <span class="grant_description_display fst-italic text-body-secondary d-none" title="Grant description"></span>
+        </span>
+        <!-- Editable terms: hidden until "Edit terms", shown from the start for a new draft grant. -->
+        <span class="grant_terms_edit d-none align-items-center flex-wrap column-gap-2 row-gap-1">
+          <select class="grant_level form-select form-select-sm auto-width" aria-label="Access level">
+            <option value="readers">Read all</option>
+            <option value="writers">Write all</option>
+            <option value="reporters">Report own</option>
+            <option value="visit_writers">Write visits</option>
+          </select>
+          <select class="grant_validity form-select form-select-sm auto-width" aria-label="Validity">
+            <option value="always">Always</option>
+            <option value="onsite">On-Site</option>
+          </select>
+          <input
+              class="grant_not_before form-control form-control-sm auto-width"
+              type="text"
+              aria-label="Not before time"
+              title="Not before: the grant does not take effect until this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
+              placeholder="Not before"
+          />
+          <input
+              class="grant_not_after form-control form-control-sm auto-width"
+              type="text"
+              aria-label="Not after time"
+              title="Not after: the grant stops granting access after this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
+              placeholder="Not after"
+          />
+          <input
+              class="grant_description form-control form-control-sm"
+              type="text"
+              maxlength="255"
+              aria-label="Grant description"
+              title="Description: an optional note explaining the purpose or reasoning for this grant. Shared by every target in the grant."
+              placeholder="Description (why this grant?)"
+          />
+        </span>
+        <span class="ms-auto grant_actions">
+          <button type="button" class="grant_edit_terms btn btn-xs btn-outline-secondary">Edit terms</button>
+          <button type="button" class="grant_apply_terms btn btn-xs btn-primary d-none">Apply</button>
+          <button type="button" class="grant_cancel_terms btn btn-xs btn-outline-secondary d-none">Cancel</button>
+          <button type="button" class="grant_remove_draft btn btn-xs btn-danger d-none">Remove</button>
+        </span>
+      </div>
+      <div class="grant-body">
+        <div class="who_chips d-flex flex-wrap align-items-center gap-2">
+          <!-- who_chip_template elements go here -->
+          <input
+              class="who_add form-control form-control-sm auto-width"
+              type="text" inputmode="verbatim"
+              list="access_target_list"
+              placeholder="+ add who&hellip;"
+              aria-label="Add a target to this grant"
+          />
+        </div>
+      </div>
+    </div>
+  </template>
+  <template id="who_chip_template">
+    <span class="who-chip">
+      <span class="who_expression"></span>
+      <button type="button" class="who_fix btn btn-warning btn-xs ms-1 d-none">Fix</button>
+      <input
+          class="who_fix_input form-control form-control-sm auto-width d-none"
           type="text" inputmode="verbatim"
           list="access_target_list"
-          aria-label="Corrected rule target"
-          onchange="fixAccess(this)"
-        />
-        <span class="unknown_target_text badge text-bg-danger d-none">Unknown target</span>
-      </td>
-      <td>
-        <select class="access_validity form-select form-select-sm auto-width" aria-label="Validity" onchange="setValidity(this)">
-          <option value="always">Always</option>
-          <option value="onsite">On-Site</option>
-        </select>
-      </td>
-      <td>
-        <span class="d-flex align-items-center flex-wrap column-gap-2">
-          <span class="access_interval_text badge text-bg-warning d-none"></span>
-          <span class="access_dates">
-            <input
-                class="access_not_before form-control form-control-sm auto-width me-1"
-                type="text"
-                aria-label="Not before time"
-                title="Not before: permission does not grant access before this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
-                placeholder="Not before"
-            />
-            <input
-                class="access_not_after form-control form-control-sm auto-width"
-                type="text"
-                aria-label="Not after time"
-                title="Not after: permission stops granting access after this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
-                placeholder="Not after"
-            />
-          </span>
-        </span>
-      </td>
-      <td class="text-end pe-3">
-        <button type="button" class="fix_button badge btn btn-warning d-none">Fix</button>
-        <button type="button" class="badge btn btn-danger ms-1" onclick="removeAccess(this)" aria-label="Remove rule">X</button>
-      </td>
-    </tr>
+          aria-label="Corrected target"
+      />
+      <button type="button" class="who-remove" aria-label="Remove target">&times;</button>
+    </span>
   </template>
   <div class="row" id="event_new_container">
     <div class="col-sm-12 event_access">

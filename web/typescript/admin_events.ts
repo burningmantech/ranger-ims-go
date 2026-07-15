@@ -20,12 +20,7 @@ import * as ims from "./ims.ts";
 
 declare global {
     interface Window {
-        setValidity: (el: HTMLSelectElement)=>Promise<void>;
-        setLevel: (el: HTMLSelectElement)=>Promise<void>;
-        addAccess: (el: HTMLInputElement)=>Promise<void>;
-        fixAccess: (el: HTMLInputElement)=>Promise<void>;
         addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
-        removeAccess: (el: HTMLButtonElement)=>Promise<void>;
         setParentGroup: (el: HTMLInputElement) => Promise<void>;
         setMapURL: (el: HTMLInputElement) => Promise<void>;
     }
@@ -45,7 +40,8 @@ const el = {
     editEventModal: ims.typedElement("editEventModal", HTMLElement),
     eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
     eventAccessTemplate: ims.typedElement("event_access_template", HTMLTemplateElement),
-    accessRuleTemplate: ims.typedElement("access_rule_template", HTMLTemplateElement),
+    grantTemplate: ims.typedElement("grant_template", HTMLTemplateElement),
+    whoChipTemplate: ims.typedElement("who_chip_template", HTMLTemplateElement),
     accessTargetList: ims.typedElement("access_target_list", HTMLDataListElement),
     eventDeleteWrapper: ims.typedElement("event_delete_wrapper", HTMLElement),
     eventDelete: ims.typedElement("event_delete", HTMLButtonElement),
@@ -69,12 +65,7 @@ async function initAdminEventsPage(): Promise<void> {
           "setting IMS_EVENT_DELETION_ENABLED=true in the server configuration.";
     el.eventDelete.addEventListener("click", deleteEvent);
 
-    window.setValidity = setValidity;
-    window.setLevel = setLevel;
     window.addEvent = addEvent;
-    window.addAccess = addAccess;
-    window.fixAccess = fixAccess;
-    window.removeAccess = removeAccess;
     window.setParentGroup = setParentGroup;
     window.setMapURL = setMapURL;
 
@@ -105,6 +96,7 @@ interface Access {
     expired?: boolean|null;
     not_before?: string|null;
     pending?: boolean|null;
+    description?: string|null;
     debug_info?: DebugInfo|null;
 }
 
@@ -127,14 +119,44 @@ type EventAccess = Partial<Record<AccessMode, Access[]>>;
 // key is event name
 type EventsAccess = Record<string, EventAccess|null>;
 
+// A Grant is a group of access rules that share an access level, validity, date
+// window, and description. Its members ("whos") are the individual targets. The
+// stored ACL has no notion of a grant; grants are derived from the rules on
+// load, and a grant with N whos fans out into N per-target rules on save. The
+// description is a shared, grant-level note, so every who in a grant carries the
+// same value and editing it rewrites them all.
+interface Grant {
+    key: string;
+    mode: AccessMode;
+    validity: Validity;
+    notBefore: string|null;
+    notAfter: string|null;
+    description: string;
+    whos: Access[];
+}
+
+// A DraftGrant is a grant the admin is composing but hasn't populated yet. It
+// has no stored rules until its first who is added, so it lives only in the UI.
+interface DraftGrant {
+    id: number;
+    mode: AccessMode;
+    validity: Validity;
+    notBefore: string|null;
+    notAfter: string|null;
+    description: string;
+}
+
 const indent = "    ";
 
 let sortedEvents: ims.EventData[];
 let accessControlList: EventsAccess|null = null;
 // All valid rule expressions (e.g. "person:Tool"), or null if they couldn't be fetched.
 let validExpressions: Set<string>|null = null;
-// Names of events whose rule tables are currently expanded.
+// Names of events whose grant lists are currently expanded.
 const expandedEvents = new Set<string>();
+// Draft grants being composed, keyed by event name.
+const draftGrants = new Map<string, DraftGrant[]>();
+let draftIdCounter = 0;
 
 async function loadAccessControlList() : Promise<{err: string|null}> {
     const {json: eventsJson, err: eventsErr} = await ims.fetchNoThrow<ims.EventData[]>(url_events + "?include_groups=true", {
@@ -204,7 +226,7 @@ function ruleHasIssue(accessEntry: Access): boolean {
     return unknownTarget || invalidInterval;
 }
 
-// Expand events that have at least one rule, so their rules (and any issues
+// Expand events that have at least one rule, so their grants (and any issues
 // among them) are visible without any clicking around. Empty events stay
 // collapsed to keep the page compact.
 function expandEventsWithRules(): void {
@@ -218,6 +240,79 @@ function expandEventsWithRules(): void {
             }
         }
     }
+}
+
+//
+// Grant grouping
+//
+
+function grantKey(mode: AccessMode, validity: Validity, notBefore: string|null, notAfter: string|null, description: string): string {
+    // The description is free text and can contain any character, so JSON-encode
+    // the whole tuple rather than joining on a separator. The result is still a
+    // valid data-attribute value (and CSS.escape handles it in selectors).
+    return JSON.stringify([mode, validity, notBefore??"", notAfter??"", description]);
+}
+
+// Group an event's stored rules into grants keyed by (mode, validity, dates,
+// description).
+function grantsForEvent(eventName: string): Grant[] {
+    const eventACL = accessControlList?.[eventName];
+    const byKey = new Map<string, Grant>();
+    for (const mode of allAccessModes) {
+        for (const a of eventACL?.[mode]??[]) {
+            const validity = a.validity === Validity.onsite ? Validity.onsite : Validity.always;
+            const notBefore = a.not_before??null;
+            const notAfter = a.not_after??null;
+            const description = a.description??"";
+            const key = grantKey(mode, validity, notBefore, notAfter, description);
+            let g = byKey.get(key);
+            if (g == null) {
+                g = {key, mode, validity, notBefore, notAfter, description, whos: []};
+                byKey.set(key, g);
+            }
+            g.whos.push(a);
+        }
+    }
+    const grants = [...byKey.values()];
+    for (const g of grants) {
+        g.whos.sort((a, b) => a.expression.localeCompare(b.expression));
+    }
+    grants.sort((a, b) => {
+        const am = allAccessModes.indexOf(a.mode);
+        const bm = allAccessModes.indexOf(b.mode);
+        if (am !== bm) {
+            return am - bm;
+        }
+        if (a.validity !== b.validity) {
+            return a.validity === Validity.always ? -1 : 1;
+        }
+        const anb = a.notBefore??"";
+        const bnb = b.notBefore??"";
+        if (anb !== bnb) {
+            return anb.localeCompare(bnb);
+        }
+        return (a.notAfter??"").localeCompare(b.notAfter??"");
+    });
+    return grants;
+}
+
+//
+// Rendering
+//
+
+function showFlex(element: HTMLElement): void {
+    element.classList.remove("d-none");
+    element.classList.add("d-flex");
+}
+function hideFlex(element: HTMLElement): void {
+    element.classList.add("d-none");
+    element.classList.remove("d-flex");
+}
+function show(element: HTMLElement): void {
+    element.classList.remove("d-none");
+}
+function hide(element: HTMLElement): void {
+    element.classList.add("d-none");
 }
 
 function drawAccess(): void {
@@ -249,7 +344,7 @@ function eventCard(event: ims.EventData): DocumentFragment {
     }
     card.querySelector(".event_name")!.textContent = eventWithGroupName;
 
-    // Wire up the collapsible rule table, restoring this event's expansion state.
+    // Wire up the collapsible grant list, restoring this event's expansion state.
     const collapse = card.querySelector(".access_rules_collapse") as HTMLElement;
     collapse.id = `access_rules_collapse_${event.id}`;
     const collapseToggle = card.querySelector(".access_collapse_toggle") as HTMLButtonElement;
@@ -310,28 +405,36 @@ function eventCard(event: ims.EventData): DocumentFragment {
         editEventModal?.show();
     });
 
-    const tbody = card.querySelector(".access_rules") as HTMLTableSectionElement;
-    const eventACL: EventAccess|null|undefined = accessControlList?.[event.name];
-    let ruleCount = 0;
+    // Build the grant blocks, plus any drafts the admin is composing.
+    const grantsContainer = card.querySelector(".grants_container") as HTMLElement;
+    const grants = grantsForEvent(event.name);
+    let peopleCount = 0;
     let issueCount = 0;
-    for (const mode of allAccessModes) {
-        const accessEntries = (eventACL?.[mode]??[]).toSorted((a, b) => a.expression.localeCompare(b.expression));
-        for (const accessEntry of accessEntries) {
-            ruleCount++;
-            if (ruleHasIssue(accessEntry)) {
+    for (const grant of grants) {
+        for (const who of grant.whos) {
+            peopleCount++;
+            if (ruleHasIssue(who)) {
                 issueCount++;
             }
-            tbody.append(ruleRow(mode, accessEntry));
         }
+        grantsContainer.append(grantBlock(event.name, grant, null));
+    }
+    for (const draft of draftGrants.get(event.name)??[]) {
+        grantsContainer.append(grantBlock(event.name, null, draft));
     }
 
+    const grantWord = grants.length === 1 ? "grant" : "grants";
+    const peopleWord = peopleCount === 1 ? "person" : "people";
     card.querySelector(".rule_count")!.textContent =
-        `${ruleCount} ${ruleCount === 1 ? "rule" : "rules"}`;
+        `${grants.length} ${grantWord} · ${peopleCount} ${peopleWord}`;
     if (issueCount > 0) {
         const issueBadge = card.querySelector(".issue_count") as HTMLElement;
         issueBadge.textContent = `${issueCount} ${issueCount === 1 ? "issue" : "issues"}`;
         issueBadge.classList.remove("d-none");
     }
+
+    const newGrantButton = card.querySelector(".new_grant_button") as HTMLButtonElement;
+    newGrantButton.addEventListener("click", (): void => newGrant(event.name));
 
     const explainButton = card.querySelector(".explain_button") as HTMLButtonElement;
     explainButton.addEventListener("click", (_e: MouseEvent): void => {
@@ -360,6 +463,198 @@ function eventCard(event: ims.EventData): DocumentFragment {
     });
 
     return cardFrag;
+}
+
+// grantBlock renders one grant. Exactly one of `grant` (an existing grant) or
+// `draft` (a new one being composed) is non-null.
+function grantBlock(eventName: string, grant: Grant|null, draft: DraftGrant|null): DocumentFragment {
+    const frag = el.grantTemplate.content.cloneNode(true) as DocumentFragment;
+    const grantEl = frag.querySelector(".grant") as HTMLElement;
+
+    const mode = (grant ?? draft)!.mode;
+    const validity = (grant ?? draft)!.validity;
+    const notBefore = (grant ?? draft)!.notBefore;
+    const notAfter = (grant ?? draft)!.notAfter;
+    const description = (grant ?? draft)!.description;
+
+    // The dataset carries the grant's terms. For a real grant these are the
+    // current stored terms (addWho reads them; applyGrantTerms treats them as
+    // the "old" terms to replace). For a draft they track the edit controls.
+    grantEl.dataset["mode"] = mode;
+    grantEl.dataset["validity"] = validity;
+    grantEl.dataset["not_before"] = notBefore??"";
+    grantEl.dataset["not_after"] = notAfter??"";
+    grantEl.dataset["description"] = description;
+
+    const display = grantEl.querySelector(".grant_terms_display") as HTMLElement;
+    const editTerms = grantEl.querySelector(".grant_terms_edit") as HTMLElement;
+    const levelSelect = grantEl.querySelector(".grant_level") as HTMLSelectElement;
+    const validitySelect = grantEl.querySelector(".grant_validity") as HTMLSelectElement;
+    const notBeforeInput = grantEl.querySelector(".grant_not_before") as HTMLInputElement;
+    const notAfterInput = grantEl.querySelector(".grant_not_after") as HTMLInputElement;
+    const descriptionInput = grantEl.querySelector(".grant_description") as HTMLInputElement;
+
+    // Populate the edit controls (hidden for a real grant until "Edit terms").
+    levelSelect.value = mode;
+    validitySelect.value = validity;
+    if (notBefore) {
+        notBeforeInput.value = formatDateForInput(new Date(notBefore));
+    }
+    if (notAfter) {
+        notAfterInput.value = formatDateForInput(new Date(notAfter));
+    }
+    descriptionInput.value = description;
+
+    const editButton = grantEl.querySelector(".grant_edit_terms") as HTMLButtonElement;
+    const applyButton = grantEl.querySelector(".grant_apply_terms") as HTMLButtonElement;
+    const cancelButton = grantEl.querySelector(".grant_cancel_terms") as HTMLButtonElement;
+    const removeDraftButton = grantEl.querySelector(".grant_remove_draft") as HTMLButtonElement;
+
+    if (grant != null) {
+        grantEl.dataset["grantKey"] = grant.key;
+        renderGrantTermsDisplay(grantEl, grant);
+
+        // "Edit terms" swaps the badges for the edit controls.
+        editButton.addEventListener("click", (): void => {
+            hideFlex(display);
+            showFlex(editTerms);
+            hide(editButton);
+            show(applyButton);
+            show(cancelButton);
+        });
+        cancelButton.addEventListener("click", (): void => drawAccess());
+        applyButton.addEventListener("click", (): void => void applyGrantTerms(grantEl));
+
+        // Render the grant's whos as chips before the "add who" input.
+        const whoChips = grantEl.querySelector(".who_chips") as HTMLElement;
+        const addInput = whoChips.querySelector(".who_add") as HTMLInputElement;
+        for (const who of grant.whos) {
+            whoChips.insertBefore(whoChip(grantEl, who), addInput);
+        }
+    } else if (draft != null) {
+        grantEl.dataset["draftId"] = draft.id.toString();
+        grantEl.classList.add("grant-draft");
+        // A draft is composed in edit mode from the start, and its term controls
+        // feed straight into the dataset (and draft object) as they change.
+        hideFlex(display);
+        showFlex(editTerms);
+        hide(editButton);
+        show(removeDraftButton);
+        removeDraftButton.addEventListener("click", (): void => {
+            removeDraft(eventName, draft.id);
+            drawAccess();
+        });
+        const syncDraftTerms = (): void => {
+            draft.mode = levelSelect.value as AccessMode;
+            grantEl.dataset["mode"] = draft.mode;
+            draft.validity = validitySelect.value === "onsite" ? Validity.onsite : Validity.always;
+            grantEl.dataset["validity"] = draft.validity;
+            const nb = parseDateInput(notBeforeInput.value);
+            if (nb === undefined) {
+                ims.controlHasError(notBeforeInput);
+            } else {
+                draft.notBefore = nb?.toISOString()??null;
+                grantEl.dataset["not_before"] = draft.notBefore??"";
+            }
+            const na = parseDateInput(notAfterInput.value);
+            if (na === undefined) {
+                ims.controlHasError(notAfterInput);
+            } else {
+                draft.notAfter = na?.toISOString()??null;
+                grantEl.dataset["not_after"] = draft.notAfter??"";
+            }
+            draft.description = descriptionInput.value;
+            grantEl.dataset["description"] = draft.description;
+        };
+        levelSelect.addEventListener("change", syncDraftTerms);
+        validitySelect.addEventListener("change", syncDraftTerms);
+        notBeforeInput.addEventListener("change", syncDraftTerms);
+        notAfterInput.addEventListener("change", syncDraftTerms);
+        descriptionInput.addEventListener("change", syncDraftTerms);
+    }
+
+    const addInput = grantEl.querySelector(".who_add") as HTMLInputElement;
+    addInput.addEventListener("change", (): void => void addWho(grantEl));
+
+    return frag;
+}
+
+// renderGrantTermsDisplay fills in the read-only badges for a grant's terms.
+function renderGrantTermsDisplay(grantEl: HTMLElement, grant: Grant): void {
+    (grantEl.querySelector(".grant_level_badge") as HTMLElement).textContent = displayMode(grant.mode);
+
+    const whenBadge = grantEl.querySelector(".grant_when_badge") as HTMLElement;
+    if (grant.validity === Validity.onsite) {
+        whenBadge.textContent = "On-Site";
+        whenBadge.classList.add("text-bg-warning");
+    } else {
+        whenBadge.textContent = "Always";
+        whenBadge.classList.add("text-bg-secondary");
+    }
+
+    if (grant.notBefore) {
+        const badge = grantEl.querySelector(".grant_not_before_badge") as HTMLElement;
+        badge.textContent = `not-before ${formatDateForInput(new Date(grant.notBefore))}`;
+        badge.classList.remove("d-none");
+    }
+    if (grant.notAfter) {
+        const badge = grantEl.querySelector(".grant_not_after_badge") as HTMLElement;
+        badge.textContent = `not-after ${formatDateForInput(new Date(grant.notAfter))}`;
+        badge.classList.remove("d-none");
+    }
+
+    // pending/expired are computed server-side from the grant's dates, so every
+    // who in the grant shares the same interval status; take it from the first.
+    const first = grant.whos[0];
+    let intervalStatus = "";
+    if (first?.pending && first.expired) {
+        intervalStatus = "Invalid interval";
+    } else if (first?.pending) {
+        intervalStatus = "Pending";
+    } else if (first?.expired) {
+        intervalStatus = "Expired";
+    }
+    if (intervalStatus) {
+        const badge = grantEl.querySelector(".grant_interval_badge") as HTMLElement;
+        badge.textContent = intervalStatus;
+        badge.classList.remove("d-none");
+    }
+
+    if (grant.description) {
+        const descriptionEl = grantEl.querySelector(".grant_description_display") as HTMLElement;
+        descriptionEl.textContent = `"${grant.description}"`;
+        descriptionEl.classList.remove("d-none");
+    }
+}
+
+// whoChip renders one target within a grant, with remove and (if the target is
+// unknown) fix affordances.
+function whoChip(grantEl: HTMLElement, who: Access): DocumentFragment {
+    const frag = el.whoChipTemplate.content.cloneNode(true) as DocumentFragment;
+    const chip = frag.querySelector(".who-chip") as HTMLElement;
+    const expressionSpan = chip.querySelector(".who_expression") as HTMLElement;
+    expressionSpan.textContent = who.expression;
+
+    const removeButton = chip.querySelector(".who-remove") as HTMLButtonElement;
+    removeButton.addEventListener("click", (): void => void removeWho(grantEl, who.expression));
+
+    if (who.debug_info?.known_target !== true) {
+        chip.classList.add("who-unknown");
+        chip.title = "Unknown target: doesn't match any known person, position, or team";
+        const fixButton = chip.querySelector(".who_fix") as HTMLButtonElement;
+        const fixInput = chip.querySelector(".who_fix_input") as HTMLInputElement;
+        fixButton.classList.remove("d-none");
+        fixButton.addEventListener("click", (): void => {
+            hide(expressionSpan);
+            hide(fixButton);
+            fixInput.value = who.expression;
+            fixInput.classList.remove("d-none");
+            fixInput.focus();
+        });
+        fixInput.addEventListener("change", (): void => void fixWho(grantEl, who.expression, fixInput));
+    }
+
+    return frag;
 }
 
 // Build the human-readable "Explain" lines for an event: one header per access
@@ -409,81 +704,6 @@ function explainMsgsForEvent(event: ims.EventData): string[] {
     return explainMsgs;
 }
 
-function ruleRow(mode: AccessMode, accessEntry: Access): HTMLTableRowElement {
-    const rowFrag = el.accessRuleTemplate.content.cloneNode(true) as DocumentFragment;
-    const row = rowFrag.querySelector("tr")!;
-
-    row.dataset["expression"] = accessEntry.expression;
-    row.dataset["mode"] = mode;
-    row.dataset["validity"] = accessEntry.validity;
-    row.dataset["not_after"] = accessEntry.not_after??"";
-    row.dataset["not_before"] = accessEntry.not_before??"";
-
-    row.querySelector(".access_expression")!.textContent = accessEntry.expression;
-
-    const levelField = row.querySelector(".access_level") as HTMLSelectElement;
-    levelField.value = mode;
-
-    const validityField = row.querySelector(".access_validity") as HTMLSelectElement;
-    validityField.value = accessEntry.validity;
-
-    const notBeforeInput = row.querySelector(".access_not_before") as HTMLInputElement;
-    if (accessEntry.not_before) {
-        notBeforeInput.value = formatDateForInput(new Date(accessEntry.not_before));
-    }
-    notBeforeInput.addEventListener("change", (): void => {
-        const date = parseDateInput(notBeforeInput.value);
-        if (date === undefined) {
-            ims.controlHasError(notBeforeInput);
-            return;
-        }
-        saveNotBefore(row, date);
-    });
-
-    const notAfterInput = row.querySelector(".access_not_after") as HTMLInputElement;
-    if (accessEntry.not_after) {
-        notAfterInput.value = formatDateForInput(new Date(accessEntry.not_after));
-    }
-    notAfterInput.addEventListener("change", (): void => {
-        const date = parseDateInput(notAfterInput.value);
-        if (date === undefined) {
-            ims.controlHasError(notAfterInput);
-            return;
-        }
-        saveNotAfter(row, date);
-    });
-
-    const intervalText = row.querySelector(".access_interval_text") as HTMLSpanElement;
-    let intervalStatus = "";
-    if (accessEntry.pending && !accessEntry.expired) {
-        intervalStatus = "Pending";
-    } else if (!accessEntry.pending && accessEntry.expired) {
-        intervalStatus = "Expired";
-    } else if (accessEntry.pending && accessEntry.expired) {
-        intervalStatus = "Invalid interval";
-    }
-    if (intervalStatus) {
-        intervalText.textContent = intervalStatus;
-        intervalText.classList.remove("d-none");
-    }
-
-    if (accessEntry.debug_info?.known_target !== true) {
-        row.classList.add("table-danger");
-        row.querySelector(".unknown_target_text")!.classList.remove("d-none");
-        const fixButton = row.querySelector(".fix_button") as HTMLButtonElement;
-        fixButton.classList.remove("d-none");
-        const fixInput = row.querySelector(".access_fix") as HTMLInputElement;
-        fixButton.addEventListener("click", (): void => {
-            row.querySelector(".access_expression")!.classList.add("d-none");
-            fixInput.value = accessEntry.expression;
-            fixInput.classList.remove("d-none");
-            fixInput.focus();
-        });
-    }
-
-    return row;
-}
-
 function displayMode(m: AccessMode): string {
     switch (m) {
         case "readers":
@@ -499,7 +719,7 @@ function displayMode(m: AccessMode): string {
     }
 }
 
-// Format a date for display in a rule's date input, in the browser's time zone,
+// Format a date for display in a grant's date input, in the browser's time zone,
 // e.g. "Sun 2026-08-23 @ 12:00". This matches the format parseDateInput accepts.
 function formatDateForInput(date: Date): string {
     const weekday = new Intl.DateTimeFormat("en-US", {weekday: "short"}).format(date);
@@ -535,6 +755,10 @@ function parseDateInput(input: string): Date|null|undefined {
     return date;
 }
 
+//
+// Grant / who mutations
+//
+
 async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Promise<void> {
     const event = sender.value.trim();
     const requestBod: ims.EventData = {
@@ -554,7 +778,7 @@ async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Pr
         ims.controlHasError(sender);
         return;
     }
-    // Expand the new event, so the admin can start adding rules to it.
+    // Expand the new event, so the admin can start adding grants to it.
     expandedEvents.add(event);
     await loadAccessControlList();
     drawAccess();
@@ -598,36 +822,114 @@ function confirmExpression(expression: string): boolean {
     return true;
 }
 
-async function addAccess(sender: HTMLInputElement): Promise<void> {
-    const card: HTMLElement = sender.closest(".event_access")!;
-    const event = card.dataset["eventName"]!;
-    const mode = (card.querySelector(".access_add_level") as HTMLSelectElement).value as AccessMode;
-    const newExpression = sender.value.trim();
+// grantTerms reads a grant element's current terms from its dataset.
+function grantTerms(grantEl: HTMLElement): {mode: AccessMode; validity: Validity; notBefore: string|null; notAfter: string|null; description: string} {
+    return {
+        mode: grantEl.dataset["mode"] as AccessMode,
+        validity: grantEl.dataset["validity"] === "onsite" ? Validity.onsite : Validity.always,
+        notBefore: grantEl.dataset["not_before"] || null,
+        notAfter: grantEl.dataset["not_after"] || null,
+        description: grantEl.dataset["description"] ?? "",
+    };
+}
 
+function eventNameOf(grantEl: HTMLElement): string {
+    return (grantEl.closest(".event_access") as HTMLElement).dataset["eventName"]!;
+}
+
+// addWho adds one target to the grant identified by grantEl, using that grant's
+// current terms. For a draft grant, this is what turns it into a real one.
+async function addWho(grantEl: HTMLElement): Promise<void> {
+    const addInput = grantEl.querySelector(".who_add") as HTMLInputElement;
+    const newExpression = addInput.value.trim();
     if (newExpression === "") {
         return;
     }
-
     if (!confirmExpression(newExpression)) {
-        sender.value = "";
+        addInput.value = "";
         return;
     }
 
-    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
+    const event = eventNameOf(grantEl);
+    const {mode, validity, notBefore, notAfter, description} = grantTerms(grantEl);
 
-    // remove other acls for this mode for the same expression
-    acl = acl.filter((v: Access): boolean => {return v.expression !== newExpression});
-
-    const newVal: Access = {
+    let acl: Access[] = (accessControlList?.[event]?.[mode]??[]).slice();
+    // Remove any existing rule for this expression in this mode, then add ours.
+    acl = acl.filter((v: Access): boolean => v.expression !== newExpression);
+    acl.push({
         "expression": newExpression,
-        "validity": Validity.always,
-    };
-
-    acl.push(newVal);
+        "validity": validity,
+        "not_before": notBefore,
+        "not_after": notAfter,
+        "description": description,
+    });
 
     const edits: EventsAccess = {};
     edits[event] = {};
-    edits[event][mode] = acl;
+    edits[event]![mode] = acl;
+
+    const {err} = await sendACL(edits);
+    if (err != null) {
+        ims.controlHasError(addInput);
+        return;
+    }
+    // A matching real grant now exists, so drop the draft if this was one.
+    const draftId = grantEl.dataset["draftId"];
+    if (draftId != null) {
+        removeDraft(event, ims.parseInt10(draftId)!);
+    }
+    const key = grantKey(mode, validity, notBefore, notAfter, description);
+    await loadAccessControlList();
+    drawAccess();
+    // Put focus back on this grant's add field, to ease adding several in a row.
+    focusGrantAdd(event, key);
+}
+
+async function removeWho(grantEl: HTMLElement, expression: string): Promise<void> {
+    const event = eventNameOf(grantEl);
+    const {mode} = grantTerms(grantEl);
+
+    const acl: Access[] = (accessControlList?.[event]?.[mode]??[])
+        .filter((v: Access): boolean => v.expression !== expression);
+
+    const edits: EventsAccess = {};
+    edits[event] = {};
+    edits[event]![mode] = acl;
+
+    await sendACL(edits);
+    await loadAccessControlList();
+    drawAccess();
+}
+
+// fixWho replaces a target's expression, keeping the grant's terms, e.g. to
+// correct a typo on an unknown target.
+async function fixWho(grantEl: HTMLElement, oldExpression: string, sender: HTMLInputElement): Promise<void> {
+    const newExpression = sender.value.trim();
+    if (newExpression === "" || newExpression === oldExpression) {
+        drawAccess();
+        return;
+    }
+    if (!confirmExpression(newExpression)) {
+        drawAccess();
+        return;
+    }
+
+    const event = eventNameOf(grantEl);
+    const {mode, validity, notBefore, notAfter, description} = grantTerms(grantEl);
+
+    let acl: Access[] = (accessControlList?.[event]?.[mode]??[]).slice();
+    acl = acl.filter((v: Access): boolean => v.expression !== oldExpression && v.expression !== newExpression);
+    acl.push({
+        "expression": newExpression,
+        "validity": validity,
+        "not_before": notBefore,
+        "not_after": notAfter,
+        "description": description,
+    });
+
+    const edits: EventsAccess = {};
+    edits[event] = {};
+    edits[event]![mode] = acl;
 
     const {err} = await sendACL(edits);
     if (err != null) {
@@ -636,9 +938,112 @@ async function addAccess(sender: HTMLInputElement): Promise<void> {
     }
     await loadAccessControlList();
     drawAccess();
-    // Put focus back on this event's add field, to ease adding several rules in a row.
-    const newCard = findEventCard(event);
-    (newCard?.querySelector(".access_add") as HTMLInputElement|null)?.focus();
+}
+
+// applyGrantTerms rewrites every who in a grant to a new set of terms, read from
+// the grant's edit controls. When the level changes, this moves the whos from
+// one access mode to another.
+async function applyGrantTerms(grantEl: HTMLElement): Promise<void> {
+    const event = eventNameOf(grantEl);
+    const {mode: oldMode, validity: oldValidity, notBefore: oldNotBefore, notAfter: oldNotAfter, description: oldDescription} = grantTerms(grantEl);
+
+    const levelSelect = grantEl.querySelector(".grant_level") as HTMLSelectElement;
+    const validitySelect = grantEl.querySelector(".grant_validity") as HTMLSelectElement;
+    const notBeforeInput = grantEl.querySelector(".grant_not_before") as HTMLInputElement;
+    const notAfterInput = grantEl.querySelector(".grant_not_after") as HTMLInputElement;
+    const descriptionInput = grantEl.querySelector(".grant_description") as HTMLInputElement;
+
+    const newMode = levelSelect.value as AccessMode;
+    const newValidity = validitySelect.value === "onsite" ? Validity.onsite : Validity.always;
+    const newDescription = descriptionInput.value;
+
+    const nb = parseDateInput(notBeforeInput.value);
+    if (nb === undefined) {
+        ims.controlHasError(notBeforeInput);
+        return;
+    }
+    const na = parseDateInput(notAfterInput.value);
+    if (na === undefined) {
+        ims.controlHasError(notAfterInput);
+        return;
+    }
+    const newNotBefore = nb?.toISOString()??null;
+    const newNotAfter = na?.toISOString()??null;
+
+    // Nothing changed: just leave edit mode.
+    if (newMode === oldMode && newValidity === oldValidity
+        && newNotBefore === oldNotBefore && newNotAfter === oldNotAfter
+        && newDescription === oldDescription) {
+        drawAccess();
+        return;
+    }
+
+    const oldModeAll = accessControlList?.[event]?.[oldMode]??[];
+    const inGrant = (a: Access): boolean => sameTerms(a, oldValidity, oldNotBefore, oldNotAfter, oldDescription);
+    const expressions = oldModeAll.filter(inGrant).map(a => a.expression);
+    const newEntries: Access[] = expressions.map((expression): Access => ({
+        "expression": expression,
+        "validity": newValidity,
+        "not_before": newNotBefore,
+        "not_after": newNotAfter,
+        "description": newDescription,
+    }));
+
+    const edits: EventsAccess = {};
+    edits[event] = {};
+    if (newMode === oldMode) {
+        // Keep the mode's other grants; replace this grant's entries in place.
+        let list = oldModeAll.filter(a => !inGrant(a));
+        list = list.filter(a => !expressions.includes(a.expression));
+        list.push(...newEntries);
+        edits[event]![oldMode] = list;
+    } else {
+        edits[event]![oldMode] = oldModeAll.filter(a => !inGrant(a));
+        let newList = (accessControlList?.[event]?.[newMode]??[]).slice();
+        newList = newList.filter(a => !expressions.includes(a.expression));
+        newList.push(...newEntries);
+        edits[event]![newMode] = newList;
+    }
+
+    // The two modes are updated in separate transactions server-side, so reload
+    // and redraw even on error, in case only one of them was applied.
+    await sendACL(edits);
+    await loadAccessControlList();
+    drawAccess();
+}
+
+function sameTerms(a: Access, validity: Validity, notBefore: string|null, notAfter: string|null, description: string): boolean {
+    return a.validity === validity
+        && (a.not_before??null) === (notBefore||null)
+        && (a.not_after??null) === (notAfter||null)
+        && (a.description??"") === description;
+}
+
+// newGrant starts composing a new, empty grant on the given event.
+function newGrant(eventName: string): void {
+    const draft: DraftGrant = {
+        id: ++draftIdCounter,
+        mode: "readers",
+        validity: Validity.always,
+        notBefore: null,
+        notAfter: null,
+        description: "",
+    };
+    const list = draftGrants.get(eventName)??[];
+    list.push(draft);
+    draftGrants.set(eventName, list);
+    expandedEvents.add(eventName);
+    drawAccess();
+    focusDraftAdd(eventName, draft.id);
+}
+
+function removeDraft(eventName: string, id: number): void {
+    const list = (draftGrants.get(eventName)??[]).filter(d => d.id !== id);
+    if (list.length === 0) {
+        draftGrants.delete(eventName);
+    } else {
+        draftGrants.set(eventName, list);
+    }
 }
 
 function findEventCard(event: string): HTMLElement|null {
@@ -650,235 +1055,25 @@ function findEventCard(event: string): HTMLElement|null {
     return null;
 }
 
-// fixAccess replaces a rule's expression, keeping its other fields, e.g. to correct a typo.
-async function fixAccess(sender: HTMLInputElement): Promise<void> {
-    const card: HTMLElement = sender.closest(".event_access")!;
-    const event = card.dataset["eventName"]!;
-    const row = sender.closest("tr")!;
-    const mode = row.dataset["mode"] as AccessMode;
-    const oldExpression = row.dataset["expression"]!;
-    const newExpression = sender.value.trim();
-
-    if (newExpression === "" || newExpression === oldExpression) {
-        drawAccess();
+function focusGrantAdd(event: string, key: string): void {
+    const card = findEventCard(event);
+    if (card == null) {
         return;
     }
-
-    if (!confirmExpression(newExpression)) {
-        drawAccess();
-        return;
-    }
-
-    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
-    acl = acl.filter((v: Access): boolean => {
-        return v.expression !== oldExpression && v.expression !== newExpression;
-    });
-
-    const newVal: Access = {
-        "expression": newExpression,
-        "validity": row.dataset["validity"] === "onsite" ? Validity.onsite : Validity.always,
-        "not_after": row.dataset["not_after"]||null,
-        "not_before": row.dataset["not_before"]||null,
-    };
-
-    acl.push(newVal);
-
-    const edits: EventsAccess = {};
-    edits[event] = {};
-    edits[event][mode] = acl;
-
-    const {err} = await sendACL(edits);
-    if (err != null) {
-        ims.controlHasError(sender);
-        return;
-    }
-    await loadAccessControlList();
-    drawAccess();
-}
-
-async function removeAccess(sender: HTMLButtonElement): Promise<void> {
-    const card: HTMLElement = sender.closest(".event_access")!;
-    const event = card.dataset["eventName"]!;
-    const row = sender.closest("tr")!;
-    const mode = row.dataset["mode"] as AccessMode;
-    const expression = row.dataset["expression"]!.trim();
-
-    const acl: Access[] = (accessControlList![event]![mode]??[]).slice();
-
-    let foundIndex: number = -1;
-    for (const [i, access] of acl.entries()) {
-        if (access.expression === expression) {
-            foundIndex = i;
-            break;
+    // The grant key is JSON (it embeds the free-text description), so match on
+    // the dataset value rather than building a CSS attribute selector from it.
+    for (const grantEl of card.querySelectorAll<HTMLElement>(".grant")) {
+        if (grantEl.dataset["grantKey"] === key) {
+            (grantEl.querySelector(".who_add") as HTMLInputElement|null)?.focus();
+            return;
         }
     }
-    if (foundIndex < 0) {
-        console.error("no such ACL: " + expression);
-        return;
-    }
-
-    acl.splice(foundIndex, 1);
-
-    const edits: EventsAccess = {};
-    edits[event] = {};
-    edits[event][mode] = acl;
-
-    await sendACL(edits);
-    await loadAccessControlList();
-    drawAccess();
 }
 
-// setLevel moves a rule to a different access mode, keeping its other fields.
-async function setLevel(sender: HTMLSelectElement): Promise<void> {
-    const card: HTMLElement = sender.closest(".event_access")!;
-    const event = card.dataset["eventName"]!;
-    const row = sender.closest("tr")!;
-    const oldMode = row.dataset["mode"] as AccessMode;
-    const newMode = sender.value as AccessMode;
-    if (newMode === oldMode) {
-        return;
-    }
-    const expression = row.dataset["expression"]!.trim();
-
-    const oldAcl: Access[] = (accessControlList![event]![oldMode]??[]).filter(
-        (v: Access): boolean => {return v.expression !== expression});
-    const newAcl: Access[] = (accessControlList![event]![newMode]??[]).filter(
-        (v: Access): boolean => {return v.expression !== expression});
-
-    newAcl.push({
-        "expression": expression,
-        "validity": row.dataset["validity"] === "onsite" ? Validity.onsite : Validity.always,
-        "not_after": row.dataset["not_after"]||null,
-        "not_before": row.dataset["not_before"]||null,
-    });
-
-    const edits: EventsAccess = {};
-    edits[event] = {};
-    edits[event][oldMode] = oldAcl;
-    edits[event][newMode] = newAcl;
-
-    // The two modes are updated in separate transactions server-side, so reload
-    // and redraw even on error, in case only one of them was applied.
-    await sendACL(edits);
-    await loadAccessControlList();
-    drawAccess();
-}
-
-async function setValidity(sender: HTMLSelectElement): Promise<void> {
-    const card: HTMLElement = sender.closest(".event_access")!;
-    const event = card.dataset["eventName"]!;
-    const row = sender.closest("tr")!;
-    const mode = row.dataset["mode"] as AccessMode;
-
-    const expression = row.dataset["expression"]!.trim();
-    const notAfter = row.dataset["not_after"]||null;
-    const notBefore = row.dataset["not_before"]||null;
-
-    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
-
-    // remove other acls for this mode for the same expression
-    acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
-
-    const newVal: Access = {
-        "expression": expression,
-        "validity": sender.value === "onsite" ? Validity.onsite : Validity.always,
-        "not_after": notAfter,
-        "not_before": notBefore,
-    };
-
-    acl.push(newVal);
-
-    const edits: EventsAccess = {};
-    edits[event] = {};
-    edits[event][mode] = acl;
-
-    const {err} = await sendACL(edits);
-    if (err != null) {
-        ims.controlHasError(sender);
-        return;
-    }
-    await loadAccessControlList();
-    drawAccess();
-}
-
-async function saveNotAfter(row: HTMLTableRowElement, date: Date|null): Promise<void> {
-    const card: HTMLElement = row.closest(".event_access")!;
-    const event = card.dataset["eventName"]!;
-    const mode = row.dataset["mode"] as AccessMode;
-    const expression = row.dataset["expression"]!.trim();
-    const validity = row.dataset["validity"]!.trim();
-    const notBefore = row.dataset["not_before"]||null;
-
-    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
-    acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
-
-    const notAfter: string|null = date?.toISOString() ?? null;
-    if (notAfter) {
-        console.log(`Setting not-after to ${notAfter}`);
-    } else {
-        console.log("Unsetting not-after");
-    }
-
-    const newVal: Access = {
-        "expression": expression,
-        "validity": validity === "onsite" ? Validity.onsite : Validity.always,
-        "not_after": notAfter,
-        "not_before": notBefore,
-    };
-
-    acl.push(newVal);
-
-    const edits: EventsAccess = {};
-    edits[event] = {};
-    edits[event][mode] = acl;
-
-    const {err} = await sendACL(edits);
-    if (err != null) {
-        ims.controlHasError(row.getElementsByClassName("access_not_after")[0] as HTMLElement);
-        return;
-    }
-    await loadAccessControlList();
-    drawAccess();
-}
-
-async function saveNotBefore(row: HTMLTableRowElement, date: Date|null): Promise<void> {
-    const card: HTMLElement = row.closest(".event_access")!;
-    const event = card.dataset["eventName"]!;
-    const mode = row.dataset["mode"] as AccessMode;
-    const expression = row.dataset["expression"]!.trim();
-    const validity = row.dataset["validity"]!.trim();
-    const notAfter = row.dataset["not_after"]||null;
-
-    let acl: Access[] = (accessControlList![event]![mode]??[]).slice();
-    acl = acl.filter((v: Access): boolean => {return v.expression !== expression});
-
-    const notBefore: string|null = date?.toISOString() ?? null;
-    if (notBefore) {
-        console.log(`Setting not-before to ${notBefore}`);
-    } else {
-        console.log("Unsetting not-before");
-    }
-
-    const newVal: Access = {
-        "expression": expression,
-        "validity": validity === "onsite" ? Validity.onsite : Validity.always,
-        "not_after": notAfter,
-        "not_before": notBefore,
-    };
-
-    acl.push(newVal);
-
-    const edits: EventsAccess = {};
-    edits[event] = {};
-    edits[event][mode] = acl;
-
-    const {err} = await sendACL(edits);
-    if (err != null) {
-        ims.controlHasError(row.getElementsByClassName("access_not_before")[0] as HTMLElement);
-        return;
-    }
-    await loadAccessControlList();
-    drawAccess();
+function focusDraftAdd(event: string, draftId: number): void {
+    const card = findEventCard(event);
+    const addInput = card?.querySelector(`.grant[data-draft-id="${draftId}"] .who_add`) as HTMLInputElement|null;
+    addInput?.focus();
 }
 
 async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {

@@ -122,12 +122,13 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 			expired := access.NotAfter.Valid && notAfter.Before(time.Now())
 			pending := access.NotBefore.Valid && notBefore.After(time.Now())
 			rule := imsjson.AccessRule{
-				Expression: access.Expression,
-				Validity:   string(access.Validity),
-				NotAfter:   notAfter,
-				Expired:    expired,
-				NotBefore:  notBefore,
-				Pending:    pending,
+				Expression:  access.Expression,
+				Validity:    string(access.Validity),
+				NotAfter:    notAfter,
+				Expired:     expired,
+				NotBefore:   notBefore,
+				Pending:     pending,
+				Description: access.Description,
 			}
 
 			if access.Expression == "*" && access.Validity == imsdb.EventAccessValidityAlways && !rule.Expired && !rule.Pending {
@@ -352,12 +353,13 @@ func (action PostEventAccess) maybeSetAccess(
 
 		_, err = action.imsDBQ.AddEventAccess(ctx, txn,
 			imsdb.AddEventAccessParams{
-				Event:      event.ID,
-				Expression: rule.Expression,
-				Mode:       mode,
-				Validity:   imsdb.EventAccessValidity(rule.Validity),
-				NotAfter:   notAfter,
-				NotBefore:  notBefore,
+				Event:       event.ID,
+				Expression:  rule.Expression,
+				Mode:        mode,
+				Validity:    imsdb.EventAccessValidity(rule.Validity),
+				NotAfter:    notAfter,
+				NotBefore:   notBefore,
+				Description: rule.Description,
 			},
 		)
 		if err != nil {

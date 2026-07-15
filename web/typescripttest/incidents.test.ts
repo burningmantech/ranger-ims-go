@@ -21,7 +21,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockDataTable, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockDataTable, mockFetch, problemResponse } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -196,6 +196,138 @@ test("the types column renders type names and handles missing ids", async (): Pr
     // Null ids (no types column data) render as undefined.
     expect(render(null, "display", incident)).toBeUndefined();
     expect(render(incident.incident_type_ids, "bogus", incident)).toBeUndefined();
+});
+
+// Render the state column for an incident and return the dropdown it produced,
+// or null if the column rendered plain text instead.
+function renderStateSelect(incident: ims.Incident): HTMLSelectElement|null {
+    const rendered = renderColumn("incident_state")(incident.state, "display", incident);
+    return rendered instanceof HTMLSelectElement ? rendered : null;
+}
+
+test("the state column renders a dropdown set to the incident's state", async (): Promise<void> => {
+    await initIncidentsPage();
+    const incident = serverIncidents[0]!; // on_scene
+
+    const select = renderStateSelect(incident)!;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe("on_scene");
+    expect(select.ariaLabel).toContain("Incident 1");
+    // Every state IMS knows is offered.
+    const states = [...select.options].map((o: HTMLOptionElement) => o.value);
+    expect(states).toEqual(["new", "on_hold", "dispatched", "on_scene", "closed"]);
+});
+
+test("the state column renders plain text for a user who can't write incidents", async (): Promise<void> => {
+    serverEventAccess.writeIncidents = false;
+    await initIncidentsPage();
+    const incident = serverIncidents[0]!;
+
+    expect(renderStateSelect(incident)).toBeNull();
+    expect(renderColumn("incident_state")(incident.state, "display", incident)).toBe("On Scene");
+});
+
+test("the state column still renders sort and filter values", async (): Promise<void> => {
+    await initIncidentsPage();
+    const render = renderColumn("incident_state");
+    const incident = serverIncidents[0]!; // on_scene
+
+    expect(render(incident.state, "filter", incident)).toBe("On Scene");
+    // Sort keys order the states from new (1) through closed (5).
+    expect(render(incident.state, "sort", incident)).toBe(4);
+    expect(render(incident.state, "bogus", incident)).toBeUndefined();
+});
+
+// Accept a write to any single incident, on top of the usual page routes.
+function savingRoutes(url: string, init?: RequestInit): Response | undefined {
+    const incident = serverIncidents.find(i => url === `/ims/api/events/${eventName}/incidents/${i.number}`);
+    if (incident != null) {
+        return jsonResponse(incident);
+    }
+    return incidentsRoutes(url, init);
+}
+
+test("changing the state dropdown saves the new state with an If-Match version", async (): Promise<void> => {
+    serverIncidents[0]!.version = 7;
+    const mock = await initIncidentsPage(savingRoutes);
+    const select = renderStateSelect(serverIncidents[0]!)!;
+
+    select.value = "closed";
+    select.dispatchEvent(new Event("change"));
+
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([url]) => url === `/ims/api/events/${eventName}/incidents/1`)).toBe(true);
+    });
+    const [, init] = mock.mock.calls.find(([url]) => url === `/ims/api/events/${eventName}/incidents/1`)!;
+    expect(init!.method).toBe("POST");
+    expect(JSON.parse(init!.body as string)).toEqual({ number: 1, state: "closed" });
+    expect(new Headers(init!.headers).get("If-Match")).toBe('"7"');
+    expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
+});
+
+test("a failed state change reverts the dropdown and shows the error", async (): Promise<void> => {
+    const handler = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/incidents/1`) {
+            return problemResponse("Nope", 500);
+        }
+        return incidentsRoutes(url, init);
+    };
+    await initIncidentsPage(handler);
+    const select = renderStateSelect(serverIncidents[0]!)!; // on_scene
+
+    select.value = "closed";
+    select.dispatchEvent(new Event("change"));
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    // The dropdown goes back to the state the server last gave us.
+    expect(select.value).toBe("on_scene");
+    expect(select.classList.contains("is-invalid")).toBe(true);
+    expect(select.disabled).toBe(false);
+});
+
+test("a conflicting state change reports that someone else edited the incident", async (): Promise<void> => {
+    const handler = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/incidents/1`) {
+            return problemResponse("Version mismatch", 412);
+        }
+        return incidentsRoutes(url, init);
+    };
+    await initIncidentsPage(handler);
+    const select = renderStateSelect(serverIncidents[0]!)!;
+
+    select.value = "closed";
+    select.dispatchEvent(new Event("change"));
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Someone else has edited");
+    });
+});
+
+test("closing an incident with no incident type warns the user, but still saves", async (): Promise<void> => {
+    // happy-dom doesn't implement window.alert.
+    const alertSpy = vi.fn();
+    vi.stubGlobal("alert", alertSpy);
+    const mock = await initIncidentsPage(savingRoutes);
+    // serverIncidents[1] has no incident types.
+    const select = renderStateSelect(serverIncidents[1]!)!;
+
+    select.value = "closed";
+    select.dispatchEvent(new Event("change"));
+
+    expect(alertSpy).toHaveBeenCalledOnce();
+    expect(alertSpy.mock.calls[0]![0]).toContain("Please add an incident type");
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([url]) => url === `/ims/api/events/${eventName}/incidents/2`)).toBe(true);
+    });
+
+    // An incident that has a type draws no warning.
+    alertSpy.mockClear();
+    const typed = renderStateSelect(serverIncidents[0]!)!;
+    typed.value = "closed";
+    typed.dispatchEvent(new Event("change"));
+    expect(alertSpy).not.toHaveBeenCalled();
 });
 
 test("the state filter shows open, active, and all states correctly", async (): Promise<void> => {

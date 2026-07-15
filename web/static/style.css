@@ -340,6 +340,12 @@ h1 {
     display: none;
   }
 
+  /* The State dropdown already looks like plain text at rest; drop the space it
+     reserves for the caret it only shows on hover. */
+  .incident-state-select {
+    padding: 0;
+  }
+
   /*!* The below tweaks make the print version have multiple columns, like the desktop >768 px version. *!*/
   /*.col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12 {*/
   /*  float: left;*/
@@ -417,6 +423,31 @@ h1 {
 
 #queue_table>tbody>tr {
   cursor: pointer;
+}
+
+/* The State dropdown in each Incidents table row. At rest it looks like the plain text
+   it replaced, so that the State column stays as narrow as it was before the dropdown
+   existed. It shows its border and caret when the user is on the row or tabs into it.
+   The caret's space is reserved at rest, so revealing it doesn't reflow the row. */
+.incident-state-select {
+  width: auto;
+  display: inline-block;
+  padding: 0 1rem 0 0.25rem;
+  background-color: transparent;
+  background-image: none;
+  border-color: transparent;
+  cursor: pointer;
+  font-size: var(--font-size-smaller);
+}
+
+#queue_table>tbody>tr:hover .incident-state-select,
+.incident-state-select:hover,
+.incident-state-select:focus {
+  background-color: var(--bs-body-bg);
+  background-image: var(--bs-form-select-bg-img);
+  background-position: right 0.25rem center;
+  background-size: 10px 8px;
+  border-color: var(--bs-border-color);
 }
 
 #field_reports_table>tbody>tr {

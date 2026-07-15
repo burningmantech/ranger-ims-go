@@ -191,10 +191,10 @@ test("adding a who to a grant posts the grant's whos plus the new one", async ()
     addInput.dispatchEvent(new Event("change"));
 
     const body = await vi.waitFor(() => lastACLPost(mock));
-    const expressions = body["2025"]!.readers!.map(a => a.expression);
+    const expressions = body["2025"]!["readers"]!.map(a => a.expression);
     expect(expressions).toEqual(["person:Tool", "team:Council"]);
     // The new rule inherits the grant's terms (Read all, Always, no dates).
-    const added = body["2025"]!.readers!.find(a => a.expression === "team:Council")!;
+    const added = body["2025"]!["readers"]!.find(a => a.expression === "team:Council")!;
     expect(added.validity).toBe("always");
     expect(added.not_before).toBe(null);
     expect(added.not_after).toBe(null);
@@ -234,8 +234,8 @@ test("editing a grant's terms to a new level moves its whos to that mode", async
 
     const body = await vi.waitFor(() => lastACLPost(mock));
     // The rule leaves the readers list and joins the existing writers list.
-    expect(body["2025"]!.readers).toEqual([]);
-    const writerExpressions = body["2025"]!.writers!.map(a => a.expression);
+    expect(body["2025"]!["readers"]).toEqual([]);
+    const writerExpressions = body["2025"]!["writers"]!.map(a => a.expression);
     expect(writerExpressions).toEqual(["position:007", "person:Tool"]);
 });
 
@@ -249,7 +249,7 @@ test("editing a grant's not-before date posts the parsed time for its whos", asy
     (reader.querySelector(".grant_apply_terms") as HTMLButtonElement).click();
 
     const body = await vi.waitFor(() => lastACLPost(mock));
-    const rule = body["2025"]!.readers![0]!;
+    const rule = body["2025"]!["readers"]![0]!;
     expect(rule.expression).toBe("person:Tool");
     // The typed local time is serialized as a UTC ISO instant.
     expect(rule.not_before).toBe(new Date(2025, 7, 24, 12, 0).toISOString());
@@ -265,7 +265,7 @@ test("clearing a grant's date field posts a null time for its whos", async (): P
     (writer.querySelector(".grant_apply_terms") as HTMLButtonElement).click();
 
     const body = await vi.waitFor(() => lastACLPost(mock));
-    expect(body["2025"]!.writers![0]!.not_before).toBe(null);
+    expect(body["2025"]!["writers"]![0]!.not_before).toBe(null);
 });
 
 test("rules with the same terms but different descriptions form separate grants, each showing its description", async (): Promise<void> => {
@@ -305,7 +305,7 @@ test("adding a who to a grant inherits the grant's description", async (): Promi
     addInput.dispatchEvent(new Event("change"));
 
     const body = await vi.waitFor(() => lastACLPost(mock));
-    const added = body["2025"]!.readers!.find(a => a.expression === "team:Council")!;
+    const added = body["2025"]!["readers"]!.find(a => a.expression === "team:Council")!;
     expect(added.description).toBe("Sanctuary leads");
 });
 
@@ -328,7 +328,7 @@ test("editing a grant's description posts the new description for all its whos",
     (reader.querySelector(".grant_apply_terms") as HTMLButtonElement).click();
 
     const body = await vi.waitFor(() => lastACLPost(mock));
-    const readers = body["2025"]!.readers!;
+    const readers = body["2025"]!["readers"]!;
     expect(readers.map(a => a.expression).sort()).toEqual(["person:Hubcap", "person:Tool"]);
     expect(readers.every(a => a.description === "new reason")).toBe(true);
 });

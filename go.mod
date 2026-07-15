@@ -89,7 +89,7 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
-	github.com/microsoft/typescript-go v0.0.0-20260713154817-8a749379d556 // indirect
+	github.com/microsoft/typescript-go v0.0.0-20260714195723-448614f8f409 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
 	github.com/moby/moby/api v1.55.0 // indirect

@@ -116,8 +116,8 @@ delete from EVENT_ACCESS
 where EVENT = ? and EXPRESSION = ?;
 
 -- name: AddEventAccess :execlastid
-insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY, NOT_AFTER, NOT_BEFORE)
-values (?, ?, ?, ?, ?, ?);
+insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY, NOT_AFTER, NOT_BEFORE, DESCRIPTION)
+values (?, ?, ?, ?, ?, ?, ?);
 
 -- name: CreateIncident :execlastid
 insert into INCIDENT (

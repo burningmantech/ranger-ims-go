@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (36);
+insert into SCHEMA_INFO (VERSION) values (37);
 
 
 create table `EVENT` (
@@ -154,6 +154,10 @@ create table EVENT_ACCESS (
     NOT_AFTER  double,
     -- An optional timestamp before which the access rule is not yet active
     NOT_BEFORE double,
+    -- A human-readable note explaining the purpose/reasoning for a grant. Every
+    -- EVENT_ACCESS row sharing a grant (same EVENT, MODE, VALIDITY, and date
+    -- window) carries the same DESCRIPTION; it's part of what defines the grant.
+    DESCRIPTION varchar(255) not null default '',
 
     foreign key `EVENT_ACCESS_TO_EVENT` (`EVENT`) references `EVENT`(ID),
 

@@ -90,7 +90,7 @@ async function deleteEvent(page: Page, eventName: string): Promise<void> {
   autoAcceptDialogs(page);
 
   const card = eventCard(page, eventName);
-  await card.getByRole("button", {name: "Edit"}).click();
+  await card.getByRole("button", {name: "Edit Event"}).click();
   await page.getByRole("button", {name: "Delete Event"}).click();
   await expect(card).toBeHidden();
 }
@@ -143,12 +143,24 @@ async function addRule(page: Page, eventName: string, target: string, level: str
   autoAcceptDialogs(page);
 
   const card = await expandEventCard(page, eventName);
-  await card.getByLabel("Access level for new rule").selectOption(level);
-  await card.getByLabel("New rule target").fill(target);
+  // Compose a new grant at the requested level, then add the target to it.
+  await card.getByRole("button", {name: "New grant"}).click();
+  const draft = card.locator(".grant-draft").last();
+  await draft.getByLabel("Access level").selectOption(level);
+  const addWho = draft.getByLabel("Add a target to this grant");
+  await addWho.fill(target);
   // Commit with Tab (blur): WebKit doesn't fire "change" on Enter for inputs
   // backed by a datalist.
-  await card.getByLabel("New rule target").press("Tab");
+  await addWho.press("Tab");
   await expect(card.getByText(target)).toBeVisible({timeout: 5000});
+}
+
+// editGrantTerms opens a grant's term editor, runs the given edits against its
+// controls, and applies them.
+async function editGrantTerms(grant: Locator, edits: () => Promise<void>): Promise<void> {
+  await grant.getByRole("button", {name: "Edit terms"}).click();
+  await edits();
+  await grant.getByRole("button", {name: "Apply"}).click();
 }
 
 async function addWriter(page: Page, eventName: string, writer: string): Promise<void> {
@@ -252,61 +264,39 @@ test("admin_events", async ({ browser }) => {
   await addEvent(page, eventName);
   await addWriter(page, eventName, "person:SomeGuy");
 
-  const row = eventCard(page, eventName).locator("tr.access_rule").filter({hasText: "person:SomeGuy"});
-  await expect(row.getByLabel("Access level")).toHaveValue("writers");
-  // it's hard to tell on the client side when this has completed, hence the toPass block below
-  await row.getByLabel("Validity").selectOption("On-Site");
+  const card = eventCard(page, eventName);
+  const grant = card.locator(".grant").filter({hasText: "person:SomeGuy"});
+  // The new writer lands in a "Write all" grant, flagged as an unknown target.
+  await expect(grant.locator(".grant_level_badge")).toHaveText("Write all");
+  await expect(grant.locator(".who-chip").filter({hasText: "person:SomeGuy"})).toHaveClass(/who-unknown/);
+  await expect(card.locator(".rule_count")).toHaveText("1 grant · 1 person");
+  await expect(card.locator(".issue_count")).toHaveText("1 issue");
 
+  // Edit the grant's terms all at once: make it On-Site and set a not-after
+  // time in the past.
+  await editGrantTerms(grant, async (): Promise<void> => {
+    await grant.getByLabel("Validity").selectOption("On-Site");
+    await grant.getByRole("textbox", {name: "Not after"}).fill("Mon 2025-01-27 @ 11:11");
+  });
+  await expect(grant.locator(".grant_when_badge")).toHaveText("On-Site");
+  await expect(grant.locator(".grant_interval_badge")).toHaveText("Expired");
+
+  // Reload in a second page and confirm the edited terms persisted server-side.
   const page2 = await ctx.newPage();
   await login(page2);
   await eventsPage(page2);
-  const card2 = eventCard(page2, eventName);
-  const row2 = card2.locator("tr.access_rule").filter({hasText: "person:SomeGuy"});
-  await expect(async (): Promise<void> => {
-    // The unknown person:SomeGuy is an issue, so the card auto-expands and
-    // shows an issue count.
-    await expect(card2).toBeVisible();
-    await expect(card2.locator(".rule_count")).toHaveText("1 rule");
-    await expect(card2.locator(".issue_count")).toHaveText("1 issue");
-    await expect(row2).toBeVisible();
-    await expect(row2.getByLabel("Validity")).toHaveValue("onsite");
-    await expect(row2).not.toContainText("Expired");
-    await expect(row2).toContainText("Unknown target");
-  }).toPass();
+  const grant2 = eventCard(page2, eventName).locator(".grant").filter({hasText: "person:SomeGuy"});
+  await expect(grant2.locator(".grant_when_badge")).toHaveText("On-Site");
+  await expect(grant2.locator(".grant_interval_badge")).toHaveText("Expired");
+  await expect(grant2.locator(".who-chip").filter({hasText: "person:SomeGuy"})).toHaveClass(/who-unknown/);
 
-  // The date editors are hidden until the rule has dates; disclose them.
-  const expirationTime = row2.getByRole("textbox", {name: "Not after"});
-  if (!(await expirationTime.isVisible())) {
-    await row2.getByRole("button", {name: "Set dates"}).click();
-  }
-  // On mobile, flatpickr swaps in a native date picker that's harder to
-  // drive, so skip date editing there (as in the incidents test).
-  const onMobile = await row2.locator(".flatpickr-mobile").first().isVisible();
-  if (!onMobile) {
-    // Filling the date can race with a redraw of the rule row, which loses
-    // the typed value before it's committed; retry until the save shows up
-    // as the row's "Expired" chip.
-    await expect(async (): Promise<void> => {
-      if (await row2.getByRole("button", {name: "Set dates"}).isVisible()) {
-        await row2.getByRole("button", {name: "Set dates"}).click();
-      }
-      await expect(expirationTime).toBeVisible({timeout: 2000});
-      await expirationTime.fill("Mon 2025-01-27 @ 11:11");
-      // focus anywhere else, so that the expirationTime oninput fires
-      await card2.getByLabel("New rule target").focus();
-      await expect(row2).toContainText("Expired", {timeout: 3000});
-    }).toPass();
-    await expect(row2).toContainText("Unknown target");
-  }
-
-  // move the rule to a different access level via its dropdown
-  await row2.getByLabel("Access level").selectOption("reporters");
-  await expect(row2.getByLabel("Access level")).toHaveValue("reporters");
-  // the rule keeps its other fields
-  await expect(row2.getByLabel("Validity")).toHaveValue("onsite");
-  if (!onMobile) {
-    await expect(row2).toContainText("Expired");
-  }
+  // Move the grant to a different access level; its other terms carry over.
+  await editGrantTerms(grant2, async (): Promise<void> => {
+    await grant2.getByLabel("Access level").selectOption("reporters");
+  });
+  await expect(grant2.locator(".grant_level_badge")).toHaveText("Report own");
+  await expect(grant2.locator(".grant_when_badge")).toHaveText("On-Site");
+  await expect(grant2.locator(".grant_interval_badge")).toHaveText("Expired");
 
   await page2.close();
   await page.close();

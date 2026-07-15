@@ -439,6 +439,77 @@ h1 {
   cursor: pointer;
 }
 
+/*
+ * Grant Blocks on the admin Events & Permissions page. A "grant" groups the
+ * access rules that share a level, validity, and date window; its targets
+ * ("whos") render as chips beneath the shared terms.
+ */
+.grant {
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: rgba(var(--bs-body-color-rgb), 0.02);
+}
+
+.grant-header {
+  padding: 0.35rem 0.55rem;
+  border-bottom: var(--bs-border-width) dashed var(--bs-border-color);
+}
+
+.grant-body {
+  padding: 0.5rem 0.55rem;
+}
+
+/* A not-yet-saved grant the admin is composing. */
+.grant-draft {
+  border-style: dashed;
+  background-color: transparent;
+}
+
+.who-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--bs-font-monospace);
+  font-size: var(--font-size-smaller);
+  line-height: 1.5;
+  background-color: var(--bs-body-bg);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  padding: 0.1rem 0.1rem 0.1rem 0.45rem;
+}
+
+/*
+ * A chip whose target doesn't match any known person, position, or team. Use
+ * Bootstrap's coordinated subtle-background / emphasis-text danger tokens,
+ * which are contrast-checked in both themes (a plain --bs-danger foreground on
+ * a tinted background falls below the WCAG AA text-contrast threshold).
+ */
+.who-chip.who-unknown {
+  color: var(--bs-danger-text-emphasis);
+  border-color: var(--bs-danger-border-subtle);
+  background-color: var(--bs-danger-bg-subtle);
+}
+
+.who-remove {
+  border: 0;
+  border-left: var(--bs-border-width) solid var(--bs-border-color);
+  background: transparent;
+  color: var(--bs-secondary-color);
+  padding: 0 0.4rem;
+  margin-left: 0.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.who-remove:hover,
+.who-remove:focus-visible {
+  color: var(--bs-danger);
+}
+
+.who-chip.who-unknown .who-remove {
+  border-left-color: var(--bs-danger-border-subtle);
+  color: var(--bs-danger-text-emphasis);
+}
+
 .overlay {
   position: fixed;
   width: 100%;

@@ -40,6 +40,7 @@ let editEventModal: ims.bootstrap.Modal|null = null;
 
 const el = {
     browserTz: ims.typedElement("browser_tz", HTMLElement),
+    dateFormatExample: ims.typedElement("date_format_example", HTMLElement),
     explainModal: ims.typedElement("explainModal", HTMLElement),
     editEventModal: ims.typedElement("editEventModal", HTMLElement),
     eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
@@ -78,6 +79,8 @@ async function initAdminEventsPage(): Promise<void> {
     window.setMapURL = setMapURL;
 
     el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // Show the current time as the example, so it's useful to copy-paste from.
+    el.dateFormatExample.textContent = formatDateForInput(new Date());
 
     await Promise.all([loadAccessControlList(), loadAccessTargets()]);
     expandEventsWithRules();
@@ -130,11 +133,8 @@ let sortedEvents: ims.EventData[];
 let accessControlList: EventsAccess|null = null;
 // All valid rule expressions (e.g. "person:Tool"), or null if they couldn't be fetched.
 let validExpressions: Set<string>|null = null;
-let flatpickrIdCounter = 0;
 // Names of events whose rule tables are currently expanded.
 const expandedEvents = new Set<string>();
-// Rules (keyed by event|mode|expression) whose date editors are currently shown.
-const openDateEditors = new Set<string>();
 
 async function loadAccessControlList() : Promise<{err: string|null}> {
     const {json: eventsJson, err: eventsErr} = await ims.fetchNoThrow<ims.EventData[]>(url_events + "?include_groups=true", {
@@ -244,7 +244,7 @@ function eventCard(event: ims.EventData): DocumentFragment {
     if (event.parent_group) {
         const parentGroup = sortedEvents.find(value => {return value.id === event.parent_group});
         if (parentGroup) {
-            eventWithGroupName += ` (inherits ${parentGroup.name})`;
+            eventWithGroupName += ` (extends ${parentGroup.name})`;
         }
     }
     card.querySelector(".event_name")!.textContent = eventWithGroupName;
@@ -321,7 +321,7 @@ function eventCard(event: ims.EventData): DocumentFragment {
             if (ruleHasIssue(accessEntry)) {
                 issueCount++;
             }
-            tbody.append(ruleRow(event.name, mode, accessEntry));
+            tbody.append(ruleRow(mode, accessEntry));
         }
     }
 
@@ -409,7 +409,7 @@ function explainMsgsForEvent(event: ims.EventData): string[] {
     return explainMsgs;
 }
 
-function ruleRow(event: string, mode: AccessMode, accessEntry: Access): HTMLTableRowElement {
+function ruleRow(mode: AccessMode, accessEntry: Access): HTMLTableRowElement {
     const rowFrag = el.accessRuleTemplate.content.cloneNode(true) as DocumentFragment;
     const row = rowFrag.querySelector("tr")!;
 
@@ -427,53 +427,31 @@ function ruleRow(event: string, mode: AccessMode, accessEntry: Access): HTMLTabl
     const validityField = row.querySelector(".access_validity") as HTMLSelectElement;
     validityField.value = accessEntry.validity;
 
-    const notBeforeInput = row.querySelector(".access_not_before") as ims.FlatpickrHTMLInputElement;
-    ims.newFlatpickr(notBeforeInput, `alt_not_before_${flatpickrIdCounter++}`, (selectedDates) => {
-        saveNotBefore(row, selectedDates[0] ?? null);
-    });
+    const notBeforeInput = row.querySelector(".access_not_before") as HTMLInputElement;
     if (accessEntry.not_before) {
-        notBeforeInput._flatpickr.setDate(new Date(accessEntry.not_before), false, "Z");
+        notBeforeInput.value = formatDateForInput(new Date(accessEntry.not_before));
     }
-
-    const notAfterInput = row.querySelector(".access_not_after") as ims.FlatpickrHTMLInputElement;
-    ims.newFlatpickr(notAfterInput, `alt_not_after_${flatpickrIdCounter++}`, (selectedDates) => {
-        saveNotAfter(row, selectedDates[0] ?? null);
-    });
-    if (accessEntry.not_after) {
-        notAfterInput._flatpickr.setDate(new Date(accessEntry.not_after), false, "Z");
-    }
-
-    // Most rules have no dates, so the date pickers stay hidden until the rule
-    // has a date range (date badge) or the user asks for one ("Set dates" button).
-    const datesKey = `${event}|${mode}|${accessEntry.expression}`;
-    const datesSpan = row.querySelector(".access_dates") as HTMLElement;
-    const datesToggle = row.querySelector(".access_dates_toggle") as HTMLButtonElement;
-    const datesBadge = row.querySelector(".access_dates_badge") as HTMLButtonElement;
-    const showDateEditors = (): void => {
-        datesSpan.classList.remove("d-none");
-        datesToggle.classList.add("d-none");
-        datesBadge.classList.add("d-none");
-        openDateEditors.add(datesKey);
-    };
-    datesToggle.addEventListener("click", showDateEditors);
-    datesBadge.addEventListener("click", showDateEditors);
-    if (accessEntry.not_before || accessEntry.not_after) {
-        const notBefore = accessEntry.not_before ? notBeforeInput._flatpickr.altInput!.value : null;
-        const notAfter = accessEntry.not_after ? notAfterInput._flatpickr.altInput!.value : null;
-        if (notBefore && notAfter) {
-            datesBadge.textContent = `${notBefore} → ${notAfter}`;
-        } else if (notBefore) {
-            datesBadge.textContent = `from ${notBefore}`;
-        } else {
-            datesBadge.textContent = `until ${notAfter}`;
+    notBeforeInput.addEventListener("change", (): void => {
+        const date = parseDateInput(notBeforeInput.value);
+        if (date === undefined) {
+            ims.controlHasError(notBeforeInput);
+            return;
         }
-        datesBadge.classList.remove("d-none");
-    } else {
-        datesToggle.classList.remove("d-none");
+        saveNotBefore(row, date);
+    });
+
+    const notAfterInput = row.querySelector(".access_not_after") as HTMLInputElement;
+    if (accessEntry.not_after) {
+        notAfterInput.value = formatDateForInput(new Date(accessEntry.not_after));
     }
-    if (openDateEditors.has(datesKey)) {
-        showDateEditors();
-    }
+    notAfterInput.addEventListener("change", (): void => {
+        const date = parseDateInput(notAfterInput.value);
+        if (date === undefined) {
+            ims.controlHasError(notAfterInput);
+            return;
+        }
+        saveNotAfter(row, date);
+    });
 
     const intervalText = row.querySelector(".access_interval_text") as HTMLSpanElement;
     let intervalStatus = "";
@@ -519,6 +497,42 @@ function displayMode(m: AccessMode): string {
         default:
             throw new Error(`unexpected access mode ${m satisfies never}`);
     }
+}
+
+// Format a date for display in a rule's date input, in the browser's time zone,
+// e.g. "Sun 2026-08-23 @ 12:00". This matches the format parseDateInput accepts.
+function formatDateForInput(date: Date): string {
+    const weekday = new Intl.DateTimeFormat("en-US", {weekday: "short"}).format(date);
+    return `${weekday} ${ims.localDateISO(date)} @ ${ims.localTimeHHMM(date)}`;
+}
+
+// Parse a human-entered datetime into a Date in the browser's time zone. Returns
+// null for empty input (the date is being cleared), or undefined if the input
+// couldn't be parsed. It's lenient: an optional weekday prefix and "@" separator
+// are ignored, so it round-trips formatDateForInput's output, and the time is
+// optional (defaulting to midnight).
+function parseDateInput(input: string): Date|null|undefined {
+    const trimmed = input.trim();
+    if (trimmed === "") {
+        return null;
+    }
+    const match = trimmed.match(/(\d{4})-(\d{1,2})-(\d{1,2})(?:[\sT@]+(\d{1,2}):(\d{2}))?\s*$/);
+    if (match == null) {
+        return undefined;
+    }
+    const year = ims.parseInt10(match[1]!)!;
+    const month = ims.parseInt10(match[2]!)!;
+    const day = ims.parseInt10(match[3]!)!;
+    const hour = match[4] != null ? ims.parseInt10(match[4])! : 0;
+    const minute = match[5] != null ? ims.parseInt10(match[5])! : 0;
+    if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) {
+        return undefined;
+    }
+    const date = new Date(year, month - 1, day, hour, minute);
+    if (Number.isNaN(date.getTime())) {
+        return undefined;
+    }
+    return date;
 }
 
 async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Promise<void> {

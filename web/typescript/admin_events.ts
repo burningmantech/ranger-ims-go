@@ -408,11 +408,11 @@ function eventCard(event: ims.EventData): DocumentFragment {
     // Build the grant blocks, plus any drafts the admin is composing.
     const grantsContainer = card.querySelector(".grants_container") as HTMLElement;
     const grants = grantsForEvent(event.name);
-    let peopleCount = 0;
+    let expressionCount = 0;
     let issueCount = 0;
     for (const grant of grants) {
         for (const who of grant.whos) {
-            peopleCount++;
+            expressionCount++;
             if (ruleHasIssue(who)) {
                 issueCount++;
             }
@@ -423,10 +423,11 @@ function eventCard(event: ims.EventData): DocumentFragment {
         grantsContainer.append(grantBlock(event.name, null, draft));
     }
 
+    // Count expressions, not people: one expression can match many Rangers or none.
     const grantWord = grants.length === 1 ? "grant" : "grants";
-    const peopleWord = peopleCount === 1 ? "person" : "people";
+    const expressionWord = expressionCount === 1 ? "expression" : "expressions";
     card.querySelector(".rule_count")!.textContent =
-        `${grants.length} ${grantWord} · ${peopleCount} ${peopleWord}`;
+        `${grants.length} ${grantWord} · ${expressionCount} ${expressionWord}`;
     if (issueCount > 0) {
         const issueBadge = card.querySelector(".issue_count") as HTMLElement;
         issueBadge.textContent = `${issueCount} ${issueCount === 1 ? "issue" : "issues"}`;
@@ -592,14 +593,20 @@ function renderGrantTermsDisplay(grantEl: HTMLElement, grant: Grant): void {
         whenBadge.classList.add("text-bg-secondary");
     }
 
+    // The badges show the date alone to keep the terms line compact; the time of
+    // day is still reachable via the hover title and the "Edit terms" controls.
     if (grant.notBefore) {
         const badge = grantEl.querySelector(".grant_not_before_badge") as HTMLElement;
-        badge.textContent = `not-before ${formatDateForInput(new Date(grant.notBefore))}`;
+        const date = new Date(grant.notBefore);
+        badge.textContent = `not-before ${ims.localDateISO(date)}`;
+        badge.title = `Not before: ${ims.longFormatDate(date)}`;
         badge.classList.remove("d-none");
     }
     if (grant.notAfter) {
         const badge = grantEl.querySelector(".grant_not_after_badge") as HTMLElement;
-        badge.textContent = `not-after ${formatDateForInput(new Date(grant.notAfter))}`;
+        const date = new Date(grant.notAfter);
+        badge.textContent = `not-after ${ims.localDateISO(date)}`;
+        badge.title = `Not after: ${ims.longFormatDate(date)}`;
         badge.classList.remove("d-none");
     }
 
@@ -634,6 +641,12 @@ function whoChip(grantEl: HTMLElement, who: Access): DocumentFragment {
     const chip = frag.querySelector(".who-chip") as HTMLElement;
     const expressionSpan = chip.querySelector(".who_expression") as HTMLElement;
     expressionSpan.textContent = who.expression;
+
+    // The bare "*" gives no hint of how much it grants, so spell it out. The
+    // wildcard is always a known target, so this never collides with the fix flow.
+    if (who.expression === "*") {
+        show(chip.querySelector(".who-gloss") as HTMLElement);
+    }
 
     const removeButton = chip.querySelector(".who-remove") as HTMLButtonElement;
     removeButton.addEventListener("click", (): void => void removeWho(grantEl, who.expression));

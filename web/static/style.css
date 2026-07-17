@@ -52,7 +52,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .table {
-  font-size: var(--font-size-smaller);
   --bs-table-color: var(--bs-body-color);
   --bs-table-striped-color: var(--bs-body-color);
 }
@@ -61,28 +60,14 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--font-size-smallest);
 }
 
-.btn-sm {
-  font-size: var(--font-size-smaller);
+.btn-sm,
+.btn-xs {
   border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
 }
 
 .btn-xs {
-  font-size: var(--font-size-smaller);
   --bs-btn-padding-y: 0.1rem;
   --bs-btn-padding-x: 0.3rem;
-}
-
-.btn-xs {
-  font-size: var(--font-size-smaller);
-  border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
-}
-
-.text-smaller {
-  font-size: var(--font-size-smaller);
-}
-
-.text-size-normal {
-  font-size: 1rem !important;
 }
 
 .form-control-static {
@@ -95,25 +80,20 @@ h1, h2, h3, h4, h5, h6 {
   padding-bottom: 0;
 }
 
-/*.table-hover > tbody > tr:hover {*/
-/*  background-color: #FFFF00;*/
-/*}*/
+.auto-width {
+  width: auto;
+  display: inline;        /* .form-control is display:block, which would break the flow */
+  field-sizing: content;  /* Automatically fits the text length */
+  min-width: 100px;       /* Keeps it from completely collapsing when empty */
+}
 
-.table > tbody > tr > td,
-.table > tbody > tr > th,
-.table > tfoot > tr > td,
-.table > tfoot > tr > th,
-.table > thead > tr > td,
-.table > thead > tr > th {
+/* Tighter than Bootstrap's 0.5rem default, looser than .table-sm's 0.25rem. */
+.table > :not(caption) > * > * {
   padding: 0.3rem;
 }
 
 .footer-hr {
   margin: 0;
-}
-
-.footer-text {
-  font-size: var(--font-size-smaller);
 }
 
 .nonprod-warning {
@@ -139,28 +119,17 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--font-size-smaller);
 }
 
-.auto-width {
-  width: auto;
-  display: inline;
+.report_entry_system,
+.report_entry_stricken {
+  filter: opacity(75%);
 }
 
-.report_entry_system {
-  font-size: var(--font-size-smaller);
-  filter: opacity(75%);
+.report_entry_stricken {
+  text-decoration: line-through;
 }
 
 .report_entry_system > .report_entry_text {
   margin: 0 0 0 0.5rem;
-}
-
-.report_entry_stricken {
-  font-size: var(--font-size-smaller);
-  filter: opacity(75%);
-  text-decoration: line-through;
-}
-
-.report_entry_text {
-  font-size: var(--font-size-smaller);
 }
 
 .report_entry_metadata {
@@ -171,25 +140,29 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0.9rem 0 0 0;
 }
 
-.form-control {
+/*
+ * The app runs at a smaller type scale than Bootstrap's default. Anything that
+ * needs to opt in explicitly can use .text-smaller (or Bootstrap's .fs-6 to opt
+ * back out to 1rem).
+ */
+.table,
+.btn-sm,
+.btn-xs,
+.form-control,
+.control-label,
+.control-follow-text,
+.search-box,
+.dt-info,
+.footer-text,
+.report_entry_text,
+.report_entry_system,
+.report_entry_stricken,
+.text-smaller {
   font-size: var(--font-size-smaller);
 }
 
 .control-label {
   font-weight: 700;
-  font-size: var(--font-size-smaller);
-}
-
-.control-follow-text {
-  font-size: var(--font-size-smaller);
-}
-
-.search-box {
-  font-size: var(--font-size-smaller);
-}
-
-.dt-info {
-  font-size: var(--font-size-smaller);
 }
 
 /*
@@ -237,36 +210,16 @@ h1 {
   display: none;
 }
 
-.no-touch .list-group-item:hover .remove-badge {
-  display: inline-block;
-}
-.no-touch .report_entry:hover .remove-badge {
+.no-touch :is(.list-group-item, .report_entry):hover .remove-badge {
   display: inline-block;
 }
 
-/* Disable on touch devices if editing is disabled. */
-.no-edit .remove-badge {
+/* Disable on touch devices, and override the hover behavior above, if editing
+   is disabled. */
+.no-edit .remove-badge,
+.no-edit :is(.list-group-item, .report_entry):hover .remove-badge,
+.no-edit :is(.new_incident, .new_field_report) {
   display: none;
-}
-
-/* Override hover behavior if editing is disabled. */
-.no-edit .list-group-item:hover .remove-badge {
-  display: none;
-}
-.no-edit .report_entry:hover .remove-badge {
-  display: none;
-}
-
-.no-edit .new_incident {
-  display: none;
-}
-
-.no-edit .new_field_report {
-  display: none;
-}
-
-#report_entry_well > .panel {
-  margin-bottom: 0.5rem;
 }
 
 #report_entry_add {
@@ -275,20 +228,9 @@ h1 {
   field-sizing: content;
 }
 
-.item-hidden > .badge-visible {
-  display: none;
-}
-
+.item-hidden > .badge-visible,
 .item-visible > .badge-hidden {
   display: none;
-}
-
-.badge-visible {
-  float: right !important;
-}
-
-.badge-hidden {
-  float: right !important;
 }
 
 /*
@@ -314,11 +256,7 @@ h1 {
   --bs-btn-hover-border-color: var(--bs-border-color);
 }
 
-.hide-history .report_entry_system {
-  display: none;
-}
-
-.hide-history .report_entry_stricken {
+.hide-history :is(.report_entry_system, .report_entry_stricken) {
   display: none;
 }
 
@@ -339,47 +277,6 @@ h1 {
   .no-print {
     display: none;
   }
-
-  /*!* The below tweaks make the print version have multiple columns, like the desktop >768 px version. *!*/
-  /*.col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12 {*/
-  /*  float: left;*/
-  /*}*/
-  /*.col-sm-12 {*/
-  /*  width: 100%;*/
-  /*}*/
-  /*.col-sm-11 {*/
-  /*  width: 91.67%;*/
-  /*}*/
-  /*.col-sm-10 {*/
-  /*  width: 83.33%;*/
-  /*}*/
-  /*.col-sm-9 {*/
-  /*  width: 75%;*/
-  /*}*/
-  /*.col-sm-8 {*/
-  /*  width: 66.67%;*/
-  /*}*/
-  /*.col-sm-7 {*/
-  /*  width: 58.33%;*/
-  /*}*/
-  /*.col-sm-6 {*/
-  /*  width: 50%;*/
-  /*}*/
-  /*.col-sm-5 {*/
-  /*  width: 41.67%;*/
-  /*}*/
-  /*.col-sm-4 {*/
-  /*  width: 33.33%;*/
-  /*}*/
-  /*.col-sm-3 {*/
-  /*  width: 25%;*/
-  /*}*/
-  /*.col-sm-2 {*/
-  /*  width: 16.67%;*/
-  /*}*/
-  /*.col-sm-1 {*/
-  /*  width: 8.33%;*/
-  /*}*/
 
   /* don't print the full name under the abbreviation */
   abbr[title]:after {
@@ -415,26 +312,9 @@ h1 {
   font-weight: 600;
 }
 
-#queue_table>tbody>tr {
-  cursor: pointer;
-}
-
-#field_reports_table>tbody>tr {
-  cursor: pointer;
-}
-
-#visits_table>tbody>tr {
-  cursor: pointer;
-}
-
-#places_table>tbody>tr {
-  cursor: pointer;
-}
-
-#search_results_table>tbody>tr {
-  cursor: pointer;
-}
-
+/* Rows in these tables are click-to-open. They're rendered by DataTables, so
+   the rows can't carry .show-pointer themselves. */
+:is(#queue_table, #field_reports_table, #visits_table, #places_table, #search_results_table) > tbody > tr,
 .show-pointer {
   cursor: pointer;
 }
@@ -478,6 +358,17 @@ h1 {
 }
 
 /*
+ * Plain-language gloss for an expression whose literal form is opaque, e.g. "*".
+ * Roman and muted, so it reads as an annotation rather than part of the
+ * monospace expression the admin actually typed.
+ */
+.who-gloss {
+  font-family: var(--bs-body-font-family);
+  color: var(--bs-secondary-color);
+  margin-left: 0.4rem;
+}
+
+/*
  * A chip whose target doesn't match any known person, position, or team. Use
  * Bootstrap's coordinated subtle-background / emphasis-text danger tokens,
  * which are contrast-checked in both themes (a plain --bs-danger foreground on
@@ -516,9 +407,7 @@ h1 {
   height: 100%;
   z-index: 1000;
   top: 40%;
-  left: 0px;
-  /*opacity: 0.5;*/
-  /*filter: alpha(opacity=50);*/
+  left: 0;
 }
 
 .white-space-pre-wrap {
@@ -540,13 +429,4 @@ h1 {
 
 .hover-placeholder:hover::placeholder {
   opacity: 1;
-}
-
-.w-160 {
-  width: 150px !important;
-}
-
-.auto-width {
-  field-sizing: content;  /* Automatically fits the text length */
-  min-width: 100px;       /* Keeps it from completely collapsing when empty */
 }

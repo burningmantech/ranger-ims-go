@@ -120,8 +120,8 @@ test("event cards render their rules grouped into grant blocks", async (): Promi
     expect(cards.length).toBe(1);
     const card = cards[0]!;
     expect(card.querySelector(".event_name")!.textContent).toBe("2025");
-    // Two rules with different terms form two grants, one person in each.
-    expect(card.querySelector(".rule_count")!.textContent).toBe("2 grants · 2 people");
+    // Two rules with different terms form two grants, one expression in each.
+    expect(card.querySelector(".rule_count")!.textContent).toBe("2 grants · 2 expressions");
     // No rules have issues, so the issue badge stays hidden. The event has
     // rules, though, so its grant list auto-expands.
     expect(card.querySelector(".issue_count")!.classList.contains("d-none")).toBe(true);
@@ -156,14 +156,42 @@ test("a grant with a dateless rule hides its date badges; a dated rule shows the
     expect(reader.querySelector(".grant_not_before_badge")!.classList.contains("d-none")).toBe(true);
     expect(reader.querySelector(".grant_not_after_badge")!.classList.contains("d-none")).toBe(true);
 
-    // The writer grant has dates, shown formatted like "Sun 2025-08-24 @ 12:00"
-    // in the browser's time zone (so an exact match here would be TZ-dependent).
+    // The writer grant has dates, shown as a bare ISO date like "2025-08-24" in
+    // the browser's time zone (so an exact match here would be TZ-dependent).
     const writer = grants[1]!;
-    const dateFormat = /\bnot-(before|after) [A-Z][a-z]{2} \d{4}-\d{2}-\d{2} @ \d{2}:\d{2}$/;
+    const dateFormat = /^not-(before|after) \d{4}-\d{2}-\d{2}$/;
     expect(writer.querySelector(".grant_not_before_badge")!.classList.contains("d-none")).toBe(false);
     expect(writer.querySelector(".grant_not_before_badge")!.textContent).toMatch(dateFormat);
     expect(writer.querySelector(".grant_not_after_badge")!.classList.contains("d-none")).toBe(false);
     expect(writer.querySelector(".grant_not_after_badge")!.textContent).toMatch(dateFormat);
+
+    // The time of day the badges omit stays available on hover.
+    const titleFormat = /^Not (before|after): [A-Z][a-z]{2}, \d{4}-\d{2}-\d{2} at \d{2}:\d{2}:\d{2} /;
+    expect((writer.querySelector(".grant_not_before_badge") as HTMLElement).title).toMatch(titleFormat);
+    expect((writer.querySelector(".grant_not_after_badge") as HTMLElement).title).toMatch(titleFormat);
+});
+
+test("a wildcard chip is glossed as granting all authenticated users", async (): Promise<void> => {
+    serverACL["2025"]!["readers"] = [
+        { expression: "*", validity: "always", debug_info: { known_target: true } },
+    ];
+    await initAdminEventsPage();
+
+    const chips = whoChips(grantBlocks(eventCards()[0]!)[0]!);
+    expect(chips.length).toBe(1);
+    // The expression itself stays the bare wildcard; the gloss is a sibling.
+    expect(chips[0]!.querySelector(".who_expression")!.textContent).toBe("*");
+    const gloss = chips[0]!.querySelector(".who-gloss")!;
+    expect(gloss.classList.contains("d-none")).toBe(false);
+    expect(gloss.textContent).toBe("(ALL authenticated users)");
+});
+
+test("a non-wildcard chip shows no gloss", async (): Promise<void> => {
+    await initAdminEventsPage();
+
+    const chips = whoChips(grantBlocks(eventCards()[0]!)[0]!);
+    expect(chips[0]!.querySelector(".who_expression")!.textContent).toBe("person:Tool");
+    expect(chips[0]!.querySelector(".who-gloss")!.classList.contains("d-none")).toBe(true);
 });
 
 test("a rule with an unknown target is flagged and its event auto-expands", async (): Promise<void> => {

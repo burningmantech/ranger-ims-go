@@ -269,7 +269,7 @@ test("admin_events", async ({ browser }) => {
   // The new writer lands in a "Write all" grant, flagged as an unknown target.
   await expect(grant.locator(".grant_level_badge")).toHaveText("Write all");
   await expect(grant.locator(".who-chip").filter({hasText: "person:SomeGuy"})).toHaveClass(/who-unknown/);
-  await expect(card.locator(".rule_count")).toHaveText("1 grant · 1 person");
+  await expect(card.locator(".rule_count")).toHaveText("1 grant · 1 expression");
   await expect(card.locator(".issue_count")).toHaveText("1 issue");
 
   // Edit the grant's terms all at once: make it On-Site and set a not-after

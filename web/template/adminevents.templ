@@ -96,7 +96,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
           <button type="button" class="access_collapse_toggle btn fw-bold fs-5 p-0 border-0" data-bs-toggle="collapse">
             <span class="access_collapse_chevron me-1" aria-hidden="true">&#9656;</span><span class="event_name"></span>
           </button>
-          <span class="rule_count badge text-bg-secondary" title="Grants and people for this event"></span>
+          <span class="rule_count badge text-bg-secondary" title="Grants and expressions for this event"></span>
           <span class="issue_count badge text-bg-danger d-none" title="Number of targets with problems, such as unknown targets"></span>
           <span class="ms-auto">
             <button type="button" class="explain_button badge btn btn-primary me-2">Explain</button>
@@ -169,7 +169,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
         </span>
       </div>
       <div class="grant-body">
-        <div class="who_chips d-flex flex-wrap align-items-center gap-2">
+        <div class="who_chips d-flex flex-column align-items-start gap-1">
           <!-- who_chip_template elements go here -->
           <input
               class="who_add form-control form-control-sm auto-width"
@@ -185,6 +185,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
   <template id="who_chip_template">
     <span class="who-chip">
       <span class="who_expression"></span>
+      <span class="who-gloss d-none">(ALL authenticated users)</span>
       <button type="button" class="who_fix btn btn-warning btn-xs ms-1 d-none">Fix</button>
       <input
           class="who_fix_input form-control form-control-sm auto-width d-none"
@@ -200,7 +201,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
       <label for="event_add">Create New Event:</label>
       <input
               id="event_add"
-              class="form-control input-sm auto-width"
+              class="form-control auto-width"
               disabled=""
               type="text" inputmode="verbatim"
               placeholder="Burn-A-Matic-3000"
@@ -213,7 +214,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
       <label for="event_add_group">Create New Event Group:</label>
       <input
               id="event_add_group"
-              class="form-control input-sm auto-width"
+              class="form-control auto-width"
               disabled=""
               type="text" inputmode="verbatim"
               placeholder="Collection-of-Burns"

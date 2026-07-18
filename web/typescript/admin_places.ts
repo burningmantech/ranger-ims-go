@@ -30,8 +30,7 @@ declare global {
 
 const el = {
     placeForm: ims.typedElement("place-form", HTMLFormElement),
-    eventName: ims.typedElement("event-name", HTMLInputElement),
-    eventNames: ims.typedElement("event-names", HTMLDataListElement),
+    eventName: ims.typedElement("event-name", HTMLSelectElement),
     artData: ims.typedElement("art-data", HTMLTextAreaElement),
     campData: ims.typedElement("camp-data", HTMLTextAreaElement),
     mvData: ims.typedElement("mv-data", HTMLTextAreaElement),
@@ -59,15 +58,19 @@ async function initAdminPlacesPage(): Promise<void> {
 }
 
 function drawEventNames(events: ims.EventData[]|null): void {
-    el.eventNames.replaceChildren();
-    for (const event of events??[]) {
+    const sortedEvents = events?.toSorted((a, b) => {
+        // reverse alphabetical order
+        return b.name.localeCompare(a.name);
+    });
+    for (const event of sortedEvents??[]) {
         // groups are containers for events; they have no places of their own
         if (event.is_group) {
             continue;
         }
         const option: HTMLOptionElement = document.createElement("option");
         option.value = event.name;
-        el.eventNames.append(option);
+        option.textContent = event.name;
+        el.eventName.append(option);
     }
 }
 
@@ -131,6 +134,10 @@ async function submit(): Promise<void> {
         return;
     }
     const eventName = el.eventName.value;
+    if (!eventName) {
+        ims.setErrorMessage("Select an event before saving.");
+        return;
+    }
 
     const {err} = await ims.fetchNoThrow(
         url_places.replace("<event_id>", eventName), {
@@ -155,6 +162,9 @@ async function submit(): Promise<void> {
 async function loadPlaces(): Promise<void> {
     ims.clearErrorMessage();
     const eventName = el.eventName.value;
+    if (!eventName) {
+        return;
+    }
 
     const {json, err} = await ims.fetchNoThrow<ims.Places>(
         url_places.replace("<event_id>", eventName), {

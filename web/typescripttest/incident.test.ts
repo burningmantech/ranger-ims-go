@@ -259,6 +259,13 @@ test("rangers and incident types are drawn with their add datalists", async (): 
     expect(hotSlotsLink.href).toBe("https://ranger-clubhouse.burningman.org/person/1234");
     expect(rangerItems[1]!.querySelector("input")!.value).toBe("lead");
 
+    // The On-Duty report link is pointed at the incident's start time.
+    const onDuty = document.getElementById("onduty_link") as HTMLAnchorElement;
+    expect(onDuty.href).toBe(
+        "https://ranger-clubhouse.burningman.org/reports/on-duty" +
+        "?duty_date=" + encodeURIComponent("2025-08-25T10:00:00.000Z"),
+    );
+
     // The Ranger add datalist holds all personnel except auditors.
     const handleOptions = [...document.querySelectorAll<HTMLOptionElement>("#ranger_handles option")]
         .map((o: HTMLOptionElement): string => o.value);

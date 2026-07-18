@@ -60,18 +60,59 @@ function field(id: string): HTMLTextAreaElement {
     return document.getElementById(id) as HTMLTextAreaElement;
 }
 
-test("the event-names datalist is populated, excluding groups", async (): Promise<void> => {
+// Waits for drawEventNames, which runs after init awaits the events fetch.
+async function eventSelect(): Promise<HTMLSelectElement> {
+    const select = document.getElementById("event-name") as HTMLSelectElement;
+    await vi.waitFor((): void => {
+        expect(select.options.length).toBeGreaterThan(1);
+    });
+    return select;
+}
+
+test("the event-name select is populated in reverse-alphabetical order, excluding groups", async (): Promise<void> => {
     await initAdminPlacesPage();
 
-    // drawEventNames runs after init awaits the events fetch.
-    await vi.waitFor((): void => {
-        expect(document.querySelectorAll("#event-names option").length).toBeGreaterThan(0);
-    });
-    const options = [...document.querySelectorAll<HTMLOptionElement>("#event-names option")].map(o => o.value);
-    expect(options).toContain("2025");
-    expect(options).toContain("2024");
+    const select = await eventSelect();
+    const options = [...select.options].map(o => o.value);
+    // The templ-rendered placeholder stays first, then events newest-first.
+    expect(options).toEqual(["", "2025", "2024"]);
     // Groups hold no places of their own.
     expect(options).not.toContain("Group");
+    // Options need visible text, not just a value, to be pickable in a select.
+    expect([...select.options].map(o => o.textContent)).toEqual([
+        "Select an event…", "2025", "2024",
+    ]);
+    // Nothing is selected until the user picks an event.
+    expect(select.value).toBe("");
+});
+
+test("loading places with no event selected fetches nothing", async (): Promise<void> => {
+    const mock = await initAdminPlacesPage();
+    await eventSelect();
+
+    await window.loadPlaces();
+
+    expect(mock.mock.calls.some(([url]) => url === placesUrl)).toBe(false);
+});
+
+test("submitting with no event selected surfaces an error and posts nothing", async (): Promise<void> => {
+    const mock = await initAdminPlacesPage();
+    await eventSelect();
+
+    field("art-data").value = "[]";
+    field("camp-data").value = "[]";
+    field("mv-data").value = "[]";
+    field("other-data").value = "[]";
+
+    document.getElementById("place-form")!.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+    );
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(document.getElementById("error_text")!.textContent).toContain("Select an event");
+    expect(mock.mock.calls.some(([url, init]) => url === placesUrl && init?.body != null)).toBe(false);
 });
 
 test("loading places fills each JSON textarea and its count label", async (): Promise<void> => {
@@ -82,7 +123,7 @@ test("loading places fills each JSON textarea and its count label", async (): Pr
         other: [],
     }));
 
-    (document.getElementById("event-name") as HTMLInputElement).value = "2025";
+    (await eventSelect()).value = "2025";
     await window.loadPlaces();
 
     expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
@@ -102,7 +143,7 @@ test("submitting the form posts the parsed places to the event's places endpoint
         return undefined;
     });
 
-    (document.getElementById("event-name") as HTMLInputElement).value = "2025";
+    (await eventSelect()).value = "2025";
     field("art-data").value = JSON.stringify([{ name: "Temple", location_string: "9:00" }]);
     field("camp-data").value = "[]";
     field("mv-data").value = "[]";
@@ -125,7 +166,7 @@ test("submitting the form posts the parsed places to the event's places endpoint
 test("invalid JSON in a textarea surfaces an error and posts nothing", async (): Promise<void> => {
     const mock = await initAdminPlacesPage();
 
-    (document.getElementById("event-name") as HTMLInputElement).value = "2025";
+    (await eventSelect()).value = "2025";
     field("art-data").value = "this is not json";
     field("camp-data").value = "[]";
     field("mv-data").value = "[]";

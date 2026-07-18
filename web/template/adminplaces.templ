@@ -33,8 +33,9 @@ templ AdminPlaces(deployment, versionName, versionRef string) {
 <form id="place-form">
   <div class="mb-3">
     <label for="event-name" class="form-label">Event name</label>
-    <input id="event-name" type="text" class="form-control" autocomplete="off" list="event-names" onchange="loadPlaces();">
-    <datalist id="event-names"></datalist>
+    <select id="event-name" class="form-control form-select" onchange="loadPlaces();">
+      <option value="" selected>Select an event&hellip;</option>
+    </select>
   </div>
   <h2 class="h5">Art data</h2>
   <div class="mb-3">

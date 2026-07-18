@@ -78,6 +78,7 @@ const el = {
     rangerHandles: ims.typedElement("ranger_handles", HTMLDataListElement),
     rangersList: ims.typedElement("incident_rangers_list", HTMLElement),
     rangersLiTemplate: ims.typedElement("incident_rangers_li_template", HTMLTemplateElement),
+    onDutyLink: ims.typedElement("onduty_link", HTMLAnchorElement),
 
     incidentTypeAdd: ims.typedElement("incident_type_add", HTMLInputElement),
     incidentTypes: ims.typedElement("incident_types", HTMLDataListElement),
@@ -756,6 +757,14 @@ function drawRangers() {
 
         el.rangersList.append(rangerFragment);
     }
+
+    // Set the on-duty link. This uses a UTC timestamp, which Clubhouse seems to support as the duty_date param.
+    let params = new URLSearchParams();
+    if (incident?.started) {
+        const d = new Date(incident.started);
+        params.set("duty_date", d.toISOString());
+    }
+    el.onDutyLink.href = `https://ranger-clubhouse.burningman.org/reports/on-duty?${params.toString()}`;
 }
 
 

@@ -488,6 +488,9 @@ function grantBlock(eventName: string, grant: Grant|null, draft: DraftGrant|null
     grantEl.dataset["description"] = description;
 
     const display = grantEl.querySelector(".grant_terms_display") as HTMLElement;
+    // The description sits above the terms rather than among them, so it has to
+    // be hidden alongside the badges when the edit controls come out.
+    const descriptionDisplay = grantEl.querySelector(".grant_description_display") as HTMLElement;
     const editTerms = grantEl.querySelector(".grant_terms_edit") as HTMLElement;
     const levelSelect = grantEl.querySelector(".grant_level") as HTMLSelectElement;
     const validitySelect = grantEl.querySelector(".grant_validity") as HTMLSelectElement;
@@ -517,6 +520,7 @@ function grantBlock(eventName: string, grant: Grant|null, draft: DraftGrant|null
 
         // "Edit terms" swaps the badges for the edit controls.
         editButton.addEventListener("click", (): void => {
+            hide(descriptionDisplay);
             hideFlex(display);
             showFlex(editTerms);
             hide(editButton);
@@ -629,7 +633,7 @@ function renderGrantTermsDisplay(grantEl: HTMLElement, grant: Grant): void {
 
     if (grant.description) {
         const descriptionEl = grantEl.querySelector(".grant_description_display") as HTMLElement;
-        descriptionEl.textContent = `"${grant.description}"`;
+        descriptionEl.textContent = grant.description;
         descriptionEl.classList.remove("d-none");
     }
 }

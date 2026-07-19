@@ -116,6 +116,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
   </template>
   <template id="grant_template">
     <div class="grant">
+      <div class="grant_description_display grant-description fst-italic text-body-secondary d-none" title="Grant description"></div>
       <div class="grant-header d-flex align-items-center flex-wrap column-gap-2 row-gap-1">
         <!-- Read-only display of the grant's terms. -->
         <span class="grant_terms_display d-flex align-items-center flex-wrap column-gap-2 row-gap-1">
@@ -124,7 +125,6 @@ templ AdminEvents(deployment, versionName, versionRef string) {
           <span class="grant_not_before_badge badge border text-body-secondary d-none"></span>
           <span class="grant_not_after_badge badge border text-body-secondary d-none"></span>
           <span class="grant_interval_badge badge text-bg-warning d-none"></span>
-          <span class="grant_description_display fst-italic text-body-secondary d-none" title="Grant description"></span>
         </span>
         <!-- Editable terms: hidden until "Edit terms", shown from the start for a new draft grant. -->
         <span class="grant_terms_edit d-none align-items-center flex-wrap column-gap-2 row-gap-1">

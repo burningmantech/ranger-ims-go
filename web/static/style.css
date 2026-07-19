@@ -330,6 +330,10 @@ h1 {
   background-color: rgba(var(--bs-body-color-rgb), 0.02);
 }
 
+.grant-description {
+  padding: 0.35rem 0.55rem 0;
+}
+
 .grant-header {
   padding: 0.35rem 0.55rem;
   border-bottom: var(--bs-border-width) dashed var(--bs-border-color);

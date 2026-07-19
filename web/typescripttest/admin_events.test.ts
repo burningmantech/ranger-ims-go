@@ -311,7 +311,7 @@ test("rules with the same terms but different descriptions form separate grants,
         expect(whoChips(grant).length).toBe(1);
     }
     const descriptions = grants.map(g => g.querySelector(".grant_description_display")!.textContent);
-    expect(new Set(descriptions)).toEqual(new Set(["\"Sanctuary leads\"", "\"Comms team\""]));
+    expect(new Set(descriptions)).toEqual(new Set(["Sanctuary leads", "Comms team"]));
 });
 
 test("a grant with no description hides its description display", async (): Promise<void> => {

@@ -480,6 +480,12 @@ function renderCommonPageItems(authInfo: AuthInfo): void {
                 activeEventVisits.classList.add("active");
             }
         }
+
+        const activeEventPlaces = document.getElementById("active-event-places") as HTMLAnchorElement|null;
+        if (activeEventPlaces != null) {
+            activeEventPlaces.href = urlReplace(url_viewPlaces);
+            activeEventPlaces.classList.remove("hidden");
+        }
     }
 }
 

@@ -237,7 +237,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # The image now compiles sqlc/templ/tsgo and runs them, because none of
       # their output is checked in. `mode=max` on the cache export is what keeps

@@ -17,7 +17,7 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/pull/700
+https://github.com/burningmantech/ranger-ims-go/pull/708
 -->
 
 ## 2026-07
@@ -26,6 +26,9 @@ https://github.com/burningmantech/ranger-ims-go/pull/700
 
 - Improved handling of concurrent edits: a field's contents are no longer replaced while a user is actively editing it (e.g. when someone else changes the same field), and rapid successive edits by one user no longer let a later change stomp an earlier one still in flight. https://github.com/burningmantech/ranger-ims-go/commit/62ac9f1
 - Made the web app much friendlier to screen readers and other assistive technology, and started actively testing every page for accessibility problems with axe-core. https://github.com/burningmantech/ranger-ims-go/commit/84f4ff6
+- Reorganized how event permissions are displayed on the Admin Events page, grouping the grants so that they're much easier to read and manage. Rule badges now count matching expressions rather than people, grant dates show as a bare date (with the full datetime on hover), a bare `*` who-expression is spelled out as "(ALL authenticated users)", and a grant's description appears on its own line above its terms. https://github.com/burningmantech/ranger-ims-go/pull/704 https://github.com/burningmantech/ranger-ims-go/pull/707 https://github.com/burningmantech/ranger-ims-go/commit/34c5781
+- Stopped using flatpickr for the date inputs on the Admin Events page. There were enough of them that the page got noticeably slow to render, and it's an admin-only page, so manual datetime entry is a fair trade. https://github.com/burningmantech/ranger-ims-go/pull/703
+- Replaced the event name text input on the Admin Places page with a real dropdown of events, newest first. https://github.com/burningmantech/ranger-ims-go/pull/708
 
 ### Added
 
@@ -45,6 +48,8 @@ https://github.com/burningmantech/ranger-ims-go/pull/700
 ### Fixed
 
 - Prevented a subtle (and low-risk) CSRF attack. https://github.com/burningmantech/ranger-ims-go/pull/688
+- Pointed the Incident page's "On-Duty" link at the incident's start time, so it shows who was on duty then rather than now. https://github.com/burningmantech/ranger-ims-go/pull/708
+- Added cachebusting for style.css, as we already did for our JavaScript files. https://github.com/burningmantech/ranger-ims-go/pull/706
 - Avoided database contention over the next number to assign when creating Incidents, Field Reports, and Sanctuary Visits. https://github.com/burningmantech/ranger-ims-go/commit/93bde89
 - Told password managers to ignore another field that isn't a password. https://github.com/burningmantech/ranger-ims-go/pull/671
 

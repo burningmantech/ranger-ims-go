@@ -123,6 +123,13 @@ func requireJSONContentType(req *http.Request) *herr.HTTPError {
 // parseIfMatch returns the record version from a request's If-Match header, or
 // nil if the header is absent or "*" (which matches any current version).
 // IMS ETags are strong and hold a single integer version, e.g. `"7"`.
+//
+// RFC 9110 says weak ETags aren't valid in If-Match, but a `W/` prefix is
+// accepted anyway: proxies that compress responses (nginx's gzip module, among
+// others) rewrite our strong ETag to a weak one on the way out, and the browser
+// sends back what it was given. The weak/strong distinction is meaningless here
+// regardless, since the validator is a record version rather than a digest of
+// the response body.
 func parseIfMatch(req *http.Request) (*int32, *herr.HTTPError) {
 	raw := strings.TrimSpace(req.Header.Get("If-Match"))
 	if raw == "" || raw == "*" {
@@ -131,9 +138,7 @@ func parseIfMatch(req *http.Request) (*int32, *herr.HTTPError) {
 	if strings.Contains(raw, ",") {
 		return nil, herr.BadRequest("If-Match with multiple ETags is not supported", nil)
 	}
-	if strings.HasPrefix(raw, "W/") {
-		return nil, herr.BadRequest("Weak ETags are not valid in If-Match", nil)
-	}
+	raw = strings.TrimPrefix(raw, "W/")
 	version, err := conv.ParseInt32(strings.Trim(raw, `"`))
 	if err != nil {
 		return nil, herr.BadRequest("Invalid If-Match header", err)

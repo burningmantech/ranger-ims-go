@@ -168,10 +168,12 @@ func TestParseIfMatch(t *testing.T) {
 	require.NotNil(t, version)
 	assert.Equal(t, int32(12), *version)
 
-	// weak ETags aren't valid in If-Match
-	_, errHTTP = parseIfMatch(requestWithIfMatch(`W/"7"`))
-	require.NotNil(t, errHTTP)
-	assert.Equal(t, http.StatusBadRequest, errHTTP.Code)
+	// a weak ETag is accepted, since compressing proxies weaken the strong
+	// ETag we send and the browser echoes back whatever it was given
+	version, errHTTP = parseIfMatch(requestWithIfMatch(`W/"7"`))
+	require.Nil(t, errHTTP)
+	require.NotNil(t, version)
+	assert.Equal(t, int32(7), *version)
 
 	// multiple ETags aren't supported
 	_, errHTTP = parseIfMatch(requestWithIfMatch(`"7", "8"`))

@@ -246,7 +246,7 @@ jobs:
       # Dockerfile builds the generators in a layer keyed only on go.mod/go.sum,
       # so source-only changes restore it from cache instead of rebuilding.
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true

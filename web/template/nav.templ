@@ -205,8 +205,19 @@ templ Nav(eventName string) {
           </a>
           <ul class="dropdown-menu">
             <li class="if-admin hidden"><a href="/ims/app/admin" class="dropdown-item">Admin</a></li>
-            <li><a href="/ims/app/help" class="dropdown-item">Help</a></li>
+            <li><a href="/ims/app/search" class="dropdown-item">Search</a></li>
+            <li class="nav-item">
+              <a id="active-event-places"
+                 if eventSet {
+                   class="dropdown-item"
+                 } else {
+                   class="dropdown-item hidden"
+                 }
+                 href="">Places
+               </a>
+            </li>
             <li><a href="/ims/app/settings" class="dropdown-item">Settings</a></li>
+            <li><a href="/ims/app/help" class="dropdown-item">Help</a></li>
             <li><a href="/ims/auth/logout" class="dropdown-item">Log out</a></li>
           </ul>
         </li>

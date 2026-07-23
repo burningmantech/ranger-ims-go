@@ -49,6 +49,8 @@ templ Help(deployment, versionName, versionRef string) {
           <li><a href="#incidents-list">The Incidents list</a></li>
           <li><a href="#incident-page">Reading and editing an Incident</a></li>
           <li><a href="#incident-states">What the Incident states mean</a></li>
+          <li><a href="#incident-attachments">Attaching Field Reports, Visits, and files</a></li>
+          <li><a href="#incident-linking">Linking related Incidents</a></li>
         </ul>
       </li>
       <li><a href="#field-reports">Field Reports</a></li>
@@ -56,9 +58,11 @@ templ Help(deployment, versionName, versionRef string) {
       <li><a href="#places">Places</a></li>
       <li><a href="#search">Searching</a></li>
       <li><a href="#saving">How saving works</a></li>
+      <li><a href="#printing">Printing</a></li>
       <li><a href="#roles">Who can see and do what</a></li>
       <li><a href="#shortcuts">Keyboard shortcuts</a></li>
       <li><a href="#settings">Settings</a></li>
+      <li><a href="#admin">Admin pages</a></li>
       <li><a href="#support">Questions or problems?</a></li>
     </ul>
   </div>
@@ -148,12 +152,12 @@ templ Help(deployment, versionName, versionRef string) {
   <li><strong>State</strong>: where the Incident is in its lifecycle (see <a href="#incident-states">below</a>).</li>
   <li><strong>Started</strong>: when the situation began. You can edit this if the Incident was created after the fact. Times are entered in your device's local time zone.</li>
   <li><strong>Summary</strong>: a one-line description shown in the Incidents list. Keep it short and informative.</li>
-  <li><strong>Rangers</strong>: the Rangers involved. You can add a short note about each Ranger's role (such as "first on scene" or "transport").</li>
+  <li><strong>Rangers</strong>: the Rangers involved. Start typing a handle to add one, and add a short note about each Ranger's role (such as "first on scene" or "transport"). The <strong>On-Duty</strong> link in this card's header opens the Clubhouse on-duty report for the time the Incident started, a handy way to see who was working when it began.</li>
   <li><strong>Incident Types</strong>: categories for the Incident, useful for filtering and for after-event analysis. Click <strong>Info</strong> to see a description of each type.</li>
-  <li><strong>Location</strong>: where it happened. Start typing a camp or art name and IMS will suggest matches from <a href="#places">Places</a> and fill in the address for you.</li>
-  <li><strong>Attached Field Reports/Visits</strong>: Field Reports and Sanctuary Visits related to this Incident. Attaching them makes their contents visible from the Incident.</li>
-  <li><strong>Linked Incidents</strong>: related Incidents, even from other years, so you can hop between them.</li>
-  <li><strong>Entries</strong>: the running narrative. Type in the box at the bottom and click <strong>Add Entry</strong> (or press <code>Control</code>+<code>Enter</code>) to add a timestamped entry. This is where the story of the Incident lives: what was reported, what Rangers did, how it resolved.</li>
+  <li><strong>Location</strong>: where it happened, with separate <strong>Name</strong>, <strong>Address</strong>, and <strong>Details</strong> fields. Start typing a camp or art name in <strong>Name</strong> and IMS suggests matches from <a href="#places">Places</a> and fills in the address automatically; you can also type an address by hand. Put anything extra (a landmark, a specific tent) in <strong>Details</strong>. The card header has a <strong>Places</strong> link to the Places reference and, where a map is configured for the event, a <strong>Map</strong> link.</li>
+  <li><strong>Attached Field Reports/Visits</strong>: Field Reports and Sanctuary Visits related to this Incident. Attaching them makes their contents visible from the Incident. See <a href="#incident-attachments">Attaching Field Reports, Visits, and files</a>.</li>
+  <li><strong>Linked Incidents</strong>: related Incidents, even from other years, so you can hop between them. See <a href="#incident-linking">Linking related Incidents</a>.</li>
+  <li><strong>Entries</strong>: the running narrative. Type in the box at the bottom and click <strong>Add Entry</strong> (or press <code>Control</code>+<code>Enter</code>) to add a timestamped entry. This is where the story of the Incident lives: what was reported, what Rangers did, how it resolved. Where file attachments are enabled, you can also attach a photo or file to an entry with the <strong>Attach file</strong> button.</li>
 </ul>
 <p>
   Check <strong>Show history and stricken</strong> above the entries to also see system-generated
@@ -168,6 +172,47 @@ templ Help(deployment, versionName, versionRef string) {
   <li><strong>On Hold</strong>: nothing is happening right now, but the Incident isn't finished (such as waiting for someone to return to their camp).</li>
   <li><strong>Closed</strong>: the situation is resolved and the record is complete. Closed Incidents can be reopened if things develop.</li>
 </ul>
+
+<h3 id="incident-attachments" class="h5 mt-3">Attaching Field Reports, Visits, and files</h3>
+<p>
+  The <strong>Attached Field Reports/Visits</strong> card pulls related records into the
+  Incident so their contents show up in one place. To attach one, pick it from the
+  <strong>Add</strong> dropdown, which lists the available Field Reports and Visits (grouped
+  into ones not yet attached and ones already attached). Once attached, the record's entries
+  are folded into the Incident's entries, and the two records point at each other. Click the
+  <strong>X</strong> next to an attached record to detach it. Attaching a Field Report needs
+  write access to Incidents, which is why Reporters, who can write their own Field Reports,
+  don't attach them themselves.
+</p>
+<p>
+  Where file attachments are turned on for your deployment, the entry box also has an
+  <strong>Attach file</strong> button, so you can add a photo or document (such as a
+  picture of a whiteboard or a scanned form) alongside the written entries.
+</p>
+
+<h3 id="incident-linking" class="h5 mt-3">Linking related Incidents</h3>
+<p>
+  Linking connects one Incident to another when they're related, such as a follow-up the
+  next day, two Incidents that turned out to be the same situation, or a recurring problem at
+  the same camp across years. Unlike attaching, linking doesn't merge the entries; it just puts
+  a clickable reference to each Incident on the other, so you can jump between them.
+</p>
+<p>
+  To link, use the <strong>Link IMS #</strong> box on the <strong>Linked Incidents</strong>
+  card and enter one or more Incidents:
+</p>
+<ul>
+  <li><strong>Same event</strong>: type just the number, like <code>123</code> (a leading <code>#</code>, as in <code>#123</code>, is fine too).</li>
+  <li><strong>A different event</strong>: put the event name and number together with a <code>#</code> between them, like <code>2015#2</code> to mean Incident 2 of the 2015 event. This is how you link across years.</li>
+  <li><strong>Several at once</strong>: separate them with commas, like <code>4,5,6</code> or <code>4, 2015#2, 6</code>. You can mix same-event and other-event references in one go.</li>
+</ul>
+<p>
+  Press <code>Enter</code> to make the links. Linking is mutual: the other Incident gets a link
+  back to this one, and a note is added to its entries recording the link, so people reading
+  either Incident can see the connection. To remove a link, click the <strong>X</strong> next
+  to it. You can only link to events you're allowed to read; if you don't have read access to
+  a linked Incident's event, you'll still see the link but not its summary.
+</p>
 
 <h2 id="field-reports" class="h4 mt-4">Field Reports</h2>
 <p>
@@ -187,20 +232,52 @@ templ Help(deployment, versionName, versionRef string) {
   Write Field Reports promptly, while details are fresh. Include specifics: who, what, where,
   when. Depending on your access, you may only be able to see Field Reports you wrote yourself;
   Operators and others with broader access can read all of them and attach them to Incidents.
+  The Field Report page has a <strong>How to write a great Field Report</strong> section near
+  the top; expand it for a checklist of what to include and a reminder to stick to firsthand facts.
+</p>
+<p>
+  Near the top of a Field Report, the <strong>IMS #</strong> field shows which Incident, if any,
+  the report is attached to. If you have write access to Incidents, you can type an Incident
+  number there to attach the report to that Incident, or clear the field to detach it. When the
+  report is attached, the IMS # becomes a link you can click to open that Incident.
+</p>
+<p>
+  If a Field Report describes something that should have its own Incident but doesn't yet, and
+  you have write access to Incidents, a <strong>Create new incident from FR</strong> button
+  appears. Clicking it opens a fresh Incident, carries over the report's summary as the
+  Incident summary, adds the report's author as a Ranger on the Incident, and attaches the
+  Field Report to the new Incident, all in one step. Only use it when you're sure no Incident
+  already exists for the situation; if one does, attach the report to that Incident instead by
+  entering its number in the IMS # field.
 </p>
 
 <h2 id="visits" class="h4 mt-4">Sanctuary Visits</h2>
 <p>
   Sanctuary Visits track guests at the Sanctuary space, and are mainly used by the Sanctuary
   team. Each Visit gets a "VS #" and records the guest's info, arrival and departure details,
-  camp and contacts, resources provided (bed, bedding, food, and so on), the Rangers involved,
-  and a running set of timestamped notes, much like Incident entries.
+  camp and contacts, resources provided, the Rangers involved, and a running set of timestamped
+  notes, much like Incident entries.
 </p>
+<p>
+  Open the <strong>Visits</strong> page from the top bar and click a row to open a Visit, or
+  click <strong>New</strong> (or press <code>n</code>) to start one. A Visit is organized into
+  collapsible sections; expand the ones you need and fill in what applies:
+</p>
+<ul>
+  <li><strong>Basics</strong>: the guest's preferred and legal names, a physical description, an action plan, and arrival/departure times.</li>
+  <li><strong>Arrival/Departure</strong>: how and why the guest arrived and left, their state on each, and belongings brought.</li>
+  <li><strong>Camp and Contacts</strong>: the guest's camp name, address, description, and contacts.</li>
+  <li><strong>Resources</strong>: what the Sanctuary provided, such as a sitter, a bed, bedding, clothing, food and beverage, commissary food, and anything else.</li>
+  <li><strong>Rangers Involved</strong>: the Rangers involved in the Visit.</li>
+  <li><strong>Visit Notes &amp; Report Entries</strong>: timestamped entries that work just like Incident entries, including <strong>Show history and stricken</strong>.</li>
+</ul>
 <p>
   If a Visit relates to a regular Incident, enter the Incident's number in the
   <strong>IMS #</strong> field at the top of the Visit; the two records then link to each
-  other. The Visit page itself has a more detailed <strong>Instructions</strong> section at
-  the top. Expand it for guidance specific to that page.
+  other, and the IMS # becomes a clickable link to that Incident. The Visit page also has an
+  <strong>Instructions</strong> section at the top; expand it for guidance specific to that
+  page. Editing Visits is limited to the Sanctuary team and other Visit Writers (see
+  <a href="#roles">Who can see and do what</a>).
 </p>
 
 <h2 id="places" class="h4 mt-4">Places</h2>
@@ -265,6 +342,15 @@ templ Help(deployment, versionName, versionRef string) {
   </li>
 </ul>
 
+<h2 id="printing" class="h4 mt-4">Printing</h2>
+<p>
+  Incidents, Field Reports, and Visits are designed to print cleanly: use your browser's print
+  command (usually <code>Control</code>+<code>P</code>, or <code>Command</code>+<code>P</code>
+  on a Mac) and the editing controls, buttons, and navigation are left off the printout, so you
+  get a readable paper copy of the record. If you want the history and stricken entries to
+  appear on the printout, turn on <strong>Show history and stricken</strong> before printing.
+</p>
+
 <h2 id="roles" class="h4 mt-4">Who can see and do what</h2>
 <p>
   Access to IMS is granted per event, so what you can see depends on who you are and which
@@ -285,7 +371,8 @@ templ Help(deployment, versionName, versionRef string) {
 <h2 id="shortcuts" class="h4 mt-4">Keyboard shortcuts</h2>
 <p>
   Most pages have single-key shortcuts that work when you're not typing in a field. Press
-  <code>?</code> on any page to see that page's shortcuts. The common ones:
+  <code>?</code> on any page to pop up the full, authoritative list of shortcuts for that
+  page (press <code>?</code> again, or <code>Escape</code>, to close it). The common ones:
 </p>
 <ul>
   <li><code>n</code>: create a new Incident / Field Report / Visit</li>
@@ -308,11 +395,54 @@ templ Help(deployment, versionName, versionRef string) {
   browser only, and they reset when you log out.
 </p>
 
+<h2 id="admin" class="h4 mt-4">Admin pages</h2>
+<p>
+  Administrators have an extra <strong>Admin</strong> link under their handle in the top bar,
+  leading to a set of tools for configuring IMS. Most Rangers never need these, but if you help
+  run IMS, here's what each one does:
+</p>
+<ul>
+  <li>
+    <strong>Events and Permissions</strong>: create events (and event groups) and control who
+    can do what in each one. Access is configured as <strong>grants</strong>: a grant pairs an
+    access level (Reporter, Reader, Writer, Visit Writer) and a validity window with any number
+    of targets, so you can give the same access to a batch of people at once. Targets can be
+    individuals, Clubhouse positions, on-duty positions, or teams. A grant is valid either
+    <strong>Always</strong> or only <strong>On-Site</strong> (when the Ranger is marked on-site
+    in Clubhouse), and can have not-before and not-after times. Use <strong>Explain</strong> to
+    see who currently matches a grant, and watch for targets flagged in red as unknown (usually
+    a typo, fixable with the target's <strong>Fix</strong> button).
+  </li>
+  <li>
+    <strong>Incident Types</strong>: manage the list of Incident Types Rangers can apply to
+    Incidents. You can add new types, edit a type's name and description, and hide types that
+    are no longer in use (hiding keeps existing uses intact but removes the type from the picker).
+  </li>
+  <li>
+    <strong>Event Places</strong>: load the <a href="#places">Places</a> data (camps, art,
+    mutant vehicles, and other locations) for an event by pasting in JSON data for each category.
+    This is what powers location suggestions on Incidents.
+  </li>
+  <li>
+    <strong>User Directory</strong>: manage IMS's own users, teams, and positions, including
+    handles, emails, passwords, and active/on-site status. This page only applies to
+    deployments that use the IMS-native directory rather than a Ranger Clubhouse database.
+  </li>
+  <li>
+    <strong>Action Logs</strong>: an audit log of every authenticated request, filterable by
+    time, user, and path. Useful for tracing who did what and when.
+  </li>
+  <li>
+    <strong>Server Debugging Details</strong>: technical server information (build info, runtime
+    metrics, and a manual garbage-collection button) for the Tech Cadre when diagnosing problems.
+  </li>
+</ul>
+
 <h2 id="support" class="h4 mt-4">Questions or problems?</h2>
 <p>
   If something looks broken, you can't access something you need, or you have ideas for making
-  IMS better, contact the Ranger Tech Cadre. On playa, radio or visit Khaki and ask for tech
-  support; off playa, email the Tech Cadre or ask in the Ranger Slack.
+  IMS better, contact the Ranger Tech Cadre, or specifically Ranger Abraham. During the event,
+  Abraham is available by Burning Man Slack, Clubhouse message, email, Signal, phone, etc.
 </p>
 
 </main>

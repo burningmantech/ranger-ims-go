@@ -91,21 +91,30 @@ compose/live: .env.dev
 compose/quickstart: .env.quickstart
 	docker compose --env-file .env.quickstart -f docker-compose.quickstart.yml up --build
 
-## upgrade-deps: upgrade all Go deps
-.PHONY: upgrade-deps
-upgrade-deps:
+## upgrade/deps/go: upgrade all Go deps
+.PHONY: upgrade/deps/go
+upgrade/deps/go:
 	go get tool
 	go get -t -u ./...
 	go mod tidy
+
+## upgrade/deps/npm: upgrade all npm deps (root + playwright) to their latest
+## versions, rewriting the package.json ranges and refreshing each lockfile.
+.PHONY: upgrade/deps/npm
+upgrade/deps/npm:
+	npx --yes npm-check-updates -u
+	npm install
+	npx --yes npm-check-updates -u --cwd playwright
+	npm install --prefix playwright
 
 # This is kind of silly, but it's similar to what the Go website itself
 # does to check the latest version.
 LATEST_GO_VERSION = $(shell curl "https://go.dev/dl/?mode=json" | grep version | sort | tail -n 1 | grep -oG '[0-9.]\+')
 
-# upgrade-go: updates go.mod to the latest go language version
-.PHONY: upgrade-go
-upgrade-go:
+# upgrade/go: updates go.mod to the latest go language version
+.PHONY: upgrade/go
+upgrade/go:
 	go mod edit -go=$(LATEST_GO_VERSION)
 
-# upgrade-all: upgrade Go toolchain and code dependencies
-upgrade-all: upgrade-go upgrade-deps
+# upgrade/all: upgrade Go toolchain and code dependencies
+upgrade/all: upgrade/go upgrade/deps/go

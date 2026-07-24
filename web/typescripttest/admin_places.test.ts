@@ -23,12 +23,15 @@ import type * as ims from "../typescript/ims.ts";
 import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
 
 const placesUrl = url_places.replace("<event_id>", "2025");
+const adminPlacesPath = "/ims/app/admin/places";
 
 let serverEvents: ims.EventData[];
 
 beforeEach((): void => {
     vi.resetModules();
     loadFixture("admin_places.html");
+    // Each test starts on the admin places page with no query string.
+    window.history.replaceState(null, "", adminPlacesPath);
     serverEvents = [
         { id: 1, name: "2025" },
         { id: 2, name: "2024" },
@@ -181,4 +184,69 @@ test("invalid JSON in a textarea surfaces an error and posts nothing", async ():
     });
     expect(document.getElementById("error_text")!.textContent).toContain("Error");
     expect(mock.mock.calls.some(([url, init]) => url === placesUrl && init?.body != null)).toBe(false);
+});
+
+// The page keeps an "event_id" query param (which holds an event name, as
+// everywhere else in IMS) in sync with the event-name select, so that a linked
+// or bookmarked URL lands on a loaded event.
+
+test("an event_id query param preselects that event and loads its places", async (): Promise<void> => {
+    window.history.replaceState(null, "", `${adminPlacesPath}?event_id=2025`);
+
+    const mock = await initAdminPlacesPage(() => jsonResponse({
+        art: [{ name: "Temple", location_string: "9:00", external_data: { name: "Temple", location_string: "9:00" } }],
+        camp: [],
+        mv: [],
+        other: [],
+    }));
+
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([url]) => url === placesUrl)).toBe(true);
+    });
+    expect((await eventSelect()).value).toBe("2025");
+    expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
+    // The param that got us here survives the load.
+    expect(window.location.search).toBe("?event_id=2025");
+});
+
+test("an event_id for an event the user can't see errors out and loads nothing", async (): Promise<void> => {
+    window.history.replaceState(null, "", `${adminPlacesPath}?event_id=1999`);
+
+    const mock = await initAdminPlacesPage();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(document.getElementById("error_text")!.textContent).toContain("No such event: 1999");
+    // The select falls back to the placeholder rather than showing nothing at all.
+    expect((await eventSelect()).value).toBe("");
+    expect(mock.mock.calls.some(([url]) => url === url_places.replace("<event_id>", "1999"))).toBe(false);
+});
+
+test("selecting an event writes the event_id query param", async (): Promise<void> => {
+    await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
+
+    const select = await eventSelect();
+    select.value = "2025";
+    // What the select's onchange handler does.
+    await window.loadPlaces();
+
+    expect(window.location.pathname).toBe(adminPlacesPath);
+    expect(window.location.search).toBe("?event_id=2025");
+});
+
+test("clearing the event selection drops the event_id query param", async (): Promise<void> => {
+    window.history.replaceState(null, "", `${adminPlacesPath}?event_id=2025`);
+    await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
+
+    const select = await eventSelect();
+    await vi.waitFor((): void => {
+        expect(select.value).toBe("2025");
+    });
+    select.value = "";
+    await window.loadPlaces();
+
+    // No dangling "?" left on the URL.
+    expect(window.location.search).toBe("");
+    expect(window.location.pathname).toBe(adminPlacesPath);
 });

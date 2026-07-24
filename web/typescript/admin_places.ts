@@ -55,6 +55,33 @@ async function initAdminPlacesPage(): Promise<void> {
         await submit();
     })
     drawEventNames(await initResult.eventDatas);
+
+    // An "event_id" query param (which holds an event name, as elsewhere in IMS)
+    // preselects that event and loads its places.
+    const requestedEvent = new URLSearchParams(window.location.search).get("event_id");
+    if (requestedEvent) {
+        el.eventName.value = requestedEvent;
+        if (el.eventName.value === requestedEvent) {
+            await loadPlaces();
+        } else {
+            // Setting an unmatched value leaves the select with nothing selected,
+            // so fall back to the placeholder option.
+            el.eventName.value = "";
+            ims.setErrorMessage(`No such event: ${requestedEvent}`);
+        }
+    }
+}
+
+// Keep the "event_id" query param in sync with the selected event.
+function setEventURLParam(eventName: string): void {
+    const params: URLSearchParams = new URLSearchParams(window.location.search);
+    if (eventName) {
+        params.set("event_id", eventName);
+    } else {
+        params.delete("event_id");
+    }
+    const query: string = params.toString();
+    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
 }
 
 function drawEventNames(events: ims.EventData[]|null): void {
@@ -162,6 +189,7 @@ async function submit(): Promise<void> {
 async function loadPlaces(): Promise<void> {
     ims.clearErrorMessage();
     const eventName = el.eventName.value;
+    setEventURLParam(eventName);
     if (!eventName) {
         return;
     }

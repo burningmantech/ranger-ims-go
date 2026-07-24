@@ -37,7 +37,7 @@ jobs:
     steps:
 
       - name: Harden CI
-        uses: step-security/harden-runner@v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           disable-sudo: true
           egress-policy: block
@@ -50,7 +50,7 @@ jobs:
         run: false
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE }}
@@ -58,7 +58,7 @@ jobs:
 
       - name: Login to AWS ECR
         id: aws-login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
 
       - name: Push docker image to Amazon ECR
         run: |
@@ -85,7 +85,7 @@ jobs:
 
       - name: Fetch and update current task definition
         id: new-task-definition
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1.9.0
         with:
           task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_PRODUCTION }}"
           task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY_PRODUCTION }}"
@@ -106,7 +106,7 @@ jobs:
             TASK_UPDATED=${{ steps.date.outputs.date }}
 
       - name: Update task definition and ECS service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2.6.3
         with:
           task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"
           service: "${{ env.AWS_ECS_SERVICE_PRODUCTION }}"
@@ -115,7 +115,7 @@ jobs:
 
       - name: Fetch and update current task definition for training
         id: new-task-definition-training
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1.9.0
         with:
           task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_TRAINING }}"
           task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY_TRAINING }}"
@@ -136,7 +136,7 @@ jobs:
             TASK_UPDATED=${{ steps.date.outputs.date }}
 
       - name: Update task definition and ECS service for training
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2.6.3
         with:
           task-definition: "${{ steps.new-task-definition-training.outputs.task-definition }}"
           service: "${{ env.AWS_ECS_SERVICE_TRAINING }}"

@@ -143,7 +143,12 @@ Upgrade Go dependencies:
 go get -t -u ./...
 go mod tidy
 # or
-make upgrade-deps
+make upgrade/deps/go
+```
+
+Upgrade npm dependencies (root + playwright):
+```bash
+make upgrade/deps/npm
 ```
 
 ## Architecture

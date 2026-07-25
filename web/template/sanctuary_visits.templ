@@ -137,7 +137,7 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
                 class="form-control search-box"
                 placeholder="Press &quot; ⁄ &quot; to search"
                 inputmode="latin"
-                autocomplete="off"
+                { NoAutofill()... }
                 aria-controls="visits_table"
             />
           </div>

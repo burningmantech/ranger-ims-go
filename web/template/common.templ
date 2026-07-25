@@ -16,6 +16,24 @@
 
 package template
 
+// NoAutofill is the set of attributes that keep the browser and the common
+// password managers from autofilling, autocompleting or offering to save an
+// input's value. Spread it into the tag, rather than repeating the attributes:
+//
+//	<input type="text" id="ranger_add" { NoAutofill()... }/>
+//
+// Each password manager needs its own opt-out attribute, so adding support for
+// another one means only editing this list. templ renders spread attributes in
+// key-sorted order, so the output is stable.
+func NoAutofill() templ.Attributes {
+	return templ.Attributes{
+		"autocomplete":   "off",
+		"data-1p-ignore": "true", // 1Password
+		"data-bwignore":  "true", // Bitwarden
+		"data-lpignore":  "true", // LastPass
+	}
+}
+
 // ErrorInfo is the page's error banner. role="alert" makes a screen reader
 // announce the message as soon as it appears; see setErrorMessage in ims.ts,
 // which must unhide the banner before writing the text into it.

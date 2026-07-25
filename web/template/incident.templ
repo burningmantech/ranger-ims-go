@@ -116,7 +116,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
         <label for="incident_summary" class="input-group-text control-label">Summary</label>
         <input
                 id="incident_summary" class="form-control form-control-sm"
-                type="text" inputmode="latin-prose" autocomplete="off"
+                type="text" inputmode="text"
+                { NoAutofill()... }
                 onchange="editIncidentSummary()"
         />
       </div>
@@ -157,8 +158,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     id="ranger_add"
                     aria-label="Add Ranger Handle"
                     list="ranger_handles"
-                    autocomplete="off"
-                    data-1p-ignore data-lpignore="true" data-bwignore
+                    { NoAutofill()... }
                     class="form-control form-control-sm auto-width"
                     onchange="addRanger()"
             />
@@ -195,7 +195,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     id="incident_type_add"
                     aria-label="Add Incident Type"
                     list="incident_types"
-                    autocomplete="off"
+                    { NoAutofill()... }
                     class="form-control form-control-sm auto-width"
                     onchange="addIncidentType()"
             />
@@ -236,7 +236,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 <div class="col-sm-10">
                   <input
                           id="incident_location_name" class="form-control form-control-sm"
-                          type="text" inputmode="latin-prose" autocomplete="off"
+                          type="text" inputmode="text"
+                          { NoAutofill()... }
                           placeholder="Name of location"
                           list="places-list"
                           aria-label="Location name"
@@ -251,8 +252,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 <div class="col-sm-10">
                   <input
                           id="incident_location_address" class="form-control form-control-sm"
-                          type="text" inputmode="latin-prose" autocomplete="off"
-						  data-1p-ignore data-lpignore="true" data-bwignore
+                          type="text" inputmode="text"
+                          { NoAutofill()... }
                           placeholder="Address of location"
                           aria-label="Location address"
                           onchange="editLocationAddress();"
@@ -264,7 +265,8 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 <div class="col-sm-10">
                   <input
                           id="incident_location_description" class="form-control form-control-sm"
-                          type="text" inputmode="latin-prose" autocomplete="off"
+                          type="text" inputmode="text"
+                          { NoAutofill()... }
                           aria-label="Additional location description"
                           placeholder="Other identifying info"
                           onchange="editLocationDescription()"
@@ -322,7 +324,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     id="linked_incident_add"
                     class="form-control form-control-sm"
                     onchange="linkIncident(this)"
-                    autocomplete="off"
+                    { NoAutofill()... }
                     title="e.g., 123 (same event) or 2015#2 (different event) or 4,5,6 (link multiple at once)"
                     type="text"
             />

@@ -247,9 +247,12 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		}
 	}
 
-	// make the user a reader
+	// make the user a reader instead of a reporter. Modes are independent, so
+	// the reporter grant has to be cleared explicitly (with an empty, non-nil
+	// list) for this to be a swap rather than an addition.
 	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
+			Reporters: []imsjson.AccessRule{},
 			Readers: []imsjson.AccessRule{{
 				Expression: "person:" + userAdminHandle,
 				Validity:   "always",
@@ -272,9 +275,10 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		}
 	}
 
-	// finally, make the user a writer
+	// finally, make the user a writer instead of a reader
 	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
 		eventName: imsjson.EventAccess{
+			Readers: []imsjson.AccessRule{},
 			Writers: []imsjson.AccessRule{{
 				Expression: "person:" + userAdminHandle,
 				Validity:   "always",

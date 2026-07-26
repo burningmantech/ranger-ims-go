@@ -107,13 +107,12 @@ select sqlc.embed(ea)
 from EVENT_ACCESS ea
 ;
 
+-- Access is rewritten one mode at a time: this clears a single mode's rules so
+-- the caller can reinsert that mode's new set. An expression may hold several
+-- modes on one event at once, so this must not match on EXPRESSION.
 -- name: ClearEventAccessForMode :exec
 delete from EVENT_ACCESS
 where EVENT = ? and MODE = ?;
-
--- name: ClearEventAccessForExpression :exec
-delete from EVENT_ACCESS
-where EVENT = ? and EXPRESSION = ?;
 
 -- name: AddEventAccess :execlastid
 insert into EVENT_ACCESS (EVENT, EXPRESSION, MODE, VALIDITY, NOT_AFTER, NOT_BEFORE, DESCRIPTION)

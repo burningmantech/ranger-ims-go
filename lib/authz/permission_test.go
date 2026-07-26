@@ -181,6 +181,82 @@ func TestManyEventPermissions_personRules(t *testing.T) {
 	require.Equal(t, authenticatedUserPerms|adminGlobalPerms, globalPermissions)
 }
 
+// TestManyEventPermissions_oneExpressionManyModes covers a single expression
+// holding several access modes on one event, which the access API allows.
+// The matching user gets the union of those modes' permissions.
+func TestManyEventPermissions_oneExpressionManyModes(t *testing.T) {
+	t.Parallel()
+	accessByEvent := make(map[int32][]imsdb.EventAccess)
+	// The same expression is both a reader and a visit writer on event 123.
+	addPerm(accessByEvent, 123, "person:Hardware", modeRead, validityAlways)
+	addPerm(accessByEvent, 123, "person:Hardware", modeWriteVisits, validityAlways)
+
+	permissions, globalPermissions := ManyEventPermissions(
+		accessByEvent,
+		testAdmins,
+		"Hardware",
+		true,
+		[]string{},
+		[]string{},
+		"",
+	)
+	require.Equal(t, readerPerm|visitWriterPerm, permissions[123])
+	require.Equal(t, authenticatedUserPerms, globalPermissions)
+
+	// That union is more than either mode alone: reading incidents comes only
+	// from the reader rule, writing visits only from the visit writer rule.
+	require.NotEqual(t, EventNoPermissions, permissions[123]&EventReadIncidents)
+	require.NotEqual(t, EventNoPermissions, permissions[123]&EventWriteVisits)
+	// ...but it's still short of a writer, who can also write incidents.
+	require.Equal(t, EventNoPermissions, permissions[123]&EventWriteIncidents)
+
+	// Somebody who doesn't match the expression gets nothing from either rule.
+	permissions, _ = ManyEventPermissions(
+		accessByEvent,
+		testAdmins,
+		"Software",
+		true,
+		[]string{},
+		[]string{},
+		"",
+	)
+	require.Equal(t, EventNoPermissions, permissions[123])
+}
+
+// TestManyEventPermissions_oneExpressionManyModesValidity checks that each rule
+// for a shared expression is still evaluated on its own terms: an onsite-only
+// visit writer rule drops out for an offsite user, leaving just the reader.
+func TestManyEventPermissions_oneExpressionManyModesValidity(t *testing.T) {
+	t.Parallel()
+	accessByEvent := make(map[int32][]imsdb.EventAccess)
+	addPerm(accessByEvent, 123, "person:Hardware", modeRead, validityAlways)
+	addPerm(accessByEvent, 123, "person:Hardware", modeWriteVisits, validityOnsite)
+
+	onsite, _ := ManyEventPermissions(accessByEvent, testAdmins, "Hardware", true, nil, nil, "")
+	require.Equal(t, readerPerm|visitWriterPerm, onsite[123])
+
+	offsite, _ := ManyEventPermissions(accessByEvent, testAdmins, "Hardware", false, nil, nil, "")
+	require.Equal(t, readerPerm, offsite[123])
+	require.Equal(t, EventNoPermissions, offsite[123]&EventWriteVisits)
+}
+
+// TestManyEventPermissions_oneExpressionManyModesExpiry checks the same for
+// time-bounded rules: an expired rule for a shared expression drops out without
+// taking that expression's other rules with it.
+func TestManyEventPermissions_oneExpressionManyModesExpiry(t *testing.T) {
+	t.Parallel()
+	past := conv.TimeToNullFloat(time.Now().Add(-1 * time.Hour))
+	noTime := sql.NullFloat64{Valid: false}
+
+	accessByEvent := make(map[int32][]imsdb.EventAccess)
+	addPermWithTimes(accessByEvent, 123, "person:Hardware", modeRead, validityAlways, noTime, noTime)
+	addPermWithTimes(accessByEvent, 123, "person:Hardware", modeWriteVisits, validityAlways, past, noTime)
+
+	permissions, _ := ManyEventPermissions(accessByEvent, testAdmins, "Hardware", true, nil, nil, "")
+	require.Equal(t, readerPerm, permissions[123])
+	require.Equal(t, EventNoPermissions, permissions[123]&EventWriteVisits)
+}
+
 func TestManyEventPermissions_positionRules(t *testing.T) {
 	t.Parallel()
 	accessByEvent := make(map[int32][]imsdb.EventAccess)

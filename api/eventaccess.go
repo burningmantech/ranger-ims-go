@@ -301,6 +301,18 @@ func (action PostEventAccess) postEventAccess(req *http.Request) *herr.HTTPError
 	return nil
 }
 
+// maybeSetAccess replaces the event's rules for one access mode with the given
+// set, leaving the event's other three modes untouched. A nil rules slice means
+// the caller didn't mention this mode at all, so it's left alone; an empty
+// (non-nil) slice clears the mode.
+//
+// The replacement is scoped to the mode, not the expression, so the same
+// expression may appear under several modes at once and the holder gets the
+// union of those modes' permissions (see authz.ManyEventPermissions). That's
+// how, say, "person:Hardware" can be both a reader and a visit writer. The flip
+// side is that granting an expression a new mode no longer revokes its old one:
+// a caller that wants to move a target between modes has to post both the old
+// mode (without it) and the new mode (with it).
 func (action PostEventAccess) maybeSetAccess(
 	ctx context.Context, event imsdb.Event, rules []imsjson.AccessRule, mode imsdb.EventAccessMode,
 ) *herr.HTTPError {
@@ -339,15 +351,6 @@ func (action PostEventAccess) maybeSetAccess(
 		return herr.InternalServerError("Failed to begin transaction", err).From("[ClearEventAccessForMode]")
 	}
 	for _, rule := range rules {
-		err = action.imsDBQ.ClearEventAccessForExpression(ctx, txn,
-			imsdb.ClearEventAccessForExpressionParams{
-				Event:      event.ID,
-				Expression: rule.Expression,
-			},
-		)
-		if err != nil {
-			return herr.InternalServerError("Failed to clear event access", err).From("[ClearEventAccessForExpression]")
-		}
 		notAfter := conv.TimeToNullFloat(rule.NotAfter)
 		notBefore := conv.TimeToNullFloat(rule.NotBefore)
 

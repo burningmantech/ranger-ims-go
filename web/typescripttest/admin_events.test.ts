@@ -29,7 +29,7 @@ interface AccessLike {
     description?: string|null;
     pending?: boolean|null;
     expired?: boolean|null;
-    debug_info?: {known_target?: boolean|null}|null;
+    debug_info?: {known_target?: boolean|null; matches_users?: string[]|null}|null;
 }
 
 let serverEvents: ims.EventData[];
@@ -369,6 +369,132 @@ test("removing a who posts the grant's mode without that rule", async (): Promis
 
     const body = await vi.waitFor(() => lastACLPost(mock));
     expect(body).toEqual({ "2025": { readers: [] } });
+});
+
+// One expression may hold several access modes on an event at once (the server
+// replaces rules one mode at a time, not one expression at a time), so the page
+// has to show it under each mode and edit each mode independently.
+
+test("one expression in two modes renders as two grants, one chip each", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+        ],
+        visit_writers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+        ],
+    };
+    await initAdminEventsPage();
+
+    const card = eventCards()[0]!;
+    // Two grants, and person:Tool is counted once per mode it holds.
+    expect(card.querySelector(".rule_count")!.textContent).toBe("2 grants · 2 expressions");
+    // Holding two modes isn't an issue, so nothing is flagged.
+    expect(card.querySelector(".issue_count")!.classList.contains("d-none")).toBe(true);
+
+    const grants = grantBlocks(card);
+    expect(grants.length).toBe(2);
+    expect(grants.map(g => g.querySelector(".grant_level_badge")!.textContent))
+        .toEqual(["Read all", "Write visits"]);
+    for (const grant of grants) {
+        const chips = whoChips(grant);
+        expect(chips.length).toBe(1);
+        expect(chips[0]!.querySelector(".who_expression")!.textContent).toBe("person:Tool");
+    }
+});
+
+test("adding a who to one mode posts only that mode, leaving its other modes alone", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+        ],
+        visit_writers: [],
+    };
+    const mock = await initAdminEventsPage();
+
+    // Make person:Tool a visit writer too, by adding it to a new grant at that
+    // level. The reader rule for the same expression must not be touched.
+    (eventCards()[0]!.querySelector(".new_grant_button") as HTMLButtonElement).click();
+    const draft = eventCards()[0]!.querySelector(".grant-draft") as HTMLElement;
+    const levelSelect = draft.querySelector(".grant_level") as HTMLSelectElement;
+    levelSelect.value = "visit_writers";
+    levelSelect.dispatchEvent(new Event("change"));
+    const addInput = draft.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "person:Tool";
+    addInput.dispatchEvent(new Event("change"));
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    // Only visit_writers is in the body: readers isn't posted at all, so the
+    // server leaves that mode's rules exactly as they are.
+    expect(Object.keys(body["2025"]!)).toEqual(["visit_writers"]);
+    expect(body["2025"]!["visit_writers"]!.map(a => a.expression)).toEqual(["person:Tool"]);
+});
+
+test("removing a who from one mode posts only that mode, keeping its other modes", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+        ],
+        visit_writers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+        ],
+    };
+    const mock = await initAdminEventsPage();
+
+    // Revoke only the visit-writer grant.
+    const visitWriter = grantBlocks(eventCards()[0]!)[1]!;
+    expect(visitWriter.querySelector(".grant_level_badge")!.textContent).toBe("Write visits");
+    (whoChips(visitWriter)[0]!.querySelector(".who-remove") as HTMLButtonElement).click();
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    expect(body).toEqual({ "2025": { visit_writers: [] } });
+});
+
+test("adding a who to a mode that expression already holds doesn't duplicate it", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+        ],
+    };
+    const mock = await initAdminEventsPage();
+
+    // Re-adding an expression to a mode it's already in replaces the old rule
+    // rather than stacking a second one, since the server no longer dedupes.
+    const reader = grantBlocks(eventCards()[0]!)[0]!;
+    const addInput = reader.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "person:Tool";
+    addInput.dispatchEvent(new Event("change"));
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    expect(body["2025"]!["readers"]!.map(a => a.expression)).toEqual(["person:Tool"]);
+});
+
+test("the explain modal lists an expression under each mode it holds", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            {
+                expression: "person:Tool",
+                validity: "always",
+                debug_info: { known_target: true, matches_users: ["Tool"] },
+            },
+        ],
+        visit_writers: [
+            {
+                expression: "person:Tool",
+                validity: "onsite",
+                debug_info: { known_target: true, matches_users: ["Tool"] },
+            },
+        ],
+    };
+    await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".explain_button") as HTMLButtonElement).click();
+
+    const body = document.querySelector("#explainModal .modal-body")!.textContent!;
+    expect(body).toContain("Read all:");
+    expect(body).toContain("person:Tool (always)");
+    expect(body).toContain("Write visits:");
+    expect(body).toContain("person:Tool (onsite)");
 });
 
 test("clicking the card header toggles the collapse, except on its buttons", async (): Promise<void> => {

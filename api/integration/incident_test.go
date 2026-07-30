@@ -17,6 +17,7 @@
 package integration_test
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -420,6 +421,260 @@ func TestCreateAndLinkIncidents(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 		require.Empty(t, *retrievedNewIncident2.LinkedIncidents)
 	}
+}
+
+// typelessIncident is an Incident with no types, links or Rangers, for the
+// sub-resource tests below, which attach those one at a time.
+func typelessIncident(eventName string) imsjson.Incident {
+	return imsjson.Incident{
+		Event:    eventName,
+		State:    "new",
+		Priority: 3,
+		Summary:  new("no types yet"),
+	}
+}
+
+// lastReportEntryText returns the text of an Incident's most recent report
+// entry, which is where the generated change-log lines land.
+func lastReportEntryText(t *testing.T, incident imsjson.Incident) string {
+	t.Helper()
+	require.NotEmpty(t, incident.ReportEntries)
+	return incident.ReportEntries[len(incident.ReportEntries)-1].Text
+}
+
+func TestAttachAndDetachIncidentType(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	typeName := rand.NonCryptoText()
+	typeID, resp := apisAdmin.editType(ctx, imsjson.IncidentType{Name: &typeName})
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, typeID)
+
+	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	// Attach the type.
+	resp = apis.attachTypeToIncident(ctx, eventName, num, *typeID)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, []int32{*typeID}, *retrieved.IncidentTypeIDs)
+	require.Equal(t, "Added type: "+typeName, lastReportEntryText(t, retrieved))
+	entriesAfterAttach := len(retrieved.ReportEntries)
+
+	// Attaching it again is a true no-op: no version bump, no report entry.
+	resp = apis.attachTypeToIncident(ctx, eventName, num, *typeID)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, []int32{*typeID}, *retrieved.IncidentTypeIDs)
+	require.Len(t, retrieved.ReportEntries, entriesAfterAttach)
+
+	// Detach it.
+	resp = apis.detachTypeFromIncident(ctx, eventName, num, *typeID)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *retrieved.IncidentTypeIDs)
+	require.Equal(t, "Removed type: "+typeName, lastReportEntryText(t, retrieved))
+	entriesAfterDetach := len(retrieved.ReportEntries)
+
+	// Detaching an absent type is a no-op too.
+	resp = apis.detachTypeFromIncident(ctx, eventName, num, *typeID)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *retrieved.IncidentTypeIDs)
+	require.Len(t, retrieved.ReportEntries, entriesAfterDetach)
+
+	// An unknown type id is rejected, rather than breaking the foreign key.
+	resp = apis.attachTypeToIncident(ctx, eventName, num, 9999999)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A nonexistent Incident is a 404.
+	resp = apis.attachTypeToIncident(ctx, eventName, 9999999, *typeID)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}
+
+// TestAttachIncidentTypeIsCommutative is the reason these endpoints exist: two
+// gestures against the same stale view of the Incident must both stick. Sending
+// a whole recomputed list would have the second request revert the first.
+func TestAttachIncidentTypeIsCommutative(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	// Both requests are built from the Incident as it looks now, with no types.
+	resp := apis.attachTypeToIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp = apis.attachTypeToIncident(ctx, eventName, num, 2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.ElementsMatch(t, []int32{1, 2}, *retrieved.IncidentTypeIDs)
+
+	// Same for removals: neither click resurrects the other's type.
+	resp = apis.detachTypeFromIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp = apis.detachTypeFromIncident(ctx, eventName, num, 2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *retrieved.IncidentTypeIDs)
+}
+
+func TestLinkAndUnlinkIncidentEndpoints(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	num2 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	incident1, resp := apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	eventID := incident1.EventID
+
+	// Link the second Incident to the first.
+	resp = apis.linkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// The link is symmetric, and each Incident's change log records it.
+	incident1, resp = apis.getIncident(ctx, eventName, num1)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *incident1.LinkedIncidents, 1)
+	require.Equal(t, eventID, (*incident1.LinkedIncidents)[0].EventID)
+	require.Equal(t, num2, (*incident1.LinkedIncidents)[0].Number)
+	require.Equal(t, fmt.Sprintf("Incident linked: %v #%v", eventName, num2), lastReportEntryText(t, incident1))
+
+	incident2, resp := apis.getIncident(ctx, eventName, num2)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *incident2.LinkedIncidents, 1)
+	require.Equal(t, num1, (*incident2.LinkedIncidents)[0].Number)
+	require.Equal(t, fmt.Sprintf("Incident linked: %v #%v", eventName, num1), lastReportEntryText(t, incident2))
+
+	// Linking again changes nothing and logs nothing.
+	entriesOn1 := len(incident1.ReportEntries)
+	entriesOn2 := len(incident2.ReportEntries)
+	resp = apis.linkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	incident1, resp = apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *incident1.LinkedIncidents, 1)
+	require.Len(t, incident1.ReportEntries, entriesOn1)
+	incident2, resp = apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, incident2.ReportEntries, entriesOn2)
+
+	// Unlinking from the other side removes both directions.
+	resp = apis.unlinkIncident(ctx, eventName, num2, eventName, num1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	incident1, resp = apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *incident1.LinkedIncidents)
+	require.Equal(t, fmt.Sprintf("Incident unlinked: %v #%v", eventName, num2), lastReportEntryText(t, incident1))
+	incident2, resp = apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *incident2.LinkedIncidents)
+	require.Equal(t, fmt.Sprintf("Incident unlinked: %v #%v", eventName, num1), lastReportEntryText(t, incident2))
+
+	// Unlinking something that isn't linked is a no-op.
+	entriesOn1 = len(incident1.ReportEntries)
+	resp = apis.unlinkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	incident1, resp = apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, incident1.ReportEntries, entriesOn1)
+
+	// An Incident can't be linked to itself.
+	resp = apis.linkIncident(ctx, eventName, num1, eventName, num1)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Nor to an Incident that doesn't exist.
+	resp = apis.linkIncident(ctx, eventName, num1, eventName, 9999999)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Nor in an Event that doesn't exist.
+	resp = apis.linkIncident(ctx, eventName, num1, "no-such-event", 1)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestLinkIncidentAcrossEvents(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventA := newEventWithWriter(t, apisAdmin)
+	eventB := newEventWithWriter(t, apisAdmin)
+
+	numA := apis.newIncidentSuccess(ctx, typelessIncident(eventA))
+	numB := apis.newIncidentSuccess(ctx, typelessIncident(eventB))
+
+	resp := apis.linkIncident(ctx, eventA, numA, eventB, numB)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	incidentA, resp := apis.getIncident(ctx, eventA, numA)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *incidentA.LinkedIncidents, 1)
+	require.Equal(t, eventB, (*incidentA.LinkedIncidents)[0].EventName)
+	require.Equal(t, numB, (*incidentA.LinkedIncidents)[0].Number)
+	require.Equal(t, fmt.Sprintf("Incident linked: %v #%v", eventB, numB), lastReportEntryText(t, incidentA))
+
+	incidentB, resp := apis.getIncident(ctx, eventB, numB)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *incidentB.LinkedIncidents, 1)
+	require.Equal(t, eventA, (*incidentB.LinkedIncidents)[0].EventName)
+	require.Equal(t, fmt.Sprintf("Incident linked: %v #%v", eventA, numA), lastReportEntryText(t, incidentB))
+
+	resp = apis.unlinkIncident(ctx, eventA, numA, eventB, numB)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	incidentB, resp = apis.getIncident(ctx, eventB, numB)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *incidentB.LinkedIncidents)
 }
 
 // requireEqualIncident is a hacky way of checking two incident responses are the same.

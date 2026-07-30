@@ -352,15 +352,10 @@ function drawSummary(): void {
 
 // Sequences frSendEdits calls, so that rapid autosaves don't race one another:
 // each edit must carry the ETag produced by the previous one.
-let frSendEditsChain: Promise<{err:string|null}> = Promise.resolve({err: null});
+const chainMutation = ims.newMutationChain(remoteUpdates.noteLocalEdit);
 
 function frSendEdits(edits: ims.FieldReport): Promise<{err:string|null}> {
-    remoteUpdates.noteLocalEdit();
-    frSendEditsChain = frSendEditsChain.then(
-        () => frSendEditsNow(edits),
-        () => frSendEditsNow(edits),
-    );
-    return frSendEditsChain;
+    return chainMutation((): Promise<{err:string|null}> => frSendEditsNow(edits));
 }
 
 async function frSendEditsNow(edits: ims.FieldReport): Promise<{err:string|null}> {

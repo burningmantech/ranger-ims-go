@@ -257,6 +257,52 @@ func (a ApiHelper) attachRangerToVisit(ctx context.Context, eventName string, vi
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit)), "/rangers/", handle).String())
 }
 
+// The Incident Type and linked Incident sub-resource endpoints take no If-Match
+// header, so there's no imsDeleteIfMatch counterpart to these.
+func (a ApiHelper) attachTypeToIncident(ctx context.Context, eventName string, incident, incidentTypeID int32) *http.Response {
+	a.t.Helper()
+	return a.imsPost(ctx, struct{}{}, a.incidentTypePath(eventName, incident, incidentTypeID))
+}
+
+func (a ApiHelper) detachTypeFromIncident(ctx context.Context, eventName string, incident, incidentTypeID int32) *http.Response {
+	a.t.Helper()
+	_, resp := a.imsDelete(ctx, a.incidentTypePath(eventName, incident, incidentTypeID), nil)
+	return resp
+}
+
+func (a ApiHelper) incidentTypePath(eventName string, incident, incidentTypeID int32) string {
+	a.t.Helper()
+	return a.serverURL.JoinPath(
+		"/ims/api/events/", eventName, "/incidents/", conv.FormatInt(incident),
+		"/incident_types/", conv.FormatInt(incidentTypeID),
+	).String()
+}
+
+func (a ApiHelper) linkIncident(
+	ctx context.Context, eventName string, incident int32, linkedEventName string, linkedIncident int32,
+) *http.Response {
+	a.t.Helper()
+	return a.imsPost(ctx, struct{}{}, a.linkedIncidentPath(eventName, incident, linkedEventName, linkedIncident))
+}
+
+func (a ApiHelper) unlinkIncident(
+	ctx context.Context, eventName string, incident int32, linkedEventName string, linkedIncident int32,
+) *http.Response {
+	a.t.Helper()
+	_, resp := a.imsDelete(ctx, a.linkedIncidentPath(eventName, incident, linkedEventName, linkedIncident), nil)
+	return resp
+}
+
+func (a ApiHelper) linkedIncidentPath(
+	eventName string, incident int32, linkedEventName string, linkedIncident int32,
+) string {
+	a.t.Helper()
+	return a.serverURL.JoinPath(
+		"/ims/api/events/", eventName, "/incidents/", conv.FormatInt(incident),
+		"/linked_incidents/", linkedEventName, conv.FormatInt(linkedIncident),
+	).String()
+}
+
 func (a ApiHelper) detachRangerFromIncident(ctx context.Context, eventName string, incident int32, handle string) *http.Response {
 	a.t.Helper()
 	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident)), "/rangers/", handle).String(), nil)

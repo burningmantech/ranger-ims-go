@@ -161,6 +161,36 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
         serverETag = bumpETag(serverETag);
         return new Response(null, { status: 204, headers: { "ETag": serverETag } });
     }
+    // The type and link sub-resources apply their one change to serverIncident,
+    // rather than replacing a list, so a test can see whether two mutations in
+    // flight at once both survive.
+    const typeMatch = url.match(new RegExp(`^/ims/api/events/${eventName}/incidents/\\d+/incident_types/(\\d+)$`));
+    if (typeMatch) {
+        const typeId = Number(typeMatch[1]);
+        const current = serverIncident.incident_type_ids ?? [];
+        serverIncident.incident_type_ids = init?.method === "DELETE"
+            ? current.filter((t: number): boolean => t !== typeId)
+            : current.concat(current.includes(typeId) ? [] : [typeId]);
+        serverETag = bumpETag(serverETag);
+        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+    }
+    const linkMatch = url.match(
+        new RegExp(`^/ims/api/events/${eventName}/incidents/\\d+/linked_incidents/([^/]+)/(\\d+)$`));
+    if (linkMatch) {
+        const linkedEventName = decodeURIComponent(linkMatch[1]!);
+        const linkedNumber = Number(linkMatch[2]);
+        const current = serverIncident.linked_incidents ?? [];
+        serverIncident.linked_incidents = init?.method === "DELETE"
+            ? current.filter((l: ims.LinkedIncident): boolean =>
+                !(l.event_name === linkedEventName && l.number === linkedNumber))
+            : current.concat([{
+                event_id: serverEvents.find((e: ims.EventData): boolean => e.name === linkedEventName)?.id ?? null,
+                event_name: linkedEventName,
+                number: linkedNumber,
+            }]);
+        serverETag = bumpETag(serverETag);
+        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+    }
     if (url.startsWith(`/ims/api/events/${eventName}/incidents/1/report_entries/`) && hasBody) {
         return new Response(null, { status: 204 });
     }
@@ -219,6 +249,24 @@ function postedIfMatches(mock: ReturnType<typeof mockFetch>, url: string): (stri
     return mock.mock.calls
         .filter(([u, init]): boolean => u === url && init?.body != null)
         .map(([, init]): string|null => new Headers(init!.headers).get("If-Match"));
+}
+
+interface RecordedRequest {
+    method: string;
+    url: string;
+    ifMatch: string|null;
+}
+
+// Every request to a URL matching the pattern, oldest first. Unlike
+// postedBodies, this covers the bodiless DELETEs too.
+function requestsMatching(mock: ReturnType<typeof mockFetch>, pattern: RegExp): RecordedRequest[] {
+    return mock.mock.calls
+        .filter(([url]): boolean => pattern.test(url))
+        .map(([url, init]): RecordedRequest => ({
+            method: init?.method ?? "GET",
+            url: url,
+            ifMatch: new Headers(init?.headers).get("If-Match"),
+        }));
 }
 
 test("page init draws the incident fields from the API", async (): Promise<void> => {
@@ -545,23 +593,60 @@ test("removeRanger and setRangerRole hit the per-Ranger endpoint", async (): Pro
     expect(roleInput.classList.contains("is-valid")).toBe(true);
 });
 
-test("addIncidentType and removeIncidentType edit the incident's type list", async (): Promise<void> => {
+test("addIncidentType and removeIncidentType hit the per-type endpoint", async (): Promise<void> => {
     const mock = await initIncidentPage();
 
     const typeAdd = document.getElementById("incident_type_add") as HTMLInputElement;
     typeAdd.value = " lost child ";
     await window.addIncidentType();
-    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
-        { incident_type_ids: [1, 2], number: 1 },
+    expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/incident_types/2", ifMatch: null },
     ]);
     expect(typeAdd.value).toBe("");
+    expect(typeAdd.disabled).toBe(false);
+    // No whole-list edit was sent alongside it.
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);
 
     mock.mockClear();
     const junkLi = document.querySelector<HTMLLIElement>('#incident_types_list li[data-incident-type-id="1"]')!;
     await window.removeIncidentType(junkLi.querySelector("button")!);
-    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
-        { incident_type_ids: [], number: 1 },
+    expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1", ifMatch: null },
     ]);
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);
+
+    // A type already on the incident isn't re-added, and an unknown name sends
+    // nothing at all.
+    mock.mockClear();
+    typeAdd.value = "Lost Child";
+    await window.addIncidentType();
+    typeAdd.value = "no such type";
+    await window.addIncidentType();
+    expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([]);
+});
+
+// The bug these endpoints exist to kill: clicking two X buttons before the page
+// redraws used to send two whole lists, each computed from the same snapshot, so
+// the second request put back the type the first had just removed.
+test("two rapid type removals both stick", async (): Promise<void> => {
+    serverIncident.incident_type_ids = [1, 2];
+    const mock = await initIncidentPage();
+
+    const list = document.getElementById("incident_types_list")!;
+    const junkX = list.querySelector<HTMLButtonElement>('li[data-incident-type-id="1"] button')!;
+    const lostChildX = list.querySelector<HTMLButtonElement>('li[data-incident-type-id="2"] button')!;
+
+    // Both clicks land before either response is handled.
+    const first = window.removeIncidentType(junkX);
+    const second = window.removeIncidentType(lostChildX);
+    await Promise.all([first, second]);
+
+    expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1", ifMatch: null },
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/2", ifMatch: null },
+    ]);
+    // Neither removal resurrected the other's type.
+    expect(serverIncident.incident_type_ids).toEqual([]);
 });
 
 test("submitReportEntry posts the new entry and clears the textarea", async (): Promise<void> => {
@@ -640,16 +725,12 @@ test("linkIncident links incidents in other events and rejects bad input", async
     const input = document.getElementById("linked_incident_add") as HTMLInputElement;
     input.value = "2015#2";
     await window.linkIncident(input);
-    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
-        {
-            linked_incidents: [
-                { event_id: 1, event_name: "2025", number: 5, summary: "Related" },
-                { event_id: 2, number: 2 },
-            ],
-            number: 1,
-        },
+    expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2015/2", ifMatch: null },
     ]);
     expect(input.value).toBe("");
+    // The pre-existing link was left alone rather than resent as part of a list.
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);
 
     // An unknown event name is an error and sends nothing.
     mock.mockClear();
@@ -663,15 +744,65 @@ test("linkIncident links incidents in other events and rejects bad input", async
     await window.linkIncident(input);
     expect(mock.mock.calls.length).toBe(0);
     expect(document.getElementById("error_text")!.textContent).toContain("No valid other incidents");
+
+    // So is an incident number that isn't a number, rather than sending #0.
+    mock.mockClear();
+    input.value = "2015#abc";
+    await window.linkIncident(input);
+    expect(mock.mock.calls.length).toBe(0);
+    expect(document.getElementById("error_text")!.textContent).toContain("Invalid Incident number");
+
+    // An emptied field is a cancel, not a request to link anything.
+    mock.mockClear();
+    input.value = "";
+    await window.linkIncident(input);
+    expect(mock.mock.calls.length).toBe(0);
 });
 
-test("unlinkIncident removes the linked incident", async (): Promise<void> => {
+test("a batched link input sends one request per entry, in order", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    const input = document.getElementById("linked_incident_add") as HTMLInputElement;
+    input.value = "7, 2015#2, #9";
+    await window.linkIncident(input);
+
+    expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/7", ifMatch: null },
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2015/2", ifMatch: null },
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/9", ifMatch: null },
+    ]);
+    expect(input.value).toBe("");
+});
+
+test("unlinkIncident removes just the one linked incident", async (): Promise<void> => {
     const mock = await initIncidentPage();
 
     const linkedLi = document.querySelector<HTMLElement>('#linked_incidents [data-incident-number="5"]')!;
     await window.unlinkIncident(linkedLi.querySelector("button")!);
-    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
-        { linked_incidents: [], number: 1 },
+    expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/5", ifMatch: null },
+    ]);
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);
+    expect(serverIncident.linked_incidents).toEqual([]);
+});
+
+test("a summary edit and a type removal don't conflict", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    // Both mutations go through one chain, so the summary edit's If-Match is the
+    // ETag it read at load time and the type removal doesn't race it.
+    const summary = document.getElementById("incident_summary") as HTMLInputElement;
+    summary.value = "Bigger dust storm";
+    const junkLi = document.querySelector<HTMLLIElement>('#incident_types_list li[data-incident-type-id="1"]')!;
+    await Promise.all([
+        window.editIncidentSummary(),
+        window.removeIncidentType(junkLi.querySelector("button")!),
+    ]);
+
+    expect(postedIfMatches(mock, "/ims/api/events/2025/incidents/1")).toEqual([`"5"`]);
+    expect(document.getElementById("error_text")!.textContent).toBe("");
+    expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1", ifMatch: null },
     ]);
 });
 

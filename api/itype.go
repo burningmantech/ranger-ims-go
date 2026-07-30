@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -111,6 +112,12 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) (newTypeID 
 	typeReq, errHTTP := readBodyAs[imsjson.IncidentType](req)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[readBodyAs]")
+	}
+	// A nameless Incident Type can't be shown to anyone, and code that looks one
+	// up by name (namesForIncidentTypes, say) can't tell it from a type that
+	// doesn't exist. So there's no such thing, on creation or on rename.
+	if typeReq.Name != nil && strings.TrimSpace(*typeReq.Name) == "" {
+		return nil, herr.BadRequest("Incident Type name may not be empty", nil)
 	}
 	if typeReq.ID == 0 {
 		if typeReq.Name == nil {

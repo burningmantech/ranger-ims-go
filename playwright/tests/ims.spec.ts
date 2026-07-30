@@ -366,8 +366,30 @@ test("incidents", async ({ page, browser }) => {
         await expect(page.getByLabel("Add Incident Type")).toHaveValue("");
       }
 
+      // The X button only shows while the row is hovered, and a redraw can
+      // replace the row under the cursor (losing the hover state), so retry the
+      // hover and click together.
+      async function removeType(page: Page, type: string): Promise<void> {
+        const typeLi = page.locator("#incident_types_list li", {hasText: type});
+        await expect(async (): Promise<void> => {
+          await typeLi.hover();
+          await typeLi.getByRole("button", {name: `Remove Incident Type ${type}`}).click({timeout: 2000});
+        }).toPass();
+        await expect(typeLi).toBeHidden({timeout: 5000});
+      }
+
       await addType(incidentPage, "Admin");
       await addType(incidentPage, "Junk");
+
+      // Removing one type leaves the other alone. Adding it back afterwards
+      // must work too: the remove and the re-add are independent gestures, not
+      // replacements of the whole list.
+      await removeType(incidentPage, "Admin");
+      // Assert on the row, not on its X button: that button is display:none
+      // except while its row is hovered, and the cursor is wherever removeType
+      // happened to leave it.
+      await expect(incidentPage.locator("#incident_types_list li", {hasText: "Junk"})).toBeVisible();
+      await addType(incidentPage, "Admin");
     }
 
     // add several Rangers to the incident
@@ -463,6 +485,19 @@ test("incidents", async ({ page, browser }) => {
         await incidentPage.getByLabel("Link IMS #").fill("1");
         await incidentPage.getByLabel("Link IMS #").press("Enter");
         const linkedIncident = incidentPage.getByText(`IMS ${eventName} #1: `);
+        await expect(linkedIncident).toBeVisible();
+
+        // Unlink it, then link it again, to check that both directions work on
+        // their own. As with the type X buttons, the unlink button only shows
+        // while its row is hovered.
+        const linkedLi = incidentPage.locator("#linked_incidents li", {hasText: `IMS ${eventName} #1: `});
+        await expect(async (): Promise<void> => {
+          await linkedLi.hover();
+          await linkedLi.getByRole("button", {name: `Unlink Incident ${eventName} #1`}).click({timeout: 2000});
+        }).toPass();
+        await expect(linkedIncident).toBeHidden();
+        await incidentPage.getByLabel("Link IMS #").fill("1");
+        await incidentPage.getByLabel("Link IMS #").press("Enter");
         await expect(linkedIncident).toBeVisible();
       }
     }

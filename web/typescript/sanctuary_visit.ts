@@ -415,17 +415,13 @@ function drawVisitTitle(mode: "for_display"|"for_print_to_pdf"): void {
 }
 
 
-// Sequences sendEdits calls, so that rapid autosaves don't race one another:
-// each edit must carry the ETag produced by the previous one.
-let sendEditsChain: Promise<{err:string|null}> = Promise.resolve({err: null});
+// Sequences every mutation this page makes — field edits and roster changes —
+// so that rapid changes don't race one another: each carries the ETag produced
+// by the previous one.
+const chainMutation = ims.newMutationChain(remoteUpdates.noteLocalEdit);
 
 function sendEdits(edits: ims.Visit): Promise<{err:string|null}> {
-    remoteUpdates.noteLocalEdit();
-    sendEditsChain = sendEditsChain.then(
-        () => sendEditsNow(edits),
-        () => sendEditsNow(edits),
-    );
-    return sendEditsChain;
+    return chainMutation((): Promise<{err:string|null}> => sendEditsNow(edits));
 }
 
 async function sendEditsNow(edits: ims.Visit): Promise<{err:string|null}> {
@@ -729,15 +725,23 @@ async function addRanger(): Promise<void> {
         }
     }
 
-    const url = (
-        ims.urlReplace(url_visitRanger)
-            .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
-            .replace("<ranger_name>", encodeURIComponent(handle))
-    );
-    const {resp, err} = await ims.fetchNoThrow(url, {
-        body: JSON.stringify({
-            handle: handle,
-        }),
+    const err = await chainMutation(async (): Promise<string|null> => {
+        const url = (
+            ims.urlReplace(url_visitRanger)
+                .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
+                .replace("<ranger_name>", encodeURIComponent(handle))
+        );
+        const {resp, err} = await ims.fetchNoThrow(url, {
+            body: JSON.stringify({
+                handle: handle,
+            }),
+        });
+        if (err !== null) {
+            return err;
+        }
+        // The roster change moved the visit's version on the server.
+        visitETag = ims.etagOf(resp) ?? visitETag;
+        return null;
     });
     if (err !== null) {
         ims.controlHasError(el.addRanger);
@@ -745,8 +749,6 @@ async function addRanger(): Promise<void> {
         el.addRanger.disabled = false;
         return;
     }
-    // The roster change moved the visit's version on the server.
-    visitETag = ims.etagOf(resp) ?? visitETag;
     el.addRanger.value = "";
     el.addRanger.disabled = false;
     ims.controlHasSuccess(el.addRanger);
@@ -760,16 +762,18 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
         return;
     }
 
-    const url = (
-        ims.urlReplace(url_visitRanger)
-            .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
-            .replace("<ranger_name>", encodeURIComponent(rangerHandle))
-    );
-    const {resp} = await ims.fetchNoThrow(url, {
-        method: "DELETE",
+    await chainMutation(async (): Promise<void> => {
+        const url = (
+            ims.urlReplace(url_visitRanger)
+                .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
+                .replace("<ranger_name>", encodeURIComponent(rangerHandle))
+        );
+        const {resp} = await ims.fetchNoThrow(url, {
+            method: "DELETE",
+        });
+        // The roster change moved the visit's version on the server.
+        visitETag = ims.etagOf(resp) ?? visitETag;
     });
-    // The roster change moved the visit's version on the server.
-    visitETag = ims.etagOf(resp) ?? visitETag;
 }
 
 
@@ -780,25 +784,25 @@ async function setRangerRole(sender: HTMLInputElement): Promise<void> {
         return;
     }
 
-    const url = (
-        ims.urlReplace(url_visitRanger)
-            .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
-            .replace("<ranger_name>", encodeURIComponent(handle))
-    );
-    const {resp, err} = await ims.fetchNoThrow(url, {
-        body: JSON.stringify({
-            handle: handle,
-            role: sender.value,
-        }),
+    await chainMutation(async (): Promise<void> => {
+        const url = (
+            ims.urlReplace(url_visitRanger)
+                .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
+                .replace("<ranger_name>", encodeURIComponent(handle))
+        );
+        const {resp, err} = await ims.fetchNoThrow(url, {
+            body: JSON.stringify({
+                handle: handle,
+                role: sender.value,
+            }),
+        });
+        if (err !== null) {
+            ims.controlHasError(sender);
+            return;
+        }
+        visitETag = ims.etagOf(resp) ?? visitETag;
+        ims.controlHasSuccess(sender);
     });
-    if (err !== null) {
-        ims.controlHasError(sender);
-        return;
-    }
-    visitETag = ims.etagOf(resp) ?? visitETag;
-    ims.controlHasSuccess(sender);
-
-    return;
 }
 
 function drawRangers() {

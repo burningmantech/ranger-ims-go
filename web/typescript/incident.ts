@@ -1108,17 +1108,13 @@ function drawFieldReportsToAttach() {
 // Editing
 //
 
-// Sequences sendEdits calls, so that rapid autosaves don't race one another:
-// each edit must carry the ETag produced by the previous one.
-let sendEditsChain: Promise<{err:string|null}> = Promise.resolve({err: null});
+// Sequences every mutation this page makes — field edits, roster changes, type
+// and link changes — so that rapid changes don't race one another: each carries
+// the ETag produced by the previous one.
+const chainMutation = ims.newMutationChain(remoteUpdates.noteLocalEdit);
 
 function sendEdits(edits: ims.Incident): Promise<{err:string|null}> {
-    remoteUpdates.noteLocalEdit();
-    sendEditsChain = sendEditsChain.then(
-        () => sendEditsNow(edits),
-        () => sendEditsNow(edits),
-    );
-    return sendEditsChain;
+    return chainMutation((): Promise<{err:string|null}> => sendEditsNow(edits));
 }
 
 async function sendEditsNow(edits: ims.Incident): Promise<{err:string|null}> {
@@ -1296,16 +1292,18 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
         return;
     }
 
-    const url = (
-        ims.urlReplace(url_incidentRanger)
-            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
-            .replace("<ranger_name>", encodeURIComponent(rangerHandle))
-    );
-    const {resp} = await ims.fetchNoThrow(url, {
-        method: "DELETE",
+    await chainMutation(async (): Promise<void> => {
+        const url = (
+            ims.urlReplace(url_incidentRanger)
+                .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+                .replace("<ranger_name>", encodeURIComponent(rangerHandle))
+        );
+        const {resp} = await ims.fetchNoThrow(url, {
+            method: "DELETE",
+        });
+        // The roster change moved the incident's version on the server.
+        incidentETag = ims.etagOf(resp) ?? incidentETag;
     });
-    // The roster change moved the incident's version on the server.
-    incidentETag = ims.etagOf(resp) ?? incidentETag;
 }
 
 async function setRangerRole(sender: HTMLInputElement): Promise<void> {
@@ -1315,36 +1313,87 @@ async function setRangerRole(sender: HTMLInputElement): Promise<void> {
         return;
     }
 
-    const url = (
-        ims.urlReplace(url_incidentRanger)
-            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
-            .replace("<ranger_name>", encodeURIComponent(handle))
-    );
-    const {resp, err} = await ims.fetchNoThrow(url, {
-        body: JSON.stringify({
-            handle: handle,
-            role: sender.value,
-        }),
+    await chainMutation(async (): Promise<void> => {
+        const url = (
+            ims.urlReplace(url_incidentRanger)
+                .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+                .replace("<ranger_name>", encodeURIComponent(handle))
+        );
+        const {resp, err} = await ims.fetchNoThrow(url, {
+            body: JSON.stringify({
+                handle: handle,
+                role: sender.value,
+            }),
+        });
+        if (err !== null) {
+            ims.controlHasError(sender);
+            return;
+        }
+        incidentETag = ims.etagOf(resp) ?? incidentETag;
+        ims.controlHasSuccess(sender);
     });
-    if (err !== null) {
-        ims.controlHasError(sender);
-        return;
-    }
-    incidentETag = ims.etagOf(resp) ?? incidentETag;
-    ims.controlHasSuccess(sender);
-
-    return;
 }
 
 
+// Removing a type says "detach this one type", rather than sending the type list
+// this page last drew minus the one clicked. A recomputed list would be stale
+// the moment anything else changed the types — including a second X click that
+// hasn't redrawn yet, whose list would put the first click's type back.
 async function removeIncidentType(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
-    const incidentType = ims.parseInt10(parent.dataset["incidentTypeId"]);
-    await sendEdits({
-        "incident_type_ids": (incident!.incident_type_ids??[]).filter(
-            function(t) { return t !== incidentType; }
-        ),
+    const incidentTypeId = ims.parseInt10(parent.dataset["incidentTypeId"]);
+    if (incidentTypeId == null) {
+        return;
+    }
+    const button = sender as HTMLButtonElement;
+    button.disabled = true;
+    try {
+        await chainMutation((): Promise<string|null> => detachIncidentType(incidentTypeId));
+    } finally {
+        // On success the list has been redrawn and this button is gone, so this
+        // only matters for the error case.
+        button.disabled = false;
+    }
+}
+
+async function detachIncidentType(incidentTypeId: number): Promise<string|null> {
+    const url = (
+        ims.urlReplace(url_incidentIncidentType)
+            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+            .replace("<incident_type_id>", incidentTypeId.toString())
+    );
+    const {resp, err} = await ims.fetchNoThrow(url, {
+        method: "DELETE",
     });
+    if (err != null) {
+        const message = `Failed to remove incident type: ${err}`;
+        await loadAndDisplayIncident();
+        ims.setErrorMessage(message);
+        return message;
+    }
+    incidentETag = ims.etagOf(resp) ?? incidentETag;
+    await loadAndDisplayIncident();
+    return null;
+}
+
+async function attachIncidentType(incidentTypeId: number): Promise<string|null> {
+    const url = (
+        ims.urlReplace(url_incidentIncidentType)
+            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+            .replace("<incident_type_id>", incidentTypeId.toString())
+    );
+    const {resp, err} = await ims.fetchNoThrow(url, {
+        body: JSON.stringify({}),
+    });
+    if (err != null) {
+        const message = `Failed to add incident type: ${err}`;
+        await loadAndDisplayIncident();
+        ims.setErrorMessage(message);
+        return message;
+    }
+    incidentETag = ims.etagOf(resp) ?? incidentETag;
+    await loadAndDisplayIncident();
+    return null;
 }
 
 function normalize(str: string): string {
@@ -1393,15 +1442,22 @@ async function addRanger(): Promise<void> {
         }
     }
 
-    const url = (
-        ims.urlReplace(url_incidentRanger)
-            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
-            .replace("<ranger_name>", encodeURIComponent(handle))
-    );
-    const {resp, err} = await ims.fetchNoThrow(url, {
-        body: JSON.stringify({
-            handle: handle,
-        }),
+    const err = await chainMutation(async (): Promise<string|null> => {
+        const url = (
+            ims.urlReplace(url_incidentRanger)
+                .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+                .replace("<ranger_name>", encodeURIComponent(handle))
+        );
+        const {resp, err} = await ims.fetchNoThrow(url, {
+            body: JSON.stringify({
+                handle: handle,
+            }),
+        });
+        if (err !== null) {
+            return err;
+        }
+        incidentETag = ims.etagOf(resp) ?? incidentETag;
+        return null;
     });
     if (err !== null) {
         ims.controlHasError(el.rangerAdd);
@@ -1409,7 +1465,6 @@ async function addRanger(): Promise<void> {
         el.rangerAdd.disabled = false;
         return;
     }
-    incidentETag = ims.etagOf(resp) ?? incidentETag;
     el.rangerAdd.value = "";
     el.rangerAdd.disabled = false;
     ims.controlHasSuccess(el.rangerAdd);
@@ -1420,8 +1475,7 @@ async function addRanger(): Promise<void> {
 async function addIncidentType(): Promise<void> {
     let typeInput = el.incidentTypeAdd.value;
 
-    // make a copy of the incident types
-    const currentIncidentTypes = (incident!.incident_type_ids??[]).slice();
+    const currentIncidentTypes = incident!.incident_type_ids??[];
 
     // fuzzy-match on incidentType, to allow case insensitivity and
     // leading/trailing whitespace.
@@ -1446,10 +1500,21 @@ async function addIncidentType(): Promise<void> {
         return;
     }
 
-    currentIncidentTypes.push(validTypeInputId);
-
     el.incidentTypeAdd.disabled = true;
-    const {err} = await sendEdits({"incident_type_ids": currentIncidentTypes});
+
+    if (ims.pathIds.incidentNumber == null) {
+        // Incident doesn't exist yet. Create it first, since the type is
+        // attached through a sub-resource of the Incident.
+        const {err} = await sendEdits({});
+        if (err != null) {
+            ims.controlHasError(el.incidentTypeAdd);
+            el.incidentTypeAdd.value = "";
+            el.incidentTypeAdd.disabled = false;
+            return;
+        }
+    }
+
+    const err = await chainMutation((): Promise<string|null> => attachIncidentType(validTypeInputId));
     if (err != null) {
         ims.controlHasError(el.incidentTypeAdd);
         el.incidentTypeAdd.value = "";
@@ -1556,20 +1621,60 @@ async function attachFieldReport(): Promise<void> {
     ims.controlHasSuccess(el.attachedFieldReportAdd);
 }
 
+// Like removeIncidentType, this says "unlink this one Incident" rather than
+// replacing the whole list, so two rapid X clicks can't undo each other.
 async function unlinkIncident(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
-    const linkedEventId = ims.parseInt10(parent.dataset["eventId"]);
+    const linkedEventName = parent.dataset["eventName"];
     const linkedIncidentNumber = ims.parseInt10(parent.dataset["incidentNumber"]);
-    await sendEdits({
-        "linked_incidents": (incident!.linked_incidents??[]).filter(
-            function(t: ims.LinkedIncident): boolean {
-                return ! (t.event_id === linkedEventId && t.number === linkedIncidentNumber);
-            }
-        ),
-    });
+    if (!linkedEventName || linkedIncidentNumber == null) {
+        return;
+    }
+    const button = sender as HTMLButtonElement;
+    button.disabled = true;
+    try {
+        await chainMutation((): Promise<string|null> => setIncidentLink(
+            "DELETE", linkedEventName, linkedIncidentNumber));
+    } finally {
+        // On success the list has been redrawn and this button is gone, so this
+        // only matters for the error case.
+        button.disabled = false;
+    }
+}
+
+// setIncidentLink links (POST) or unlinks (DELETE) one other Incident.
+async function setIncidentLink(
+    method: "POST"|"DELETE", linkedEventName: string, linkedIncidentNumber: number,
+): Promise<string|null> {
+    const url = (
+        ims.urlReplace(url_incidentLinkedIncident)
+            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+            .replace("<linked_event_name>", encodeURIComponent(linkedEventName))
+            .replace("<linked_incident_number>", linkedIncidentNumber.toString())
+    );
+    const {resp, err} = await ims.fetchNoThrow(url, method === "DELETE"
+        ? {method: "DELETE"}
+        : {body: JSON.stringify({})},
+    );
+    if (err != null) {
+        const verb = method === "DELETE" ? "unlink" : "link";
+        const message = `Failed to ${verb} incident: ${err}`;
+        await loadAndDisplayIncident();
+        ims.setErrorMessage(message);
+        return message;
+    }
+    incidentETag = ims.etagOf(resp) ?? incidentETag;
+    await loadAndDisplayIncident();
+    return null;
 }
 
 async function linkIncident(input: HTMLInputElement): Promise<void> {
+    // Blurring the field after clearing it fires this handler with nothing to
+    // do. Bail before the create below, so that doesn't conjure an Incident.
+    if (!input.value.trim()) {
+        return;
+    }
+
     if (ims.pathIds.incidentNumber == null) {
         // Incident doesn't exist yet. Create it first.
         const {err} = await sendEdits({});
@@ -1578,12 +1683,15 @@ async function linkIncident(input: HTMLInputElement): Promise<void> {
         }
     }
 
-    const currentEventId = (allEvents??[]).find(value => value.name === ims.pathIds.eventName)!.id;
-    const currentLinkedIncidents: ims.LinkedIncident[] = (incident!.linked_incidents??[]).slice();
-    let wouldMakeAChange: boolean = false;
+    const currentEventName: string = ims.pathIds.eventName!;
+    const currentEventId = (allEvents??[]).find(value => value.name === currentEventName)!.id;
+    // One entry per Incident the user asked to link, each sent as its own
+    // request below.
+    const toLink: {eventName: string, number: number}[] = [];
 
     for (let eventAndIncident of input.value.trim().split(",")) {
         // Assume the current event unless another is specified
+        let eventName: string = currentEventName;
         let eventID: number|null = currentEventId;
         let incidentNumber: number|null = null;
 
@@ -1598,7 +1706,7 @@ async function linkIncident(input: HTMLInputElement): Promise<void> {
         }
         if (eventAndIncident.indexOf("#") > 0) {
             let eventAndIncidentPair: string[] = eventAndIncident.split("#", 2);
-            const eventName: string = (eventAndIncidentPair[0]??"").trim();
+            eventName = (eventAndIncidentPair[0]??"").trim();
             if (!eventName) {
                 ims.controlHasError(input);
                 ims.setErrorMessage(`Invalid format for linked incident. Got '${eventAndIncident}'`);
@@ -1616,19 +1724,20 @@ async function linkIncident(input: HTMLInputElement): Promise<void> {
             }
             incidentNumber = ims.parseInt10((eventAndIncidentPair[1]??"").trim());
         }
-        const linkedIncident: ims.LinkedIncident = {
-            event_id: eventID,
-            number: incidentNumber,
-        };
-
-        const selfLink: boolean = linkedIncident.event_id === currentEventId && linkedIncident.number === incident?.number;
+        if (incidentNumber == null) {
+            ims.controlHasError(input);
+            ims.setErrorMessage(`Invalid Incident number for linked incident. Got '${eventAndIncident}'`);
+            input.value = "";
+            input.disabled = false;
+            return;
+        }
+        const selfLink: boolean = eventID === currentEventId && incidentNumber === incident?.number;
         if (!selfLink) {
-            currentLinkedIncidents.push(linkedIncident!);
-            wouldMakeAChange = true;
+            toLink.push({eventName: eventName, number: incidentNumber});
         }
     }
 
-    if (!wouldMakeAChange) {
+    if (toLink.length === 0) {
         ims.controlHasError(input);
         ims.setErrorMessage("No valid other incidents were provided for linking");
         input.value = "";
@@ -1637,12 +1746,17 @@ async function linkIncident(input: HTMLInputElement): Promise<void> {
     }
 
     input.disabled = true;
-    const {err} = await sendEdits({"linked_incidents": currentLinkedIncidents});
-    if (err != null) {
-        ims.controlHasError(input);
-        input.value = "";
-        input.disabled = false;
-        return;
+    // One request per Incident, in the order given. A failure stops the rest;
+    // the links already made stay made, since each is independent of the others.
+    for (const link of toLink) {
+        const err = await chainMutation((): Promise<string|null> => setIncidentLink(
+            "POST", link.eventName, link.number));
+        if (err != null) {
+            ims.controlHasError(input);
+            input.value = "";
+            input.disabled = false;
+            return;
+        }
     }
     input.value = "";
     input.disabled = false;

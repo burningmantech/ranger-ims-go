@@ -320,6 +320,117 @@ func TestFieldReportETagAndLinkBumpsBothVersions(t *testing.T) {
 	require.Greater(t, incidentAfter.Version, incidentBefore.Version)
 }
 
+func TestIncidentTypeAttachBumpsIncidentETag(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	_, resp := apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	etagBefore := resp.Header.Get("ETag")
+	require.NotEmpty(t, etagBefore)
+
+	// Attaching a type moves the incident's version, and the response carries
+	// the new ETag so the client can keep its cached value fresh.
+	resp = apis.attachTypeToIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	etagAfterAttach := resp.Header.Get("ETag")
+	require.NotEmpty(t, etagAfterAttach)
+	require.NotEqual(t, etagBefore, etagAfterAttach)
+	require.NoError(t, resp.Body.Close())
+
+	// A repeated attach is a no-op, so it leaves the version where it is. That
+	// is what makes the request safe to retry.
+	resp = apis.attachTypeToIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.Equal(t, etagAfterAttach, resp.Header.Get("ETag"))
+	require.NoError(t, resp.Body.Close())
+
+	// An edit still carrying the pre-attach ETag is rejected.
+	resp = apis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
+		Event:   eventName,
+		Number:  num,
+		Summary: new("stale after type change"),
+	}, etagBefore)
+	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// The endpoint takes no If-Match of its own: it always applies.
+	resp = apis.detachTypeFromIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	etagAfterDetach := resp.Header.Get("ETag")
+	require.NotEmpty(t, etagAfterDetach)
+	require.NotEqual(t, etagAfterAttach, etagAfterDetach)
+	require.NoError(t, resp.Body.Close())
+
+	// A detach of an absent type is a no-op, so it too leaves the version alone.
+	resp = apis.detachTypeFromIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.Equal(t, etagAfterDetach, resp.Header.Get("ETag"))
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestIncidentLinkEndpointBumpsBothETags(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	num2 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	before1, resp := apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	etagBefore1 := resp.Header.Get("ETag")
+	before2, resp := apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+
+	// A link changes both Incidents' representations, so both versions move.
+	resp = apis.linkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	etagAfterLink := resp.Header.Get("ETag")
+	require.NotEmpty(t, etagAfterLink)
+	require.NotEqual(t, etagBefore1, etagAfterLink)
+	require.NoError(t, resp.Body.Close())
+
+	// The response's ETag is the path Incident's.
+	after1, resp := apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, etagAfterLink, resp.Header.Get("ETag"))
+	require.Greater(t, after1.Version, before1.Version)
+
+	after2, resp := apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Greater(t, after2.Version, before2.Version)
+
+	// A repeated link is a no-op on both.
+	resp = apis.linkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.Equal(t, etagAfterLink, resp.Header.Get("ETag"))
+	require.NoError(t, resp.Body.Close())
+
+	noopOn2, resp := apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, after2.Version, noopOn2.Version)
+
+	// Unlinking moves both again.
+	resp = apis.unlinkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NotEqual(t, etagAfterLink, resp.Header.Get("ETag"))
+	require.NoError(t, resp.Body.Close())
+
+	unlinked2, resp := apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Greater(t, unlinked2.Version, after2.Version)
+}
+
 func TestVisitETagAndReassignmentBumpsIncidents(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

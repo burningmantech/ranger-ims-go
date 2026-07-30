@@ -1648,6 +1648,31 @@ export function newRemoteUpdateAnnouncer(msg: string, debounceMs: number = 3000)
     };
 }
 
+// newMutationChain returns a function that runs the mutations handed to it one
+// at a time, in the order they were handed over.
+//
+// A detail page's mutations all share one chain, because they all share the
+// record's ETag: an edit must carry the ETag produced by the previous edit, and
+// that value only exists once the previous response has come back. Running them
+// concurrently means the later one sends a stale ETag and is rejected with a
+// 412 — a spurious conflict, since both edits came from this one user.
+//
+// A mutation that fails doesn't stall the ones queued behind it. onMutate, if
+// given, is called as each mutation is enqueued; pass a
+// newRemoteUpdateAnnouncer's noteLocalEdit, so the announcer can tell the
+// user's own saves from someone else's edits.
+export function newMutationChain(onMutate?: () => void): <T>(mutate: () => Promise<T>) => Promise<T> {
+    let tail: Promise<unknown> = Promise.resolve();
+    return <T>(mutate: () => Promise<T>): Promise<T> => {
+        if (onMutate) {
+            onMutate();
+        }
+        const result: Promise<T> = tail.then(mutate, mutate);
+        tail = result.catch((): void => {});
+        return result;
+    };
+}
+
 export function clearErrorMessage(): void {
     const errText: HTMLElement|null = document.getElementById("error_text");
     if (errText) {

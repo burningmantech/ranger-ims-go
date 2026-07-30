@@ -123,6 +123,10 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	postIncidentRE := MethodURL{http.MethodPost, eventPath + "/incidents/1/report_entries/2"}
 	postIncidentRanger := MethodURL{http.MethodPost, eventPath + "/incidents/1/rangers/some_name"}
 	deleteIncidentRanger := MethodURL{http.MethodDelete, eventPath + "/incidents/1/rangers/some_name"}
+	postIncidentType := MethodURL{http.MethodPost, eventPath + "/incidents/1/incident_types/1"}
+	deleteIncidentType := MethodURL{http.MethodDelete, eventPath + "/incidents/1/incident_types/1"}
+	postIncidentLink := MethodURL{http.MethodPost, eventPath + "/incidents/1/linked_incidents/" + eventName + "/2"}
+	deleteIncidentLink := MethodURL{http.MethodDelete, eventPath + "/incidents/1/linked_incidents/" + eventName + "/2"}
 	getFieldReports := MethodURL{http.MethodGet, eventPath + "/field_reports"}
 	getFieldReport := MethodURL{http.MethodGet, eventPath + "/field_reports/1"}
 	getFieldReportAttachment := MethodURL{http.MethodGet, eventPath + "/field_reports/1/attachments/1"}
@@ -151,6 +155,10 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		postIncidentRE,
 		postIncidentRanger,
 		deleteIncidentRanger,
+		postIncidentType,
+		deleteIncidentType,
+		postIncidentLink,
+		deleteIncidentLink,
 		getFieldReports,
 		getFieldReport,
 		getFieldReportAttachment,

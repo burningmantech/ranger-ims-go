@@ -129,6 +129,10 @@ func AddToMux(
 	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", AttachRangerToIncident{db, userStore, es, cfg.Core.Admins}, true)
 	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", DetachRangerFromIncident{db, userStore, es, cfg.Core.Admins}, true)
 	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}", EditIncidentReportEntry{db, userStore, es, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}", AttachTypeToIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}", DetachTypeFromIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", LinkIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", UnlinkIncident{db, userStore, es, cfg.Core.Admins}, true)
 
 	authed("GET /ims/api/events/{eventName}/field_reports", GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
 	authed("POST /ims/api/events/{eventName}/field_reports", NewFieldReport{db, userStore, es, cfg.Core.Admins}, true)

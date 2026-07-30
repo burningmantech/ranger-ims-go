@@ -29,6 +29,7 @@ https://github.com/burningmantech/ranger-ims-go/pull/708
 - Reorganized how event permissions are displayed on the Admin Events page, grouping the grants so that they're much easier to read and manage. Rule badges now count matching expressions rather than people, grant dates show as a bare date (with the full datetime on hover), a bare `*` who-expression is spelled out as "(ALL authenticated users)", and a grant's description appears on its own line above its terms. https://github.com/burningmantech/ranger-ims-go/pull/704 https://github.com/burningmantech/ranger-ims-go/pull/707 https://github.com/burningmantech/ranger-ims-go/commit/34c5781
 - Stopped using flatpickr for the date inputs on the Admin Events page. There were enough of them that the page got noticeably slow to render, and it's an admin-only page, so manual datetime entry is a fair trade. https://github.com/burningmantech/ranger-ims-go/pull/703
 - Replaced the event name text input on the Admin Places page with a real dropdown of events, newest first. https://github.com/burningmantech/ranger-ims-go/pull/708
+- Changed how the Incident page adds and removes an Incident Type or a link to another Incident: each of those gestures is now its own request against a new per-item endpoint, rather than a rewrite of the whole list. Such a request says only "attach this one" or "remove this one", so it can't undo a change someone else made, it's safe to repeat, and it never conflicts with a concurrent edit to the Incident's other fields. The whole-list fields on the Incident API still work as before.
 
 ### Added
 
@@ -51,6 +52,10 @@ https://github.com/burningmantech/ranger-ims-go/pull/708
 - Pointed the Incident page's "On-Duty" link at the incident's start time, so it shows who was on duty then rather than now. https://github.com/burningmantech/ranger-ims-go/pull/708
 - Added cachebusting for style.css, as we already did for our JavaScript files. https://github.com/burningmantech/ranger-ims-go/pull/706
 - Avoided database contention over the next number to assign when creating Incidents, Field Reports, and Sanctuary Visits. https://github.com/burningmantech/ranger-ims-go/commit/93bde89
+- Fixed a data-loss bug on the Incident page: clicking two Incident Types' (or two linked Incidents') X buttons in quick succession would remove one and put the other one back, because the second request was built from the list as it looked before the first click.
+- Stopped a Ranger roster change on the Incident or Sanctuary Visit page from spuriously rejecting a field edit that was in flight at the same time.
+- Stopped allowing an Incident Type to be created or renamed with an empty name. A nameless type can't be shown to anyone, and it's indistinguishable from a type that doesn't exist to anything that looks one up by name.
+- Stopped the Incident page's "Link IMS #" field from sending a link to Incident #0 when what was typed wasn't a number. It now says so, and an emptied field no longer tries to link anything (or, on an unsaved Incident, to create one).
 - Told password managers to ignore another field that isn't a password. https://github.com/burningmantech/ranger-ims-go/pull/671
 
 ## 2026-06

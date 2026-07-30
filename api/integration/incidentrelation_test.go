@@ -19,6 +19,7 @@ package integration_test
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -238,6 +239,192 @@ func TestAttachHiddenIncidentType(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.Empty(t, *retrieved.IncidentTypeIDs)
 	require.Equal(t, "Removed type: "+typeName, lastReportEntryText(t, retrieved))
+}
+
+// TestConcurrentIncidentTypeAttach is the regression test for the lock ordering
+// in setIncidentType. Concurrent requests against one Incident all take its row
+// exclusively before touching the membership table; with the two writes in the
+// other order they deadlocked in MariaDB and some of these requests came back
+// 500. Both shapes below reproduced that reliably at this width.
+func TestConcurrentIncidentTypeAttach(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	before, resp := apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+
+	attachAll := func(typeIDs []int32) []int {
+		t.Helper()
+		codes := make([]int, len(typeIDs))
+		var wg sync.WaitGroup
+		for i, typeID := range typeIDs {
+			wg.Go(func() {
+				resp := apis.attachTypeToIncident(ctx, eventName, num, typeID)
+				codes[i] = resp.StatusCode
+				_ = resp.Body.Close()
+			})
+		}
+		wg.Wait()
+		return codes
+	}
+
+	// Several requests for the same type at once. They all pass the "already has
+	// this membership" check, since none of them has committed yet, and then all
+	// try to insert; the losers get a duplicate-key error, which is the state
+	// they asked for and so is the same no-op a repeated request gets.
+	for _, code := range attachAll([]int32{1, 1, 1, 1, 1, 1}) {
+		require.Equal(t, http.StatusNoContent, code)
+	}
+
+	// The type is attached once, and one report entry says so: whichever requests
+	// lost the race wrote nothing at all, their version bumps included.
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, []int32{1}, *retrieved.IncidentTypeIDs)
+	require.Len(t, retrieved.ReportEntries, len(before.ReportEntries)+1)
+	require.Equal(t, before.Version+1, retrieved.Version)
+
+	// Concurrent requests for *different* types all stick, which is the whole
+	// point of these endpoints: each request names only its own member, so
+	// there's no whole list computed from a stale view and no way for one request
+	// to revert another.
+	typeIDs := []int32{2}
+	for range 3 {
+		typeName := rand.NonCryptoText()
+		typeID, resp := apisAdmin.editType(ctx, imsjson.IncidentType{Name: &typeName})
+		require.NoError(t, resp.Body.Close())
+		require.NotNil(t, typeID)
+		typeIDs = append(typeIDs, *typeID)
+	}
+	for _, code := range attachAll(typeIDs) {
+		require.Equal(t, http.StatusNoContent, code)
+	}
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.ElementsMatch(t, append([]int32{1}, typeIDs...), *retrieved.IncidentTypeIDs)
+}
+
+// The ETag on a link response is the path Incident's version, whichever end of
+// the pair that is. bumpIncidentPairVersions moves the two Incidents in a fixed
+// order, so it has to hand back the right one of the two versions rather than
+// just the first one it bumped.
+func TestIncidentLinkETagIsThePathIncidents(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	num2 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	require.Less(t, num1, num2)
+
+	// Move one of the two versions, so that the two Incidents disagree about what
+	// their version is and this test can tell which one it's being handed.
+	resp := apis.attachTypeToIncident(ctx, eventName, num2, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	incident1, resp := apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	incident2, resp := apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.NotEqual(t, incident1.Version, incident2.Version)
+
+	// Linking from the higher-numbered end, which is the one bumped second.
+	resp = apis.linkIncident(ctx, eventName, num2, eventName, num1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	etag := resp.Header.Get("ETag")
+	require.NoError(t, resp.Body.Close())
+
+	incident2, resp = apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, fmt.Sprintf("%q", conv.FormatInt(incident2.Version)), etag)
+	require.Equal(t, etag, resp.Header.Get("ETag"))
+
+	// And unlinking from the lower-numbered end, which is bumped first.
+	resp = apis.unlinkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	etag = resp.Header.Get("ETag")
+	require.NoError(t, resp.Body.Close())
+
+	incident1, resp = apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, fmt.Sprintf("%q", conv.FormatInt(incident1.Version)), etag)
+	require.Equal(t, etag, resp.Header.Get("ETag"))
+}
+
+// TestConcurrentIncidentLinkAndUnlink is the regression test for the lock
+// ordering in bumpIncidentPairVersions. Requests coming in from opposite ends of
+// the same pair have to take the two Incident rows in the same order as each
+// other, or each sits holding the row the other is waiting for.
+func TestConcurrentIncidentLinkAndUnlink(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	num2 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	// The same link, asked for from both ends at once.
+	codes := make([]int, 6)
+	var wg sync.WaitGroup
+	for i := range codes {
+		wg.Go(func() {
+			from, to := num1, num2
+			if i%2 == 0 {
+				from, to = num2, num1
+			}
+			resp := apis.linkIncident(ctx, eventName, from, eventName, to)
+			codes[i] = resp.StatusCode
+			_ = resp.Body.Close()
+		})
+	}
+	wg.Wait()
+	for _, code := range codes {
+		require.Equal(t, http.StatusNoContent, code)
+	}
+
+	// One link, recorded once on each side.
+	incident1, resp := apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *incident1.LinkedIncidents, 1)
+	require.Equal(t, num2, (*incident1.LinkedIncidents)[0].Number)
+	incident2, resp := apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *incident2.LinkedIncidents, 1)
+
+	// And taking it apart from both ends at once leaves it apart.
+	wg = sync.WaitGroup{}
+	for i := range codes {
+		wg.Go(func() {
+			from, to := num1, num2
+			if i%2 == 0 {
+				from, to = num2, num1
+			}
+			resp := apis.unlinkIncident(ctx, eventName, from, eventName, to)
+			codes[i] = resp.StatusCode
+			_ = resp.Body.Close()
+		})
+	}
+	wg.Wait()
+	for _, code := range codes {
+		require.Equal(t, http.StatusNoContent, code)
+	}
+
+	incident1, resp = apis.getIncident(ctx, eventName, num1)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *incident1.LinkedIncidents)
+	incident2, resp = apis.getIncident(ctx, eventName, num2)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *incident2.LinkedIncidents)
 }
 
 // Only the Event in the path is permission-checked, which matches what the

@@ -17,6 +17,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -121,6 +122,39 @@ func bumpIncidentVersionAndRead(
 	return version, nil
 }
 
+// incidentRef names one Incident, for the endpoints that touch two of them.
+type incidentRef struct {
+	eventID, number int32
+}
+
+// bumpIncidentPairVersions moves both linked Incidents' versions, returning the
+// new version of the first one, which is the one the response is about.
+//
+// The pair is always locked in the same order, ascending by Event and then
+// number, whichever end of the link the request came in on. Two requests working
+// on the same pair from opposite ends would otherwise take the two row locks in
+// opposite orders, and each would sit holding the row the other was waiting for.
+func bumpIncidentPairVersions(
+	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX, first, second incidentRef,
+) (int32, *herr.HTTPError) {
+	ordered := []incidentRef{first, second}
+	slices.SortFunc(ordered, func(a, b incidentRef) int {
+		return cmp.Or(cmp.Compare(a.eventID, b.eventID), cmp.Compare(a.number, b.number))
+	})
+	var versions [2]int32
+	for i, ref := range ordered {
+		version, errHTTP := bumpIncidentVersionAndRead(ctx, imsDBQ, dbtx, ref.eventID, ref.number)
+		if errHTTP != nil {
+			return 0, errHTTP.From("[bumpIncidentVersionAndRead]")
+		}
+		versions[i] = version
+	}
+	if ordered[0] == first {
+		return versions[0], nil
+	}
+	return versions[1], nil
+}
+
 // currentIncidentVersion reads an Incident's version without changing it, for
 // the responses that report a request as a no-op.
 func currentIncidentVersion(
@@ -134,6 +168,27 @@ func currentIncidentVersion(
 		return 0, herr.InternalServerError("Failed to fetch Incident", err).From("[IncidentVersion]")
 	}
 	return version, nil
+}
+
+// requireIncidentExists checks for an Incident that a request names but doesn't
+// otherwise read: the other end of a link. A missing one is the client's mistake,
+// so it's a 400, worded as the foreign-key failure downstream would have been.
+func requireIncidentExists(
+	ctx context.Context, imsDBQ *store.DBQ, eventID, number int32,
+) *herr.HTTPError {
+	_, err := imsDBQ.IncidentVersion(ctx, imsDBQ, imsdb.IncidentVersionParams{
+		Event:  eventID,
+		Number: number,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return herr.BadRequest(
+				fmt.Sprintf("Failed to link Incident. There may be no IMS #%v for the given event.", number), err,
+			).From("[IncidentVersion]")
+		}
+		return herr.InternalServerError("Failed to fetch Incident", err).From("[IncidentVersion]")
+	}
+	return nil
 }
 
 // readIncidentRow fetches the Incident named in the request, reporting a 404 for
@@ -204,6 +259,23 @@ func setIncidentType(
 	}
 	defer rollback(txn)
 
+	// Move the version before writing the membership, not after. A write to
+	// INCIDENT__INCIDENT_TYPE takes a shared lock on the Incident's own row for
+	// its foreign key, and the version bump needs that same row exclusively. In
+	// the other order two concurrent writers each hold the shared lock the other
+	// is waiting to upgrade past, which MariaDB resolves by killing one of them
+	// with a deadlock error: a 500, where this endpoint promises a commutative
+	// request that a second Ranger can send at the same time.
+	//
+	// Bumping first makes this row the one place those writers queue, since every
+	// lock the rest of the transaction wants on it is held from here on. It's the
+	// order the whole-list path already takes, where the version-guarded
+	// UpdateIncident is both the concurrency gate and the first lock acquired.
+	version, errHTTP := bumpIncidentVersionAndRead(ctx, imsDBQ, txn, relReq.event.ID, relReq.number)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[bumpIncidentVersionAndRead]")
+	}
+
 	logLine := fmt.Sprintf("Removed type: %v", typeName)
 	if attach {
 		logLine = fmt.Sprintf("Added type: %v", typeName)
@@ -215,8 +287,10 @@ func setIncidentType(
 		if err != nil {
 			// Another writer attached this same type between the membership
 			// check above and this insert (the insert has no "on duplicate
-			// key"). The Incident is now in the state this request asked for,
-			// so this is the same no-op.
+			// key"). The Incident is now in the state this request asked for, so
+			// this is the same no-op. Returning without committing discards this
+			// transaction's version bump along with everything else, which is
+			// what keeps the no-op one.
 			if isDuplicateKeyError(err) {
 				return currentIncidentVersion(ctx, imsDBQ, relReq.event.ID, relReq.number)
 			}
@@ -231,11 +305,6 @@ func setIncidentType(
 		if err != nil {
 			return 0, herr.InternalServerError("Failed to detach Incident Type", err).From("[DetachIncidentTypeFromIncident]")
 		}
-	}
-
-	version, errHTTP := bumpIncidentVersionAndRead(ctx, imsDBQ, txn, relReq.event.ID, relReq.number)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[bumpIncidentVersionAndRead]")
 	}
 
 	_, errHTTP = addIncidentReportEntry(ctx, imsDBQ, txn, relReq.event.ID, relReq.number, newReportEntry{
@@ -304,11 +373,37 @@ func setIncidentLink(
 		return row.Incident.Version, nil
 	}
 
+	// Linking needs the other Incident to exist before the version bump below
+	// reaches for its row, since a bump of a row that isn't there reads back as a
+	// missing row, which is a 500 and not the client's real mistake. Unlinking
+	// needs no such check: a link on file proves both of its ends exist, and a
+	// request to remove a link that isn't on file returned above.
+	if link {
+		errHTTP = requireIncidentExists(ctx, imsDBQ, peerEvent.ID, peerNumber)
+		if errHTTP != nil {
+			return 0, errHTTP.From("[requireIncidentExists]")
+		}
+	}
+
 	txn, err := imsDBQ.Begin()
 	if err != nil {
 		return 0, herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
+
+	// Both Incidents' versions move before either link row is written, for the
+	// reason given in setIncidentType: the link writes take shared foreign-key
+	// locks on both Incident rows, and taking those rows exclusively first is
+	// what stops a concurrent writer from deadlocking against this one. Both
+	// versions have to move anyway, since the link changes how both Incidents
+	// read, and so invalidates both of their ETags.
+	version, errHTTP := bumpIncidentPairVersions(ctx, imsDBQ, txn,
+		incidentRef{relReq.event.ID, relReq.number},
+		incidentRef{peerEvent.ID, peerNumber},
+	)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[bumpIncidentPairVersions]")
+	}
 
 	// The LINKED_INCIDENT table holds each link twice, once per direction, so
 	// that a lookup from either Incident finds it.
@@ -329,9 +424,8 @@ func setIncidentLink(
 			if isDuplicateKeyError(err) {
 				return currentIncidentVersion(ctx, imsDBQ, relReq.event.ID, relReq.number)
 			}
-			// Otherwise we'll just assume the problem is that the peer Incident
-			// doesn't exist, and the insert broke the foreign key. This is
-			// probably the case...
+			// Otherwise the insert broke a foreign key, which now means the peer
+			// Incident went away since the check above.
 			return 0, herr.BadRequest(
 				fmt.Sprintf("Failed to link Incident. There may be no IMS #%v for the given event.", peerNumber), err,
 			).From("[LinkIncidents]")
@@ -366,10 +460,6 @@ func setIncidentLink(
 		}
 	}
 
-	version, errHTTP := bumpIncidentVersionAndRead(ctx, imsDBQ, txn, relReq.event.ID, relReq.number)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[bumpIncidentVersionAndRead]")
-	}
 	_, errHTTP = addIncidentReportEntry(ctx, imsDBQ, txn, relReq.event.ID, relReq.number, newReportEntry{
 		author:    relReq.author,
 		text:      selfLogLine,
@@ -379,12 +469,7 @@ func setIncidentLink(
 		return 0, errHTTP.From("[addIncidentReportEntry]")
 	}
 
-	// The other Incident's representation changed too, so its version must move
-	// for clients holding its ETag to notice, and its change log should say so.
-	_, errHTTP = bumpIncidentVersionAndRead(ctx, imsDBQ, txn, peerEvent.ID, peerNumber)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[bumpIncidentVersionAndRead]")
-	}
+	// The other Incident's change log should say what happened to it too.
 	_, errHTTP = addIncidentReportEntry(ctx, imsDBQ, txn, peerEvent.ID, peerNumber, newReportEntry{
 		author:    relReq.author,
 		text:      peerLogLine,

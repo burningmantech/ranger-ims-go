@@ -131,6 +131,11 @@ function updateIncidentTypes(): void {
 
 
 async function createIncidentType(sender: HTMLInputElement): Promise<void> {
+    // The server rejects a nameless type, and clearing this field and tabbing
+    // out is a cancel, not a request to create one.
+    if (!sender.value.trim()) {
+        return;
+    }
     const {err} = await sendIncidentTypes({"name": sender.value});
     if (err == null) {
         sender.value = "";
@@ -171,7 +176,7 @@ async function hideIncidentType(sender: HTMLElement): Promise<void> {
 
 async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
     const id = ims.parseInt10(el.editIncidentTypeModal.dataset["incidentTypeId"]);
-    if (id == null || !sender.value) {
+    if (id == null || !sender.value.trim()) {
         return;
     }
     const {err} = await sendIncidentTypes({

@@ -24,6 +24,53 @@ import (
 	"testing"
 )
 
+// An Incident Type with no name can't be shown to anyone, and lookups by name
+// can't distinguish it from a type that doesn't exist, so the API refuses to
+// make one.
+func TestIncidentTypeNameMayNotBeEmpty(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	// Creating a type with an empty name is rejected.
+	emptyName := ""
+	typeID, resp := apis.editType(ctx, imsjson.IncidentType{Name: &emptyName})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Nil(t, typeID)
+	require.NoError(t, resp.Body.Close())
+
+	// So is one whose name is nothing but whitespace.
+	blankName := "   "
+	typeID, resp = apis.editType(ctx, imsjson.IncidentType{Name: &blankName})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Nil(t, typeID)
+	require.NoError(t, resp.Body.Close())
+
+	// Renaming an existing type to an empty name is rejected too, so a type
+	// can't lose its name after the fact.
+	goodName := rand.NonCryptoText()
+	typeID, resp = apis.editType(ctx, imsjson.IncidentType{Name: &goodName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NotNil(t, typeID)
+	require.NoError(t, resp.Body.Close())
+
+	_, resp = apis.editType(ctx, imsjson.IncidentType{ID: *typeID, Name: &emptyName})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// The type kept the name it had.
+	typesResp, resp := apis.getTypes(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Contains(t, typesResp, imsjson.IncidentType{ID: *typeID, Name: &goodName, Hidden: new(false)})
+
+	// An edit that doesn't mention the name at all is still fine.
+	_, resp = apis.editType(ctx, imsjson.IncidentType{ID: *typeID, Hidden: new(true)})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}
+
 func TestCreateIncidentTypes(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

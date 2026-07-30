@@ -198,6 +198,14 @@ func attachRanger(
 	}
 	defer rollback(txn)
 
+	// The version moves before the roster is written, not after. See the note on
+	// bumpRosterVersion: this is what keeps two Rangers editing the same roster
+	// at once from deadlocking each other.
+	version, errHTTP := bumpRosterVersion(ctx, txn, roster, rosterReq)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[bumpRosterVersion]")
+	}
+
 	// Detach first, so that attaching a Ranger who is already on the roster
 	// updates their role rather than failing.
 	err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
@@ -208,11 +216,6 @@ func attachRanger(
 	err = roster.attach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName, conv.StringToSql(body.Role, 128))
 	if err != nil {
 		return 0, herr.InternalServerError(fmt.Sprintf("Failed to attach Ranger to %v", roster.noun), err).From("[attach]")
-	}
-
-	version, errHTTP := bumpRosterVersion(ctx, txn, roster, rosterReq)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[bumpRosterVersion]")
 	}
 
 	_, errHTTP = roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
@@ -235,6 +238,18 @@ func attachRanger(
 
 // bumpRosterVersion moves the parent record's version within the roster
 // transaction and returns the new version for the response's ETag.
+//
+// Both callers run this first, before touching the roster itself. A write to the
+// roster table takes a shared lock on the parent Incident or Visit row for its
+// foreign key, and this bump needs that same row exclusively; in the other order
+// two concurrent writers each hold the shared lock the other is waiting to
+// upgrade past, and MariaDB resolves that by killing one of them with a deadlock
+// error, which reaches the client as a 500. Bumping first makes the parent row
+// the one place those writers queue, and every lock the rest of the transaction
+// wants on it is held from then on.
+//
+// This mirrors setIncidentType and setIncidentLink in incidentrelation.go, which
+// write set memberships hanging off an Incident the same way.
 func bumpRosterVersion(
 	ctx context.Context, txn *sql.Tx, roster rangerRoster, rosterReq rangerRosterRequest,
 ) (int32, *herr.HTTPError) {
@@ -265,14 +280,15 @@ func detachRanger(
 	}
 	defer rollback(txn)
 
-	err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
-	if err != nil {
-		return 0, herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
-	}
-
+	// Bumped before the roster write, as in attachRanger.
 	version, errHTTP := bumpRosterVersion(ctx, txn, roster, rosterReq)
 	if errHTTP != nil {
 		return 0, errHTTP.From("[bumpRosterVersion]")
+	}
+
+	err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
+	if err != nil {
+		return 0, herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
 	}
 
 	_, errHTTP = roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{

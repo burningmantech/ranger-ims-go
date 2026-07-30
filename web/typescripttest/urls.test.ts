@@ -53,4 +53,8 @@ test("templated URLs carry the placeholders the page code substitutes", (): void
     expect(url_fieldReport).toContain("<field_report_number>");
     expect(url_visitNumber).toContain("<visit_number>");
     expect(url_incidentRanger).toContain("<ranger_name>");
+    expect(url_incidentIncidentType).toContain("<incident_number>");
+    expect(url_incidentIncidentType).toContain("<incident_type_id>");
+    expect(url_incidentLinkedIncident).toContain("<linked_event_name>");
+    expect(url_incidentLinkedIncident).toContain("<linked_incident_number>");
 });

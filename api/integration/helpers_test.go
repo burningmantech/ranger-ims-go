@@ -257,6 +257,52 @@ func (a ApiHelper) attachRangerToVisit(ctx context.Context, eventName string, vi
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit)), "/rangers/", handle).String())
 }
 
+// The Incident Type and linked Incident sub-resource endpoints take no If-Match
+// header, so there's no imsDeleteIfMatch counterpart to these.
+func (a ApiHelper) attachTypeToIncident(ctx context.Context, eventName string, incident, incidentTypeID int32) *http.Response {
+	a.t.Helper()
+	return a.imsPost(ctx, struct{}{}, a.incidentTypePath(eventName, incident, incidentTypeID))
+}
+
+func (a ApiHelper) detachTypeFromIncident(ctx context.Context, eventName string, incident, incidentTypeID int32) *http.Response {
+	a.t.Helper()
+	_, resp := a.imsDelete(ctx, a.incidentTypePath(eventName, incident, incidentTypeID), nil)
+	return resp
+}
+
+func (a ApiHelper) incidentTypePath(eventName string, incident, incidentTypeID int32) string {
+	a.t.Helper()
+	return a.serverURL.JoinPath(
+		"/ims/api/events/", eventName, "/incidents/", conv.FormatInt(incident),
+		"/incident_types/", conv.FormatInt(incidentTypeID),
+	).String()
+}
+
+func (a ApiHelper) linkIncident(
+	ctx context.Context, eventName string, incident int32, linkedEventName string, linkedIncident int32,
+) *http.Response {
+	a.t.Helper()
+	return a.imsPost(ctx, struct{}{}, a.linkedIncidentPath(eventName, incident, linkedEventName, linkedIncident))
+}
+
+func (a ApiHelper) unlinkIncident(
+	ctx context.Context, eventName string, incident int32, linkedEventName string, linkedIncident int32,
+) *http.Response {
+	a.t.Helper()
+	_, resp := a.imsDelete(ctx, a.linkedIncidentPath(eventName, incident, linkedEventName, linkedIncident), nil)
+	return resp
+}
+
+func (a ApiHelper) linkedIncidentPath(
+	eventName string, incident int32, linkedEventName string, linkedIncident int32,
+) string {
+	a.t.Helper()
+	return a.serverURL.JoinPath(
+		"/ims/api/events/", eventName, "/incidents/", conv.FormatInt(incident),
+		"/linked_incidents/", linkedEventName, conv.FormatInt(linkedIncident),
+	).String()
+}
+
 func (a ApiHelper) detachRangerFromIncident(ctx context.Context, eventName string, incident int32, handle string) *http.Response {
 	a.t.Helper()
 	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident)), "/rangers/", handle).String(), nil)
@@ -534,6 +580,28 @@ func (a ApiHelper) imsPostIfMatch(ctx context.Context, body any, path, ifMatch s
 		Timeout: 10 * time.Second,
 	}
 	// #nosec G704 // SSRF via taint analysis.
+	resp, err := client.Do(httpPost)
+	require.NoError(a.t, err)
+	return resp
+}
+
+// imsPostContentType sends a POST with the given Content-Type, or with none at
+// all if contentType is empty. Only the endpoints that reject a non-JSON
+// Content-Type need this; imsPost always sends application/json.
+func (a ApiHelper) imsPostContentType(ctx context.Context, path, contentType string) *http.Response {
+	a.t.Helper()
+	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, path, bytes.NewReader([]byte("{}")))
+	require.NoError(a.t, err)
+	if contentType != "" {
+		httpPost.Header.Set("Content-Type", contentType)
+	}
+	if a.jwt != "" {
+		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
+	}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp

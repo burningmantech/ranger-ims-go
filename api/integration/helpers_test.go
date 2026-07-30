@@ -585,6 +585,28 @@ func (a ApiHelper) imsPostIfMatch(ctx context.Context, body any, path, ifMatch s
 	return resp
 }
 
+// imsPostContentType sends a POST with the given Content-Type, or with none at
+// all if contentType is empty. Only the endpoints that reject a non-JSON
+// Content-Type need this; imsPost always sends application/json.
+func (a ApiHelper) imsPostContentType(ctx context.Context, path, contentType string) *http.Response {
+	a.t.Helper()
+	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, path, bytes.NewReader([]byte("{}")))
+	require.NoError(a.t, err)
+	if contentType != "" {
+		httpPost.Header.Set("Content-Type", contentType)
+	}
+	if a.jwt != "" {
+		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
+	}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
+	resp, err := client.Do(httpPost)
+	require.NoError(a.t, err)
+	return resp
+}
+
 func (a ApiHelper) updateIncidentIfMatch(ctx context.Context, eventName string, incident int32, req imsjson.Incident, ifMatch string) *http.Response {
 	a.t.Helper()
 	return a.imsPostIfMatch(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String(), ifMatch)

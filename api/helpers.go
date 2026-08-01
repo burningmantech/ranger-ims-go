@@ -26,13 +26,14 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
+	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/go-sql-driver/mysql"
@@ -42,6 +43,21 @@ import (
 // Report, or Visit whose freshly allocated number was claimed by a concurrent
 // creator in the same event first.
 const maxNumberAllocAttempts = 3
+
+// maxDeadlockAttempts bounds the retries when InnoDB picks a transaction as its
+// deadlock victim and rolls it back.
+//
+// Three wasn't enough: with several Rangers writing one Incident's roster at
+// once, a retry can lose again to the next writer in the queue. Six, with the
+// backoff below, held up over repeated runs of the concurrency tests.
+const maxDeadlockAttempts = 6
+
+// deadlockRetryBackoff is the base delay before retrying a deadlock victim,
+// doubled per attempt and jittered. Retrying immediately puts every victim back
+// in contention at the same instant, which is how they collided in the first
+// place. The worst case adds up to a few tens of milliseconds before the
+// attempts run out, which is cheap next to returning a 500.
+const deadlockRetryBackoff = 2 * time.Millisecond
 
 var (
 	errNoContentType      = errors.New("request has no Content-Type header")
@@ -54,6 +70,54 @@ func isDuplicateKeyError(err error) bool {
 	const mySQLErDupEntry = 1062
 	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
 	return ok && mysqlErr.Number == mySQLErDupEntry
+}
+
+// isDeadlockError reports whether err is a MySQL/MariaDB deadlock error
+// (ER_LOCK_DEADLOCK), meaning InnoDB chose this transaction as the victim and
+// rolled it back. Nothing it did was applied, so the whole transaction can be
+// run again; MariaDB's own error text says as much.
+func isDeadlockError(err error) bool {
+	const mySQLErLockDeadlock = 1213
+	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+	return ok && mysqlErr.Number == mySQLErLockDeadlock
+}
+
+// retryOnDeadlock runs body, running it again if InnoDB rolled its transaction
+// back as a deadlock victim.
+//
+// Ordering the locks a transaction takes reduces deadlocks but can't remove
+// them: foreign keys make writers take shared locks on parent rows they never
+// name, and InnoDB also locks index gaps, so two transactions can still end up
+// each holding what the other needs. The database resolves that by killing one
+// of them, and the survivor's work is unaffected. Retrying the victim is what
+// keeps that from reaching a Ranger as a 500.
+//
+// body must do all of its work inside one transaction and must not publish
+// anything outside the database (an SSE notification, say) until that
+// transaction has committed, or a retry would emit it twice.
+func retryOnDeadlock[T any](body func() (T, *herr.HTTPError)) (T, *herr.HTTPError) {
+	backoff := deadlockRetryBackoff
+	for attempt := 1; ; attempt++ {
+		result, errHTTP := body()
+		if errHTTP == nil || !isDeadlockError(errHTTP.InternalErr) {
+			return result, errHTTP
+		}
+		if attempt == maxDeadlockAttempts {
+			return result, errHTTP.From(fmt.Sprintf("[retryOnDeadlock] gave up after %v attempts", attempt))
+		}
+		time.Sleep(rand.Jitter(backoff))
+		backoff *= 2
+	}
+}
+
+// retryOnDeadlockErr is retryOnDeadlock for a transaction that returns only an
+// error. The same rule applies: nothing may escape the database until the
+// commit.
+func retryOnDeadlockErr(body func() *herr.HTTPError) *herr.HTTPError {
+	_, errHTTP := retryOnDeadlock(func() (struct{}, *herr.HTTPError) {
+		return struct{}{}, body()
+	})
+	return errHTTP
 }
 
 // applyStringChange overwrites dst if the client provided a new value, and
@@ -118,38 +182,6 @@ func requireJSONContentType(req *http.Request) *herr.HTTPError {
 		)
 	}
 	return nil
-}
-
-// parseIfMatch returns the record version from a request's If-Match header, or
-// nil if the header is absent or "*" (which matches any current version).
-// IMS ETags are strong and hold a single integer version, e.g. `"7"`.
-//
-// RFC 9110 says weak ETags aren't valid in If-Match, but a `W/` prefix is
-// accepted anyway: proxies that compress responses (nginx's gzip module, among
-// others) rewrite our strong ETag to a weak one on the way out, and the browser
-// sends back what it was given. The weak/strong distinction is meaningless here
-// regardless, since the validator is a record version rather than a digest of
-// the response body.
-func parseIfMatch(req *http.Request) (*int32, *herr.HTTPError) {
-	raw := strings.TrimSpace(req.Header.Get("If-Match"))
-	if raw == "" || raw == "*" {
-		return nil, nil
-	}
-	if strings.Contains(raw, ",") {
-		return nil, herr.BadRequest("If-Match with multiple ETags is not supported", nil)
-	}
-	raw = strings.TrimPrefix(raw, "W/")
-	version, err := conv.ParseInt32(strings.Trim(raw, `"`))
-	if err != nil {
-		return nil, herr.BadRequest("Invalid If-Match header", err)
-	}
-	return &version, nil
-}
-
-// setETag sets a strong ETag response header from a record version, e.g. `"7"`.
-// It must be called before the response status is written.
-func setETag(w http.ResponseWriter, version int32) {
-	w.Header().Set("ETag", `"`+strconv.FormatInt(int64(version), 10)+`"`)
 }
 
 func eventFromFormValue(req *http.Request, imsDBQ *store.DBQ) (imsdb.Event, *herr.HTTPError) {

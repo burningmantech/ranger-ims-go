@@ -154,7 +154,6 @@ func (action GetIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[getIncident]").WriteResponse(w)
 		return
 	}
-	setETag(w, resp.Version)
 	mustWriteJSON(w, req, resp)
 }
 
@@ -323,7 +322,7 @@ type NewIncident struct {
 }
 
 func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	number, version, location, errHTTP := action.newIncident(req)
+	number, location, errHTTP := action.newIncident(req)
 	if errHTTP != nil {
 		errHTTP.From("[newIncident]").WriteResponse(w)
 		return
@@ -331,21 +330,20 @@ func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("IMS-Incident-Number", strconv.Itoa(int(number)))
 	w.Header().Set("Location", location)
-	setETag(w, version)
 	herr.WriteCreatedResponse(w, http.StatusText(http.StatusCreated))
 }
-func (action NewIncident) newIncident(req *http.Request) (incidentNumber, version int32, location string, errHTTP *herr.HTTPError) {
+func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, location string, errHTTP *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, 0, "", errHTTP.From("[getEventPermissions]")
+		return 0, "", errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
-		return 0, 0, "", herr.Forbidden("The requestor does not have EventWriteIncidents permission on this Event", nil)
+		return 0, "", herr.Forbidden("The requestor does not have EventWriteIncidents permission on this Event", nil)
 	}
 	ctx := req.Context()
 	newIncident, errHTTP := readBodyAs[imsjson.Incident](req)
 	if errHTTP != nil {
-		return 0, 0, "", errHTTP.From("[readBodyAs]")
+		return 0, "", errHTTP.From("[readBodyAs]")
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
@@ -361,7 +359,7 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber, versio
 		var err error
 		newIncidentNumber, err = action.imsDBQ.NextIncidentNumber(ctx, action.imsDBQ, event.ID)
 		if err != nil {
-			return 0, 0, "", herr.InternalServerError("Failed to find next Incident number", err).From("[NextIncidentNumber]")
+			return 0, "", herr.InternalServerError("Failed to find next Incident number", err).From("[NextIncidentNumber]")
 		}
 		_, err = action.imsDBQ.CreateIncident(ctx, action.imsDBQ, imsdb.CreateIncidentParams{
 			Event:    event.ID,
@@ -375,22 +373,22 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber, versio
 			break
 		}
 		if !isDuplicateKeyError(err) {
-			return 0, 0, "", herr.InternalServerError("Failed to create incident", err).From("[CreateIncident]")
+			return 0, "", herr.InternalServerError("Failed to create incident", err).From("[CreateIncident]")
 		}
 		if attempt == maxNumberAllocAttempts {
-			return 0, 0, "", herr.Conflict("Incidents are being created concurrently. Please try again.", err).From("[CreateIncident]")
+			return 0, "", herr.Conflict("Incidents are being created concurrently. Please try again.", err).From("[CreateIncident]")
 		}
 	}
 	newIncident.EventID = event.ID
 	newIncident.Event = event.Name
 	newIncident.Number = newIncidentNumber
 
-	version, errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, nil)
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author)
 	if errHTTP != nil {
-		return 0, 0, "", errHTTP.From("[updateIncident]")
+		return 0, "", errHTTP.From("[updateIncident]")
 	}
 
-	return newIncident.Number, version, fmt.Sprintf("/ims/api/events/%v/incidents/%d", event.Name, newIncident.Number), nil
+	return newIncident.Number, fmt.Sprintf("/ims/api/events/%v/incidents/%d", event.Name, newIncident.Number), nil
 }
 
 func unmarshalByteSlice[T any](isByteSlice any) (T, error) {
@@ -422,38 +420,58 @@ func readExtraIncidentRowFields(row imsdb.IncidentRow) (incidentTypeIDs, fieldRe
 	return incidentTypeIDs, fieldReportNumbers, visitNumbers, nil
 }
 
-// maxCASAttempts bounds the read-merge-write retries for edits that don't
-// carry an If-Match header. Edits that do carry one get a single attempt,
-// since a version mismatch must be reported back to the client as a 412.
+// maxCASAttempts bounds the read-merge-write retries an edit makes when a
+// concurrent writer moves the record's version out from under it.
 const maxCASAttempts = 3
 
-func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
-	ifMatch *int32,
-) (newVersion int32, errHTTP *herr.HTTPError) {
-	attempts := maxCASAttempts
-	if ifMatch != nil {
-		attempts = 1
+// rejectSetReplacement refuses an edit body that carries one of the Incident's
+// set-valued fields. These used to be applied by diffing the client's list
+// against stored state, which silently undid a concurrent writer's add or
+// remove whenever the client's list was built from a stale read. Each is now
+// mutated one member at a time through its own endpoint, so those requests
+// commute and need no such diff. The fields remain in the response body.
+//
+// Rejecting is deliberate: ignoring them would report success for a change
+// that never happened.
+func rejectSetReplacement(newIncident imsjson.Incident) *herr.HTTPError {
+	var msg string
+	switch {
+	case newIncident.IncidentTypeIDs != nil:
+		msg = "incident_type_ids is read-only; use POST/DELETE .../incidents/{number}/incident_types/{incidentTypeId}"
+	case newIncident.LinkedIncidents != nil:
+		msg = "linked_incidents is read-only; use POST/DELETE .../incidents/{number}/linked_incidents/{eventName}/{number}"
+	case newIncident.FieldReports != nil:
+		msg = "field_reports is read-only; attach or detach via the Field Report endpoint"
+	case newIncident.Visits != nil:
+		msg = "visits is read-only; set the Visit's incident field via the Visit endpoint"
+	default:
+		return nil
 	}
-	for range attempts {
-		version, conflict, errHTTP := updateIncidentAttempt(ctx, imsDBQ, es, newIncident, author, ifMatch)
+	return herr.BadRequest(msg, nil).SetExpectedError()
+}
+
+func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
+) *herr.HTTPError {
+	errHTTP := rejectSetReplacement(newIncident)
+	if errHTTP != nil {
+		return errHTTP.From("[rejectSetReplacement]")
+	}
+	for range maxCASAttempts {
+		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
+			return updateIncidentAttempt(ctx, imsDBQ, es, newIncident, author)
+		})
 		if errHTTP != nil {
-			return 0, errHTTP.From("[updateIncidentAttempt]")
+			return errHTTP.From("[updateIncidentAttempt]")
 		}
 		if !conflict {
-			return version, nil
-		}
-		if ifMatch != nil {
-			return 0, herr.PreconditionFailed(
-				"This incident was changed by someone else while you were editing it", nil,
-			).SetExpectedError()
+			return nil
 		}
 	}
-	return 0, herr.Conflict("The incident is being modified concurrently. Please try again.", nil)
+	return herr.Conflict("The incident is being modified concurrently. Please try again.", nil)
 }
 
 func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
-	ifMatch *int32,
-) (newVersion int32, conflict bool, errHTTP *herr.HTTPError) {
+) (conflict bool, errHTTP *herr.HTTPError) {
 	storedIncidentRow, err := imsDBQ.Incident(ctx, imsDBQ,
 		imsdb.IncidentParams{
 			Event:  newIncident.EventID,
@@ -462,75 +480,32 @@ func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSour
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, false, herr.NotFound("Incident not found", err).From("[Incident]")
+			return false, herr.NotFound("Incident not found", err).From("[Incident]")
 		}
-		return 0, false, herr.InternalServerError("Failed to fetch incident", err).From("[Incident]")
+		return false, herr.InternalServerError("Failed to fetch incident", err).From("[Incident]")
 	}
 	storedIncident := storedIncidentRow.Incident
-	expectedVersion := storedIncident.Version
-	if ifMatch != nil && *ifMatch != expectedVersion {
-		return 0, true, nil
-	}
-
-	allEvents, err := imsDBQ.Events(ctx, imsDBQ)
-	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to fetch events", err).From("[Events]")
-	}
-	eventNameById := make(map[int32]string)
-	for _, event := range allEvents {
-		eventNameById[event.Event.ID] = event.Event.Name
-	}
-
-	// Look up the incident types before starting the transaction, to avoid DB connection contention.
-	var allIncidentTypes []imsdb.IncidentTypesRow
-	if newIncident.IncidentTypeIDs != nil {
-		allIncidentTypes, err = imsDBQ.IncidentTypes(ctx, imsDBQ)
-		if err != nil {
-			return 0, false, herr.InternalServerError("Failed to get incident types", err).From("[IncidentTypes]")
-		}
-	}
-
-	linkedIncidents, err := imsDBQ.Incident_LinkedIncidents(ctx, imsDBQ, imsdb.Incident_LinkedIncidentsParams{
-		Event1:          storedIncident.Event,
-		IncidentNumber1: storedIncident.Number,
-	})
-	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to fetch linked incidents", err)
-	}
-
-	incidentTypeIDs, fieldReportNumbers, visitNumbers, err := readExtraIncidentRowFields(storedIncidentRow)
-	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to read incident details", err).From("[readExtraIncidentRowFields]")
-	}
 
 	txn, err := imsDBQ.Begin()
 	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
+		return false, herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
 
 	update, logs := buildIncidentUpdate(storedIncident, newIncident)
 
-	// A request that only appends report entries is applied without the
-	// guarded update below: appends can't lose data, so they must neither
-	// conflict with concurrent field edits nor move the version and thereby
-	// invalidate other clients' ETags.
-	changesIncident := len(logs) > 0 ||
-		newIncident.IncidentTypeIDs != nil ||
-		newIncident.FieldReports != nil ||
-		newIncident.Visits != nil ||
-		newIncident.LinkedIncidents != nil
-	newVersion = expectedVersion
-	if changesIncident {
+	// A request that only appends report entries is applied without the guarded
+	// update below: appends can't lose data, so they must not conflict with
+	// concurrent field edits.
+	if len(logs) > 0 {
 		// The version-guarded update is the concurrency gate for everything in
 		// this transaction: if another writer committed since the read above,
-		// it affects zero rows and the whole edit is retried (or rejected with
-		// a 412) rather than clobbering the other writer's changes. Once it
-		// succeeds, the row lock it takes serializes any competing writers
-		// until commit.
+		// it affects zero rows and the whole edit is retried rather than
+		// clobbering the other writer's changes. Once it succeeds, the row lock
+		// it takes serializes any competing writers until commit.
 		rows, err := imsDBQ.UpdateIncident(ctx, txn, update)
 		if err != nil {
-			return 0, false, herr.InternalServerError("Failed to update incident", err).From("[UpdateIncident]")
+			return false, herr.InternalServerError("Failed to update incident", err).From("[UpdateIncident]")
 		}
 		if rows == 0 {
 			// Stale version or vanished row; re-read to tell which.
@@ -540,62 +515,28 @@ func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSour
 			})
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					return 0, false, herr.NotFound("Incident not found", err).From("[IncidentVersion]")
+					return false, herr.NotFound("Incident not found", err).From("[IncidentVersion]")
 				}
-				return 0, false, herr.InternalServerError("Failed to fetch incident", err).From("[IncidentVersion]")
+				return false, herr.InternalServerError("Failed to fetch incident", err).From("[IncidentVersion]")
 			}
-			return 0, true, nil
+			return true, nil
 		}
-		newVersion = expectedVersion + 1
 	}
-
-	typeLogs, errHTTP := applyIncidentTypeChanges(ctx, imsDBQ, txn, newIncident, incidentTypeIDs, allIncidentTypes)
-	if errHTTP != nil {
-		return 0, false, errHTTP.From("[applyIncidentTypeChanges]")
-	}
-	logs = append(logs, typeLogs...)
-
-	frLogs, updatedFieldReports, errHTTP := applyIncidentFieldReportChanges(ctx, imsDBQ, txn, newIncident, fieldReportNumbers)
-	if errHTTP != nil {
-		return 0, false, errHTTP.From("[applyIncidentFieldReportChanges]")
-	}
-	logs = append(logs, frLogs...)
-
-	visitLogs, updatedVisits, errHTTP := applyIncidentVisitChanges(ctx, imsDBQ, txn, newIncident, visitNumbers)
-	if errHTTP != nil {
-		return 0, false, errHTTP.From("[applyIncidentVisitChanges]")
-	}
-	logs = append(logs, visitLogs...)
-
-	linkLogs, updatedLinkedIncidents, errHTTP := applyLinkedIncidentChanges(ctx, imsDBQ, txn, newIncident, linkedIncidents, eventNameById, author)
-	if errHTTP != nil {
-		return 0, false, errHTTP.From("[applyLinkedIncidentChanges]")
-	}
-	logs = append(logs, linkLogs...)
 
 	errHTTP = addChangeReportEntries(ctx, imsDBQ, txn, newIncident.EventID, newIncident.Number, author,
 		logs, newIncident.ReportEntries, addIncidentReportEntry)
 	if errHTTP != nil {
-		return 0, false, errHTTP.From("[addChangeReportEntries]")
+		return false, errHTTP.From("[addChangeReportEntries]")
 	}
 
 	err = txn.Commit()
 	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		return false, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
 	es.notifyIncidentUpdate(newIncident.EventID, newIncident.Number)
-	for _, fr := range updatedFieldReports {
-		es.notifyFieldReportUpdate(newIncident.EventID, fr)
-	}
-	for _, inc := range updatedLinkedIncidents {
-		es.notifyIncidentUpdate(inc.EventID, inc.Number)
-	}
-	for _, s := range updatedVisits {
-		es.notifyVisitUpdate(newIncident.EventID, s)
-	}
 
-	return newVersion, false, nil
+	return false, nil
 }
 
 // buildIncidentUpdate merges the client-provided fields of newIncident over the
@@ -643,274 +584,6 @@ func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident) (i
 	return update, logs
 }
 
-// applyIncidentTypeChanges reconciles the Incident's types with the
-// client-provided list, returning change-log lines for the differences.
-func applyIncidentTypeChanges(
-	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
-	newIncident imsjson.Incident, currentTypeIDs []int32, allIncidentTypes []imsdb.IncidentTypesRow,
-) ([]string, *herr.HTTPError) {
-	if newIncident.IncidentTypeIDs == nil {
-		return nil, nil
-	}
-	var logs []string
-	add := sliceSubtract(*newIncident.IncidentTypeIDs, currentTypeIDs)
-	sub := sliceSubtract(currentTypeIDs, *newIncident.IncidentTypeIDs)
-	if len(add) > 0 {
-		names := namesForIncidentTypes(allIncidentTypes, add)
-		logs = append(logs, fmt.Sprintf("Added type: %v", names))
-		for _, itype := range add {
-			err := imsDBQ.AttachIncidentTypeToIncident(ctx, dbtx,
-				imsdb.AttachIncidentTypeToIncidentParams{
-					Event:          newIncident.EventID,
-					IncidentNumber: newIncident.Number,
-					IncidentType:   itype,
-				},
-			)
-			if err != nil {
-				return nil, herr.InternalServerError("Failed to add Incident Type", err).From("[AttachIncidentTypeToIncident]")
-			}
-		}
-	}
-	if len(sub) > 0 {
-		names := namesForIncidentTypes(allIncidentTypes, sub)
-		logs = append(logs, fmt.Sprintf("Removed type: %v", names))
-		for _, rh := range sub {
-			err := imsDBQ.DetachIncidentTypeFromIncident(ctx, dbtx,
-				imsdb.DetachIncidentTypeFromIncidentParams{
-					Event:          newIncident.EventID,
-					IncidentNumber: newIncident.Number,
-					IncidentType:   rh,
-				},
-			)
-			if err != nil {
-				return nil, herr.InternalServerError("Failed to detach Incident Type", err).From("[DetachIncidentTypeFromIncident]")
-			}
-		}
-	}
-	return logs, nil
-}
-
-// applyIncidentFieldReportChanges attaches and detaches Field Reports so the
-// Incident matches the client-provided list. It returns change-log lines and
-// the numbers of the Field Reports whose attachment changed.
-func applyIncidentFieldReportChanges(
-	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
-	newIncident imsjson.Incident, currentFRNumbers []int32,
-) ([]string, []int32, *herr.HTTPError) {
-	if newIncident.FieldReports == nil {
-		return nil, nil, nil
-	}
-	var logs []string
-	add := sliceSubtract(*newIncident.FieldReports, currentFRNumbers)
-	sub := sliceSubtract(currentFRNumbers, *newIncident.FieldReports)
-	if len(add) > 0 {
-		logs = append(logs, fmt.Sprintf("Field Report added: %v", add))
-		for _, frNum := range add {
-			err := imsDBQ.AttachFieldReportToIncident(ctx, dbtx,
-				imsdb.AttachFieldReportToIncidentParams{
-					Event:          newIncident.EventID,
-					Number:         frNum,
-					IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
-				},
-			)
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to attach Field Report", err).From("[AttachFieldReportToIncident]")
-			}
-		}
-	}
-	if len(sub) > 0 {
-		logs = append(logs, fmt.Sprintf("Field Report removed: %v", sub))
-		for _, frNum := range sub {
-			err := imsDBQ.AttachFieldReportToIncident(ctx, dbtx,
-				imsdb.AttachFieldReportToIncidentParams{
-					Event:          newIncident.EventID,
-					Number:         frNum,
-					IncidentNumber: sql.NullInt32{},
-				},
-			)
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to detach Field Report", err).From("[AttachFieldReportToIncident]")
-			}
-		}
-	}
-	return logs, slices.Concat(add, sub), nil
-}
-
-// applyIncidentVisitChanges attaches and detaches Visits so the Incident
-// matches the client-provided list. It returns change-log lines and the
-// numbers of the Visits whose attachment changed.
-func applyIncidentVisitChanges(
-	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
-	newIncident imsjson.Incident, currentVisitNumbers []int32,
-) ([]string, []int32, *herr.HTTPError) {
-	if newIncident.Visits == nil {
-		return nil, nil, nil
-	}
-	var logs []string
-	add := sliceSubtract(*newIncident.Visits, currentVisitNumbers)
-	sub := sliceSubtract(currentVisitNumbers, *newIncident.Visits)
-	if len(add) > 0 {
-		logs = append(logs, fmt.Sprintf("Visit added: %v", add))
-		for _, visitNum := range add {
-			err := imsDBQ.AttachVisitToIncident(ctx, dbtx,
-				imsdb.AttachVisitToIncidentParams{
-					Event:          newIncident.EventID,
-					Number:         visitNum,
-					IncidentNumber: sql.NullInt32{Int32: newIncident.Number, Valid: true},
-				},
-			)
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to attach Visit", err).From("[AttachVisitToIncident]")
-			}
-		}
-	}
-	if len(sub) > 0 {
-		logs = append(logs, fmt.Sprintf("Visit removed: %v", sub))
-		for _, visitNum := range sub {
-			err := imsDBQ.AttachVisitToIncident(ctx, dbtx,
-				imsdb.AttachVisitToIncidentParams{
-					Event:          newIncident.EventID,
-					Number:         visitNum,
-					IncidentNumber: sql.NullInt32{},
-				},
-			)
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to detach Visit", err).From("[AttachVisitToIncident]")
-			}
-		}
-	}
-	return logs, slices.Concat(add, sub), nil
-}
-
-// applyLinkedIncidentChanges links and unlinks other Incidents so this Incident
-// matches the client-provided list, adding a generated report entry on each
-// affected other Incident. It returns change-log lines and the Incidents whose
-// links changed.
-func applyLinkedIncidentChanges(
-	ctx context.Context, imsDBQ *store.DBQ, dbtx imsdb.DBTX,
-	newIncident imsjson.Incident, currentLinks []imsdb.Incident_LinkedIncidentsRow,
-	eventNameById map[int32]string, author string,
-) ([]string, []imsjson.LinkedIncident, *herr.HTTPError) {
-	if newIncident.LinkedIncidents == nil {
-		return nil, nil, nil
-	}
-	var currentLinkedIncidents []imsjson.LinkedIncident
-	for _, cli := range currentLinks {
-		currentLinkedIncidents = append(currentLinkedIncidents, imsjson.LinkedIncident{
-			EventID: cli.LinkedEvent,
-			Number:  cli.LinkedIncident,
-		})
-	}
-	var desiredLinkedIncidents []imsjson.LinkedIncident
-	for _, dli := range *newIncident.LinkedIncidents {
-		desiredLinkedIncidents = append(desiredLinkedIncidents, imsjson.LinkedIncident{
-			EventID: dli.EventID,
-			Number:  dli.Number,
-		})
-	}
-
-	var logs []string
-	add := sliceSubtract(desiredLinkedIncidents, currentLinkedIncidents)
-	sub := sliceSubtract(currentLinkedIncidents, desiredLinkedIncidents)
-	if len(add) > 0 {
-		names := namesForLinkedIncidents(add, eventNameById)
-		logs = append(logs, fmt.Sprintf("Incident linked: %v", names))
-		for _, otherIncident := range add {
-			err := imsDBQ.LinkIncidents(ctx, dbtx,
-				imsdb.LinkIncidentsParams{
-					Event1:          newIncident.EventID,
-					IncidentNumber1: newIncident.Number,
-					Event2:          otherIncident.EventID,
-					IncidentNumber2: otherIncident.Number,
-				},
-			)
-			if err != nil {
-				// We'll just assume in this case that the problem is that the otherIncident ID
-				// is invalid. This is probably the case...
-				return nil, nil, herr.BadRequest(fmt.Sprintf("Failed to link Incident. There may be no IMS #%v for the given event.", otherIncident.Number), err).From("[LinkIncidents]")
-			}
-			err = imsDBQ.LinkIncidents(ctx, dbtx,
-				imsdb.LinkIncidentsParams{
-					Event2:          newIncident.EventID,
-					IncidentNumber2: newIncident.Number,
-					Event1:          otherIncident.EventID,
-					IncidentNumber1: otherIncident.Number,
-				},
-			)
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to link Incident", err).From("[LinkIncidents]")
-			}
-			// The other incident's representation changed too, so its version
-			// must move for clients holding its ETag to notice.
-			err = imsDBQ.BumpIncidentVersion(ctx, dbtx, imsdb.BumpIncidentVersionParams{
-				Event:  otherIncident.EventID,
-				Number: otherIncident.Number,
-			})
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to update linked Incident", err).From("[BumpIncidentVersion]")
-			}
-			_, errHTTP := addIncidentReportEntry(
-				ctx, imsDBQ, dbtx, otherIncident.EventID, otherIncident.Number,
-				newReportEntry{
-					author:    author,
-					text:      fmt.Sprintf("Incident linked: %v #%v", eventNameById[newIncident.EventID], newIncident.Number),
-					generated: true,
-				},
-			)
-			if errHTTP != nil {
-				return nil, nil, errHTTP.From("[addIncidentReportEntry]")
-			}
-		}
-	}
-	if len(sub) > 0 {
-		names := namesForLinkedIncidents(sub, eventNameById)
-		logs = append(logs, fmt.Sprintf("Incident unlinked: %v", names))
-		for _, otherIncident := range sub {
-			err := imsDBQ.UnlinkIncidents(ctx, dbtx,
-				imsdb.UnlinkIncidentsParams{
-					Event1:          newIncident.EventID,
-					IncidentNumber1: newIncident.Number,
-					Event2:          otherIncident.EventID,
-					IncidentNumber2: otherIncident.Number,
-				},
-			)
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to unlink Incident", err).From("[UnlinkIncidents]")
-			}
-			err = imsDBQ.UnlinkIncidents(ctx, dbtx,
-				imsdb.UnlinkIncidentsParams{
-					Event2:          newIncident.EventID,
-					IncidentNumber2: newIncident.Number,
-					Event1:          otherIncident.EventID,
-					IncidentNumber1: otherIncident.Number,
-				},
-			)
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to unlink Incident", err).From("[UnlinkIncidents]")
-			}
-			err = imsDBQ.BumpIncidentVersion(ctx, dbtx, imsdb.BumpIncidentVersionParams{
-				Event:  otherIncident.EventID,
-				Number: otherIncident.Number,
-			})
-			if err != nil {
-				return nil, nil, herr.InternalServerError("Failed to update unlinked Incident", err).From("[BumpIncidentVersion]")
-			}
-			_, errHTTP := addIncidentReportEntry(
-				ctx, imsDBQ, dbtx, otherIncident.EventID, otherIncident.Number,
-				newReportEntry{
-					author:    author,
-					text:      fmt.Sprintf("Incident unlinked: %v #%v", eventNameById[newIncident.EventID], newIncident.Number),
-					generated: true,
-				},
-			)
-			if errHTTP != nil {
-				return nil, nil, errHTTP.From("[addIncidentReportEntry]")
-			}
-		}
-	}
-	return logs, slices.Concat(add, sub), nil
-}
-
 func namesForIncidentTypes(rows []imsdb.IncidentTypesRow, typeIDs []int32) string {
 	var names []string
 	for _, row := range rows {
@@ -921,24 +594,6 @@ func namesForIncidentTypes(rows []imsdb.IncidentTypesRow, typeIDs []int32) strin
 	return strings.Join(names, ", ")
 }
 
-func namesForLinkedIncidents(linked []imsjson.LinkedIncident, eventNamesById map[int32]string) string {
-	var names []string
-	for _, link := range linked {
-		names = append(names, fmt.Sprintf("%v #%v", eventNamesById[link.EventID], link.Number))
-	}
-	return strings.Join(names, ", ")
-}
-
-func sliceSubtract[T comparable](a, b []T) []T {
-	var ret []T
-	for _, item := range a {
-		if !slices.Contains(b, item) {
-			ret = append(ret, item)
-		}
-	}
-	return ret
-}
-
 type EditIncident struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
@@ -947,36 +602,31 @@ type EditIncident struct {
 }
 
 func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	version, errHTTP := action.editIncident(req)
+	errHTTP := action.editIncident(req)
 	if errHTTP != nil {
 		errHTTP.From("[editIncident]").WriteResponse(w)
 		return
 	}
-	setETag(w, version)
 	herr.WriteNoContentResponse(w, "Success")
 }
 
-func (action EditIncident) editIncident(req *http.Request) (int32, *herr.HTTPError) {
+func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[getEventPermissions]")
+		return errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteIncidents == 0 {
-		return 0, herr.Forbidden("The requestor does not have EventWriteIncidents permission for this Event", nil)
+		return herr.Forbidden("The requestor does not have EventWriteIncidents permission for this Event", nil)
 	}
 	ctx := req.Context()
 
 	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
-		return 0, herr.BadRequest("Invalid Incident Number", err).From("[ParseInt32]")
-	}
-	ifMatch, errHTTP := parseIfMatch(req)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[parseIfMatch]")
+		return herr.BadRequest("Invalid Incident Number", err).From("[ParseInt32]")
 	}
 	newIncident, errHTTP := readBodyAs[imsjson.Incident](req)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[readBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 	newIncident.Event = event.Name
 	newIncident.EventID = event.ID
@@ -984,10 +634,10 @@ func (action EditIncident) editIncident(req *http.Request) (int32, *herr.HTTPErr
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	version, errHTTP := updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, ifMatch)
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[updateIncident]")
+		return errHTTP.From("[updateIncident]")
 	}
 
-	return version, nil
+	return nil
 }

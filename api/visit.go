@@ -148,7 +148,6 @@ func (action GetVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[getVisit]").WriteResponse(w)
 		return
 	}
-	setETag(w, resp.Version)
 	mustWriteJSON(w, req, resp)
 }
 
@@ -298,7 +297,7 @@ type NewVisit struct {
 }
 
 func (action NewVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	number, version, location, errHTTP := action.newVisit(req)
+	number, location, errHTTP := action.newVisit(req)
 	if errHTTP != nil {
 		errHTTP.From("[newVisit]").WriteResponse(w)
 		return
@@ -306,21 +305,20 @@ func (action NewVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("IMS-Visit-Number", strconv.Itoa(int(number)))
 	w.Header().Set("Location", location)
-	setETag(w, version)
 	herr.WriteCreatedResponse(w, http.StatusText(http.StatusCreated))
 }
-func (action NewVisit) newVisit(req *http.Request) (visitNumber, version int32, location string, errHTTP *herr.HTTPError) {
+func (action NewVisit) newVisit(req *http.Request) (visitNumber int32, location string, errHTTP *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, 0, "", errHTTP.From("[getEventPermissions]")
+		return 0, "", errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteVisits == 0 {
-		return 0, 0, "", herr.Forbidden("The requestor does not have EventWriteVisits permission on this Event", nil)
+		return 0, "", herr.Forbidden("The requestor does not have EventWriteVisits permission on this Event", nil)
 	}
 	ctx := req.Context()
 	newVisit, errHTTP := readBodyAs[imsjson.Visit](req)
 	if errHTTP != nil {
-		return 0, 0, "", errHTTP.From("[readBodyAs]")
+		return 0, "", errHTTP.From("[readBodyAs]")
 	}
 
 	author := jwtCtx.Claims.RangerHandle()
@@ -333,7 +331,7 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber, version int32, 
 		var err error
 		newVisitNumber, err = action.imsDBQ.NextVisitNumber(ctx, action.imsDBQ, event.ID)
 		if err != nil {
-			return 0, 0, "", herr.InternalServerError("Failed to find next Visit number", err).From("[NextVisitNumber]")
+			return 0, "", herr.InternalServerError("Failed to find next Visit number", err).From("[NextVisitNumber]")
 		}
 		_, err = action.imsDBQ.CreateVisit(ctx, action.imsDBQ, imsdb.CreateVisitParams{
 			Event:   event.ID,
@@ -344,51 +342,42 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber, version int32, 
 			break
 		}
 		if !isDuplicateKeyError(err) {
-			return 0, 0, "", herr.InternalServerError("Failed to create visit", err).From("[CreateVisit]")
+			return 0, "", herr.InternalServerError("Failed to create visit", err).From("[CreateVisit]")
 		}
 		if attempt == maxNumberAllocAttempts {
-			return 0, 0, "", herr.Conflict("Visits are being created concurrently. Please try again.", err).From("[CreateVisit]")
+			return 0, "", herr.Conflict("Visits are being created concurrently. Please try again.", err).From("[CreateVisit]")
 		}
 	}
 	newVisit.EventID = event.ID
 	newVisit.Event = event.Name
 	newVisit.Number = newVisitNumber
 
-	version, errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, nil)
+	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author)
 	if errHTTP != nil {
-		return 0, 0, "", errHTTP.From("[updateVisit]")
+		return 0, "", errHTTP.From("[updateVisit]")
 	}
 
-	return newVisit.Number, version, fmt.Sprintf("/ims/api/events/%v/visits/%d", event.Name, newVisit.Number), nil
+	return newVisit.Number, fmt.Sprintf("/ims/api/events/%v/visits/%d", event.Name, newVisit.Number), nil
 }
 
 func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newVisit imsjson.Visit, author string,
-	ifMatch *int32,
-) (newVersion int32, errHTTP *herr.HTTPError) {
-	attempts := maxCASAttempts
-	if ifMatch != nil {
-		attempts = 1
-	}
-	for range attempts {
-		version, conflict, errHTTP := updateVisitAttempt(ctx, imsDBQ, es, newVisit, author, ifMatch)
+) *herr.HTTPError {
+	for range maxCASAttempts {
+		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
+			return updateVisitAttempt(ctx, imsDBQ, es, newVisit, author)
+		})
 		if errHTTP != nil {
-			return 0, errHTTP.From("[updateVisitAttempt]")
+			return errHTTP.From("[updateVisitAttempt]")
 		}
 		if !conflict {
-			return version, nil
-		}
-		if ifMatch != nil {
-			return 0, herr.PreconditionFailed(
-				"This visit was changed by someone else while you were editing it", nil,
-			).SetExpectedError()
+			return nil
 		}
 	}
-	return 0, herr.Conflict("The visit is being modified concurrently. Please try again.", nil)
+	return herr.Conflict("The visit is being modified concurrently. Please try again.", nil)
 }
 
 func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newVisit imsjson.Visit, author string,
-	ifMatch *int32,
-) (newVersion int32, conflict bool, errHTTP *herr.HTTPError) {
+) (conflict bool, errHTTP *herr.HTTPError) {
 	storedVisitRow, err := imsDBQ.Visit(ctx, imsDBQ,
 		imsdb.VisitParams{
 			Event:  newVisit.EventID,
@@ -397,32 +386,26 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, false, herr.NotFound("Visit not found", err).From("[Visit]")
+			return false, herr.NotFound("Visit not found", err).From("[Visit]")
 		}
-		return 0, false, herr.InternalServerError("Failed to fetch visit", err).From("[Visit]")
+		return false, herr.InternalServerError("Failed to fetch visit", err).From("[Visit]")
 	}
 	storedVisit := storedVisitRow.Visit
-	expectedVersion := storedVisit.Version
-	if ifMatch != nil && *ifMatch != expectedVersion {
-		return 0, true, nil
-	}
 
 	txn, err := imsDBQ.Begin()
 	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
+		return false, herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
 
 	update, logs, errHTTP := buildVisitUpdate(storedVisit, newVisit)
 	if errHTTP != nil {
-		return 0, false, errHTTP.From("[buildVisitUpdate]")
+		return false, errHTTP.From("[buildVisitUpdate]")
 	}
 
 	// A request that only appends report entries is applied without the
 	// guarded update below; see updateIncidentAttempt.
-	changesVisit := len(logs) > 0
-	newVersion = expectedVersion
-	if changesVisit {
+	if len(logs) > 0 {
 		// The version-guarded update is the concurrency gate; see updateIncidentAttempt.
 		rows, err := imsDBQ.UpdateVisit(ctx, txn, update)
 		if err != nil {
@@ -431,9 +414,9 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 			if ok && mysqlErr.Number == mySQLErNoReferencedRow2 {
 				// This is probably the source of the error, because there are no other foreign
 				// keys updates within this function.
-				return 0, false, herr.NotFound("No such Incident", err).From("[UpdateVisit]")
+				return false, herr.NotFound("No such Incident", err).From("[UpdateVisit]")
 			}
-			return 0, false, herr.InternalServerError("Failed to update visit", err).From("[UpdateVisit]")
+			return false, herr.InternalServerError("Failed to update visit", err).From("[UpdateVisit]")
 		}
 		if rows == 0 {
 			// Stale version or vanished row; re-read to tell which.
@@ -443,47 +426,29 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 			})
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					return 0, false, herr.NotFound("Visit not found", err).From("[VisitVersion]")
+					return false, herr.NotFound("Visit not found", err).From("[VisitVersion]")
 				}
-				return 0, false, herr.InternalServerError("Failed to fetch visit", err).From("[VisitVersion]")
+				return false, herr.InternalServerError("Failed to fetch visit", err).From("[VisitVersion]")
 			}
-			return 0, true, nil
-		}
-		newVersion = expectedVersion + 1
-
-		// If the visit was reassigned, the affected incidents' visit lists
-		// changed, so their versions must move too.
-		if storedVisit.IncidentNumber != update.IncidentNumber {
-			for _, incidentNumber := range []sql.NullInt32{storedVisit.IncidentNumber, update.IncidentNumber} {
-				if !incidentNumber.Valid {
-					continue
-				}
-				err = imsDBQ.BumpIncidentVersion(ctx, txn, imsdb.BumpIncidentVersionParams{
-					Event:  newVisit.EventID,
-					Number: incidentNumber.Int32,
-				})
-				if err != nil {
-					return 0, false, herr.InternalServerError("Failed to update incident", err).From("[BumpIncidentVersion]")
-				}
-			}
+			return true, nil
 		}
 	}
 
 	errHTTP = addChangeReportEntries(ctx, imsDBQ, txn, newVisit.EventID, newVisit.Number, author,
 		logs, newVisit.ReportEntries, addVisitReportEntry)
 	if errHTTP != nil {
-		return 0, false, errHTTP.From("[addChangeReportEntries]")
+		return false, errHTTP.From("[addChangeReportEntries]")
 	}
 
 	err = txn.Commit()
 	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		return false, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
 	es.notifyVisitUpdate(storedVisit.Event, storedVisit.Number)
 	es.notifyIncidentUpdates(storedVisit.Event, storedVisit.IncidentNumber.Int32, update.IncidentNumber.Int32)
 
-	return newVersion, false, nil
+	return false, nil
 }
 
 // buildVisitUpdate merges the client-provided fields of newVisit over the
@@ -587,36 +552,31 @@ type EditVisit struct {
 }
 
 func (action EditVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	version, errHTTP := action.editVisit(req)
+	errHTTP := action.editVisit(req)
 	if errHTTP != nil {
 		errHTTP.From("[editVisit]").WriteResponse(w)
 		return
 	}
-	setETag(w, version)
 	herr.WriteNoContentResponse(w, "Success")
 }
 
-func (action EditVisit) editVisit(req *http.Request) (int32, *herr.HTTPError) {
+func (action EditVisit) editVisit(req *http.Request) *herr.HTTPError {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[getEventPermissions]")
+		return errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventWriteVisits == 0 {
-		return 0, herr.Forbidden("The requestor does not have EventWriteVisits permission for this Event", nil)
+		return herr.Forbidden("The requestor does not have EventWriteVisits permission for this Event", nil)
 	}
 	ctx := req.Context()
 
 	visitNumber, err := conv.ParseInt32(req.PathValue("visitNumber"))
 	if err != nil {
-		return 0, herr.BadRequest("Invalid Visit Number", err).From("[ParseInt32]")
-	}
-	ifMatch, errHTTP := parseIfMatch(req)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[parseIfMatch]")
+		return herr.BadRequest("Invalid Visit Number", err).From("[ParseInt32]")
 	}
 	newVisit, errHTTP := readBodyAs[imsjson.Visit](req)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[readBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 	newVisit.Event = event.Name
 	newVisit.EventID = event.ID
@@ -624,10 +584,10 @@ func (action EditVisit) editVisit(req *http.Request) (int32, *herr.HTTPError) {
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	version, errHTTP := updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, ifMatch)
+	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[updateVisit]")
+		return errHTTP.From("[updateVisit]")
 	}
 
-	return version, nil
+	return nil
 }

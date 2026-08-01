@@ -220,7 +220,7 @@ The API (`api/` package) uses a custom middleware adapter pattern:
 - Middleware includes: authentication, logging, panic recovery, request size limits
 - Handlers return `*herr.HTTPError` (`lib/herr/`), which carries both an internal error and a client-safe response message
 - Real-time updates are pushed to clients via Server-Sent Events (`api/eventsource.go`); mutations publish events that the web UI listens for
-- Incidents, Field Reports, and Visits use optimistic concurrency: each row carries a `VERSION` counter, surfaced to clients as a strong ETag; writes send `If-Match` and get a 412 on version mismatch (see `parseIfMatch`/`setETag` in `api/helpers.go`)
+- Incidents, Field Reports, and Visits carry a `VERSION` counter used as an internal concurrency gate: an edit reads the record, then applies a version-guarded `UPDATE`, and retries the read-merge-write if a concurrent writer moved the version first (`maxCASAttempts` in `api/incident.go`). The counter is reported in the record body but is not part of the request contract — clients send no precondition header. It guards only the record's own columns, so nothing else moves it: report entries, roster changes, incident types, links, and field-report/visit assignment all live in other tables, where no edit can clobber them. Set-valued fields are mutated one member at a time through their own endpoints so that concurrent writers can't undo each other
 - Cross-event search (`api/search.go`) matches a substring or regex query against Incidents, Field Reports, and Visits across all events the requestor can read
 
 ### Web UI

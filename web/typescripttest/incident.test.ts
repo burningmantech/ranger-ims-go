@@ -19,16 +19,13 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, problemResponse } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockFlatpickr, mockFetch } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
 
 let serverEventAccess: ims.AuthInfoEventAccess;
 let serverIncident: ims.Incident;
-// The incident's current ETag; edits through incidentRoutes bump it, the way
-// the server's version counter would.
-let serverETag: string;
 let serverPersonnel: ims.Personnel[];
 let serverTypes: ims.IncidentType[];
 let serverEvents: ims.EventData[];
@@ -51,7 +48,6 @@ beforeEach((): void => {
         value: { request: (): Promise<undefined> => new Promise<undefined>((): void => {}) },
     });
 
-    serverETag = `"5"`;
     serverEventAccess = {
         event_id: eventId,
         readIncidents: true,
@@ -124,11 +120,6 @@ beforeEach((): void => {
     ];
 });
 
-// Increment a quoted-integer ETag, e.g. `"5"` -> `"6"`.
-function bumpETag(etag: string): string {
-    return `"${Number(etag.replaceAll(`"`, "")) + 1}"`;
-}
-
 function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
     const hasBody = init?.body != null;
     if (url === `/ims/api/auth?event_id=${eventName}`) {
@@ -158,8 +149,7 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
         return jsonResponse(serverVisits);
     }
     if (url.startsWith(`/ims/api/events/${eventName}/incidents/1/rangers/`)) {
-        serverETag = bumpETag(serverETag);
-        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+        return new Response(null, { status: 204 });
     }
     // The type and link sub-resources apply their one change to serverIncident,
     // rather than replacing a list, so a test can see whether two mutations in
@@ -171,8 +161,7 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
         serverIncident.incident_type_ids = init?.method === "DELETE"
             ? current.filter((t: number): boolean => t !== typeId)
             : current.concat(current.includes(typeId) ? [] : [typeId]);
-        serverETag = bumpETag(serverETag);
-        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+        return new Response(null, { status: 204 });
     }
     const linkMatch = url.match(
         new RegExp(`^/ims/api/events/${eventName}/incidents/\\d+/linked_incidents/([^/]+)/(\\d+)$`));
@@ -188,8 +177,7 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
                 event_name: linkedEventName,
                 number: linkedNumber,
             }]);
-        serverETag = bumpETag(serverETag);
-        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+        return new Response(null, { status: 204 });
     }
     if (url.startsWith(`/ims/api/events/${eventName}/incidents/1/report_entries/`) && hasBody) {
         return new Response(null, { status: 204 });
@@ -203,11 +191,10 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
         return new Response(null, { status: 201, headers: { "IMS-Incident-Number": "42" } });
     }
     if ((url === `/ims/api/events/${eventName}/incidents/1` || url === `/ims/api/events/${eventName}/incidents/42`) && !hasBody) {
-        return jsonResponse(serverIncident, 200, { "ETag": serverETag });
+        return jsonResponse(serverIncident, 200);
     }
     if ((url === `/ims/api/events/${eventName}/incidents/1` || url === `/ims/api/events/${eventName}/incidents/42`) && hasBody) {
-        serverETag = bumpETag(serverETag);
-        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+        return new Response(null, { status: 204 });
     }
     if (url === `/ims/api/events/${eventName}/field_reports/8` && !hasBody) {
         return jsonResponse(serverFieldReports.find((fr: ims.FieldReport): boolean => fr.number === 8));
@@ -243,18 +230,9 @@ function postedBodies(mock: ReturnType<typeof mockFetch>, url: string): unknown[
         .map(([, init]): unknown => JSON.parse(init!.body as string));
 }
 
-// The If-Match header of each POST to the given URL, oldest first
-// (null for a POST that carried no If-Match).
-function postedIfMatches(mock: ReturnType<typeof mockFetch>, url: string): (string|null)[] {
-    return mock.mock.calls
-        .filter(([u, init]): boolean => u === url && init?.body != null)
-        .map(([, init]): string|null => new Headers(init!.headers).get("If-Match"));
-}
-
 interface RecordedRequest {
     method: string;
     url: string;
-    ifMatch: string|null;
 }
 
 // Every request to a URL matching the pattern, oldest first. Unlike
@@ -265,7 +243,6 @@ function requestsMatching(mock: ReturnType<typeof mockFetch>, pattern: RegExp): 
         .map(([url, init]): RecordedRequest => ({
             method: init?.method ?? "GET",
             url: url,
-            ifMatch: new Headers(init?.headers).get("If-Match"),
         }));
 }
 
@@ -419,67 +396,6 @@ test("editing the summary sends the edit and reloads the incident", async (): Pr
     expect(summary.classList.contains("is-valid")).toBe(true);
 });
 
-test("field edits carry If-Match from the loaded ETag; note appends do not", async (): Promise<void> => {
-    const mock = await initIncidentPage();
-    const incidentURL = "/ims/api/events/2025/incidents/1";
-
-    // A field edit sends the ETag captured when the incident was loaded.
-    const summary = document.getElementById("incident_summary") as HTMLInputElement;
-    summary.value = "Bigger dust storm";
-    await window.editIncidentSummary();
-    expect(postedIfMatches(mock, incidentURL)).toEqual([`"5"`]);
-
-    // After the edit round-trip, the stored ETag is the server's new one.
-    mock.mockClear();
-    summary.value = "Even bigger dust storm";
-    await window.editIncidentSummary();
-    expect(postedIfMatches(mock, incidentURL)).toEqual([`"6"`]);
-
-    // A report-entry append is unconditional: it can't lose data, and it must
-    // not fail just because someone else edited a field.
-    mock.mockClear();
-    const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
-    textarea.value = "saw a thing";
-    window.reportEntryEdited();
-    await window.submitReportEntry();
-    expect(postedBodies(mock, incidentURL)).toEqual([
-        { report_entries: [{ text: "saw a thing", id: -1 }], number: 1 },
-    ]);
-    expect(postedIfMatches(mock, incidentURL)).toEqual([null]);
-});
-
-test("a 412 conflict shows the conflict banner and refetches the incident", async (): Promise<void> => {
-    const mock = await initIncidentPage();
-    const incidentURL = "/ims/api/events/2025/incidents/1";
-
-    // Someone else edited the incident: the next edit is rejected with a 412.
-    const conflictRoutes = (url: string, init?: RequestInit): Response | undefined => {
-        if (url === incidentURL && init?.body != null) {
-            return problemResponse("Someone else got here first", 412);
-        }
-        return incidentRoutes(url, init);
-    };
-    mock.mockImplementation(async (url: string, init?: RequestInit): Promise<Response> => {
-        const response = conflictRoutes(url, init);
-        if (response == null) {
-            throw new Error(`no mocked fetch route for ${url}`);
-        }
-        return response;
-    });
-
-    serverIncident.summary = "Their conflicting edit";
-    const summary = document.getElementById("incident_summary") as HTMLInputElement;
-    summary.value = "My rejected edit";
-    const { err } = await window.editIncidentSummary().then((): {err: string|null} => ({err: null}), (e: Error): {err: string} => ({err: e.message}));
-    expect(err).toBeNull();
-
-    // The user is told what happened, and the page refetched the other
-    // person's version of the incident.
-    expect(document.getElementById("error_text")!.textContent).toContain(
-        "Someone else has edited this incident");
-    expect(inputValue("incident_summary")).toBe("Their conflicting edit");
-});
-
 test("editState warns when closing an incident that has no incident types", async (): Promise<void> => {
     serverIncident.incident_type_ids = [];
     const mock = await initIncidentPage();
@@ -600,7 +516,7 @@ test("addIncidentType and removeIncidentType hit the per-type endpoint", async (
     typeAdd.value = " lost child ";
     await window.addIncidentType();
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
-        { method: "POST", url: "/ims/api/events/2025/incidents/1/incident_types/2", ifMatch: null },
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/incident_types/2" },
     ]);
     expect(typeAdd.value).toBe("");
     expect(typeAdd.disabled).toBe(false);
@@ -611,7 +527,7 @@ test("addIncidentType and removeIncidentType hit the per-type endpoint", async (
     const junkLi = document.querySelector<HTMLLIElement>('#incident_types_list li[data-incident-type-id="1"]')!;
     await window.removeIncidentType(junkLi.querySelector("button")!);
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
-        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1", ifMatch: null },
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1" },
     ]);
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);
 
@@ -642,8 +558,8 @@ test("two rapid type removals both stick", async (): Promise<void> => {
     await Promise.all([first, second]);
 
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
-        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1", ifMatch: null },
-        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/2", ifMatch: null },
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1" },
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/2" },
     ]);
     // Neither removal resurrected the other's type.
     expect(serverIncident.incident_type_ids).toEqual([]);
@@ -726,7 +642,7 @@ test("linkIncident links incidents in other events and rejects bad input", async
     input.value = "2015#2";
     await window.linkIncident(input);
     expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
-        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2015/2", ifMatch: null },
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2015/2" },
     ]);
     expect(input.value).toBe("");
     // The pre-existing link was left alone rather than resent as part of a list.
@@ -767,9 +683,9 @@ test("a batched link input sends one request per entry, in order", async (): Pro
     await window.linkIncident(input);
 
     expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
-        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/7", ifMatch: null },
-        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2015/2", ifMatch: null },
-        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/9", ifMatch: null },
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/7" },
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2015/2" },
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/9" },
     ]);
     expect(input.value).toBe("");
 });
@@ -780,7 +696,7 @@ test("unlinkIncident removes just the one linked incident", async (): Promise<vo
     const linkedLi = document.querySelector<HTMLElement>('#linked_incidents [data-incident-number="5"]')!;
     await window.unlinkIncident(linkedLi.querySelector("button")!);
     expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
-        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/5", ifMatch: null },
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/5" },
     ]);
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);
     expect(serverIncident.linked_incidents).toEqual([]);
@@ -789,8 +705,7 @@ test("unlinkIncident removes just the one linked incident", async (): Promise<vo
 test("a summary edit and a type removal don't conflict", async (): Promise<void> => {
     const mock = await initIncidentPage();
 
-    // Both mutations go through one chain, so the summary edit's If-Match is the
-    // ETag it read at load time and the type removal doesn't race it.
+    // Both mutations go through one chain, so their reloads can't race.
     const summary = document.getElementById("incident_summary") as HTMLInputElement;
     summary.value = "Bigger dust storm";
     const junkLi = document.querySelector<HTMLLIElement>('#incident_types_list li[data-incident-type-id="1"]')!;
@@ -799,10 +714,12 @@ test("a summary edit and a type removal don't conflict", async (): Promise<void>
         window.removeIncidentType(junkLi.querySelector("button")!),
     ]);
 
-    expect(postedIfMatches(mock, "/ims/api/events/2025/incidents/1")).toEqual([`"5"`]);
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+        { summary: "Bigger dust storm", number: 1 },
+    ]);
     expect(document.getElementById("error_text")!.textContent).toBe("");
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
-        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1", ifMatch: null },
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1" },
     ]);
 });
 

@@ -42,12 +42,7 @@ type rangerRoster struct {
 	detach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error
 	attach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string, role sql.NullString) error
 	addReportEntry func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError)
-	// bumpVersion moves the parent record's optimistic-concurrency version, so
-	// that clients holding its ETag notice the roster change. getVersion reads
-	// the resulting version for the response's ETag header.
-	bumpVersion  func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) error
-	getVersion   func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) (int32, error)
-	notifyUpdate func(eventID, number int32)
+	notifyUpdate   func(eventID, number int32)
 }
 
 func incidentRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
@@ -73,18 +68,6 @@ func incidentRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 		},
 		addReportEntry: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError) {
 			return addIncidentReportEntry(ctx, imsDBQ, dbtx, eventID, number, entry)
-		},
-		bumpVersion: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) error {
-			return imsDBQ.BumpIncidentVersion(ctx, dbtx, imsdb.BumpIncidentVersionParams{
-				Event:  eventID,
-				Number: number,
-			})
-		},
-		getVersion: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) (int32, error) {
-			return imsDBQ.IncidentVersion(ctx, dbtx, imsdb.IncidentVersionParams{
-				Event:  eventID,
-				Number: number,
-			})
 		},
 		notifyUpdate: es.notifyIncidentUpdate,
 	}
@@ -113,18 +96,6 @@ func visitRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 		},
 		addReportEntry: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError) {
 			return addVisitReportEntry(ctx, imsDBQ, dbtx, eventID, number, entry)
-		},
-		bumpVersion: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) error {
-			return imsDBQ.BumpVisitVersion(ctx, dbtx, imsdb.BumpVisitVersionParams{
-				Event:  eventID,
-				Number: number,
-			})
-		},
-		getVersion: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) (int32, error) {
-			return imsDBQ.VisitVersion(ctx, dbtx, imsdb.VisitVersionParams{
-				Event:  eventID,
-				Number: number,
-			})
 		},
 		notifyUpdate: es.notifyVisitUpdate,
 	}
@@ -181,133 +152,106 @@ type rangerRosterBody struct {
 func attachRanger(
 	req *http.Request, roster rangerRoster,
 	imsDBQ *store.DBQ, userStore *directory.UserStore, imsAdmins []string,
-) (int32, *herr.HTTPError) {
+) *herr.HTTPError {
 	rosterReq, errHTTP := parseRangerRosterRequest(req, roster, imsDBQ, userStore, imsAdmins)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[parseRangerRosterRequest]")
+		return errHTTP.From("[parseRangerRosterRequest]")
 	}
 	body, errHTTP := readBodyAs[rangerRosterBody](req)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[readBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 	ctx := req.Context()
 
-	txn, err := imsDBQ.Begin()
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
+	// The whole transaction is retried if it loses a deadlock, so nothing here
+	// may escape the database before the commit.
+	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		txn, err := imsDBQ.Begin()
+		if err != nil {
+			return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
+		}
+		defer rollback(txn)
 
-	// The version moves before the roster is written, not after. See the note on
-	// bumpRosterVersion: this is what keeps two Rangers editing the same roster
-	// at once from deadlocking each other.
-	version, errHTTP := bumpRosterVersion(ctx, txn, roster, rosterReq)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[bumpRosterVersion]")
-	}
+		// Detach first, so that attaching a Ranger who is already on the roster
+		// updates their role rather than failing.
+		err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
+		if err != nil {
+			return herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
+		}
 
-	// Detach first, so that attaching a Ranger who is already on the roster
-	// updates their role rather than failing.
-	err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
-	if err != nil {
-		return 0, herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
-	}
+		err = roster.attach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName, conv.StringToSql(body.Role, 128))
+		if err != nil {
+			return herr.InternalServerError(fmt.Sprintf("Failed to attach Ranger to %v", roster.noun), err).From("[attach]")
+		}
 
-	err = roster.attach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName, conv.StringToSql(body.Role, 128))
-	if err != nil {
-		return 0, herr.InternalServerError(fmt.Sprintf("Failed to attach Ranger to %v", roster.noun), err).From("[attach]")
-	}
-
-	_, errHTTP = roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
-		author:    rosterReq.author,
-		text:      fmt.Sprintf("Added Ranger: %v", rosterReq.rangerName),
-		generated: true,
+		_, errHTTP := roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
+			author:    rosterReq.author,
+			text:      fmt.Sprintf("Added Ranger: %v", rosterReq.rangerName),
+			generated: true,
+		})
+		if errHTTP != nil {
+			return errHTTP.From("[addReportEntry]")
+		}
+		err = txn.Commit()
+		if err != nil {
+			return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		}
+		return nil
 	})
 	if errHTTP != nil {
-		return 0, errHTTP.From("[addReportEntry]")
-	}
-	err = txn.Commit()
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		return errHTTP
 	}
 
 	roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
 
-	return version, nil
-}
-
-// bumpRosterVersion moves the parent record's version within the roster
-// transaction and returns the new version for the response's ETag.
-//
-// Both callers run this first, before touching the roster itself. A write to the
-// roster table takes a shared lock on the parent Incident or Visit row for its
-// foreign key, and this bump needs that same row exclusively; in the other order
-// two concurrent writers each hold the shared lock the other is waiting to
-// upgrade past, and MariaDB resolves that by killing one of them with a deadlock
-// error, which reaches the client as a 500. Bumping first makes the parent row
-// the one place those writers queue, and every lock the rest of the transaction
-// wants on it is held from then on.
-//
-// This mirrors setIncidentType and setIncidentLink in incidentrelation.go, which
-// write set memberships hanging off an Incident the same way.
-func bumpRosterVersion(
-	ctx context.Context, txn *sql.Tx, roster rangerRoster, rosterReq rangerRosterRequest,
-) (int32, *herr.HTTPError) {
-	err := roster.bumpVersion(ctx, txn, rosterReq.event.ID, rosterReq.number)
-	if err != nil {
-		return 0, herr.InternalServerError(fmt.Sprintf("Failed to update %v", roster.noun), err).From("[bumpVersion]")
-	}
-	version, err := roster.getVersion(ctx, txn, rosterReq.event.ID, rosterReq.number)
-	if err != nil {
-		return 0, herr.InternalServerError(fmt.Sprintf("Failed to fetch %v", roster.noun), err).From("[getVersion]")
-	}
-	return version, nil
+	return nil
 }
 
 func detachRanger(
 	req *http.Request, roster rangerRoster,
 	imsDBQ *store.DBQ, userStore *directory.UserStore, imsAdmins []string,
-) (int32, *herr.HTTPError) {
+) *herr.HTTPError {
 	rosterReq, errHTTP := parseRangerRosterRequest(req, roster, imsDBQ, userStore, imsAdmins)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[parseRangerRosterRequest]")
+		return errHTTP.From("[parseRangerRosterRequest]")
 	}
 	ctx := req.Context()
 
-	txn, err := imsDBQ.Begin()
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
+	// Retried on deadlock, as in attachRanger.
+	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		txn, err := imsDBQ.Begin()
+		if err != nil {
+			return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
+		}
+		defer rollback(txn)
 
-	// Bumped before the roster write, as in attachRanger.
-	version, errHTTP := bumpRosterVersion(ctx, txn, roster, rosterReq)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[bumpRosterVersion]")
-	}
+		err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
+		if err != nil {
+			return herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
+		}
 
-	err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
-	if err != nil {
-		return 0, herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
-	}
+		_, errHTTP := roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
+			author:    rosterReq.author,
+			text:      fmt.Sprintf("Removed Ranger: %v", rosterReq.rangerName),
+			generated: true,
+		})
+		if errHTTP != nil {
+			return errHTTP.From("[addReportEntry]")
+		}
 
-	_, errHTTP = roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
-		author:    rosterReq.author,
-		text:      fmt.Sprintf("Removed Ranger: %v", rosterReq.rangerName),
-		generated: true,
+		err = txn.Commit()
+		if err != nil {
+			return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		}
+		return nil
 	})
 	if errHTTP != nil {
-		return 0, errHTTP.From("[addReportEntry]")
-	}
-
-	err = txn.Commit()
-	if err != nil {
-		return 0, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		return errHTTP
 	}
 
 	roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
 
-	return version, nil
+	return nil
 }
 
 type AttachRangerToIncident struct {
@@ -318,12 +262,11 @@ type AttachRangerToIncident struct {
 }
 
 func (action AttachRangerToIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	version, errHTTP := attachRanger(req, incidentRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
+	errHTTP := attachRanger(req, incidentRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		errHTTP.From("[attachRanger]").WriteResponse(w)
 		return
 	}
-	setETag(w, version)
 	herr.WriteNoContentResponse(w, "Success")
 }
 
@@ -335,12 +278,11 @@ type DetachRangerFromIncident struct {
 }
 
 func (action DetachRangerFromIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	version, errHTTP := detachRanger(req, incidentRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
+	errHTTP := detachRanger(req, incidentRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		errHTTP.From("[detachRanger]").WriteResponse(w)
 		return
 	}
-	setETag(w, version)
 	herr.WriteNoContentResponse(w, "Success")
 }
 
@@ -352,12 +294,11 @@ type AttachRangerToVisit struct {
 }
 
 func (action AttachRangerToVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	version, errHTTP := attachRanger(req, visitRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
+	errHTTP := attachRanger(req, visitRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		errHTTP.From("[attachRanger]").WriteResponse(w)
 		return
 	}
-	setETag(w, version)
 	herr.WriteNoContentResponse(w, "Success")
 }
 
@@ -369,11 +310,10 @@ type DetachRangerFromVisit struct {
 }
 
 func (action DetachRangerFromVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	version, errHTTP := detachRanger(req, visitRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
+	errHTTP := detachRanger(req, visitRangerRoster(action.imsDBQ, action.es), action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		errHTTP.From("[detachRanger]").WriteResponse(w)
 		return
 	}
-	setETag(w, version)
 	herr.WriteNoContentResponse(w, "Success")
 }

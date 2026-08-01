@@ -49,10 +49,6 @@ let incident: ims.Incident|null = null;
 // while it's open, which is otherwise a silent redraw of the page.
 const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Incident was updated");
 
-// The ETag from the last read of this incident, sent back as If-Match on
-// edits so that the server can reject an edit based on stale data (HTTP 412).
-let incidentETag: string|null = null;
-
 let allIncidentTypes: ims.IncidentType[] = [];
 
 let allEvents: ims.EventData[]|null = null;
@@ -331,9 +327,8 @@ async function loadIncident(): Promise<{err: string|null}> {
             "priority": 3,
             "summary": "",
         };
-        incidentETag = null;
     } else {
-        const {resp, json, err} = await ims.fetchNoThrow<ims.Incident>(
+        const {json, err} = await ims.fetchNoThrow<ims.Incident>(
             `${ims.urlReplace(url_incidents)}/${number}`, null);
         if (err != null) {
             ims.disableEditing();
@@ -343,7 +338,6 @@ async function loadIncident(): Promise<{err: string|null}> {
             return {err: message};
         }
         incident = json;
-        incidentETag = ims.etagOf(resp);
     }
     return {err: null};
 }
@@ -1109,8 +1103,7 @@ function drawFieldReportsToAttach() {
 //
 
 // Sequences every mutation this page makes — field edits, roster changes, type
-// and link changes — so that rapid changes don't race one another: each carries
-// the ETag produced by the previous one.
+// and link changes — so that their redraws don't race one another.
 const chainMutation = ims.newMutationChain(remoteUpdates.noteLocalEdit);
 
 function sendEdits(edits: ims.Incident): Promise<{err:string|null}> {
@@ -1136,31 +1129,16 @@ async function sendEditsNow(edits: ims.Incident): Promise<{err:string|null}> {
         url += `/${number}`;
     }
 
-    // Report-entry appends can't lose data, so they're sent unconditionally
-    // rather than failing on a stale ETag when someone else edits a field.
-    const noteOnly = Object.keys(edits).every(
-        (key) => key === "report_entries" || key === "number");
-    const headers: HeadersInit = {};
-    if (number != null && incidentETag != null && !noteOnly) {
-        headers["If-Match"] = incidentETag;
-    }
     const {resp, err} = await ims.fetchNoThrow(url, {
-        headers: headers,
         body: JSON.stringify(edits),
     });
 
     if (err != null) {
-        let message = `Failed to apply edit: ${err}`;
-        if (resp?.status === 412) {
-            message = "Someone else has edited this incident. " +
-                "The page has been refreshed with their changes; please retry your edit.";
-        }
+        const message = `Failed to apply edit: ${err}`;
         await loadAndDisplayIncident();
         ims.setErrorMessage(message);
         return {err: message};
     }
-
-    incidentETag = ims.etagOf(resp) ?? incidentETag;
 
     if (number == null && resp != null) {
         // We created a new incident.
@@ -1298,11 +1276,9 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
                 .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
                 .replace("<ranger_name>", encodeURIComponent(rangerHandle))
         );
-        const {resp} = await ims.fetchNoThrow(url, {
+        await ims.fetchNoThrow(url, {
             method: "DELETE",
         });
-        // The roster change moved the incident's version on the server.
-        incidentETag = ims.etagOf(resp) ?? incidentETag;
     });
 }
 
@@ -1319,7 +1295,7 @@ async function setRangerRole(sender: HTMLInputElement): Promise<void> {
                 .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
                 .replace("<ranger_name>", encodeURIComponent(handle))
         );
-        const {resp, err} = await ims.fetchNoThrow(url, {
+        const {err} = await ims.fetchNoThrow(url, {
             body: JSON.stringify({
                 handle: handle,
                 role: sender.value,
@@ -1329,7 +1305,6 @@ async function setRangerRole(sender: HTMLInputElement): Promise<void> {
             ims.controlHasError(sender);
             return;
         }
-        incidentETag = ims.etagOf(resp) ?? incidentETag;
         ims.controlHasSuccess(sender);
     });
 }
@@ -1362,7 +1337,7 @@ async function detachIncidentType(incidentTypeId: number): Promise<string|null> 
             .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
             .replace("<incident_type_id>", incidentTypeId.toString())
     );
-    const {resp, err} = await ims.fetchNoThrow(url, {
+    const {err} = await ims.fetchNoThrow(url, {
         method: "DELETE",
     });
     if (err != null) {
@@ -1371,7 +1346,6 @@ async function detachIncidentType(incidentTypeId: number): Promise<string|null> 
         ims.setErrorMessage(message);
         return message;
     }
-    incidentETag = ims.etagOf(resp) ?? incidentETag;
     await loadAndDisplayIncident();
     return null;
 }
@@ -1382,7 +1356,7 @@ async function attachIncidentType(incidentTypeId: number): Promise<string|null> 
             .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
             .replace("<incident_type_id>", incidentTypeId.toString())
     );
-    const {resp, err} = await ims.fetchNoThrow(url, {
+    const {err} = await ims.fetchNoThrow(url, {
         body: JSON.stringify({}),
     });
     if (err != null) {
@@ -1391,7 +1365,6 @@ async function attachIncidentType(incidentTypeId: number): Promise<string|null> 
         ims.setErrorMessage(message);
         return message;
     }
-    incidentETag = ims.etagOf(resp) ?? incidentETag;
     await loadAndDisplayIncident();
     return null;
 }
@@ -1448,7 +1421,7 @@ async function addRanger(): Promise<void> {
                 .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
                 .replace("<ranger_name>", encodeURIComponent(handle))
         );
-        const {resp, err} = await ims.fetchNoThrow(url, {
+        const {err} = await ims.fetchNoThrow(url, {
             body: JSON.stringify({
                 handle: handle,
             }),
@@ -1456,7 +1429,6 @@ async function addRanger(): Promise<void> {
         if (err !== null) {
             return err;
         }
-        incidentETag = ims.etagOf(resp) ?? incidentETag;
         return null;
     });
     if (err !== null) {
@@ -1562,8 +1534,6 @@ async function detachFieldReport(sender: HTMLElement): Promise<void> {
         ims.setErrorMessage(message);
         return;
     }
-    // The detachment moved this incident's version on the server, and the
-    // response's ETag belongs to the field report/visit, not the incident.
     await loadIncident();
     await loadAllVisits();
     await loadAllFieldReports();
@@ -1612,8 +1582,6 @@ async function attachFieldReport(): Promise<void> {
         ims.controlHasError(el.attachedFieldReportAdd);
         return;
     }
-    // The attachment moved this incident's version on the server, and the
-    // response's ETag belongs to the field report/visit, not the incident.
     await loadIncident();
     await loadAllVisits();
     await loadAllFieldReports();
@@ -1652,7 +1620,7 @@ async function setIncidentLink(
             .replace("<linked_event_name>", encodeURIComponent(linkedEventName))
             .replace("<linked_incident_number>", linkedIncidentNumber.toString())
     );
-    const {resp, err} = await ims.fetchNoThrow(url, method === "DELETE"
+    const {err} = await ims.fetchNoThrow(url, method === "DELETE"
         ? {method: "DELETE"}
         : {body: JSON.stringify({})},
     );
@@ -1663,7 +1631,6 @@ async function setIncidentLink(
         ims.setErrorMessage(message);
         return message;
     }
-    incidentETag = ims.etagOf(resp) ?? incidentETag;
     await loadAndDisplayIncident();
     return null;
 }

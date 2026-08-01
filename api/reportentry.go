@@ -160,10 +160,9 @@ func addChangeReportEntries(
 	return nil
 }
 
-// The strike/unstrike handlers below deliberately do not bump the parent
-// record's VERSION/ETag: like appends, strikes cannot silently lose data,
-// so they are exempt from optimistic concurrency (see the VERSION column
-// comment in store/schema/current.sql).
+// The strike/unstrike handlers below do not move the parent record's VERSION.
+// Report entries are their own table, so no edit of the parent can clobber
+// them; see the VERSION column comment in store/schema/current.sql.
 
 type EditFieldReportReportEntry struct {
 	imsDBQ      *store.DBQ
@@ -220,38 +219,44 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return nil
 	}
 
-	txn, err := action.imsDBQ.Begin()
-	if err != nil {
-		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
+	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		txn, err := action.imsDBQ.Begin()
+		if err != nil {
+			return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
+		}
+		defer rollback(txn)
 
-	err = action.imsDBQ.SetFieldReportReportEntryStricken(ctx, txn,
-		imsdb.SetFieldReportReportEntryStrickenParams{
-			Stricken:          *re.Stricken,
-			Event:             event.ID,
-			FieldReportNumber: fieldReportNumber,
-			ReportEntry:       reportEntryId,
-		},
-	)
-	if err != nil {
-		return herr.InternalServerError("Error setting field report entry", err).From("[SetFieldReportReportEntryStricken]")
-	}
-	struckVerb := "Struck"
-	if !*re.Stricken {
-		struckVerb = "Unstruck"
-	}
-	_, errHTTP = addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, newReportEntry{
-		author:    author,
-		text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
-		generated: true,
+		err = action.imsDBQ.SetFieldReportReportEntryStricken(ctx, txn,
+			imsdb.SetFieldReportReportEntryStrickenParams{
+				Stricken:          *re.Stricken,
+				Event:             event.ID,
+				FieldReportNumber: fieldReportNumber,
+				ReportEntry:       reportEntryId,
+			},
+		)
+		if err != nil {
+			return herr.InternalServerError("Error setting field report entry", err).From("[SetFieldReportReportEntryStricken]")
+		}
+		struckVerb := "Struck"
+		if !*re.Stricken {
+			struckVerb = "Unstruck"
+		}
+		_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, txn, event.ID, fieldReportNumber, newReportEntry{
+			author:    author,
+			text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
+			generated: true,
+		})
+		if errHTTP != nil {
+			return errHTTP.From("[addFRReportEntry]")
+		}
+		err = txn.Commit()
+		if err != nil {
+			return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
+		}
+		return nil
 	})
 	if errHTTP != nil {
-		return errHTTP.From("[addFRReportEntry]")
-	}
-	err = txn.Commit()
-	if err != nil {
-		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
+		return errHTTP
 	}
 
 	defer action.eventSource.notifyFieldReportUpdate(event.ID, fieldReportNumber)
@@ -306,38 +311,44 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return nil
 	}
 
-	txn, err := action.imsDBQ.Begin()
-	if err != nil {
-		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
+	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		txn, err := action.imsDBQ.Begin()
+		if err != nil {
+			return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
+		}
+		defer rollback(txn)
 
-	err = action.imsDBQ.SetIncidentReportEntryStricken(ctx, txn,
-		imsdb.SetIncidentReportEntryStrickenParams{
-			Stricken:       *re.Stricken,
-			Event:          event.ID,
-			IncidentNumber: incidentNumber,
-			ReportEntry:    reportEntryId,
-		},
-	)
-	if err != nil {
-		return herr.InternalServerError("Error setting incident report entry", err).From("[SetIncidentReportEntryStricken]")
-	}
-	struckVerb := "Struck"
-	if !*re.Stricken {
-		struckVerb = "Unstruck"
-	}
-	_, errHTTP = addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, newReportEntry{
-		author:    author,
-		text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
-		generated: true,
+		err = action.imsDBQ.SetIncidentReportEntryStricken(ctx, txn,
+			imsdb.SetIncidentReportEntryStrickenParams{
+				Stricken:       *re.Stricken,
+				Event:          event.ID,
+				IncidentNumber: incidentNumber,
+				ReportEntry:    reportEntryId,
+			},
+		)
+		if err != nil {
+			return herr.InternalServerError("Error setting incident report entry", err).From("[SetIncidentReportEntryStricken]")
+		}
+		struckVerb := "Struck"
+		if !*re.Stricken {
+			struckVerb = "Unstruck"
+		}
+		_, errHTTP := addIncidentReportEntry(ctx, action.imsDBQ, txn, event.ID, incidentNumber, newReportEntry{
+			author:    author,
+			text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
+			generated: true,
+		})
+		if errHTTP != nil {
+			return errHTTP.From("[addIncidentReportEntry]")
+		}
+		err = txn.Commit()
+		if err != nil {
+			return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
+		}
+		return nil
 	})
 	if errHTTP != nil {
-		return errHTTP.From("[addIncidentReportEntry]")
-	}
-	err = txn.Commit()
-	if err != nil {
-		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
+		return errHTTP
 	}
 
 	defer action.eventSource.notifyIncidentUpdate(event.ID, incidentNumber)
@@ -399,38 +410,44 @@ func (action EditVisitReportEntry) editVisitReportEntry(req *http.Request) *herr
 		return nil
 	}
 
-	txn, err := action.imsDBQ.Begin()
-	if err != nil {
-		return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
+	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		txn, err := action.imsDBQ.Begin()
+		if err != nil {
+			return herr.InternalServerError("Error beginning transaction", err).From("[Begin]")
+		}
+		defer rollback(txn)
 
-	err = action.imsDBQ.SetVisitReportEntryStricken(ctx, txn,
-		imsdb.SetVisitReportEntryStrickenParams{
-			Stricken:    *re.Stricken,
-			Event:       event.ID,
-			VisitNumber: visitNumber,
-			ReportEntry: reportEntryId,
-		},
-	)
-	if err != nil {
-		return herr.InternalServerError("Error setting visit report entry", err).From("[SetVisitReportEntryStricken]")
-	}
-	struckVerb := "Struck"
-	if !*re.Stricken {
-		struckVerb = "Unstruck"
-	}
-	_, errHTTP = addVisitReportEntry(ctx, action.imsDBQ, txn, event.ID, visitNumber, newReportEntry{
-		author:    author,
-		text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
-		generated: true,
+		err = action.imsDBQ.SetVisitReportEntryStricken(ctx, txn,
+			imsdb.SetVisitReportEntryStrickenParams{
+				Stricken:    *re.Stricken,
+				Event:       event.ID,
+				VisitNumber: visitNumber,
+				ReportEntry: reportEntryId,
+			},
+		)
+		if err != nil {
+			return herr.InternalServerError("Error setting visit report entry", err).From("[SetVisitReportEntryStricken]")
+		}
+		struckVerb := "Struck"
+		if !*re.Stricken {
+			struckVerb = "Unstruck"
+		}
+		_, errHTTP := addVisitReportEntry(ctx, action.imsDBQ, txn, event.ID, visitNumber, newReportEntry{
+			author:    author,
+			text:      fmt.Sprintf("%v reportEntry %v", struckVerb, reportEntryId),
+			generated: true,
+		})
+		if errHTTP != nil {
+			return errHTTP.From("[addVisitReportEntry]")
+		}
+		err = txn.Commit()
+		if err != nil {
+			return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
+		}
+		return nil
 	})
 	if errHTTP != nil {
-		return errHTTP.From("[addVisitReportEntry]")
-	}
-	err = txn.Commit()
-	if err != nil {
-		return herr.InternalServerError("Error committing transaction", err).From("[Commit]")
+		return errHTTP
 	}
 
 	defer action.eventSource.notifyVisitUpdate(event.ID, visitNumber)

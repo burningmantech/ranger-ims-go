@@ -43,21 +43,28 @@ type Incident struct {
 	Number       int32     `json:"number"`
 	Created      time.Time `json:"created,omitzero"`
 	LastModified time.Time `json:"last_modified,omitzero"`
-	// Version is the optimistic-concurrency counter, surfaced as an ETag on
-	// single-Incident endpoints. Stored versions start at 1, so omitzero only
-	// elides it from client-sent edit bodies, never from server responses.
-	Version         int32             `json:"version,omitzero"`
-	State           string            `json:"state"`
-	Started         time.Time         `json:"started,omitzero"`
-	Closed          time.Time         `json:"closed,omitzero"`
-	Priority        int8              `json:"priority"`
-	Summary         *string           `json:"summary"`
-	Location        Location          `json:"location"`
+	// Version is the optimistic-concurrency counter guarding an edit's
+	// read-merge-write of the fields below. It moves only when those fields
+	// do: not for report entries, and not for the response-only sets, which
+	// live in their own tables and so can't be clobbered by an edit. It's
+	// reported here, but clients don't send it back. Stored versions start at
+	// 1, so omitzero only elides it from client-sent edit bodies, never from
+	// server responses.
+	Version  int32     `json:"version,omitzero"`
+	State    string    `json:"state"`
+	Started  time.Time `json:"started,omitzero"`
+	Closed   time.Time `json:"closed,omitzero"`
+	Priority int8      `json:"priority"`
+	Summary  *string   `json:"summary"`
+	Location Location  `json:"location"`
+	// These five are response-only. Each is mutated one member at a time
+	// through its own endpoint, so that concurrent writers don't undo each
+	// other; sending any of the first four on an edit is a 400.
 	IncidentTypeIDs *[]int32          `json:"incident_type_ids"`
 	FieldReports    *[]int32          `json:"field_reports"`
 	Visits          *[]int32          `json:"visits"`
-	Rangers         *[]IncidentRanger `json:"rangers"`
 	LinkedIncidents *[]LinkedIncident `json:"linked_incidents,omitzero"`
+	Rangers         *[]IncidentRanger `json:"rangers"`
 	ReportEntries   []ReportEntry     `json:"report_entries"`
 }
 

@@ -150,7 +150,6 @@ func (action GetFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		errHTTP.From("[getFieldReport]").WriteResponse(w)
 		return
 	}
-	setETag(w, resp.Version)
 	mustWriteJSON(w, req, resp)
 }
 
@@ -244,21 +243,20 @@ type EditFieldReport struct {
 }
 
 func (action EditFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	version, errHTTP := action.editFieldReport(req)
+	errHTTP := action.editFieldReport(req)
 	if errHTTP != nil {
 		errHTTP.From("[editFieldReport]").WriteResponse(w)
 		return
 	}
-	setETag(w, version)
 	herr.WriteNoContentResponse(w, "Success")
 }
-func (action EditFieldReport) editFieldReport(req *http.Request) (int32, *herr.HTTPError) {
+func (action EditFieldReport) editFieldReport(req *http.Request) *herr.HTTPError {
 	event, jwt, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[getEventPermissions]")
+		return errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
-		return 0, herr.Forbidden("The requestor does not have permission to edit Field Reports on this Event", nil)
+		return herr.Forbidden("The requestor does not have permission to edit Field Reports on this Event", nil)
 	}
 	// i.e. they have EventWriteOwnFieldReports, but not EventWriteAllFieldReports
 	limitedAccess := eventPermissions&authz.EventWriteAllFieldReports == 0
@@ -266,24 +264,20 @@ func (action EditFieldReport) editFieldReport(req *http.Request) (int32, *herr.H
 	ctx := req.Context()
 	err := req.ParseForm()
 	if err != nil {
-		return 0, herr.BadRequest("Failed to parse form data", err).From("[ParseForm]")
+		return herr.BadRequest("Failed to parse form data", err).From("[ParseForm]")
 	}
 	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
 	if err != nil {
-		return 0, herr.BadRequest("Invalid field report number", err).From("[ParseInt32]")
-	}
-	ifMatch, errHTTP := parseIfMatch(req)
-	if errHTTP != nil {
-		return 0, errHTTP.From("[parseIfMatch]")
+		return herr.BadRequest("Invalid field report number", err).From("[ParseInt32]")
 	}
 	author := jwt.Claims.RangerHandle()
 	if limitedAccess {
 		isPrevAuthor, errHTTP := action.isPreviousAuthor(req, event.ID, fieldReportNumber, author)
 		if errHTTP != nil {
-			return 0, errHTTP.From("[isPreviousAuthor]")
+			return errHTTP.From("[isPreviousAuthor]")
 		}
 		if !isPrevAuthor {
-			return 0, herr.Forbidden("The requestor does not have permission to edit this Field Report", nil)
+			return herr.Forbidden("The requestor does not have permission to edit this Field Report", nil)
 		}
 	}
 
@@ -295,87 +289,62 @@ func (action EditFieldReport) editFieldReport(req *http.Request) (int32, *herr.H
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, herr.NotFound("Field Report does not exist", err).From("[FieldReport]")
+			return herr.NotFound("Field Report does not exist", err).From("[FieldReport]")
 		}
-		return 0, herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReport]")
+		return herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReport]")
 	}
 	storedFR := frr.FieldReport
-	version := storedFR.Version
 
 	// If there's an "action" in the form, we're either linking or unlinking this FR from an Incident.
 	if queryAction := req.FormValue("action"); queryAction != "" {
 		targetIncidentVal := req.FormValue("incident")
 
-		// The link bumps this Field Report's version, so If-Match is verified
-		// here, against the version read above. The guarded update below then
-		// re-reads, so that this request's own bump doesn't read as a conflict.
-		if ifMatch != nil && *ifMatch != version {
-			return 0, herr.PreconditionFailed(
-				"This field report was changed by someone else while you were editing it", nil,
-			).SetExpectedError()
-		}
-		ifMatch = nil
-
 		// TODO: get rid of this "action" framework, and just allow a standard POST, as with visit's incident field.
 		errHTTP = action.handleLinkToIncident(ctx, storedFR, event, queryAction, targetIncidentVal, author)
 		if errHTTP != nil {
-			return 0, errHTTP.From("[handleLinkToIncident]")
-		}
-		version, err = action.imsDBQ.FieldReportVersion(ctx, action.imsDBQ, imsdb.FieldReportVersionParams{
-			Event:  event.ID,
-			Number: fieldReportNumber,
-		})
-		if err != nil {
-			return 0, herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReportVersion]")
+			return errHTTP.From("[handleLinkToIncident]")
 		}
 	}
 
 	requestFR, errHTTP := readBodyAs[imsjson.FieldReport](req)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[readBodyAs]")
+		return errHTTP.From("[readBodyAs]")
 	}
 	// This is fine, as it may be that only a link/unlink was requested
 	if requestFR.Number == 0 {
 		slog.Debug("No field report number provided")
-		return version, nil
+		return nil
 	}
 
-	version, errHTTP = action.updateFieldReport(ctx, event, fieldReportNumber, requestFR, author, ifMatch)
+	errHTTP = action.updateFieldReport(ctx, event, fieldReportNumber, requestFR, author)
 	if errHTTP != nil {
-		return 0, errHTTP.From("[updateFieldReport]")
+		return errHTTP.From("[updateFieldReport]")
 	}
-	return version, nil
+	return nil
 }
 
 func (action EditFieldReport) updateFieldReport(
 	ctx context.Context, event imsdb.Event, fieldReportNumber int32,
-	requestFR imsjson.FieldReport, author string, ifMatch *int32,
-) (newVersion int32, errHTTP *herr.HTTPError) {
-	attempts := maxCASAttempts
-	if ifMatch != nil {
-		attempts = 1
-	}
-	for range attempts {
-		version, conflict, errHTTP := action.updateFieldReportAttempt(ctx, event, fieldReportNumber, requestFR, author, ifMatch)
+	requestFR imsjson.FieldReport, author string,
+) *herr.HTTPError {
+	for range maxCASAttempts {
+		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
+			return action.updateFieldReportAttempt(ctx, event, fieldReportNumber, requestFR, author)
+		})
 		if errHTTP != nil {
-			return 0, errHTTP.From("[updateFieldReportAttempt]")
+			return errHTTP.From("[updateFieldReportAttempt]")
 		}
 		if !conflict {
-			return version, nil
-		}
-		if ifMatch != nil {
-			return 0, herr.PreconditionFailed(
-				"This field report was changed by someone else while you were editing it", nil,
-			).SetExpectedError()
+			return nil
 		}
 	}
-	return 0, herr.Conflict("The field report is being modified concurrently. Please try again.", nil)
+	return herr.Conflict("The field report is being modified concurrently. Please try again.", nil)
 }
 
 func (action EditFieldReport) updateFieldReportAttempt(
 	ctx context.Context, event imsdb.Event, fieldReportNumber int32,
-	requestFR imsjson.FieldReport, author string, ifMatch *int32,
-) (newVersion int32, conflict bool, errHTTP *herr.HTTPError) {
+	requestFR imsjson.FieldReport, author string,
+) (conflict bool, errHTTP *herr.HTTPError) {
 	frr, err := action.imsDBQ.FieldReport(ctx, action.imsDBQ,
 		imsdb.FieldReportParams{
 			Event:  event.ID,
@@ -384,19 +353,16 @@ func (action EditFieldReport) updateFieldReportAttempt(
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, false, herr.NotFound("Field Report does not exist", err).From("[FieldReport]")
+			return false, herr.NotFound("Field Report does not exist", err).From("[FieldReport]")
 		}
-		return 0, false, herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReport]")
+		return false, herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReport]")
 	}
 	storedFR := frr.FieldReport
 	expectedVersion := storedFR.Version
-	if ifMatch != nil && *ifMatch != expectedVersion {
-		return 0, true, nil
-	}
 
 	txn, err := action.imsDBQ.Begin()
 	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
+		return false, herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
 	}
 	defer rollback(txn)
 
@@ -407,7 +373,6 @@ func (action EditFieldReport) updateFieldReportAttempt(
 	}
 	// A request that only appends report entries is applied without the
 	// guarded update below; see updateIncidentAttempt.
-	newVersion = expectedVersion
 	if len(logs) > 0 {
 		// The version-guarded update is the concurrency gate; see updateIncidentAttempt.
 		rows, err := action.imsDBQ.UpdateFieldReport(ctx, txn,
@@ -420,7 +385,7 @@ func (action EditFieldReport) updateFieldReportAttempt(
 			},
 		)
 		if err != nil {
-			return 0, false, herr.InternalServerError("Failed to update Field Report", err).From("[UpdateFieldReport]")
+			return false, herr.InternalServerError("Failed to update Field Report", err).From("[UpdateFieldReport]")
 		}
 		if rows == 0 {
 			// Stale version or vanished row; re-read to tell which.
@@ -430,27 +395,26 @@ func (action EditFieldReport) updateFieldReportAttempt(
 			})
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					return 0, false, herr.NotFound("Field Report does not exist", err).From("[FieldReportVersion]")
+					return false, herr.NotFound("Field Report does not exist", err).From("[FieldReportVersion]")
 				}
-				return 0, false, herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReportVersion]")
+				return false, herr.InternalServerError("Failed to fetch Field Report", err).From("[FieldReportVersion]")
 			}
-			return 0, true, nil
+			return true, nil
 		}
-		newVersion = expectedVersion + 1
 	}
 	errHTTP = addChangeReportEntries(ctx, action.imsDBQ, txn, event.ID, storedFR.Number, author,
 		logs, requestFR.ReportEntries, addFRReportEntry)
 	if errHTTP != nil {
-		return 0, false, errHTTP.From("[addChangeReportEntries]")
+		return false, errHTTP.From("[addChangeReportEntries]")
 	}
 
 	err = txn.Commit()
 	if err != nil {
-		return 0, false, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		return false, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 
 	action.eventSource.notifyFieldReportUpdate(event.ID, storedFR.Number)
-	return newVersion, false, nil
+	return false, nil
 }
 
 func (action EditFieldReport) handleLinkToIncident(
@@ -494,20 +458,6 @@ func (action EditFieldReport) handleLinkToIncident(
 			return herr.NotFound("No such Incident", err).From("[AttachFieldReportToIncident]")
 		}
 		return herr.InternalServerError("Failed to attach Field Report to incident", err).From("[AttachFieldReportToIncident]")
-	}
-	// The affected incidents' field-report lists changed, so their versions
-	// must move for clients holding their ETags to notice.
-	for _, incidentNumber := range []sql.NullInt32{previousIncident, newIncident} {
-		if !incidentNumber.Valid {
-			continue
-		}
-		err = action.imsDBQ.BumpIncidentVersion(ctx, action.imsDBQ, imsdb.BumpIncidentVersionParams{
-			Event:  event.ID,
-			Number: incidentNumber.Int32,
-		})
-		if err != nil {
-			return herr.InternalServerError("Failed to update incident", err).From("[BumpIncidentVersion]")
-		}
 	}
 	_, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, newReportEntry{
 		author:    actor,
@@ -570,9 +520,6 @@ func (action NewFieldReport) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	w.Header().Set("IMS-Field-Report-Number", strconv.Itoa(int(number)))
 	w.Header().Set("Location", location)
-	// A new Field Report is created directly (not via the guarded update path),
-	// so its version is the column default.
-	setETag(w, 1)
 	herr.WriteCreatedResponse(w, http.StatusText(http.StatusCreated))
 }
 
@@ -627,25 +574,32 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 	}
 	fr.Number = newFrNum
 
-	txn, err := action.imsDBQ.Begin()
-	if err != nil {
-		return 0, "", herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
-	}
-	defer rollback(txn)
+	_, errHTTP = retryOnDeadlock(func() (struct{}, *herr.HTTPError) {
+		var none struct{}
+		txn, err := action.imsDBQ.Begin()
+		if err != nil {
+			return none, herr.InternalServerError("Failed to begin transaction", err).From("[Begin]")
+		}
+		defer rollback(txn)
 
-	var logs []string
-	if fr.Summary != nil {
-		logs = append(logs, "Changed summary to: "+*fr.Summary)
-	}
-	errHTTP = addChangeReportEntries(ctx, action.imsDBQ, txn, event.ID, fr.Number, author,
-		logs, fr.ReportEntries, addFRReportEntry)
+		var logs []string
+		if fr.Summary != nil {
+			logs = append(logs, "Changed summary to: "+*fr.Summary)
+		}
+		errHTTP := addChangeReportEntries(ctx, action.imsDBQ, txn, event.ID, fr.Number, author,
+			logs, fr.ReportEntries, addFRReportEntry)
+		if errHTTP != nil {
+			return none, errHTTP.From("[addChangeReportEntries]")
+		}
+
+		err = txn.Commit()
+		if err != nil {
+			return none, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		}
+		return none, nil
+	})
 	if errHTTP != nil {
-		return 0, "", errHTTP.From("[addChangeReportEntries]")
-	}
-
-	err = txn.Commit()
-	if err != nil {
-		return 0, "", herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+		return 0, "", errHTTP
 	}
 
 	loc := fmt.Sprintf("/ims/api/events/%v/field_reports/%v", event.Name, fr.Number)

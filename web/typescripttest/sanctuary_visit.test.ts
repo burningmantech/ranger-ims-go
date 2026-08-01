@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, problemResponse } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockFlatpickr, mockFetch } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -29,9 +29,6 @@ let serverEventAccess: ims.AuthInfoEventAccess;
 let serverVisit: ims.Visit;
 let serverPersonnel: ims.Personnel[];
 let serverEvents: ims.EventData[];
-// The visit's current ETag; edits through visitRoutes bump it, the way the
-// server's version counter would.
-let serverETag: string;
 
 beforeEach((): void => {
     vi.resetModules();
@@ -68,7 +65,6 @@ beforeEach((): void => {
         { handle: "Tool", status: "active", directory_id: 2 },
     ];
     serverEvents = [{ id: eventId, name: eventName }];
-    serverETag = `"4"`;
 });
 
 function visitRoutes(url: string, init?: RequestInit): Response | undefined {
@@ -88,19 +84,16 @@ function visitRoutes(url: string, init?: RequestInit): Response | undefined {
         return jsonResponse(serverPersonnel);
     }
     if (url === `${visitsUrl}/2` && !hasBody) {
-        return jsonResponse(serverVisit, 200, { "ETag": serverETag });
+        return jsonResponse(serverVisit, 200);
     }
     if (url === `${visitsUrl}/2` && hasBody) {
-        serverETag = `"${Number(serverETag.replaceAll(`"`, "")) + 1}"`;
-        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+        return new Response(null, { status: 204 });
     }
     if (url.startsWith(`${visitsUrl}/2/rangers/`) && hasBody) {
-        serverETag = `"${Number(serverETag.replaceAll(`"`, "")) + 1}"`;
-        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+        return new Response(null, { status: 204 });
     }
     if (url.startsWith(`${visitsUrl}/2/rangers/`) && init?.method === "DELETE") {
-        serverETag = `"${Number(serverETag.replaceAll(`"`, "")) + 1}"`;
-        return new Response(null, { status: 204, headers: { "ETag": serverETag } });
+        return new Response(null, { status: 204 });
     }
     if (url === `${visitsUrl}/2/attachments` && hasBody) {
         return new Response(null, { status: 200 });
@@ -163,53 +156,6 @@ test("editing the guest's preferred name posts the change to the visit", async (
 
     const editCall = mock.mock.calls.find(([url, init]) => url === `${visitsUrl}/2` && init?.body != null)!;
     expect(JSON.parse(editCall[1]!.body as string)).toMatchObject({ guest_preferred_name: "Stardust" });
-});
-
-test("field edits carry If-Match from the loaded ETag and refresh it from the response", async (): Promise<void> => {
-    const mock = await initVisitPage();
-
-    const nameField = document.getElementById("guest_preferred_name") as HTMLInputElement;
-    nameField.value = "Stardust";
-    await window.editGuestPreferredName();
-
-    let posts = mock.mock.calls.filter(([u, init]) => u === `${visitsUrl}/2` && init?.body != null);
-    expect(posts).toHaveLength(1);
-    expect(new Headers(posts[0]![1]!.headers).get("If-Match")).toBe(`"4"`);
-
-    // The next edit carries the ETag produced by the first one.
-    mock.mockClear();
-    nameField.value = "Moonbeam";
-    await window.editGuestPreferredName();
-    posts = mock.mock.calls.filter(([u, init]) => u === `${visitsUrl}/2` && init?.body != null);
-    expect(posts).toHaveLength(1);
-    expect(new Headers(posts[0]![1]!.headers).get("If-Match")).toBe(`"5"`);
-});
-
-test("a 412 conflict shows the conflict banner and refetches the visit", async (): Promise<void> => {
-    const mock = await initVisitPage();
-
-    const conflictRoutes = (url: string, init?: RequestInit): Response | undefined => {
-        if (url === `${visitsUrl}/2` && init?.body != null) {
-            return problemResponse("Someone else got here first", 412);
-        }
-        return visitRoutes(url, init);
-    };
-    mock.mockImplementation(async (url: string, init?: RequestInit): Promise<Response> => {
-        const response = conflictRoutes(url, init);
-        if (response == null) {
-            throw new Error(`no mocked fetch route for ${url}`);
-        }
-        return response;
-    });
-
-    serverVisit.guest_preferred_name = "Their Conflicting Name";
-    const nameField = document.getElementById("guest_preferred_name") as HTMLInputElement;
-    nameField.value = "My Rejected Name";
-    await window.editGuestPreferredName();
-
-    expect(document.getElementById("error_text")!.textContent).toContain(
-        "Someone else has edited this visit");
-    expect(inputValue("guest_preferred_name")).toBe("Their Conflicting Name");
 });
 
 test("adding a known ranger posts to that visit's ranger endpoint", async (): Promise<void> => {
@@ -504,26 +450,6 @@ test("setting a ranger's role posts the handle and the role", async (): Promise<
         handle: "Hot Slots",
         role: "sitter",
     });
-});
-
-test("roster changes refresh the ETag used by the next field edit", async (): Promise<void> => {
-    const mock = await initVisitPage();
-
-    // The roster endpoint bumps the visit's version, so a later field edit must
-    // send the bumped ETag rather than the one loaded with the page.
-    const roleInput = document
-        .getElementById("visit_rangers_list")!
-        .querySelector("li input") as HTMLInputElement;
-    roleInput.value = "sitter";
-    await window.setRangerRole(roleInput);
-
-    mock.mockClear();
-    const nameField = document.getElementById("guest_legal_name") as HTMLInputElement;
-    nameField.value = "Pat Q. Doe";
-    await window.editGuestLegalName();
-
-    const post = mock.mock.calls.find(([u, init]) => u === `${visitsUrl}/2` && init?.body != null)!;
-    expect(new Headers(post[1]!.headers).get("If-Match")).toBe(`"5"`);
 });
 
 // The arrival/departure pickers post through flatpickr's onChange rather than an

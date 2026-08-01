@@ -26,7 +26,6 @@ import (
 
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
-	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -48,7 +47,25 @@ func newEventWithWriter(t *testing.T, apisAdmin ApiHelper) (eventName string) {
 	return eventName
 }
 
-func TestIncidentETagLifecycle(t *testing.T) {
+// incidentVersion reads an Incident's optimistic-concurrency version, which the
+// API reports in the record body.
+func incidentVersion(ctx context.Context, t *testing.T, apis ApiHelper, eventName string, number int32) int32 {
+	t.Helper()
+	retrieved, resp := apis.getIncident(ctx, eventName, number)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	return retrieved.Version
+}
+
+func fieldReportVersion(ctx context.Context, t *testing.T, apis ApiHelper, eventName string, number int32) int32 {
+	t.Helper()
+	retrieved, resp := apis.getFieldReport(ctx, eventName, number)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	return retrieved.Version
+}
+
+func TestIncidentVersionLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -57,39 +74,27 @@ func TestIncidentETagLifecycle(t *testing.T) {
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	// Creation goes through the guarded update path, so a new incident's
-	// version is 2 (insert at 1, then one bump), and the 201 carries its ETag.
-	resp := apis.newIncident(ctx, sampleIncident1(eventName))
-	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	require.Equal(t, `"2"`, resp.Header.Get("ETag"))
-	numStr := resp.Header.Get("IMS-Incident-Number")
-	require.NoError(t, resp.Body.Close())
-	num := parseInt32Required(t, numStr)
+	// version is 2: the insert lands at 1, then one bump.
+	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
+	require.Equal(t, int32(2), incidentVersion(ctx, t, apis, eventName, num))
 
-	// A single GET returns the same ETag, and the version in the body.
-	retrieved, resp := apis.getIncident(ctx, eventName, num)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, `"2"`, resp.Header.Get("ETag"))
-	require.Equal(t, int32(2), retrieved.Version)
-
-	// An edit carrying the current ETag succeeds, and the 204 carries the new ETag.
-	resp = apis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
+	// A field edit moves it.
+	resp := apis.updateIncident(ctx, eventName, num, imsjson.Incident{
 		Event:   eventName,
 		Number:  num,
 		Summary: new("an updated summary"),
-	}, `"2"`)
+	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Equal(t, `"3"`, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
 
-	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, int32(3), retrieved.Version)
 	require.Equal(t, "an updated summary", *retrieved.Summary)
 }
 
-func TestIncidentEditWithStaleIfMatchIsRejected(t *testing.T) {
+func TestReportEntryAppendDoesNotBumpIncidentVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -98,129 +103,27 @@ func TestIncidentEditWithStaleIfMatchIsRejected(t *testing.T) {
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
-
-	// Two dispatchers read the incident at the same version...
-	_, resp := apis.getIncident(ctx, eventName, num)
-	require.NoError(t, resp.Body.Close())
-	etag := resp.Header.Get("ETag")
-	require.NotEmpty(t, etag)
-
-	// ...the first one's edit lands...
-	resp = apis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("the first edit wins"),
-	}, etag)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-
-	// ...and the second one's edit, still carrying the now-stale ETag, is
-	// rejected with a 412 problem response instead of clobbering the first.
-	resp = apis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("the second edit must not clobber the first"),
-	}, etag)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
-	require.Equal(t, "application/problem+json", resp.Header.Get("Content-Type"))
-	require.NoError(t, resp.Body.Close())
-
-	retrieved, resp := apis.getIncident(ctx, eventName, num)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, "the first edit wins", *retrieved.Summary)
-}
-
-func TestIncidentEditWithoutIfMatchStillSucceeds(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	eventName := newEventWithWriter(t, apisAdmin)
-
-	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
-
-	// A client that predates If-Match keeps working: the server does its own
-	// compare-and-swap internally instead of requiring the header.
-	resp := apis.updateIncident(ctx, eventName, num, imsjson.Incident{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("edited without an If-Match header"),
-	})
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.NotEmpty(t, resp.Header.Get("ETag"))
-	require.NoError(t, resp.Body.Close())
-
-	retrieved, resp := apis.getIncident(ctx, eventName, num)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, "edited without an If-Match header", *retrieved.Summary)
-}
-
-func TestIncidentEditIfMatchOnMissingIncidentIs404(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	eventName := newEventWithWriter(t, apisAdmin)
-
-	// A version check against a nonexistent incident is a 404, not a 412.
-	resp := apis.updateIncidentIfMatch(ctx, eventName, 12345, imsjson.Incident{
-		Event:   eventName,
-		Number:  12345,
-		Summary: new("does not exist"),
-	}, `"1"`)
-	require.Equal(t, http.StatusNotFound, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-}
-
-func TestReportEntryAppendDoesNotBumpIncidentETag(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	eventName := newEventWithWriter(t, apisAdmin)
-
-	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
-
-	_, resp := apis.getIncident(ctx, eventName, num)
-	require.NoError(t, resp.Body.Close())
-	etagBefore := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagBefore)
+	versionBefore := incidentVersion(ctx, t, apis, eventName, num)
 
 	// Appending a note can't lose data, so it must not move the version and
-	// thereby make other clients' edits spuriously conflict.
-	resp = apis.updateIncident(ctx, eventName, num, imsjson.Incident{
+	// thereby make a concurrent field edit retry for nothing.
+	resp := apis.updateIncident(ctx, eventName, num, imsjson.Incident{
 		Event:         eventName,
 		Number:        num,
 		ReportEntries: []imsjson.ReportEntry{{Text: "just a note", ID: -1}},
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Equal(t, etagBefore, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
 
 	retrieved, resp := apis.getIncident(ctx, eventName, num)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, etagBefore, resp.Header.Get("ETag"))
+	require.Equal(t, versionBefore, retrieved.Version)
 	lastEntry := retrieved.ReportEntries[len(retrieved.ReportEntries)-1]
 	require.Equal(t, "just a note", lastEntry.Text)
-
-	// A field edit carrying the pre-note ETag still succeeds, because the note
-	// didn't change the version.
-	resp = apis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("edited after the note"),
-	}, etagBefore)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
 }
 
-func TestRangerAttachBumpsIncidentETag(t *testing.T) {
+func TestRangerRosterDoesNotBumpIncidentVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -229,40 +132,28 @@ func TestRangerAttachBumpsIncidentETag(t *testing.T) {
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
+	versionBefore := incidentVersion(ctx, t, apis, eventName, num)
 
-	_, resp := apis.getIncident(ctx, eventName, num)
-	require.NoError(t, resp.Body.Close())
-	etagBefore := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagBefore)
-
-	// A roster change moves the incident's version, and the response carries
-	// the new ETag so the client can keep its cached value fresh.
-	resp = apis.attachRangerToIncident(ctx, eventName, num, "Some Dude")
+	// The roster lives in its own table, so no field edit can clobber it. Moving
+	// the version would only make a concurrent field edit retry for nothing.
+	resp := apis.attachRangerToIncident(ctx, eventName, num, "Some Dude")
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	etagAfterAttach := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagAfterAttach)
-	require.NotEqual(t, etagBefore, etagAfterAttach)
 	require.NoError(t, resp.Body.Close())
+	require.Equal(t, versionBefore, incidentVersion(ctx, t, apis, eventName, num))
 
-	// An edit still carrying the pre-attach ETag is rejected.
-	resp = apis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("stale after roster change"),
-	}, etagBefore)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-
-	// Detaching moves it again.
 	resp = apis.detachRangerFromIncident(ctx, eventName, num, "Some Dude")
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	etagAfterDetach := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagAfterDetach)
-	require.NotEqual(t, etagAfterAttach, etagAfterDetach)
 	require.NoError(t, resp.Body.Close())
+	require.Equal(t, versionBefore, incidentVersion(ctx, t, apis, eventName, num))
+
+	// The roster changes themselves still landed.
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *retrieved.Rangers)
 }
 
-func TestFieldReportETagAndLinkBumpsBothVersions(t *testing.T) {
+func TestFieldReportVersionLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -271,56 +162,46 @@ func TestFieldReportETagAndLinkBumpsBothVersions(t *testing.T) {
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	// A field report is created directly, so it starts at version 1.
-	resp := apis.newFieldReport(ctx, imsjson.FieldReport{Event: eventName, Summary: new("an FR")})
-	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	require.Equal(t, `"1"`, resp.Header.Get("ETag"))
-	frNum := parseInt32Required(t, resp.Header.Get("IMS-Field-Report-Number"))
-	require.NoError(t, resp.Body.Close())
+	frNum := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{Event: eventName, Summary: new("an FR")})
+	require.Equal(t, int32(1), fieldReportVersion(ctx, t, apis, eventName, frNum))
 
-	fr, resp := apis.getFieldReport(ctx, eventName, frNum)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, `"1"`, resp.Header.Get("ETag"))
-	require.Equal(t, int32(1), fr.Version)
-
-	// A stale If-Match on a field report edit is rejected.
-	resp = apis.updateFieldReportIfMatch(ctx, eventName, frNum, imsjson.FieldReport{
+	resp := apis.updateFieldReport(ctx, eventName, frNum, imsjson.FieldReport{
 		Event:   eventName,
 		Number:  frNum,
 		Summary: new("edited summary"),
-	}, `"1"`)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Equal(t, `"2"`, resp.Header.Get("ETag"))
-	require.NoError(t, resp.Body.Close())
-	resp = apis.updateFieldReportIfMatch(ctx, eventName, frNum, imsjson.FieldReport{
-		Event:   eventName,
-		Number:  frNum,
-		Summary: new("stale edit"),
-	}, `"1"`)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-
-	// Attaching the field report to an incident bumps both records' versions.
-	incidentNum := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
-	incidentBefore, resp := apis.getIncident(ctx, eventName, incidentNum)
-	require.NoError(t, resp.Body.Close())
-
-	resp = apis.attachFieldReportToIncident(ctx, eventName, frNum, incidentNum)
+	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-
-	frAfter, resp := apis.getFieldReport(ctx, eventName, frNum)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Greater(t, frAfter.Version, fr.Version)
-
-	incidentAfter, resp := apis.getIncident(ctx, eventName, incidentNum)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Greater(t, incidentAfter.Version, incidentBefore.Version)
+	require.Equal(t, int32(2), fieldReportVersion(ctx, t, apis, eventName, frNum))
 }
 
-func TestIncidentTypeAttachBumpsIncidentETag(t *testing.T) {
+func TestFieldReportAttachDoesNotBumpIncidentVersion(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	frNum := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{Event: eventName, Summary: new("an FR")})
+	incidentNum := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
+	incidentBefore := incidentVersion(ctx, t, apis, eventName, incidentNum)
+
+	// The attachment is stored on the Field Report, so the Incident's own
+	// columns don't change and its version stays put.
+	resp := apis.attachFieldReportToIncident(ctx, eventName, frNum, incidentNum)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	require.Equal(t, incidentBefore, incidentVersion(ctx, t, apis, eventName, incidentNum))
+
+	retrieved, resp := apis.getIncident(ctx, eventName, incidentNum)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, []int32{frNum}, *retrieved.FieldReports)
+}
+
+func TestIncidentTypeAttachDoesNotBumpIncidentVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -329,53 +210,38 @@ func TestIncidentTypeAttachBumpsIncidentETag(t *testing.T) {
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	versionBefore := incidentVersion(ctx, t, apis, eventName, num)
 
-	_, resp := apis.getIncident(ctx, eventName, num)
+	// Type membership lives in its own table, so a field edit can't clobber it
+	// and the version has no reason to move.
+	resp := apis.attachTypeToIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	etagBefore := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagBefore)
+	require.Equal(t, versionBefore, incidentVersion(ctx, t, apis, eventName, num))
 
-	// Attaching a type moves the incident's version, and the response carries
-	// the new ETag so the client can keep its cached value fresh.
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, []int32{1}, *retrieved.IncidentTypeIDs)
+
+	// A repeated attach is a no-op, as is a detach of an absent type. That is
+	// what makes these requests safe to retry.
 	resp = apis.attachTypeToIncident(ctx, eventName, num, 1)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	etagAfterAttach := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagAfterAttach)
-	require.NotEqual(t, etagBefore, etagAfterAttach)
 	require.NoError(t, resp.Body.Close())
 
-	// A repeated attach is a no-op, so it leaves the version where it is. That
-	// is what makes the request safe to retry.
-	resp = apis.attachTypeToIncident(ctx, eventName, num, 1)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Equal(t, etagAfterAttach, resp.Header.Get("ETag"))
-	require.NoError(t, resp.Body.Close())
-
-	// An edit still carrying the pre-attach ETag is rejected.
-	resp = apis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("stale after type change"),
-	}, etagBefore)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-
-	// The endpoint takes no If-Match of its own: it always applies.
 	resp = apis.detachTypeFromIncident(ctx, eventName, num, 1)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	etagAfterDetach := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagAfterDetach)
-	require.NotEqual(t, etagAfterAttach, etagAfterDetach)
 	require.NoError(t, resp.Body.Close())
 
-	// A detach of an absent type is a no-op, so it too leaves the version alone.
 	resp = apis.detachTypeFromIncident(ctx, eventName, num, 1)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Equal(t, etagAfterDetach, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
+
+	require.Equal(t, versionBefore, incidentVersion(ctx, t, apis, eventName, num))
 }
 
-func TestIncidentLinkEndpointBumpsBothETags(t *testing.T) {
+func TestIncidentLinkEndpointDoesNotBumpEitherVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -385,53 +251,38 @@ func TestIncidentLinkEndpointBumpsBothETags(t *testing.T) {
 
 	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
 	num2 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	before1 := incidentVersion(ctx, t, apis, eventName, num1)
+	before2 := incidentVersion(ctx, t, apis, eventName, num2)
 
-	before1, resp := apis.getIncident(ctx, eventName, num1)
+	// A link is stored in LINKED_INCIDENT, so neither Incident row changes and
+	// neither version moves.
+	resp := apis.linkIncident(ctx, eventName, num1, eventName, num2)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	etagBefore1 := resp.Header.Get("ETag")
-	before2, resp := apis.getIncident(ctx, eventName, num2)
-	require.NoError(t, resp.Body.Close())
+	require.Equal(t, before1, incidentVersion(ctx, t, apis, eventName, num1))
+	require.Equal(t, before2, incidentVersion(ctx, t, apis, eventName, num2))
 
-	// A link changes both Incidents' representations, so both versions move.
+	retrieved, resp := apis.getIncident(ctx, eventName, num1)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrieved.LinkedIncidents, 1)
+	require.Equal(t, num2, (*retrieved.LinkedIncidents)[0].Number)
+
+	// A repeated link is a no-op on both, and unlinking leaves the versions
+	// alone too.
 	resp = apis.linkIncident(ctx, eventName, num1, eventName, num2)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	etagAfterLink := resp.Header.Get("ETag")
-	require.NotEmpty(t, etagAfterLink)
-	require.NotEqual(t, etagBefore1, etagAfterLink)
 	require.NoError(t, resp.Body.Close())
 
-	// The response's ETag is the path Incident's.
-	after1, resp := apis.getIncident(ctx, eventName, num1)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, etagAfterLink, resp.Header.Get("ETag"))
-	require.Greater(t, after1.Version, before1.Version)
-
-	after2, resp := apis.getIncident(ctx, eventName, num2)
-	require.NoError(t, resp.Body.Close())
-	require.Greater(t, after2.Version, before2.Version)
-
-	// A repeated link is a no-op on both.
-	resp = apis.linkIncident(ctx, eventName, num1, eventName, num2)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Equal(t, etagAfterLink, resp.Header.Get("ETag"))
-	require.NoError(t, resp.Body.Close())
-
-	noopOn2, resp := apis.getIncident(ctx, eventName, num2)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, after2.Version, noopOn2.Version)
-
-	// Unlinking moves both again.
 	resp = apis.unlinkIncident(ctx, eventName, num1, eventName, num2)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.NotEqual(t, etagAfterLink, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
 
-	unlinked2, resp := apis.getIncident(ctx, eventName, num2)
-	require.NoError(t, resp.Body.Close())
-	require.Greater(t, unlinked2.Version, after2.Version)
+	require.Equal(t, before1, incidentVersion(ctx, t, apis, eventName, num1))
+	require.Equal(t, before2, incidentVersion(ctx, t, apis, eventName, num2))
 }
 
-func TestVisitETagAndReassignmentBumpsIncidents(t *testing.T) {
+func TestVisitVersionLifecycleAndReassignment(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -447,38 +298,33 @@ func TestVisitETagAndReassignmentBumpsIncidents(t *testing.T) {
 
 	// Creation goes through the guarded update path, so a new visit's version
 	// is 2, matching incidents.
-	resp = apis.newVisit(ctx, imsjson.Visit{
+	visitNum := apis.newVisitSuccess(ctx, imsjson.Visit{
 		Event:              eventName,
 		GuestPreferredName: new("A. Guest"),
 	})
-	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	require.Equal(t, `"2"`, resp.Header.Get("ETag"))
-	visitNum := parseInt32Required(t, resp.Header.Get("IMS-Visit-Number"))
+	retrieved, resp := apis.getVisit(ctx, eventName, visitNum)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+	require.Equal(t, int32(2), retrieved.Version)
 
-	// An edit with the current ETag succeeds; repeating it with the stale one fails.
-	resp = apis.updateVisitIfMatch(ctx, eventName, visitNum, imsjson.Visit{
+	resp = apis.updateVisit(ctx, eventName, visitNum, imsjson.Visit{
 		Event:            eventName,
 		Number:           visitNum,
 		GuestDescription: new("wearing a big hat"),
-	}, `"2"`)
+	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Equal(t, `"3"`, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
-	resp = apis.updateVisitIfMatch(ctx, eventName, visitNum, imsjson.Visit{
-		Event:            eventName,
-		Number:           visitNum,
-		GuestDescription: new("stale edit"),
-	}, `"2"`)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
+	retrieved, resp = apis.getVisit(ctx, eventName, visitNum)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+	require.Equal(t, int32(3), retrieved.Version)
 
-	// Assigning the visit to an incident bumps the incident's version too.
-	// Incident operations use the admin here: granting Alice VisitWriter above
-	// replaced her person-expression access rules, including her Writer role.
+	// Assigning the visit to an incident is stored on the visit, so the
+	// incident's version stays put. Incident operations use the admin here:
+	// granting Alice VisitWriter above replaced her person-expression access
+	// rules, including her Writer role.
 	incidentNum := apisAdmin.newIncidentSuccess(ctx, sampleIncident1(eventName))
-	incidentBefore, resp := apisAdmin.getIncident(ctx, eventName, incidentNum)
-	require.NoError(t, resp.Body.Close())
+	incidentBefore := incidentVersion(ctx, t, apisAdmin, eventName, incidentNum)
 
 	resp = apis.updateVisit(ctx, eventName, visitNum, imsjson.Visit{
 		Event:    eventName,
@@ -488,10 +334,12 @@ func TestVisitETagAndReassignmentBumpsIncidents(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	incidentAfter, resp := apisAdmin.getIncident(ctx, eventName, incidentNum)
+	require.Equal(t, incidentBefore, incidentVersion(ctx, t, apisAdmin, eventName, incidentNum))
+
+	retrievedIncident, resp := apisAdmin.getIncident(ctx, eventName, incidentNum)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	require.Greater(t, incidentAfter.Version, incidentBefore.Version)
+	require.Equal(t, []int32{visitNum}, *retrievedIncident.Visits)
 }
 
 // casInterceptor wraps the sqlc Querier so a test can act in a race window:
@@ -548,22 +396,20 @@ func interceptedServer(t *testing.T, interceptor casInterceptor) *url.URL {
 }
 
 // The bump helpers below commit a version bump for the record being updated,
-// simulating another writer's edit landing first. They assert rather than
-// require, since they run on the server's request goroutine.
+// simulating another writer's edit landing first. No production code path bumps
+// a version on its own — only the guarded UPDATEs move it — so there are no sqlc
+// queries for these; the competing writes go out directly. They assert rather
+// than require, since they run on the server's request goroutine.
 
 func bumpIncidentVersion(ctx context.Context, t *testing.T, event, number int32) {
 	t.Helper()
-	err := shared.imsDBQ.BumpIncidentVersion(ctx, shared.imsDBQ, imsdb.BumpIncidentVersionParams{
-		Event:  event,
-		Number: number,
-	})
+	_, err := shared.imsDBQ.ExecContext(ctx,
+		"update INCIDENT set VERSION = VERSION + 1 where EVENT = ? and NUMBER = ?", event, number)
 	assert.NoError(t, err)
 }
 
 func bumpFieldReportVersion(ctx context.Context, t *testing.T, event, number int32) {
 	t.Helper()
-	// No production code path needs a bare field report bump, so there's no
-	// sqlc query for it; do the competing write directly.
 	_, err := shared.imsDBQ.ExecContext(ctx,
 		"update FIELD_REPORT set VERSION = VERSION + 1 where EVENT = ? and NUMBER = ?", event, number)
 	assert.NoError(t, err)
@@ -571,10 +417,8 @@ func bumpFieldReportVersion(ctx context.Context, t *testing.T, event, number int
 
 func bumpVisitVersion(ctx context.Context, t *testing.T, event, number int32) {
 	t.Helper()
-	err := shared.imsDBQ.BumpVisitVersion(ctx, shared.imsDBQ, imsdb.BumpVisitVersionParams{
-		Event:  event,
-		Number: number,
-	})
+	_, err := shared.imsDBQ.ExecContext(ctx,
+		"update VISIT set VERSION = VERSION + 1 where EVENT = ? and NUMBER = ?", event, number)
 	assert.NoError(t, err)
 }
 
@@ -599,16 +443,14 @@ func TestIncidentEditRetriesPastConcurrentWrite(t *testing.T) {
 	})
 	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
 
-	// Without an If-Match header, the server retries internally and the edit
-	// still lands, on the second attempt.
+	// The server retries the read-merge-write internally, so the edit still
+	// lands, on the second attempt.
 	resp := hookedApis.updateIncident(ctx, eventName, num, imsjson.Incident{
 		Event:   eventName,
 		Number:  num,
 		Summary: new("landed on the retry"),
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	// Version 2 at creation, 3 after the competing write, 4 after this edit.
-	require.Equal(t, `"4"`, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, int32(2), updateAttempts.Load())
 
@@ -655,50 +497,6 @@ func TestIncidentEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 	require.Equal(t, *sampleIncident1(eventName).Summary, *retrieved.Summary)
 }
 
-func TestIncidentEditIfMatchLosingRaceIs412(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	eventName := newEventWithWriter(t, apisAdmin)
-	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
-
-	_, resp := apis.getIncident(ctx, eventName, num)
-	require.NoError(t, resp.Body.Close())
-	etag := resp.Header.Get("ETag")
-	require.NotEmpty(t, etag)
-
-	// The If-Match precondition passes against the version this edit read, but
-	// a competing write commits before the guarded UPDATE runs.
-	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
-		beforeUpdateIncident: func(ctx context.Context, arg imsdb.UpdateIncidentParams) {
-			if updateAttempts.Add(1) == 1 {
-				bumpIncidentVersion(ctx, t, arg.Event, arg.Number)
-			}
-		},
-	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
-
-	// An edit carrying If-Match gets no retries: the conflict must be reported
-	// back as a 412 so the client can re-fetch and re-apply its change.
-	resp = hookedApis.updateIncidentIfMatch(ctx, eventName, num, imsjson.Incident{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("this edit must not land"),
-	}, etag)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
-	require.Equal(t, "application/problem+json", resp.Header.Get("Content-Type"))
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, int32(1), updateAttempts.Load())
-
-	retrieved, resp := apis.getIncident(ctx, eventName, num)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, *sampleIncident1(eventName).Summary, *retrieved.Summary)
-}
-
 func TestFieldReportEditRetriesPastConcurrentWrite(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -720,16 +518,14 @@ func TestFieldReportEditRetriesPastConcurrentWrite(t *testing.T) {
 	})
 	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
 
-	// Without an If-Match header, the server retries internally and the edit
-	// still lands, on the second attempt.
+	// The server retries the read-merge-write internally, so the edit still
+	// lands, on the second attempt.
 	resp := hookedApis.updateFieldReport(ctx, eventName, num, imsjson.FieldReport{
 		Event:   eventName,
 		Number:  num,
 		Summary: new("landed on the retry"),
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	// Version 1 at creation, 2 after the competing write, 3 after this edit.
-	require.Equal(t, `"3"`, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, int32(2), updateAttempts.Load())
 
@@ -776,53 +572,6 @@ func TestFieldReportEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 	require.Equal(t, "original summary", *retrieved.Summary)
 }
 
-func TestFieldReportEditIfMatchLosingRaceIs412(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	eventName := newEventWithWriter(t, apisAdmin)
-	num := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{Event: eventName, Summary: new("original summary")})
-
-	_, resp := apis.getFieldReport(ctx, eventName, num)
-	require.NoError(t, resp.Body.Close())
-	etag := resp.Header.Get("ETag")
-	require.NotEmpty(t, etag)
-
-	// The If-Match precondition passes against the version this edit read, but
-	// a competing write commits before the guarded UPDATE runs.
-	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
-		beforeUpdateFieldReport: func(ctx context.Context, arg imsdb.UpdateFieldReportParams) {
-			if updateAttempts.Add(1) == 1 {
-				bumpFieldReportVersion(ctx, t, arg.Event, arg.Number)
-			}
-		},
-	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
-
-	// An edit carrying If-Match gets no retries: the conflict must be reported
-	// back as a 412 so the client can re-fetch and re-apply its change.
-	resp = hookedApis.updateFieldReportIfMatch(ctx, eventName, num, imsjson.FieldReport{
-		Event:   eventName,
-		Number:  num,
-		Summary: new("this edit must not land"),
-	}, etag)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
-	require.Equal(t, "application/problem+json", resp.Header.Get("Content-Type"))
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, int32(1), updateAttempts.Load())
-
-	retrieved, resp := apis.getFieldReport(ctx, eventName, num)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, "original summary", *retrieved.Summary)
-}
-
-// newEventWithVisitWriter makes a fresh event and gives Alice the VisitWriter
-// role on it. That role is granted instead of Writer, not in addition: setting
-// it replaces Alice's person-expression access rules for the event.
 func newEventWithVisitWriter(t *testing.T, apisAdmin ApiHelper) (eventName string) {
 	t.Helper()
 	ctx := t.Context()
@@ -860,16 +609,14 @@ func TestVisitEditRetriesPastConcurrentWrite(t *testing.T) {
 	})
 	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
 
-	// Without an If-Match header, the server retries internally and the edit
-	// still lands, on the second attempt.
+	// The server retries the read-merge-write internally, so the edit still
+	// lands, on the second attempt.
 	resp := hookedApis.updateVisit(ctx, eventName, num, imsjson.Visit{
 		Event:            eventName,
 		Number:           num,
 		GuestDescription: new("landed on the retry"),
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	// Version 2 at creation, 3 after the competing write, 4 after this edit.
-	require.Equal(t, `"4"`, resp.Header.Get("ETag"))
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, int32(2), updateAttempts.Load())
 
@@ -917,60 +664,4 @@ func TestVisitEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, "original description", *retrieved.GuestDescription)
-}
-
-func TestVisitEditIfMatchLosingRaceIs412(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	eventName := newEventWithVisitWriter(t, apisAdmin)
-	num := apis.newVisitSuccess(ctx, imsjson.Visit{
-		Event:            eventName,
-		GuestDescription: new("original description"),
-	})
-
-	_, resp := apis.getVisit(ctx, eventName, num)
-	require.NoError(t, resp.Body.Close())
-	etag := resp.Header.Get("ETag")
-	require.NotEmpty(t, etag)
-
-	// The If-Match precondition passes against the version this edit read, but
-	// a competing write commits before the guarded UPDATE runs.
-	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
-		beforeUpdateVisit: func(ctx context.Context, arg imsdb.UpdateVisitParams) {
-			if updateAttempts.Add(1) == 1 {
-				bumpVisitVersion(ctx, t, arg.Event, arg.Number)
-			}
-		},
-	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
-
-	// An edit carrying If-Match gets no retries: the conflict must be reported
-	// back as a 412 so the client can re-fetch and re-apply its change.
-	resp = hookedApis.updateVisitIfMatch(ctx, eventName, num, imsjson.Visit{
-		Event:            eventName,
-		Number:           num,
-		GuestDescription: new("this edit must not land"),
-	}, etag)
-	require.Equal(t, http.StatusPreconditionFailed, resp.StatusCode)
-	require.Equal(t, "application/problem+json", resp.Header.Get("Content-Type"))
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, int32(1), updateAttempts.Load())
-
-	retrieved, resp := apis.getVisit(ctx, eventName, num)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, "original description", *retrieved.GuestDescription)
-}
-
-func parseInt32Required(t *testing.T, s string) int32 {
-	t.Helper()
-	require.NotEmpty(t, s)
-	num, err := conv.ParseInt32(s)
-	require.NoError(t, err)
-	require.Positive(t, num)
-	return num
 }

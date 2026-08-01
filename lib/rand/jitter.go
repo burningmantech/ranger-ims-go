@@ -18,12 +18,24 @@ package rand
 
 import (
 	cryptorand "crypto/rand"
+	"encoding/binary"
+	"time"
 )
 
-// NonCryptoText generates a random string comprised of 26 bytes (128 bits).
+// Jitter returns a random duration in [d/2, d). It's for spreading out retries
+// that would otherwise all fire at the same moment and collide again, so it
+// uses the same fast non-cryptographic source as NonCryptoText.
 //
-// This currently uses a cryptographically secure generation function underneath,
-// but that's an implementation detail.
-func NonCryptoText() string {
-	return cryptorand.Text()
+// A non-positive d returns 0.
+func Jitter(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	var buf [8]byte
+	// This never returns an error.
+	_, _ = cryptorand.Read(buf[:])
+	// #nosec G115 // masked to 62 bits below, so this can't go negative
+	n := int64(binary.LittleEndian.Uint64(buf[:]) >> 2)
+	half := int64(d) / 2
+	return time.Duration(half + n%(int64(d)-half))
 }

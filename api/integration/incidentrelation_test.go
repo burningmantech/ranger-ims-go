@@ -241,11 +241,12 @@ func TestAttachHiddenIncidentType(t *testing.T) {
 	require.Equal(t, "Removed type: "+typeName, lastReportEntryText(t, retrieved))
 }
 
-// TestConcurrentIncidentTypeAttach is the regression test for the lock ordering
-// in setIncidentType. Concurrent requests against one Incident all take its row
-// exclusively before touching the membership table; with the two writes in the
-// other order they deadlocked in MariaDB and some of these requests came back
-// 500. Both shapes below reproduced that reliably at this width.
+// TestConcurrentIncidentTypeAttach is the regression test for setIncidentType
+// under concurrency. These requests only ever take shared foreign-key locks on
+// the Incident row, so there's nothing for them to deadlock on; an earlier
+// version bumped the Incident's version too, and the shared-to-exclusive upgrade
+// that took deadlocked in MariaDB, returning 500 for some of these requests.
+// Both shapes below reproduced that reliably at this width.
 func TestConcurrentIncidentTypeAttach(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -282,12 +283,13 @@ func TestConcurrentIncidentTypeAttach(t *testing.T) {
 	}
 
 	// The type is attached once, and one report entry says so: whichever requests
-	// lost the race wrote nothing at all, their version bumps included.
+	// lost the race wrote nothing at all. None of them moved the Incident's
+	// version, which guards only the Incident row's own columns.
 	retrieved, resp := apis.getIncident(ctx, eventName, num)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, []int32{1}, *retrieved.IncidentTypeIDs)
 	require.Len(t, retrieved.ReportEntries, len(before.ReportEntries)+1)
-	require.Equal(t, before.Version+1, retrieved.Version)
+	require.Equal(t, before.Version, retrieved.Version)
 
 	// Concurrent requests for *different* types all stick, which is the whole
 	// point of these endpoints: each request names only its own member, so
@@ -310,59 +312,10 @@ func TestConcurrentIncidentTypeAttach(t *testing.T) {
 	require.ElementsMatch(t, append([]int32{1}, typeIDs...), *retrieved.IncidentTypeIDs)
 }
 
-// The ETag on a link response is the path Incident's version, whichever end of
-// the pair that is. bumpIncidentPairVersions moves the two Incidents in a fixed
-// order, so it has to hand back the right one of the two versions rather than
-// just the first one it bumped.
-func TestIncidentLinkETagIsThePathIncidents(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	eventName := newEventWithWriter(t, apisAdmin)
-	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
-	num2 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
-	require.Less(t, num1, num2)
-
-	// Move one of the two versions, so that the two Incidents disagree about what
-	// their version is and this test can tell which one it's being handed.
-	resp := apis.attachTypeToIncident(ctx, eventName, num2, 1)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	incident1, resp := apis.getIncident(ctx, eventName, num1)
-	require.NoError(t, resp.Body.Close())
-	incident2, resp := apis.getIncident(ctx, eventName, num2)
-	require.NoError(t, resp.Body.Close())
-	require.NotEqual(t, incident1.Version, incident2.Version)
-
-	// Linking from the higher-numbered end, which is the one bumped second.
-	resp = apis.linkIncident(ctx, eventName, num2, eventName, num1)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	etag := resp.Header.Get("ETag")
-	require.NoError(t, resp.Body.Close())
-
-	incident2, resp = apis.getIncident(ctx, eventName, num2)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, fmt.Sprintf("%q", conv.FormatInt(incident2.Version)), etag)
-	require.Equal(t, etag, resp.Header.Get("ETag"))
-
-	// And unlinking from the lower-numbered end, which is bumped first.
-	resp = apis.unlinkIncident(ctx, eventName, num1, eventName, num2)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	etag = resp.Header.Get("ETag")
-	require.NoError(t, resp.Body.Close())
-
-	incident1, resp = apis.getIncident(ctx, eventName, num1)
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, fmt.Sprintf("%q", conv.FormatInt(incident1.Version)), etag)
-	require.Equal(t, etag, resp.Header.Get("ETag"))
-}
-
-// TestConcurrentIncidentLinkAndUnlink is the regression test for the lock
-// ordering in bumpIncidentPairVersions. Requests coming in from opposite ends of
-// the same pair have to take the two Incident rows in the same order as each
-// other, or each sits holding the row the other is waiting for.
+// TestConcurrentIncidentLinkAndUnlink covers requests coming in from opposite
+// ends of the same pair at once. Each takes only shared foreign-key locks on the
+// two Incident rows, which are compatible with each other, so the order the two
+// rows are reached in doesn't matter.
 func TestConcurrentIncidentLinkAndUnlink(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

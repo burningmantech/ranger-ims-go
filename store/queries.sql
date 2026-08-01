@@ -153,14 +153,6 @@ where
     and VERSION = ?
 ;
 
--- BumpIncidentVersion is for mutations that change an incident's representation
--- without going through the version-guarded UpdateIncident query (Ranger
--- assignments, the peer of a link/unlink, field-report/visit reassignment).
--- name: BumpIncidentVersion :exec
-update INCIDENT
-set VERSION = VERSION + 1
-where EVENT = ? and NUMBER = ?;
-
 -- name: IncidentVersion :one
 select VERSION
 from INCIDENT
@@ -584,14 +576,6 @@ where
     and NUMBER = ?
     and VERSION = ?
 ;
-
--- BumpVisitVersion is for mutations that change a visit's representation
--- without going through the version-guarded UpdateVisit query (Ranger
--- assignments).
--- name: BumpVisitVersion :exec
-update VISIT
-set VERSION = VERSION + 1
-where EVENT = ? and NUMBER = ?;
 
 -- name: VisitVersion :one
 select VERSION

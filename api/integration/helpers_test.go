@@ -257,8 +257,6 @@ func (a ApiHelper) attachRangerToVisit(ctx context.Context, eventName string, vi
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit)), "/rangers/", handle).String())
 }
 
-// The Incident Type and linked Incident sub-resource endpoints take no If-Match
-// header, so there's no imsDeleteIfMatch counterpart to these.
 func (a ApiHelper) attachTypeToIncident(ctx context.Context, eventName string, incident, incidentTypeID int32) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, struct{}{}, a.incidentTypePath(eventName, incident, incidentTypeID))
@@ -557,11 +555,6 @@ func (a ApiHelper) getFieldReportAttachment(ctx context.Context, eventName strin
 
 func (a ApiHelper) imsPost(ctx context.Context, body any, path string) *http.Response {
 	a.t.Helper()
-	return a.imsPostIfMatch(ctx, body, path, "")
-}
-
-func (a ApiHelper) imsPostIfMatch(ctx context.Context, body any, path, ifMatch string) *http.Response {
-	a.t.Helper()
 	postBody, err := json.Marshal(body)
 	require.NoError(a.t, err)
 	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, path, bytes.NewReader(postBody))
@@ -572,9 +565,6 @@ func (a ApiHelper) imsPostIfMatch(ctx context.Context, body any, path, ifMatch s
 	}
 	if a.referrer != "" {
 		httpPost.Header.Set("Referer", a.referrer)
-	}
-	if ifMatch != "" {
-		httpPost.Header.Set("If-Match", ifMatch)
 	}
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -605,21 +595,6 @@ func (a ApiHelper) imsPostContentType(ctx context.Context, path, contentType str
 	resp, err := client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp
-}
-
-func (a ApiHelper) updateIncidentIfMatch(ctx context.Context, eventName string, incident int32, req imsjson.Incident, ifMatch string) *http.Response {
-	a.t.Helper()
-	return a.imsPostIfMatch(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident))).String(), ifMatch)
-}
-
-func (a ApiHelper) updateFieldReportIfMatch(ctx context.Context, eventName string, fieldReport int32, req imsjson.FieldReport, ifMatch string) *http.Response {
-	a.t.Helper()
-	return a.imsPostIfMatch(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/field_reports/", conv.FormatInt(fieldReport)).String(), ifMatch)
-}
-
-func (a ApiHelper) updateVisitIfMatch(ctx context.Context, eventName string, visit int32, req imsjson.Visit, ifMatch string) *http.Response {
-	a.t.Helper()
-	return a.imsPostIfMatch(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit))).String(), ifMatch)
 }
 
 func (a ApiHelper) imsGetBodyBytes(ctx context.Context, path string) ([]byte, *http.Response) {

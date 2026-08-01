@@ -305,10 +305,10 @@ func TestCreateAndUpdateVisit(t *testing.T) {
 	incidentNumber := apisAdmin.newIncidentSuccess(ctx, imsjson.Incident{
 		Event: eventName,
 	})
-	resp = apisAdmin.updateIncident(ctx, eventName, num, imsjson.Incident{
-		Event:  eventName,
-		Number: incidentNumber,
-		Visits: &[]int32{num},
+	resp = apisAdmin.updateVisit(ctx, eventName, num, imsjson.Visit{
+		Event:    eventName,
+		Number:   num,
+		Incident: &incidentNumber,
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -319,11 +319,21 @@ func TestCreateAndUpdateVisit(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, incidentNumber, *visitAfterAttach.Incident)
 
-	// detach
-	resp = apisAdmin.updateIncident(ctx, eventName, num, imsjson.Incident{
+	// The Incident API used to accept a replacement Visit list, which silently
+	// dropped a concurrent writer's attachment. It's rejected now.
+	resp = apisAdmin.updateIncident(ctx, eventName, incidentNumber, imsjson.Incident{
 		Event:  eventName,
 		Number: incidentNumber,
 		Visits: &[]int32{},
+	})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// detach
+	resp = apisAdmin.updateVisit(ctx, eventName, num, imsjson.Visit{
+		Event:    eventName,
+		Number:   num,
+		Incident: new(int32(0)),
 	})
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

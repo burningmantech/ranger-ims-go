@@ -325,14 +325,7 @@ func TestDeleteEvent(t *testing.T) {
 
 	num1 := admin.newIncidentSuccess(ctx, sampleIncident1(child1Name))
 	num2 := admin.newIncidentSuccess(ctx, sampleIncident1(child1Name))
-	incident1, resp := admin.getIncident(ctx, child1Name, num1)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	*incident1.LinkedIncidents = append(*incident1.LinkedIncidents, imsjson.LinkedIncident{
-		EventID: incident1.EventID,
-		Number:  num2,
-	})
-	resp = admin.updateIncident(ctx, child1Name, num1, incident1)
+	resp = admin.linkIncident(ctx, child1Name, num1, child1Name, num2)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 

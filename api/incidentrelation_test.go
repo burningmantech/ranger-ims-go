@@ -17,7 +17,6 @@
 package api
 
 import (
-	"context"
 	"database/sql"
 	"net/http"
 	"testing"
@@ -39,50 +38,6 @@ func deadDBQ(t *testing.T) *store.DBQ {
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 	return store.NewDBQ(db, imsdb.New())
-}
-
-// writableDBTX accepts writes and, by way of the DBTX it wraps, fails reads.
-// bumpIncidentVersionAndRead takes its DBTX as an argument, so that it can run
-// inside its caller's transaction; that seam is what makes the "the bump landed
-// but the read-back didn't" case reachable.
-type writableDBTX struct {
-	imsdb.DBTX
-}
-
-func (writableDBTX) ExecContext(context.Context, string, ...any) (sql.Result, error) {
-	return wroteNothing{}, nil
-}
-
-type wroteNothing struct{}
-
-func (wroteNothing) LastInsertId() (int64, error) { return 0, nil }
-func (wroteNothing) RowsAffected() (int64, error) { return 0, nil }
-
-func TestBumpIncidentVersionAndReadErrors(t *testing.T) {
-	t.Parallel()
-
-	// The bump itself fails.
-	dead := deadDBQ(t)
-	_, errHTTP := bumpIncidentVersionAndRead(t.Context(), dead, dead, 1, 2)
-	require.NotNil(t, errHTTP)
-	require.Equal(t, http.StatusInternalServerError, errHTTP.Code)
-	require.Contains(t, errHTTP.ResponseMessage, "Failed to update Incident")
-
-	// The bump succeeds and the read-back of the new version fails.
-	_, errHTTP = bumpIncidentVersionAndRead(t.Context(), dead, writableDBTX{dead}, 1, 2)
-	require.NotNil(t, errHTTP)
-	require.Equal(t, http.StatusInternalServerError, errHTTP.Code)
-	require.Contains(t, errHTTP.ResponseMessage, "Failed to fetch Incident")
-}
-
-func TestCurrentIncidentVersionError(t *testing.T) {
-	t.Parallel()
-
-	dead := deadDBQ(t)
-	_, errHTTP := currentIncidentVersion(t.Context(), dead, 1, 2)
-	require.NotNil(t, errHTTP)
-	require.Equal(t, http.StatusInternalServerError, errHTTP.Code)
-	require.Contains(t, errHTTP.ResponseMessage, "Failed to fetch Incident")
 }
 
 func TestReadIncidentRowError(t *testing.T) {

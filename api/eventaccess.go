@@ -326,7 +326,7 @@ func (action PostEventAccess) maybeSetAccess(
 	// just to be safe that we don't end up holding the lock forever.
 	//
 	// Event-access writes are deliberately last-write-wins, with no
-	// optimistic-concurrency VERSION/ETag like incidents have: two admins
+	// optimistic-concurrency VERSION like incidents have: two admins
 	// editing the same event and mode concurrently can overwrite each other.
 	// That's acceptable because writes are admin-only and rare, this mutex
 	// serializes them, and the result is immediately visible (and fixable)

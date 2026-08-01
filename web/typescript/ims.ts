@@ -215,15 +215,6 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
     return {resp: response, json: json, err: err};
 }
 
-// etagOf reads the ETag header from a response, for optimistic concurrency:
-// pages remember the ETag from the last read of a record and send it back as
-// If-Match on edits, and the server rejects the edit with a 412 if the record
-// has changed in the meantime.
-export function etagOf(resp: Response|null): string|null {
-    return resp?.headers.get("ETag") ?? null;
-}
-
-
 //
 // Generic string formatting
 //
@@ -1651,11 +1642,10 @@ export function newRemoteUpdateAnnouncer(msg: string, debounceMs: number = 3000)
 // newMutationChain returns a function that runs the mutations handed to it one
 // at a time, in the order they were handed over.
 //
-// A detail page's mutations all share one chain, because they all share the
-// record's ETag: an edit must carry the ETag produced by the previous edit, and
-// that value only exists once the previous response has come back. Running them
-// concurrently means the later one sends a stale ETag and is rejected with a
-// 412 — a spurious conflict, since both edits came from this one user.
+// A detail page's mutations all share one chain, because each one refetches and
+// redraws the record when it completes. Run concurrently, the redraws race, and
+// whichever response lands last wins — which may be the older of the two, so the
+// page settles on state the server has already moved past.
 //
 // A mutation that fails doesn't stall the ones queued behind it. onMutate, if
 // given, is called as each mutation is enqueued; pass a

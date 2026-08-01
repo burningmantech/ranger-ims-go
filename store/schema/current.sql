@@ -72,12 +72,12 @@ create table INCIDENT (
     LOCATION_ADDRESS        varchar(1024),
     LOCATION_DESCRIPTION    varchar(1024),
 
-    -- Optimistic-concurrency version counter, surfaced to clients as an ETag.
-    -- Bumped on every change to the incident's representation other than
-    -- report-entry changes. Report entries are append-only except for the
-    -- STRICKEN flag, a reversible boolean toggle that is audited via generated
-    -- entries — neither appends nor strikes can silently lose data, so neither
-    -- moves the version.
+    -- Optimistic-concurrency version counter, guarding the read-merge-write an
+    -- edit performs on the columns of this table. Reported to clients, but not
+    -- sent back by them. Only the guarded UPDATE moves it; nothing that writes
+    -- another table does, because no edit here can clobber a row over there.
+    -- That covers report entries, the Ranger roster, incident types, links, and
+    -- field-report/visit assignment.
     `VERSION` integer not null default 1,
 
     foreign key (`EVENT`) references `EVENT`(ID),

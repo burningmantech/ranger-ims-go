@@ -36,10 +36,6 @@ let fieldReport: ims.FieldReport|null = null;
 // while it's open, which is otherwise a silent redraw of the page.
 const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Field Report was updated");
 
-// The ETag from the last read of this field report, sent back as If-Match on
-// edits so that the server can reject an edit based on stale data (HTTP 412).
-let fieldReportETag: string|null = null;
-
 //
 // Initialize UI
 //
@@ -192,9 +188,8 @@ async function loadFieldReport(): Promise<{err: string|null}> {
             "number": null,
             "created": null,
         };
-        fieldReportETag = null;
     } else {
-        const {resp, json, err} = await ims.fetchNoThrow<ims.FieldReport>(
+        const {json, err} = await ims.fetchNoThrow<ims.FieldReport>(
             `${ims.urlReplace(url_fieldReports)}/${number}`, null);
         if (err != null) {
             ims.disableEditing();
@@ -204,7 +199,6 @@ async function loadFieldReport(): Promise<{err: string|null}> {
             return {err: message};
         }
         fieldReport = json;
-        fieldReportETag = ims.etagOf(resp);
     }
     return {err: null};
 }
@@ -350,8 +344,7 @@ function drawSummary(): void {
 // Editing
 //
 
-// Sequences frSendEdits calls, so that rapid autosaves don't race one another:
-// each edit must carry the ETag produced by the previous one.
+// Sequences frSendEdits calls, so that rapid autosaves don't race one another.
 const chainMutation = ims.newMutationChain(remoteUpdates.noteLocalEdit);
 
 function frSendEdits(edits: ims.FieldReport): Promise<{err:string|null}> {
@@ -373,30 +366,16 @@ async function frSendEditsNow(edits: ims.FieldReport): Promise<{err:string|null}
         url += `/${number}`;
     }
 
-    // Report-entry appends can't lose data, so they're sent unconditionally
-    // rather than failing on a stale ETag when someone else edits a field.
-    const noteOnly = Object.keys(edits).every(
-        (key) => key === "report_entries" || key === "number");
-    const headers: HeadersInit = {};
-    if (number != null && fieldReportETag != null && !noteOnly) {
-        headers["If-Match"] = fieldReportETag;
-    }
     const {resp, err} = await ims.fetchNoThrow(url, {
-        headers: headers,
         body: JSON.stringify(edits),
     });
     if (err != null) {
-        let message = `Failed to apply edit: ${err}`;
-        if (resp?.status === 412) {
-            message = "Someone else has edited this field report. " +
-                "The page has been refreshed with their changes; please retry your edit.";
-        }
+        const message = `Failed to apply edit: ${err}`;
         console.log(message);
         await loadAndDisplayFieldReport();
         ims.setErrorMessage(message);
         return {err: message};
     }
-    fieldReportETag = ims.etagOf(resp) ?? fieldReportETag;
     if (number == null) {
         // We created a new field report.
         // We need to find out the created field report number so that

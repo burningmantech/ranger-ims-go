@@ -39,15 +39,13 @@ func sampleIncident1(eventName string) imsjson.Incident {
 			Address:     new("10:05 & W"),
 			Description: new("unknown"),
 		},
-		IncidentTypeIDs: &[]int32{1, 2},
-		FieldReports:    &[]int32{},
-		Visits:          &[]int32{},
-		Rangers:         &[]imsjson.IncidentRanger{{Handle: "SomeOne"}, {Handle: "SomeTwo"}},
+		// The set-valued fields are response-only, so they're absent here and
+		// ignored by requireEqualIncident; each has its own endpoint's tests.
+		Rangers: &[]imsjson.IncidentRanger{{Handle: "SomeOne"}, {Handle: "SomeTwo"}},
 		ReportEntries: []imsjson.ReportEntry{
 			{Text: "This is some report text lol"},
 			{Text: ""},
 		},
-		LinkedIncidents: &[]imsjson.LinkedIncident{},
 	}
 }
 
@@ -252,10 +250,8 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 			Address:     new(""),
 			Description: new(""),
 		},
-		IncidentTypeIDs: &[]int32{},
-		FieldReports:    &[]int32{},
-		Rangers:         &[]imsjson.IncidentRanger{},
-		ReportEntries:   []imsjson.ReportEntry{},
+		Rangers:       &[]imsjson.IncidentRanger{},
+		ReportEntries: []imsjson.ReportEntry{},
 	}
 	resp = apisNonAdmin.updateIncident(ctx, eventName, num, updates)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
@@ -372,11 +368,7 @@ func TestCreateAndLinkIncidents(t *testing.T) {
 	eventID := retrievedNewIncident1.EventID
 	retrievedNewIncident2, resp := apisNonAdmin.getIncident(ctx, eventName, num2)
 	require.NoError(t, resp.Body.Close())
-	*retrievedNewIncident1.LinkedIncidents = append(*retrievedNewIncident1.LinkedIncidents, imsjson.LinkedIncident{
-		EventID: eventID,
-		Number:  num2,
-	})
-	resp = apisNonAdmin.updateIncident(ctx, eventName, num1, retrievedNewIncident1)
+	resp = apisNonAdmin.linkIncident(ctx, eventName, num1, eventName, num2)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -404,8 +396,7 @@ func TestCreateAndLinkIncidents(t *testing.T) {
 		require.Equal(t, *retrievedNewIncident1.Summary, linkedIncident.Summary)
 	}
 
-	retrievedNewIncident2.LinkedIncidents = &[]imsjson.LinkedIncident{}
-	resp = apisNonAdmin.updateIncident(ctx, eventName, num2, retrievedNewIncident2)
+	resp = apisNonAdmin.unlinkIncident(ctx, eventName, num2, eventName, num1)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -469,7 +460,7 @@ func TestAttachAndDetachIncidentType(t *testing.T) {
 	require.Equal(t, "Added type: "+typeName, lastReportEntryText(t, retrieved))
 	entriesAfterAttach := len(retrieved.ReportEntries)
 
-	// Attaching it again is a true no-op: no version bump, no report entry.
+	// Attaching it again is a true no-op: nothing written, no report entry.
 	resp = apis.attachTypeToIncident(ctx, eventName, num, *typeID)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -547,6 +538,67 @@ func TestAttachIncidentTypeIsCommutative(t *testing.T) {
 	retrieved, resp = apis.getIncident(ctx, eventName, num)
 	require.NoError(t, resp.Body.Close())
 	require.Empty(t, *retrieved.IncidentTypeIDs)
+}
+
+// The set-valued fields used to be writable on the edit endpoint, applied by
+// diffing the client's list against stored state. A client that still sends
+// one must be told, rather than getting a 204 for a change that didn't happen.
+func TestEditIncidentRejectsSetReplacement(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	resp := apis.attachTypeToIncident(ctx, eventName, num, 1)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:           eventName,
+		Number:          num,
+		IncidentTypeIDs: &[]int32{},
+	})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:           eventName,
+		Number:          num,
+		LinkedIncidents: &[]imsjson.LinkedIncident{},
+	})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:        eventName,
+		Number:       num,
+		FieldReports: &[]int32{},
+	})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:  eventName,
+		Number: num,
+		Visits: &[]int32{},
+	})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A rejected edit changes nothing, and in particular doesn't clear the type.
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, []int32{1}, *retrieved.IncidentTypeIDs)
+
+	// Creation goes through the same path, so it's rejected too.
+	sample := typelessIncident(eventName)
+	sample.IncidentTypeIDs = &[]int32{1}
+	resp = apis.newIncident(ctx, sample)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestLinkAndUnlinkIncidentEndpoints(t *testing.T) {
@@ -708,6 +760,12 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	before.LastModified, after.LastModified = time.Time{}, time.Time{}
 	before.Version, after.Version = 0, 0
 	before.ReportEntries, after.ReportEntries = nil, nil
+	// Response-only, so an edit body never carries them and there's nothing to
+	// compare against. Their own endpoints' tests cover them.
+	before.IncidentTypeIDs, after.IncidentTypeIDs = nil, nil
+	before.FieldReports, after.FieldReports = nil, nil
+	before.Visits, after.Visits = nil, nil
+	before.LinkedIncidents, after.LinkedIncidents = nil, nil
 
 	require.Equal(t, before, after)
 }

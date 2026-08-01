@@ -21,6 +21,7 @@ import (
 	"sync"
 	"testing"
 
+	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,10 +69,10 @@ func TestConcurrentIncidentRangerRosterWrites(t *testing.T) {
 	}
 	require.ElementsMatch(t, handles, attached)
 
-	// The same Ranger from several requests at once. Unlike the Incident Type and
-	// link endpoints, this one has no no-op path: it detaches and reattaches every
-	// time, so each request leaves its own report entry. What it must not do is
-	// leave the Ranger on the roster twice, or fail.
+	// The same Ranger from several requests at once. Each of these either lands
+	// the Ranger on the roster or finds them already there with the same role, so
+	// how many report entries they leave depends on the interleaving. What they
+	// must not do is leave the Ranger on the roster twice, or fail.
 	//
 	// This runs over several Incidents because the deadlock it guards against was
 	// only lost about a third of the time on any one of them, and a regression
@@ -100,7 +101,9 @@ func TestConcurrentIncidentRangerRosterWrites(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 		require.Len(t, *attempted.Rangers, 1)
 		require.Equal(t, "Golf", (*attempted.Rangers)[0].Handle)
-		require.Len(t, attempted.ReportEntries, len(before.ReportEntries)+len(repeated))
+		added := len(attempted.ReportEntries) - len(before.ReportEntries)
+		require.GreaterOrEqual(t, added, 1)
+		require.LessOrEqual(t, added, len(repeated))
 	}
 
 	resp = apis.attachRangerToIncident(ctx, eventName, num, "Golf")
@@ -140,6 +143,126 @@ func TestConcurrentIncidentRangerRosterWrites(t *testing.T) {
 		attached = append(attached, ranger.Handle)
 	}
 	require.ElementsMatch(t, append([]string{"Golf"}, arrivals...), attached)
+}
+
+// lastVisitReportEntryText is lastReportEntryText for a Visit.
+func lastVisitReportEntryText(t *testing.T, visit imsjson.Visit) string {
+	t.Helper()
+	require.NotEmpty(t, visit.ReportEntries)
+	return visit.ReportEntries[len(visit.ReportEntries)-1].Text
+}
+
+// The attach endpoint both adds a Ranger to the roster and sets the role of one
+// who's already on it, and the change log has to say which of those happened.
+func TestIncidentRangerRoleChangeLog(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+
+	// Added with no role.
+	resp := apis.attachRangerToIncident(ctx, eventName, num, "Hardware")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp := apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, "Added Ranger: Hardware", lastReportEntryText(t, retrieved))
+
+	// Given a role, which is a change to a Ranger who's already on the roster.
+	resp = apis.setIncidentRangerRole(ctx, eventName, num, "Hardware", new("Driver"))
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrieved.Rangers, 1)
+	require.Equal(t, "Driver", *(*retrieved.Rangers)[0].Role)
+	require.Equal(t, "Set role for Hardware: Driver", lastReportEntryText(t, retrieved))
+	entriesAfterRole := len(retrieved.ReportEntries)
+
+	// Setting the same role again changes nothing, so it writes nothing.
+	resp = apis.setIncidentRangerRole(ctx, eventName, num, "Hardware", new("Driver"))
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, retrieved.ReportEntries, entriesAfterRole)
+
+	// Clearing the role, which the UI sends as an empty string.
+	resp = apis.setIncidentRangerRole(ctx, eventName, num, "Hardware", new(""))
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrieved.Rangers, 1)
+	require.Nil(t, (*retrieved.Rangers)[0].Role)
+	require.Equal(t, "Removed role for Hardware", lastReportEntryText(t, retrieved))
+	entriesAfterClear := len(retrieved.ReportEntries)
+
+	// Clearing it again is the no-op case for a Ranger who never had a role.
+	resp = apis.setIncidentRangerRole(ctx, eventName, num, "Hardware", new(""))
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, retrieved.ReportEntries, entriesAfterClear)
+
+	// A Ranger who arrives with a role in hand is one line, not two.
+	resp = apis.setIncidentRangerRole(ctx, eventName, num, "Software", new("Driver"))
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrieved.Rangers, 2)
+	require.Equal(t, "Added Ranger: Software (role: Driver)", lastReportEntryText(t, retrieved))
+
+	// Removal still says so, whatever role the Ranger held.
+	resp = apis.detachRangerFromIncident(ctx, eventName, num, "Software")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrieved.Rangers, 1)
+	require.Equal(t, "Removed Ranger: Software", lastReportEntryText(t, retrieved))
+}
+
+// Visits share the roster code with Incidents, so their change log says the same
+// things.
+func TestVisitRangerRoleChangeLog(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	eventName := newEventWithVisitWriter(t, apisAdmin)
+	num := apis.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	resp := apis.attachRangerToVisit(ctx, eventName, num, "Hardware")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp := apis.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, "Added Ranger: Hardware", lastVisitReportEntryText(t, retrieved))
+
+	resp = apis.setVisitRangerRole(ctx, eventName, num, "Hardware", new("Sitter"))
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrieved.Rangers, 1)
+	require.Equal(t, "Sitter", *(*retrieved.Rangers)[0].Role)
+	require.Equal(t, "Set role for Hardware: Sitter", lastVisitReportEntryText(t, retrieved))
 }
 
 // The roster code is shared between Incidents and Visits through rangerRoster,

@@ -41,6 +41,7 @@ type rangerRoster struct {
 
 	detach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error
 	attach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string, role sql.NullString) error
+	currentRole    func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (sql.NullString, bool, error)
 	addReportEntry func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError)
 	notifyUpdate   func(eventID, number int32)
 }
@@ -65,6 +66,21 @@ func incidentRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 				RangerHandle:   rangerHandle,
 				Role:           role,
 			})
+		},
+		currentRole: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (sql.NullString, bool, error) {
+			rows, err := imsDBQ.Incident_Rangers(ctx, dbtx, imsdb.Incident_RangersParams{
+				Event:          eventID,
+				IncidentNumber: number,
+			})
+			if err != nil {
+				return sql.NullString{}, false, err
+			}
+			for _, row := range rows {
+				if row.IncidentRanger.RangerHandle == rangerHandle {
+					return row.IncidentRanger.Role, true, nil
+				}
+			}
+			return sql.NullString{}, false, nil
 		},
 		addReportEntry: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError) {
 			return addIncidentReportEntry(ctx, imsDBQ, dbtx, eventID, number, entry)
@@ -93,6 +109,21 @@ func visitRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 				RangerHandle: rangerHandle,
 				Role:         role,
 			})
+		},
+		currentRole: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (sql.NullString, bool, error) {
+			rows, err := imsDBQ.Visit_Rangers(ctx, dbtx, imsdb.Visit_RangersParams{
+				Event:       eventID,
+				VisitNumber: number,
+			})
+			if err != nil {
+				return sql.NullString{}, false, err
+			}
+			for _, row := range rows {
+				if row.VisitRanger.RangerHandle == rangerHandle {
+					return row.VisitRanger.Role, true, nil
+				}
+			}
+			return sql.NullString{}, false, nil
 		},
 		addReportEntry: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError) {
 			return addVisitReportEntry(ctx, imsDBQ, dbtx, eventID, number, entry)
@@ -162,15 +193,45 @@ func attachRanger(
 		return errHTTP.From("[readBodyAs]")
 	}
 	ctx := req.Context()
+	newRole := conv.StringToSql(body.Role, 128)
+
+	// Set by the transaction below, and false when the request asked for the
+	// roster the entity already has, in which case there's nothing to notify.
+	changed := false
 
 	// The whole transaction is retried if it loses a deadlock, so nothing here
 	// may escape the database before the commit.
 	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		changed = false
 		txn, err := imsDBQ.Begin()
 		if err != nil {
 			return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
 		}
 		defer rollback(txn)
+
+		// This endpoint both adds a Ranger and sets the role of one who's already
+		// on the roster, and the change log should say which of those happened.
+		oldRole, wasAttached, err := roster.currentRole(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
+		if err != nil {
+			return herr.InternalServerError(fmt.Sprintf("Failed to read %v roster", roster.noun), err).From("[currentRole]")
+		}
+		// The roster already says what this request asks for, so, as with the
+		// Incident Type and link endpoints, there's nothing to record.
+		if wasAttached && oldRole == newRole {
+			return nil
+		}
+
+		var logLine string
+		switch {
+		case !wasAttached && newRole.Valid:
+			logLine = fmt.Sprintf("Added Ranger: %v (role: %v)", rosterReq.rangerName, newRole.String)
+		case !wasAttached:
+			logLine = fmt.Sprintf("Added Ranger: %v", rosterReq.rangerName)
+		case newRole.Valid:
+			logLine = fmt.Sprintf("Set role for %v: %v", rosterReq.rangerName, newRole.String)
+		default:
+			logLine = fmt.Sprintf("Removed role for %v", rosterReq.rangerName)
+		}
 
 		// Detach first, so that attaching a Ranger who is already on the roster
 		// updates their role rather than failing.
@@ -179,14 +240,14 @@ func attachRanger(
 			return herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
 		}
 
-		err = roster.attach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName, conv.StringToSql(body.Role, 128))
+		err = roster.attach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName, newRole)
 		if err != nil {
 			return herr.InternalServerError(fmt.Sprintf("Failed to attach Ranger to %v", roster.noun), err).From("[attach]")
 		}
 
 		_, errHTTP := roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
 			author:    rosterReq.author,
-			text:      fmt.Sprintf("Added Ranger: %v", rosterReq.rangerName),
+			text:      logLine,
 			generated: true,
 		})
 		if errHTTP != nil {
@@ -196,13 +257,16 @@ func attachRanger(
 		if err != nil {
 			return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 		}
+		changed = true
 		return nil
 	})
 	if errHTTP != nil {
 		return errHTTP
 	}
 
-	roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
+	if changed {
+		roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
+	}
 
 	return nil
 }

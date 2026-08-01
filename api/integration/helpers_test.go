@@ -247,13 +247,27 @@ func (a ApiHelper) updateVisit(ctx context.Context, eventName string, visit int3
 
 func (a ApiHelper) attachRangerToIncident(ctx context.Context, eventName string, incident int32, handle string) *http.Response {
 	a.t.Helper()
-	req := imsjson.IncidentRanger{Handle: handle}
+	return a.setIncidentRangerRole(ctx, eventName, incident, handle, nil)
+}
+
+func (a ApiHelper) setIncidentRangerRole(
+	ctx context.Context, eventName string, incident int32, handle string, role *string,
+) *http.Response {
+	a.t.Helper()
+	req := imsjson.IncidentRanger{Handle: handle, Role: role}
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/incidents/", strconv.Itoa(int(incident)), "/rangers/", handle).String())
 }
 
 func (a ApiHelper) attachRangerToVisit(ctx context.Context, eventName string, visit int32, handle string) *http.Response {
 	a.t.Helper()
-	req := imsjson.VisitRanger{Handle: handle}
+	return a.setVisitRangerRole(ctx, eventName, visit, handle, nil)
+}
+
+func (a ApiHelper) setVisitRangerRole(
+	ctx context.Context, eventName string, visit int32, handle string, role *string,
+) *http.Response {
+	a.t.Helper()
+	req := imsjson.VisitRanger{Handle: handle, Role: role}
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit)), "/rangers/", handle).String())
 }
 

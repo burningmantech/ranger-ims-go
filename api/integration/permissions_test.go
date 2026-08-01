@@ -24,6 +24,7 @@ import (
 	"time"
 
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/require"
 )
@@ -377,4 +378,66 @@ func forbidden(status int) bool {
 
 func forbiddenOrNotFound(status int) bool {
 	return status == http.StatusNotFound || status == http.StatusForbidden
+}
+
+// A token with no Ranger handle is rejected by authentication itself, before
+// any handler runs. Together with the test below, this is why the
+// GlobalListEvents / GlobalReadIncidentTypes / GlobalReadPersonnel gates in the
+// handlers can't return 403 over HTTP today; those branches are covered as unit
+// tests in api/globalperms_test.go instead.
+func TestHandlelessTokenIsRejectedByAuthentication(t *testing.T) {
+	t.Parallel()
+
+	token, err := authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}.CreateAccessToken(
+		"", 0, nil, nil, false, nil, time.Now().Add(time.Hour),
+	)
+	require.NoError(t, err)
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: token}
+
+	code := apiCall(t, MethodURL{http.MethodGet, "/ims/api/events"}, apis)
+	require.Equal(t, http.StatusUnauthorized, code)
+}
+
+// Any user who does authenticate holds all three global read permissions, since
+// they come with AnyAuthenticatedUser.
+func TestOrdinaryUserHoldsTheGlobalReadPermissions(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	require.True(t, permitted(apiCall(t, MethodURL{http.MethodGet, "/ims/api/events"}, apis)))
+	require.True(t, permitted(apiCall(t, MethodURL{http.MethodGet, "/ims/api/incident_types"}, apis)))
+	require.True(t, permitted(apiCall(t, MethodURL{http.MethodGet, "/ims/api/personnel"}, apis)))
+}
+
+// Reading an Event's Places needs either EventReadPlaces on that Event or the
+// global places-admin permission. A non-admin with no access to the Event has
+// neither. (TestEventEndpoints_ForNoEventPerms exercises this endpoint only as
+// an admin, who always passes on the global half.)
+func TestGetPlacesForbiddenForNonAdminWithoutEventAccess(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := rand.NonCryptoText()
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Alice has no role on this event.
+	_, resp = apisAlice.getPlaces(ctx, eventName)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	// Granting any event role that includes EventReadPlaces opens it up.
+	resp = apisAdmin.addReporter(ctx, eventName, userAliceHandle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	_, resp = apisAlice.getPlaces(ctx, eventName)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 }

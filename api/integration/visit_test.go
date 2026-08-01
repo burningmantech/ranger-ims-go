@@ -17,6 +17,7 @@
 package integration_test
 
 import (
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -428,4 +429,141 @@ func requireEqualishTimePtr(t *testing.T, before, after *time.Time) {
 	}
 	require.NotNil(t, after)
 	require.WithinDuration(t, *before, *after, 1*time.Millisecond)
+}
+
+// The stored sample visit's arrival and departure times, which the tests below
+// move relative to.
+var (
+	sampleArrival   = time.Unix(1769599609, 0)
+	sampleDeparture = time.Unix(1769617607, 0)
+)
+
+// A visit can't have the guest arriving after they left. This guards the
+// arrival side: the new arrival time is compared against the stored departure.
+func TestVisitArrivalAfterStoredDepartureIsRejected(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	tooLate := sampleDeparture.Add(time.Hour)
+	resp := apisAlice.updateVisit(ctx, eventName, num, imsjson.Visit{ArrivalTime: &tooLate})
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Contains(t, string(body), "Arrival time cannot be after departure time")
+
+	// The rejected edit didn't partially apply.
+	visit, resp := apisAlice.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	requireEqualishTimePtr(t, &sampleArrival, visit.ArrivalTime)
+}
+
+// The mirror of the above, guarding the departure side.
+func TestVisitDepartureBeforeStoredArrivalIsRejected(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	tooEarly := sampleArrival.Add(-time.Hour)
+	resp := apisAlice.updateVisit(ctx, eventName, num, imsjson.Visit{DepartureTime: &tooEarly})
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Contains(t, string(body), "Departure time cannot be before arrival time")
+
+	visit, resp := apisAlice.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	requireEqualishTimePtr(t, &sampleDeparture, visit.DepartureTime)
+}
+
+// Both times in one request are applied arrival-first, so an out-of-order pair
+// is caught by the departure check even though neither is being compared
+// against a stored value.
+func TestVisitArrivalAndDepartureSentTogetherOutOfOrderIsRejected(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	// Both are before the stored departure, so only the departure-side check
+	// can reject this pair.
+	newArrival := sampleArrival.Add(time.Minute)
+	newDeparture := sampleArrival.Add(-time.Minute)
+	resp := apisAlice.updateVisit(ctx, eventName, num, imsjson.Visit{
+		ArrivalTime:   &newArrival,
+		DepartureTime: &newDeparture,
+	})
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Contains(t, string(body), "Departure time cannot be before arrival time")
+
+	visit, resp := apisAlice.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	requireEqualishTimePtr(t, &sampleArrival, visit.ArrivalTime)
+	requireEqualishTimePtr(t, &sampleDeparture, visit.DepartureTime)
+}
+
+// The comparison is strict, so a guest who left the same instant they arrived
+// is allowed. Zero-length visits are odd but not invalid.
+func TestVisitDepartureEqualToArrivalIsAllowed(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	resp := apisAlice.updateVisit(ctx, eventName, num, imsjson.Visit{DepartureTime: &sampleArrival})
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	visit, resp := apisAlice.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	requireEqualishTimePtr(t, &sampleArrival, visit.DepartureTime)
+}
+
+// A later arrival that stays before the stored departure is an ordinary edit.
+func TestVisitArrivalMovedWithinRangeIsAccepted(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	later := sampleArrival.Add(time.Hour)
+	resp := apisAlice.updateVisit(ctx, eventName, num, imsjson.Visit{ArrivalTime: &later})
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	visit, resp := apisAlice.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	requireEqualishTimePtr(t, &later, visit.ArrivalTime)
 }

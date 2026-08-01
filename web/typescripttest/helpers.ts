@@ -127,6 +127,16 @@ export class MockFlatpickr {
         }
     }
 
+    // Mirrors flatpickr's clear(): empties the selection and fires onChange with
+    // no dates, which is how the page learns a date was removed.
+    clear(triggerChange: boolean): void {
+        this.selectedDates = [];
+        this.altInput.value = "";
+        if (triggerChange) {
+            this.config.onChange?.(this.selectedDates, "", this);
+        }
+    }
+
     parseDate(date: string | number, _format: string): Date {
         return new Date(date);
     }

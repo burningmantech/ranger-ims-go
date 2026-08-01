@@ -1244,6 +1244,10 @@ async function setLocationFromPlace(knownLoc: HTMLOptionElement): Promise<void> 
     if (knownLoc.dataset["address"]) {
         edits.location.address = knownLoc.dataset["address"].trim();
     }
+    // Blur the field, so that the subsequent data refresh will be allowed to update
+    // the data (i.e. to trim off the address). When the field is focused, we don't
+    // permit updating the value, so we wouldn't trim the address.
+    el.locationName.blur();
     const {err} = await sendEdits!(edits);
     if (err != null) {
         ims.controlHasError(el.locationName);

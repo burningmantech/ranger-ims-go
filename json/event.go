@@ -23,4 +23,7 @@ type Event struct {
 	IsGroup     *bool   `json:"is_group"`
 	ParentGroup *int32  `json:"parent_group"`
 	MapURL      *string `json:"map_url"`
+	// NormalizeAddresses turns on canonicalization of the BRC addresses
+	// clients send for this event's Incidents and Visits.
+	NormalizeAddresses *bool `json:"normalize_addresses"`
 }

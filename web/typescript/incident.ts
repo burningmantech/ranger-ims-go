@@ -1260,6 +1260,10 @@ async function setLocationFromPlace(knownLoc: HTMLOptionElement): Promise<void> 
 }
 
 async function editLocationAddress(): Promise<void> {
+    // Blur the field first, so the refresh after the edit is allowed to
+    // rewrite it with the server's normalized address (e.g. "7+e" becomes
+    // "7:00 & E"). A focused field with uncommitted input isn't updated.
+    el.locationAddress.blur();
     await ims.editFromElement(el.locationAddress, "location.address");
 }
 

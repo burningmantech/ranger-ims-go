@@ -462,6 +462,29 @@ test("choosing a known place fills the location name and address", async (): Pro
     ]);
 });
 
+test("the location address input is rewritten with the server's normalized address", async (): Promise<void> => {
+    const mock = await initIncidentPage((url: string, init?: RequestInit): Response|undefined => {
+        const body = init?.body != null ? JSON.parse(init.body as string) : null;
+        if (body?.location?.address != null) {
+            // Stand in for the server's address normalization.
+            serverIncident.location = { ...serverIncident.location, address: "7:00 & E" };
+        }
+        return incidentRoutes(url, init);
+    });
+
+    // Type into the field and save it without leaving it, as pressing Enter does.
+    const address = document.getElementById("incident_location_address") as HTMLInputElement;
+    address.focus();
+    address.value = "7+e";
+    address.dispatchEvent(new Event("input", { bubbles: true }));
+    await window.editLocationAddress();
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+        { location: { address: "7+e" }, number: 1 },
+    ]);
+    expect(address.value).toBe("7:00 & E");
+});
+
 test("addRanger fuzzy-matches handles and posts to the rangers endpoint", async (): Promise<void> => {
     const mock = await initIncidentPage();
 

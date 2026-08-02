@@ -96,6 +96,8 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 			IsGroup:     &eve.Event.IsGroup,
 			ParentGroup: conv.SqlToInt32(eve.Event.ParentGroup),
 			MapURL:      conv.SqlToString(eve.Event.MapUrl),
+
+			NormalizeAddresses: &eve.Event.NormalizeAddresses,
 		})
 	}
 
@@ -178,6 +180,8 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		IsGroup:     existingEventRow.Event.IsGroup,
 		ParentGroup: existingEventRow.Event.ParentGroup,
 		MapUrl:      existingEventRow.Event.MapUrl,
+
+		NormalizeAddresses: existingEventRow.Event.NormalizeAddresses,
 	}
 
 	if editRequest.Name != nil {
@@ -214,6 +218,12 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 			return nil, herr.BadRequest("An event group cannot have a map URL", nil)
 		}
 		updateParams.MapUrl = conv.StringToSql(editRequest.MapURL, 1024)
+	}
+	if editRequest.NormalizeAddresses != nil {
+		if updateParams.IsGroup && *editRequest.NormalizeAddresses {
+			return nil, herr.BadRequest("An event group cannot normalize addresses", nil)
+		}
+		updateParams.NormalizeAddresses = *editRequest.NormalizeAddresses
 	}
 
 	err = action.imsDBQ.UpdateEvent(req.Context(), action.imsDBQ, updateParams)

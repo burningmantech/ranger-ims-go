@@ -23,6 +23,7 @@ declare global {
         addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
         setParentGroup: (el: HTMLInputElement) => Promise<void>;
         setMapURL: (el: HTMLInputElement) => Promise<void>;
+        setNormalizeAddresses: (el: HTMLInputElement) => Promise<void>;
     }
 }
 
@@ -68,6 +69,7 @@ async function initAdminEventsPage(): Promise<void> {
     window.addEvent = addEvent;
     window.setParentGroup = setParentGroup;
     window.setMapURL = setMapURL;
+    window.setNormalizeAddresses = setNormalizeAddresses;
 
     el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
     // Show the current time as the example, so it's useful to copy-paste from.
@@ -401,6 +403,13 @@ function eventCard(event: ims.EventData): DocumentFragment {
         // groups can't have map URLs
         mapURLInput.disabled = event.is_group??false;
         mapURLInput.value = event.map_url??"";
+
+        // Groups hold no incidents or visits, so address normalization is
+        // meaningless for them.
+        const normalizeGroup = el.editEventModal.querySelector("#edit_normalize_addresses_group") as HTMLElement;
+        normalizeGroup.classList.toggle("d-none", event.is_group??false);
+        const normalizeInput = el.editEventModal.querySelector("#edit_normalize_addresses") as HTMLInputElement;
+        normalizeInput.checked = event.normalize_addresses??false;
 
         editEventModal?.show();
     });
@@ -1173,6 +1182,32 @@ async function deleteEvent(): Promise<void> {
         return;
     }
     editEventModal?.hide();
+    await loadAccessControlList();
+    drawAccess();
+}
+
+async function setNormalizeAddresses(sender: HTMLInputElement): Promise<void> {
+    const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"])!;
+
+    const requestBod: ims.EventData = {
+        id: eventId,
+        // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.
+        name: null,
+        normalize_addresses: sender.checked,
+    };
+    const {err} = await ims.fetchNoThrow(url_events, {
+        body: JSON.stringify(requestBod),
+    });
+    if (err != null) {
+        const message = `Failed to edit event: ${err}`;
+        console.log(message);
+        window.alert(message);
+        await loadAccessControlList();
+        drawAccess();
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender);
     await loadAccessControlList();
     drawAccess();
 }

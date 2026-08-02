@@ -1,12 +1,12 @@
 insert into EVENT (ID, NAME, IS_GROUP, PARENT_GROUP)
 values  (6, 'TestBRC', true, null);
 
-insert into EVENT (ID, NAME, IS_GROUP, PARENT_GROUP)
-values  (2, '2025', false, 6),
-        (1, '2026', false, 6),
-        (3, '2031', false, 6),
-        (4, '2032', false, 6),
-        (5, 'Test', false, null);
+insert into EVENT (ID, NAME, IS_GROUP, PARENT_GROUP, NORMALIZE_ADDRESSES)
+values  (2, '2025', false, 6, true),
+        (1, '2026', false, 6, true),
+        (3, '2031', false, 6, true),
+        (4, '2032', false, 6, true),
+        (5, 'Test', false, null, true);
 
 insert into EVENT_ACCESS (ID, EVENT, EXPRESSION, MODE, VALIDITY)
 values  (1, 6, '*', 'write', 'always'),

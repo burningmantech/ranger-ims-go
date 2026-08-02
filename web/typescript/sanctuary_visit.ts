@@ -512,6 +512,10 @@ async function editGuestCampName(): Promise<void> {
 }
 
 async function editGuestCampAddress(): Promise<void> {
+    // Blur the field first, so the refresh after the edit is allowed to
+    // rewrite it with the server's normalized address (e.g. "7+e" becomes
+    // "7:00 & E"). A focused field with uncommitted input isn't updated.
+    el.guestCampAddress.blur();
     await ims.editFromElement(el.guestCampAddress, "guest_camp_address");
 }
 

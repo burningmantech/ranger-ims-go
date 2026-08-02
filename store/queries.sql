@@ -19,7 +19,8 @@ set
     NAME = ?,
     IS_GROUP = ?,
     PARENT_GROUP = ?,
-    MAP_URL = ?
+    MAP_URL = ?,
+    NORMALIZE_ADDRESSES = ?
 where ID = ?
 ;
 

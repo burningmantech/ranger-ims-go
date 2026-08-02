@@ -352,7 +352,7 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber int32, location 
 	newVisit.Event = event.Name
 	newVisit.Number = newVisitNumber
 
-	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author)
+	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, event.NormalizeAddresses)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[updateVisit]")
 	}
@@ -361,10 +361,11 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber int32, location 
 }
 
 func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newVisit imsjson.Visit, author string,
+	normalizeAddresses bool,
 ) *herr.HTTPError {
 	for range maxCASAttempts {
 		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
-			return updateVisitAttempt(ctx, imsDBQ, es, newVisit, author)
+			return updateVisitAttempt(ctx, imsDBQ, es, newVisit, author, normalizeAddresses)
 		})
 		if errHTTP != nil {
 			return errHTTP.From("[updateVisitAttempt]")
@@ -377,6 +378,7 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 }
 
 func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newVisit imsjson.Visit, author string,
+	normalizeAddresses bool,
 ) (conflict bool, errHTTP *herr.HTTPError) {
 	storedVisitRow, err := imsDBQ.Visit(ctx, imsDBQ,
 		imsdb.VisitParams{
@@ -398,7 +400,7 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 	}
 	defer rollback(txn)
 
-	update, logs, errHTTP := buildVisitUpdate(storedVisit, newVisit)
+	update, logs, errHTTP := buildVisitUpdate(storedVisit, newVisit, normalizeAddresses)
 	if errHTTP != nil {
 		return false, errHTTP.From("[buildVisitUpdate]")
 	}
@@ -455,7 +457,8 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 // stored Visit, returning the update parameters along with change-log lines
 // describing each modified field. It rejects updates that would put the
 // arrival time after the departure time.
-func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit) (imsdb.UpdateVisitParams, []string, *herr.HTTPError) {
+func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddresses bool,
+) (imsdb.UpdateVisitParams, []string, *herr.HTTPError) {
 	update := imsdb.UpdateVisitParams{
 		Event:                stored.Event,
 		Number:               stored.Number,
@@ -508,7 +511,7 @@ func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit) (imsdb.UpdateV
 	applyStringChange(&update.GuestActionPlan, newVisit.GuestActionPlan, "GuestActionPlan", &logs)
 	applyStringChange(&update.ResourceBedID, newVisit.ResourceBedID, "ResourceBedID", &logs)
 	applyStringChange(&update.GuestCampName, newVisit.GuestCampName, "GuestCampName", &logs)
-	applyStringChange(&update.GuestCampAddress, newVisit.GuestCampAddress, "GuestCampAddress", &logs)
+	applyStringChange(&update.GuestCampAddress, normalizedAddress(newVisit.GuestCampAddress, normalizeAddresses), "GuestCampAddress", &logs)
 	applyStringChange(&update.GuestCampDescription, newVisit.GuestCampDescription, "GuestCampDescription", &logs)
 	applyStringChange(&update.GuestCampContacts, newVisit.GuestCampContacts, "GuestCampContacts", &logs)
 	applyStringChange(&update.ResourceSitter, newVisit.ResourceSitter, "ResourceSitter", &logs)
@@ -584,7 +587,7 @@ func (action EditVisit) editVisit(req *http.Request) *herr.HTTPError {
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author)
+	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, event.NormalizeAddresses)
 	if errHTTP != nil {
 		return errHTTP.From("[updateVisit]")
 	}

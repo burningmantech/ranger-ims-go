@@ -383,7 +383,7 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 	newIncident.Event = event.Name
 	newIncident.Number = newIncidentNumber
 
-	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author)
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, event.NormalizeAddresses)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[updateIncident]")
 	}
@@ -451,6 +451,7 @@ func rejectSetReplacement(newIncident imsjson.Incident) *herr.HTTPError {
 }
 
 func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
+	normalizeAddresses bool,
 ) *herr.HTTPError {
 	errHTTP := rejectSetReplacement(newIncident)
 	if errHTTP != nil {
@@ -458,7 +459,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	for range maxCASAttempts {
 		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
-			return updateIncidentAttempt(ctx, imsDBQ, es, newIncident, author)
+			return updateIncidentAttempt(ctx, imsDBQ, es, newIncident, author, normalizeAddresses)
 		})
 		if errHTTP != nil {
 			return errHTTP.From("[updateIncidentAttempt]")
@@ -471,6 +472,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 }
 
 func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
+	normalizeAddresses bool,
 ) (conflict bool, errHTTP *herr.HTTPError) {
 	storedIncidentRow, err := imsDBQ.Incident(ctx, imsDBQ,
 		imsdb.IncidentParams{
@@ -492,7 +494,7 @@ func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSour
 	}
 	defer rollback(txn)
 
-	update, logs := buildIncidentUpdate(storedIncident, newIncident)
+	update, logs := buildIncidentUpdate(storedIncident, newIncident, normalizeAddresses)
 
 	// A request that only appends report entries is applied without the guarded
 	// update below: appends can't lose data, so they must not conflict with
@@ -542,7 +544,8 @@ func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSour
 // buildIncidentUpdate merges the client-provided fields of newIncident over the
 // stored Incident, returning the update parameters along with change-log lines
 // describing each modified field.
-func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident) (imsdb.UpdateIncidentParams, []string) {
+func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident, normalizeAddresses bool,
+) (imsdb.UpdateIncidentParams, []string) {
 	update := imsdb.UpdateIncidentParams{
 		Event:               stored.Event,
 		Number:              stored.Number,
@@ -578,7 +581,7 @@ func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident) (i
 	}
 	applyStringChange(&update.Summary, newIncident.Summary, "summary", &logs)
 	applyStringChange(&update.LocationName, newIncident.Location.Name, "location name", &logs)
-	applyStringChange(&update.LocationAddress, newIncident.Location.Address, "location address", &logs)
+	applyStringChange(&update.LocationAddress, normalizedAddress(newIncident.Location.Address, normalizeAddresses), "location address", &logs)
 	applyStringChange(&update.LocationDescription, newIncident.Location.Description, "location description", &logs)
 
 	return update, logs
@@ -634,7 +637,7 @@ func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author)
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, event.NormalizeAddresses)
 	if errHTTP != nil {
 		return errHTTP.From("[updateIncident]")
 	}

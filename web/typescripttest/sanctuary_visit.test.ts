@@ -347,6 +347,26 @@ test("editing each camp field posts its own key", async (): Promise<void> => {
         .toMatchObject({ guest_camp_contacts: "Moon Dog, tent 3" });
 });
 
+test("the camp address input is rewritten with the server's normalized address", async (): Promise<void> => {
+    await initVisitPage((url: string, init?: RequestInit): Response|undefined => {
+        const body = init?.body != null ? JSON.parse(init.body as string) : null;
+        if (body?.guest_camp_address != null) {
+            // Stand in for the server's address normalization.
+            serverVisit.guest_camp_address = "7:00 & E";
+        }
+        return visitRoutes(url, init);
+    });
+
+    // Type into the field and save it without leaving it, as pressing Enter does.
+    const address = document.getElementById("guest_camp_address") as HTMLInputElement;
+    address.focus();
+    address.value = "7+e";
+    address.dispatchEvent(new Event("input", { bubbles: true }));
+    await window.editGuestCampAddress();
+
+    expect(address.value).toBe("7:00 & E");
+});
+
 test("editing each arrival field posts its own key", async (): Promise<void> => {
     const mock = await initVisitPage();
 

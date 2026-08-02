@@ -74,6 +74,9 @@ async function initAdminEventsPage() {
         if ((url === url_events || url === url_events + "?include_groups=true") && init?.body == null) {
             return jsonResponse(serverEvents);
         }
+        if (url === url_events && init?.body != null) {
+            return new Response(null, { status: 204 });
+        }
         if (url === url_acl && init?.body == null) {
             return jsonResponse(serverACL);
         }
@@ -515,6 +518,33 @@ test("clicking the card header toggles the collapse, except on its buttons", asy
     (card.querySelector(".show-edit-modal") as HTMLButtonElement).click();
     (card.querySelector(".explain_button") as HTMLButtonElement).click();
     expect(toggleClicks).toHaveBeenCalledTimes(2);
+});
+
+test("the edit modal shows the event's address normalization setting, and toggling it posts the change", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025", normalize_addresses: true }];
+    const mock = await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    expect(document.getElementById("edit_normalize_addresses_group")!.classList.contains("d-none")).toBe(false);
+    const normalize = document.getElementById("edit_normalize_addresses") as HTMLInputElement;
+    expect(normalize.checked).toBe(true);
+
+    normalize.checked = false;
+    await window.setNormalizeAddresses(normalize);
+
+    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+    expect(call).toBeDefined();
+    expect(JSON.parse(call![1]!.body as string)).toEqual({ id: 1, name: null, normalize_addresses: false });
+});
+
+test("the edit modal hides address normalization for event groups", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025", is_group: true }];
+    await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    expect(document.getElementById("edit_normalize_addresses_group")!.classList.contains("d-none")).toBe(true);
 });
 
 test("the delete button is disabled when the server disallows event deletion", async (): Promise<void> => {

@@ -32,6 +32,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/format"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store"
@@ -128,6 +129,17 @@ func applyStringChange(dst *sql.NullString, newVal *string, label string, logs *
 	}
 	*dst = conv.StringToSql(newVal, 0)
 	*logs = append(*logs, fmt.Sprintf("Changed %v: %v", label, dst.String))
+}
+
+// normalizedAddress puts a client-supplied Black Rock City address into
+// canonical form, e.g. "7+e" into "7:00 & E". Text that doesn't parse as an
+// address is left as the client sent it.
+func normalizedAddress(address *string, normalize bool) *string {
+	if address == nil || !normalize {
+		return address
+	}
+	normalized := format.NormalizeAddress(*address)
+	return &normalized
 }
 
 func readBodyAs[T any](req *http.Request) (T, *herr.HTTPError) {

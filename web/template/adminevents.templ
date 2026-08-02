@@ -51,6 +51,13 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             <label for="edit_map_url" class="control-label input-group-text">Map URL</label>
             <input id="edit_map_url" type="url" class="form-control form-control-sm" onchange="setMapURL(this);" placeholder="https://example.com/map.pdf" />
           </div>
+          <div class="input-group mb-3" id="edit_normalize_addresses_group">
+            <label for="edit_normalize_addresses" class="control-label input-group-text">Normalize Addresses</label>
+            <div class="input-group-text">
+              <input id="edit_normalize_addresses" type="checkbox" class="form-check-input mt-0" onchange="setNormalizeAddresses(this);" />
+            </div>
+            <span class="form-control form-control-sm text-smaller d-flex align-items-center">Rewrite addresses into BRC form, e.g. "7+e" becomes "7:00 &amp; E"</span>
+          </div>
         </div>
         <div class="modal-footer">
           <!-- The title tooltip goes on the wrapper span, since disabled buttons don't fire the events that show tooltips. -->

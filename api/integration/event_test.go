@@ -96,6 +96,88 @@ func TestGetAndEditEvent(t *testing.T) {
 	require.NotZero(t, foundEvent.ID)
 }
 
+func TestEventNormalizeAddresses(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	eventName := rand.NonCryptoText()
+	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	adminExpr := "person:" + userAdminHandle
+	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
+		eventName: {
+			Writers:      []imsjson.AccessRule{{Expression: adminExpr, Validity: "always"}},
+			VisitWriters: []imsjson.AccessRule{{Expression: adminExpr, Validity: "always"}},
+		},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A new event doesn't normalize addresses.
+	events, resp := apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	event := findEvent(events, eventID)
+	require.NotNil(t, event)
+	require.NotNil(t, event.NormalizeAddresses)
+	require.False(t, *event.NormalizeAddresses)
+
+	// So the address is stored exactly as sent.
+	incidentNumber := apisAdmin.newIncidentSuccess(ctx, imsjson.Incident{
+		Event:    eventName,
+		Location: imsjson.Location{Address: new("7+e")},
+	})
+	incident, resp := apisAdmin.getIncident(ctx, eventName, incidentNumber)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, incident.Location.Address)
+	require.Equal(t, "7+e", *incident.Location.Address)
+
+	// Turn normalization on.
+	status, body := editEventBody(ctx, t, apisAdmin, imsjson.Event{
+		ID:                 eventID,
+		NormalizeAddresses: new(true),
+	})
+	require.Equal(t, http.StatusNoContent, status, body)
+
+	events, resp = apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	event = findEvent(events, eventID)
+	require.NotNil(t, event)
+	require.NotNil(t, event.NormalizeAddresses)
+	require.True(t, *event.NormalizeAddresses)
+
+	// Now the same edit gets canonicalized on the way in.
+	resp = apisAdmin.updateIncident(ctx, eventName, incidentNumber, imsjson.Incident{
+		Event:    eventName,
+		Number:   incidentNumber,
+		Location: imsjson.Location{Address: new("7+e")},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	incident, resp = apisAdmin.getIncident(ctx, eventName, incidentNumber)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, incident.Location.Address)
+	require.Equal(t, "7:00 & E", *incident.Location.Address)
+
+	// The same flag covers a Visit's guest camp address.
+	visitNumber := apisAdmin.newVisitSuccess(ctx, imsjson.Visit{
+		Event:            eventName,
+		GuestCampAddress: new("e+7"),
+	})
+	visit, resp := apisAdmin.getVisit(ctx, eventName, visitNumber)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, visit.GuestCampAddress)
+	require.Equal(t, "E & 7:00", *visit.GuestCampAddress)
+}
+
 func TestEditEvent_errors(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -253,6 +335,15 @@ func TestEventGroups_errors(t *testing.T) {
 	})
 	require.Equal(t, http.StatusBadRequest, status)
 	require.Contains(t, body, "cannot have a map URL")
+
+	// An event group holds no incidents or visits, so it can't normalize addresses.
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{
+		ID:                 groupID,
+		NormalizeAddresses: new(true),
+		IsGroup:            new(true),
+	})
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, body, "cannot normalize addresses")
 }
 
 // findEvent returns a pointer to the event with the given ID, or nil if not present.

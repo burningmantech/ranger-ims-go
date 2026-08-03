@@ -17,8 +17,25 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/pull/708
+https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
 -->
+
+## 2026-08
+
+### Changed
+
+- Dropped the ETag/If-Match handshake that clients used to guard their edits. The server now does the concurrency check itself: it re-reads the record, merges the change, and retries if someone else got there first, so a client no longer has to track a version or handle a "your copy is stale" rejection. Report entries, Ranger rosters, Incident Types, links, and Field Report/Visit assignment live in their own tables, so none of them can clobber (or be clobbered by) an edit to the record's own fields. https://github.com/burningmantech/ranger-ims-go/pull/732
+- Made the IMS logo in the navbar link to the table for whatever you're looking at, so that from a Field Report it goes to that event's Field Reports table rather than to the home page. The user dropdown also gained a "Home" link (and some emoji). https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
+- Started saying "Set role for X" in the change log when a Ranger's role within an Incident or Sanctuary Visit changes, rather than describing it as a removal and re-addition. https://github.com/burningmantech/ranger-ims-go/commit/9ae0919
+
+### Added
+
+- Added server-side error logging, surfaced on a new Error Logs admin page. This makes it much easier to spot problems during the event. https://github.com/burningmantech/ranger-ims-go/pull/737
+- Added normalization of Black Rock City addresses, so that an Incident location or a Sanctuary Visit guest camp address typed as "7+e" is saved as "7:00 & E". It's opt-in per event, toggled from the Admin Events page, so it can be turned on or off without a server restart. https://github.com/burningmantech/ranger-ims-go/pull/736
+
+### Fixed
+
+- Stopped the Incident location autocomplete from putting the whole "Name (address)" string into the name field. Picking a place now fills in just the name, and the address goes in the address field, where it belongs. https://github.com/burningmantech/ranger-ims-go/commit/70bc5d7
 
 ## 2026-07
 
@@ -29,10 +46,15 @@ https://github.com/burningmantech/ranger-ims-go/pull/708
 - Reorganized how event permissions are displayed on the Admin Events page, grouping the grants so that they're much easier to read and manage. Rule badges now count matching expressions rather than people, grant dates show as a bare date (with the full datetime on hover), a bare `*` who-expression is spelled out as "(ALL authenticated users)", and a grant's description appears on its own line above its terms. https://github.com/burningmantech/ranger-ims-go/pull/704 https://github.com/burningmantech/ranger-ims-go/pull/707 https://github.com/burningmantech/ranger-ims-go/commit/34c5781
 - Stopped using flatpickr for the date inputs on the Admin Events page. There were enough of them that the page got noticeably slow to render, and it's an admin-only page, so manual datetime entry is a fair trade. https://github.com/burningmantech/ranger-ims-go/pull/703
 - Replaced the event name text input on the Admin Places page with a real dropdown of events, newest first. https://github.com/burningmantech/ranger-ims-go/pull/708
-- Changed how the Incident page adds and removes an Incident Type or a link to another Incident: each of those gestures is now its own request against a new per-item endpoint, rather than a rewrite of the whole list. Such a request says only "attach this one" or "remove this one", so it can't undo a change someone else made, it's safe to repeat, and it never conflicts with a concurrent edit to the Incident's other fields. The whole-list fields on the Incident API still work as before.
+- Made the Admin Places page keep the selected event in the URL, so a filtered view can be bookmarked or shared and comes back with that event's places already loaded. https://github.com/burningmantech/ranger-ims-go/commit/6c2c0b8
+- Expanded the help page considerably, linked to it from the home page, and replaced the Incident page's "Link IMS #" placeholder with a clearer hint. https://github.com/burningmantech/ranger-ims-go/commit/34df1dc
+- Changed how the Incident page adds and removes an Incident Type or a link to another Incident: each of those gestures is now its own request against a new per-item endpoint, rather than a rewrite of the whole list. Such a request says only "attach this one" or "remove this one", so it can't undo a change someone else made, it's safe to repeat, and it never conflicts with a concurrent edit to the Incident's other fields. The whole-list fields on the Incident API still work as before. https://github.com/burningmantech/ranger-ims-go/pull/729
 
 ### Added
 
+- Allowed an event permission expression to carry more than one access mode for the same event, e.g. so that `person:Hardware` can be a reader of Incidents while also being a writer of Sanctuary Visits. https://github.com/burningmantech/ranger-ims-go/commit/ff87508
+- Added a Places link to the navbar's user dropdown. https://github.com/burningmantech/ranger-ims-go/pull/711
+- Added `hammer`, a standalone load-testing tool under `bin/`, for putting a local or test IMS server under load. https://github.com/burningmantech/ranger-ims-go/commit/b275e9d
 - Added an IMS-native user store, allowing IMS to run without a Clubhouse database. This includes a new admin page for managing users in the IMS-native user tables. https://github.com/burningmantech/ranger-ims-go/commit/7be7b05
 - Added versioning of Incidents, Field Reports, and Sanctuary Visits. Each is now served with a version (as an HTTP ETag), and a write that's based on a stale version is rejected rather than silently stomping someone else's concurrent change. https://github.com/burningmantech/ranger-ims-go/pull/680
 - Added a proper multi-event search page, which also supports regular expression searches across all the events a user can read. https://github.com/burningmantech/ranger-ims-go/pull/678 https://github.com/burningmantech/ranger-ims-go/commit/a7e1d2e
@@ -52,11 +74,12 @@ https://github.com/burningmantech/ranger-ims-go/pull/708
 - Pointed the Incident page's "On-Duty" link at the incident's start time, so it shows who was on duty then rather than now. https://github.com/burningmantech/ranger-ims-go/pull/708
 - Added cachebusting for style.css, as we already did for our JavaScript files. https://github.com/burningmantech/ranger-ims-go/pull/706
 - Avoided database contention over the next number to assign when creating Incidents, Field Reports, and Sanctuary Visits. https://github.com/burningmantech/ranger-ims-go/commit/93bde89
-- Fixed a data-loss bug on the Incident page: clicking two Incident Types' (or two linked Incidents') X buttons in quick succession would remove one and put the other one back, because the second request was built from the list as it looked before the first click.
-- Stopped a Ranger roster change on the Incident or Sanctuary Visit page from spuriously rejecting a field edit that was in flight at the same time.
-- Stopped allowing an Incident Type to be created or renamed with an empty name. A nameless type can't be shown to anyone, and it's indistinguishable from a type that doesn't exist to anything that looks one up by name.
+- Fixed a data-loss bug on the Incident page: clicking two Incident Types' (or two linked Incidents') X buttons in quick succession would remove one and put the other one back, because the second request was built from the list as it looked before the first click. https://github.com/burningmantech/ranger-ims-go/pull/729
+- Stopped a Ranger roster change on the Incident or Sanctuary Visit page from spuriously rejecting a field edit that was in flight at the same time. https://github.com/burningmantech/ranger-ims-go/pull/729
+- Stopped allowing an Incident Type to be created or renamed with an empty name. A nameless type can't be shown to anyone, and it's indistinguishable from a type that doesn't exist to anything that looks one up by name. https://github.com/burningmantech/ranger-ims-go/pull/729
 - Stopped the Incident page's "Link IMS #" field from sending a link to Incident #0 when what was typed wasn't a number. It now says so, and an emptied field no longer tries to link anything (or, on an unsaved Incident, to create one).
 - Told password managers to ignore another field that isn't a password. https://github.com/burningmantech/ranger-ims-go/pull/671
+- Made the "don't autofill this" hints consistent across the web UI. Blocking autofill takes several attributes, and only a handful of the ~34 fields that opted out had all of them, so some still drew fill and save prompts. https://github.com/burningmantech/ranger-ims-go/commit/147d0ca
 
 ## 2026-06
 

@@ -16,10 +16,19 @@
 
 package template
 
-templ Nav(eventName string) {
+// eventSection, when set, is the event-scoped URL segment of the current page
+// ("incidents", "field_reports" or "visits"). It sends the logo link to that
+// section's root rather than to the event's home page.
+templ Nav(eventName, eventSection string) {
 {{
   eventSet := eventName != ""
-  if !eventSet {
+  logoHref := "/ims/app"
+  if eventSet {
+    logoHref = "/ims/app/events/" + eventName
+    if eventSection != "" {
+      logoHref += "/" + eventSection
+    }
+  } else {
     eventName = "Event"
   }
 }}
@@ -92,7 +101,7 @@ templ Nav(eventName string) {
   </template>
 
   <div class="container-fluid">
-    <a class="navbar-brand" href="/ims/app">
+    <a id="ims-logo" class="navbar-brand" href={ logoHref }>
       <svg class="logo-icon me-1" aria-hidden="true" focusable="false">
         <use href="#brr" />
       </svg>
@@ -193,7 +202,7 @@ templ Nav(eventName string) {
 
       <!-- Not logged in: offer to log in -->
       <ul class="navbar-nav if-not-logged-in hidden no-print">
-        <li id="nav_login"><a class="nav-link" href="/ims/auth/login">Log In</a></li>
+        <li id="nav_login"><a class="nav-link" href="/ims/auth/login">🚪 Log In</a></li>
       </ul>
 
       <!-- Logged in: show user menu -->
@@ -204,8 +213,9 @@ templ Nav(eventName string) {
             <span class="logged-in-user"/>
           </a>
           <ul class="dropdown-menu">
-            <li class="if-admin hidden"><a href="/ims/app/admin" class="dropdown-item">Admin</a></li>
-            <li><a href="/ims/app/search" class="dropdown-item">Search</a></li>
+            <li class="if-admin hidden"><a href="/ims/app/admin" class="dropdown-item">🛡️ Admin</a></li>
+            <li><a href="/ims/app" class="dropdown-item">🏠 Home</a></li>
+            <li><a href="/ims/app/search" class="dropdown-item">🔍 Search</a></li>
             <li class="nav-item">
               <a id="active-event-places"
                  if eventSet {
@@ -213,12 +223,12 @@ templ Nav(eventName string) {
                  } else {
                    class="dropdown-item hidden"
                  }
-                 href="">Places
+                 href="">⛺ Places
                </a>
             </li>
-            <li><a href="/ims/app/settings" class="dropdown-item">Settings</a></li>
-            <li><a href="/ims/app/help" class="dropdown-item">Help</a></li>
-            <li><a href="/ims/auth/logout" class="dropdown-item">Log out</a></li>
+            <li><a href="/ims/app/settings" class="dropdown-item">⚙️ Settings</a></li>
+            <li><a href="/ims/app/help" class="dropdown-item">❔ Help</a></li>
+            <li><a href="/ims/auth/logout" class="dropdown-item">🚪 Log out</a></li>
           </ul>
         </li>
       </ul>

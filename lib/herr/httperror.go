@@ -121,6 +121,14 @@ func (e *HTTPError) Unwrap() error {
 	return e.InternalErr
 }
 
+// ErrorRecorder is implemented by an http.ResponseWriter that wants to capture
+// the errors written through it, for the error log. WriteResponse hands over
+// every error it writes; it's the recorder's business which ones are worth
+// keeping.
+type ErrorRecorder interface {
+	RecordHTTPError(e *HTTPError)
+}
+
 func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
 	if !e.ExpectedError {
 		slog.Error("Writing error HTTP response",
@@ -128,6 +136,10 @@ func (e *HTTPError) WriteResponse(w http.ResponseWriter) {
 			"message", e.ResponseMessage,
 			"internalError", e.InternalErr,
 		)
+	}
+
+	if recorder, ok := w.(ErrorRecorder); ok {
+		recorder.RecordHTTPError(e)
 	}
 
 	p := Problem{

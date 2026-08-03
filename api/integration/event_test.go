@@ -365,7 +365,7 @@ func TestDeleteEvent(t *testing.T) {
 	cfg := *shared.cfg
 	cfg.Core.EventDeletionEnabled = true
 	deletionServer := httptest.NewServer(
-		api.AddToMux(nil, api.NewEventSourcerer(), &cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger),
+		api.AddToMux(nil, api.NewEventSourcerer(), &cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger, shared.errorLogger),
 	)
 	t.Cleanup(deletionServer.Close)
 	deletionServerURL, err := url.Parse(deletionServer.URL)

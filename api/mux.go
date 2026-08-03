@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -35,6 +36,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
+	"github.com/burningmantech/ranger-ims-go/store/errorlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 )
 
@@ -46,6 +48,7 @@ func AddToMux(
 	userStore *directory.UserStore,
 	s3Client *attachment.S3Client,
 	actionLogger *actionlog.Logger,
+	errorLogger *errorlog.Logger,
 ) *http.ServeMux {
 	if mux == nil {
 		mux = http.NewServeMux()
@@ -55,13 +58,15 @@ func AddToMux(
 	attachmentsEnabled := cfg.AttachmentsStore.Type != conf.AttachmentsStoreNone
 
 	// authed registers a route wrapped in the standard middleware stack for an
-	// authenticated endpoint: panic recovery, JWT authentication, action
-	// logging, and a request-size limit. logAction controls whether the request
-	// is written to the action log. Using this for every authenticated route
-	// makes it impossible to silently forget RequireAuthN.
+	// authenticated endpoint: error logging, panic recovery, JWT
+	// authentication, action logging, and a request-size limit. logAction
+	// controls whether the request is written to the action log. Using this for
+	// every authenticated route makes it impossible to silently forget
+	// RequireAuthN.
 	authed := func(pattern string, handler http.Handler, logAction bool) {
 		mux.Handle(pattern, Adapt(
 			handler,
+			RecordErrors(errorLogger),
 			RecoverFromPanic(),
 			RequireAuthN(jwter),
 			LogRequest(logAction, actionLogger, userStore),
@@ -73,7 +78,7 @@ func AddToMux(
 	// Zero or more auth adapters (e.g. OptionalAuthN) may still be supplied;
 	// pass none for endpoints that ignore the Authorization header entirely.
 	unauthed := func(pattern string, handler http.Handler, logAction bool, authN ...Adapter) {
-		adapters := append([]Adapter{RecoverFromPanic()}, authN...)
+		adapters := append([]Adapter{RecordErrors(errorLogger), RecoverFromPanic()}, authN...)
 		adapters = append(adapters,
 			LogRequest(logAction, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
@@ -85,6 +90,7 @@ func AddToMux(
 	authed("GET /ims/api/access_targets", GetAccessTargets{db, userStore, cfg.Core.Admins}, true)
 	authed("POST /ims/api/access", PostEventAccess{db, userStore, cfg.Core.Admins}, true)
 	authed("GET /ims/api/actionlogs", GetActionLogs{db, userStore, cfg.Core.Admins}, true)
+	authed("GET /ims/api/errorlogs", GetErrorLogs{db, userStore, cfg.Core.Admins}, true)
 
 	// This endpoint does not require authentication, nor does it even consider
 	// the request's Authorization header, because the point of this is to make
@@ -230,11 +236,48 @@ type responseWriter struct {
 	http.Flusher
 
 	code int
+
+	// The first error written through this writer, plus the stack of the panic
+	// (if any) that RecoverFromPanic turned into that error. These feed the
+	// error log.
+	errHTTP    *herr.HTTPError
+	panicStack []byte
+
+	// Identity of the requestor, deposited by LogRequest before the request is
+	// served, so that it's available even if the handler panics.
+	userID       sql.NullInt64
+	userName     sql.NullString
+	positionID   sql.NullInt64
+	positionName sql.NullString
 }
 
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.code = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+// RecordHTTPError implements herr.ErrorRecorder. A handler writes at most one
+// error response, so later errors are the noise of an already-failed request.
+func (rw *responseWriter) RecordHTTPError(e *herr.HTTPError) {
+	if rw.errHTTP == nil {
+		rw.errHTTP = e
+	}
+}
+
+func (rw *responseWriter) recordPanic(stack []byte) {
+	rw.panicStack = stack
+}
+
+func (rw *responseWriter) setUser(userID, positionID sql.NullInt64, userName, positionName sql.NullString) {
+	rw.userID = userID
+	rw.userName = userName
+	rw.positionID = positionID
+	rw.positionName = positionName
+}
+
+func newResponseWriter(w http.ResponseWriter) *responseWriter {
+	flusher, _ := w.(http.Flusher)
+	return &responseWriter{ResponseWriter: w, Flusher: flusher, code: http.StatusOK}
 }
 
 func LimitRequestBytes(maxRequestBytes int64) Adapter {
@@ -257,14 +300,30 @@ func clientAddress(r *http.Request) string {
 	return addrPort.Addr().String()
 }
 
+// requestReferrer trims the referrer down to the IMS-relative part, which is
+// the only bit worth recording.
+func requestReferrer(r *http.Request) *string {
+	referrerHeader := r.Header.Get("Referer")
+	referrerUsefulIndex := strings.Index(referrerHeader, "/ims")
+	if referrerUsefulIndex != -1 {
+		referrerHeader = referrerHeader[referrerUsefulIndex:]
+	}
+	return conv.EmptyToNil(referrerHeader)
+}
+
 func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *directory.UserStore) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			writ := &responseWriter{w, w.(http.Flusher), http.StatusOK}
+			// RecordErrors, when it's in play, already made the wrapper.
+			writ, ok := w.(*responseWriter)
+			if !ok {
+				writ = newResponseWriter(w)
+			}
 
-			next.ServeHTTP(writ, r)
-
+			// The identity is read before the request is served, and stashed on
+			// the wrapper, so that the error log can still name the requestor
+			// when the handler panics past everything below here.
 			var username sql.NullString
 			var userID sql.NullInt64
 			var positionID sql.NullInt64
@@ -282,14 +341,12 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 					}
 				}
 			}
+			writ.setUser(userID, positionID, username, positionName)
+
+			next.ServeHTTP(writ, r)
 
 			if enable {
-				referrerHeader := r.Header.Get("Referer")
-				referrerUsefulIndex := strings.Index(referrerHeader, "/ims")
-				if referrerUsefulIndex != -1 {
-					referrerHeader = referrerHeader[referrerUsefulIndex:]
-				}
-				referrer := conv.EmptyToNil(referrerHeader)
+				referrer := requestReferrer(r)
 				remoteAddr := clientAddress(r)
 				actionLogger.Log(
 					r.Context(),
@@ -320,14 +377,80 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 	}
 }
 
+// ErrorLogger writes rows to the error log. *errorlog.Logger implements it;
+// the indirection is what lets RecordErrors be tested without a database.
+type ErrorLogger interface {
+	Log(ctx context.Context, record imsdb.AddErrorLogParams)
+}
+
+// RecordErrors writes an error log row for any request that ends in a 5xx
+// response or a recovered panic. It has to be the outermost adapter: it owns
+// the responseWriter that herr.WriteResponse records onto, and sitting outside
+// RecoverFromPanic is what lets it see panics at all.
+//
+// Unlike the action log, this ignores the per-route logAction flag. Errors from
+// the quiet read endpoints are exactly the ones worth seeing.
+func RecordErrors(errorLogger ErrorLogger) Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			writ := newResponseWriter(w)
+
+			next.ServeHTTP(writ, r)
+
+			errHTTP := writ.errHTTP
+			if errHTTP == nil || errHTTP.Code < http.StatusInternalServerError {
+				return
+			}
+			// A client that hung up mid-request isn't a server fault, and
+			// nobody ever saw the response we failed to write. Both conditions
+			// are required, so that a genuine bug in our own use of contexts
+			// can't hide behind this. Note that context.DeadlineExceeded is
+			// deliberately not covered: a blown deadline is the server failing
+			// to keep a promise, which is exactly what the error log is for.
+			if r.Context().Err() != nil && errors.Is(errHTTP, context.Canceled) {
+				return
+			}
+			var internalError string
+			if errHTTP.InternalErr != nil {
+				internalError = errHTTP.InternalErr.Error()
+			}
+			remoteAddr := clientAddress(r)
+			errorLogger.Log(
+				r.Context(),
+				imsdb.AddErrorLogParams{
+					CreatedAt:       conv.TimeToFloat(time.Now()),
+					HttpStatus:      int16(errHTTP.Code),
+					ResponseMessage: conv.StringToSql(conv.EmptyToNil(errHTTP.ResponseMessage), 1024),
+					InternalError:   conv.StringToSql(conv.EmptyToNil(internalError), 1024),
+					StackTrace:      conv.StringToSql(conv.EmptyToNil(string(writ.panicStack)), 1024),
+					Method:          conv.StringToSql(&r.Method, 128),
+					Path:            conv.StringToSql(&r.URL.Path, 255),
+					Referrer:        conv.StringToSql(requestReferrer(r), 255),
+					UserID:          writ.userID,
+					UserName:        writ.userName,
+					PositionID:      writ.positionID,
+					PositionName:    writ.positionName,
+					ClientAddress:   conv.StringToSql(&remoteAddr, 128),
+					DurationMicros:  sql.NullInt64{Int64: time.Since(start).Microseconds(), Valid: true},
+				})
+		})
+	}
+}
+
 func RecoverFromPanic() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
-					slog.Error("Recovered from panic", "err", err)
-					debug.PrintStack()
-					herr.InternalServerError("The server malfunctioned", nil).WriteResponse(w)
+					stack := debug.Stack()
+					slog.Error("Recovered from panic", "err", err, "stack", string(stack))
+					if writ, ok := w.(*responseWriter); ok {
+						writ.recordPanic(stack)
+					}
+					herr.InternalServerError(
+						"The server malfunctioned", fmt.Errorf("panic: %v", err),
+					).WriteResponse(w)
 				}
 			}()
 			next.ServeHTTP(w, r)

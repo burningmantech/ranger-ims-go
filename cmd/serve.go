@@ -38,6 +38,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
+	"github.com/burningmantech/ranger-ims-go/store/errorlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/burningmantech/ranger-ims-go/web"
 	"github.com/spf13/cobra"
@@ -131,10 +132,11 @@ func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printC
 		must(err)
 	}
 	actionLogger := actionlog.NewLogger(ctx, imsDBQ, imsCfg.Core.ActionLogEnabled, false)
+	errorLogger := errorlog.NewLogger(ctx, imsDBQ, imsCfg.Core.ErrorLogEnabled, false)
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(mux, eventSource, imsCfg, imsDBQ, userStore, s3Client, actionLogger)
+	api.AddToMux(mux, eventSource, imsCfg, imsDBQ, userStore, s3Client, actionLogger, errorLogger)
 	web.AddToMux(mux, imsCfg)
 
 	s := &http.Server{
@@ -148,6 +150,7 @@ func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printC
 	}
 	s.RegisterOnShutdown(func() {
 		actionLogger.Close()
+		errorLogger.Close()
 		eventSource.Server.Close()
 	})
 

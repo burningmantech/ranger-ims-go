@@ -66,6 +66,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
         <a id="incident_number_link" href="#" class="control-label input-group-text">IMS #</a>
         <input
             id="incident_number" aria-label="IMS #" type="text" class="form-control form-control-static"
+            { NoAutofill()... }
             onchange="updateIncident(this);" readonly
         />
       </div>

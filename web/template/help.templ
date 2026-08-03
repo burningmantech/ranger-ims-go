@@ -433,6 +433,12 @@ templ Help(deployment, versionName, versionRef string) {
     time, user, and path. Useful for tracing who did what and when.
   </li>
   <li>
+    <strong>Error Logs</strong>: the requests that failed on the server's side, filterable the
+    same way. Expanding a row shows the message the client saw, the internal error chain, and
+    the stack trace when the server crashed outright. Client mistakes (bad requests, missing
+    records, denied permissions) aren't recorded here.
+  </li>
+  <li>
     <strong>Server Debugging Details</strong>: technical server information (build info, runtime
     metrics, and a manual garbage-collection button) for the Tech Cadre when diagnosing problems.
   </li>

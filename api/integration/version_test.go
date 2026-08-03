@@ -387,7 +387,7 @@ func interceptedServer(t *testing.T, interceptor casInterceptor) *url.URL {
 	interceptor.Querier = imsdb.New()
 	dbq := store.NewDBQ(shared.imsDBQ.DB, interceptor)
 	server := httptest.NewServer(
-		api.AddToMux(nil, shared.es, shared.cfg, dbq, shared.userStore, nil, shared.actionLogger),
+		api.AddToMux(nil, shared.es, shared.cfg, dbq, shared.userStore, nil, shared.actionLogger, shared.errorLogger),
 	)
 	t.Cleanup(server.Close)
 	serverURL, err := url.Parse(server.URL)

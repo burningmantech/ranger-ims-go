@@ -43,6 +43,7 @@ func TestMustApplyEnvConfig(t *testing.T) {
 	t.Setenv("IMS_DIRECTORY_CACHE_TTL", "15m")
 	t.Setenv("IMS_LOG_LEVEL", "WARN")
 	t.Setenv("IMS_ACTION_LOG_ENABLED", "true")
+	t.Setenv("IMS_ERROR_LOG_ENABLED", "false")
 	t.Setenv("IMS_EVENT_DELETION_ENABLED", "true")
 	t.Setenv("IMS_DIRECTORY", "clubhousedb")
 	t.Setenv("IMS_ADMINS", "alice,bob")
@@ -78,6 +79,9 @@ func TestMustApplyEnvConfig(t *testing.T) {
 	assert.Equal(t, 15*time.Minute, cfg.Directory.InMemoryCacheTTL)
 	assert.Equal(t, "WARN", cfg.Core.LogLevel)
 	assert.True(t, cfg.Core.ActionLogEnabled)
+	// The error log is on by default, so this proves the env var can turn it off.
+	assert.True(t, conf.DefaultIMS().Core.ErrorLogEnabled)
+	assert.False(t, cfg.Core.ErrorLogEnabled)
 	assert.True(t, cfg.Core.EventDeletionEnabled)
 	assert.Equal(t, conf.DirectoryTypeClubhouseDB, cfg.Directory.Directory)
 	assert.Equal(t, []string{"alice", "bob"}, cfg.Core.Admins)

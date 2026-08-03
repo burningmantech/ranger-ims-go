@@ -82,7 +82,7 @@ func newIMSDirectoryServer(t *testing.T, ctx context.Context) *url.URL {
 		cfg.Directory.InMemoryCacheTTL,
 	)
 	server := httptest.NewServer(
-		api.AddToMux(nil, api.NewEventSourcerer(), &cfg, shared.imsDBQ, userStore, nil, shared.actionLogger),
+		api.AddToMux(nil, api.NewEventSourcerer(), &cfg, shared.imsDBQ, userStore, nil, shared.actionLogger, shared.errorLogger),
 	)
 	t.Cleanup(server.Close)
 	serverURL, err := url.Parse(server.URL)

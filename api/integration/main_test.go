@@ -24,15 +24,18 @@ import (
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/lib/testctr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
+	"github.com/burningmantech/ranger-ims-go/store/errorlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/testcontainers/testcontainers-go"
 	"golang.org/x/sync/errgroup"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -60,7 +63,13 @@ var shared struct {
 	testServer   *httptest.Server
 	serverURL    *url.URL
 	actionLogger *actionlog.Logger
+	errorLogger  *errorlog.Logger
 }
+
+// panicPath is a test-only route that always panics, so that the error log
+// tests can drive a genuine 500 through the whole middleware stack. There's no
+// real endpoint that fails on demand.
+const panicPath = "/ims/api/test/panic"
 
 // These values must align with those in clubhousedb_test_seed.sql.
 const (
@@ -175,9 +184,18 @@ func setup(ctx context.Context, tempDir string) {
 	must(g.Wait())
 
 	shared.actionLogger = actionlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ActionLogEnabled, true)
-	shared.testServer = httptest.NewServer(
-		api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger),
-	)
+	shared.errorLogger = errorlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ErrorLogEnabled, true)
+	mux := api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger, shared.errorLogger)
+	mux.Handle(http.MethodGet+" "+panicPath, api.Adapt(
+		http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+			panic("this handler always panics")
+		}),
+		api.RecordErrors(shared.errorLogger),
+		api.RecoverFromPanic(),
+		api.RequireAuthN(authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}),
+		api.LogRequest(false, shared.actionLogger, shared.userStore),
+	))
+	shared.testServer = httptest.NewServer(mux)
 	shared.serverURL, err = url.Parse(shared.testServer.URL)
 	must(err)
 }

@@ -669,6 +669,18 @@ func (a ApiHelper) getActionLogs(ctx context.Context, minTime, maxTime string) (
 	return *bod.(*imsjson.ActionLogs), resp
 }
 
+func (a ApiHelper) getErrorLogs(ctx context.Context, minTime, maxTime string) (imsjson.ErrorLogs, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/errorlogs")
+	q := path.Query()
+	q.Set("minTimeUnixMs", minTime)
+	q.Set("maxTimeUnixMs", maxTime)
+	path.RawQuery = q.Encode()
+
+	bod, resp := a.imsGet(ctx, path.String(), &imsjson.ErrorLogs{})
+	return *bod.(*imsjson.ErrorLogs), resp
+}
+
 func jwtForAlice(t *testing.T, ctx context.Context) string {
 	t.Helper()
 	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}

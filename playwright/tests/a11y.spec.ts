@@ -209,6 +209,13 @@ const pages: {name: string; goto: (page: Page) => Promise<void>}[] = [
     },
   },
   {
+    name: "admin_error_logs",
+    goto: async (page): Promise<void> => {
+      await page.goto(`${baseURL}/ims/app/admin/errorlogs`);
+      await expect(page.locator("#doc-title")).toBeVisible();
+    },
+  },
+  {
     name: "admin_debug",
     goto: async (page): Promise<void> => {
       await page.goto(`${baseURL}/ims/app/admin/debug`);

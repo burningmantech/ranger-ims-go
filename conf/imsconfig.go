@@ -47,6 +47,7 @@ func DefaultIMS() *IMSConfig {
 			CacheControlLong:     2 * time.Hour,
 			MaxRequestBytes:      100 * mib,
 			ActionLogEnabled:     true,
+			ErrorLogEnabled:      true,
 		},
 		Store: DBStore{
 			Type: DBStoreTypeMaria,
@@ -233,6 +234,9 @@ type ConfigCore struct {
 
 	// ActionLogEnabled is a global toggle switch for enabling writing to the ACTION_LOG table.
 	ActionLogEnabled bool
+
+	// ErrorLogEnabled is a global toggle switch for enabling writing to the ERROR_LOG table.
+	ErrorLogEnabled bool
 
 	// EventDeletionEnabled allows admins to delete an Event and all its associated data.
 	// This is intended for local development and staging, where it's useful to clean up

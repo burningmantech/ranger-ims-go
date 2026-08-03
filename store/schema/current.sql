@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (38);
+insert into SCHEMA_INFO (VERSION) values (39);
 
 
 create table `EVENT` (
@@ -220,6 +220,33 @@ create table `ACTION_LOG` (
 
     -- response metadata
     `HTTP_STATUS`       smallint,
+    `DURATION_MICROS`   bigint,
+
+    primary key (`ID`)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+create table `ERROR_LOG` (
+    `ID`                bigint not null auto_increment,
+    `CREATED_AT`        double not null,
+
+    -- response
+    `HTTP_STATUS`       smallint not null,
+    `RESPONSE_MESSAGE`  text,
+    `INTERNAL_ERROR`    text,
+    `STACK_TRACE`       text,
+
+    -- request metadata
+    `METHOD`            varchar(128),
+    `PATH`              varchar(255),
+    `REFERRER`          varchar(255),
+
+    -- requestor metadata
+    `USER_ID`           bigint,
+    `USER_NAME`         varchar(128),
+    `POSITION_ID`       bigint,
+    `POSITION_NAME`     varchar(128),
+    `CLIENT_ADDRESS`    varchar(128),
     `DURATION_MICROS`   bigint,
 
     primary key (`ID`)

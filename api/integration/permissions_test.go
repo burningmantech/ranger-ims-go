@@ -47,6 +47,7 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		{http.MethodPost, "/ims/api/access"},
 		{http.MethodGet, "/ims/api/access_targets"},
 		{http.MethodGet, "/ims/api/actionlogs"},
+		{http.MethodGet, "/ims/api/errorlogs"},
 		{http.MethodPost, "/ims/api/events"},
 		// It doesn't matter that this event doesn't exist, because the endpoint will deny access to
 		// a non-admin before it checks whether the event even exists.

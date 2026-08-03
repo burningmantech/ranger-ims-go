@@ -509,6 +509,23 @@ where
     and al.CREATED_AT < sqlc.arg(max_time)
 ;
 
+-- name: AddErrorLog :execlastid
+insert into ERROR_LOG
+    (CREATED_AT, HTTP_STATUS, RESPONSE_MESSAGE, INTERNAL_ERROR, STACK_TRACE, METHOD, PATH, REFERRER, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, DURATION_MICROS)
+values
+    (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+;
+
+-- name: ErrorLogs :many
+select
+    sqlc.embed(el)
+from
+    ERROR_LOG el
+where
+    el.CREATED_AT > sqlc.arg(min_time)
+    and el.CREATED_AT < sqlc.arg(max_time)
+;
+
 -- name: CreatePlace :exec
 insert into PLACE
     (EVENT, NUMBER, TYPE, NAME, LOCATION_STRING, EXTERNAL_DATA)

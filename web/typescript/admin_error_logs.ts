@@ -59,9 +59,9 @@ async function initAdminErrorLogsPage(): Promise<void> {
 
     window.updateTable = updateTable;
 
-    const yesterday: Date = new Date();
-    yesterday.setDate(new Date().getDate() - 1);
-    el.filterMinTime.value = nerdDateTime.format(yesterday);
+    const weekAgo: Date = new Date();
+    weekAgo.setDate(new Date().getDate() - 7);
+    el.filterMinTime.value = nerdDateTime.format(weekAgo);
     updateFilters();
 
     errorLogsTable = new DataTable("#error_logs_table", {

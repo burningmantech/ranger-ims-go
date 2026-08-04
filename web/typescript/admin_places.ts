@@ -29,17 +29,75 @@ declare global {
 //
 
 const el = {
-    placeForm: ims.typedElement("place-form", HTMLFormElement),
     eventName: ims.typedElement("event-name", HTMLSelectElement),
-    artData: ims.typedElement("art-data", HTMLTextAreaElement),
-    campData: ims.typedElement("camp-data", HTMLTextAreaElement),
-    mvData: ims.typedElement("mv-data", HTMLTextAreaElement),
-    otherData: ims.typedElement("other-data", HTMLTextAreaElement),
-    artDataLabel: ims.typedElement("art-data-label", HTMLLabelElement),
-    campDataLabel: ims.typedElement("camp-data-label", HTMLLabelElement),
-    mvDataLabel: ims.typedElement("mv-data-label", HTMLLabelElement),
-    otherDataLabel: ims.typedElement("other-data-label", HTMLLabelElement),
 };
+
+// Each kind of place gets its own textarea, its own Save button, and its own
+// trip to the API, so that saving one kind can't clobber the other three.
+interface PlaceField {
+    placeType: ims.PlaceType;
+    labelText: string;
+    dataEl: HTMLTextAreaElement;
+    labelEl: HTMLLabelElement;
+    saveEl: HTMLButtonElement;
+    // Converts the pasted external data (e.g. a Burning Man API response) into
+    // the Places the IMS API takes.
+    parse: (value: string) => ims.Place[];
+}
+
+const fields: PlaceField[] = [
+    {
+        placeType: "art",
+        labelText: "Art JSON Data",
+        dataEl: ims.typedElement("art-data", HTMLTextAreaElement),
+        labelEl: ims.typedElement("art-data-label", HTMLLabelElement),
+        saveEl: ims.typedElement("art-save", HTMLButtonElement),
+        parse: (value: string): ims.Place[] =>
+            (JSON.parse(value) as ims.BMArt[]).map((ed: ims.BMArt): ims.Place => ({
+                name: ed.name,
+                location_string: ed.location_string,
+                external_data: ed,
+            })),
+    },
+    {
+        placeType: "camp",
+        labelText: "Camp JSON Data",
+        dataEl: ims.typedElement("camp-data", HTMLTextAreaElement),
+        labelEl: ims.typedElement("camp-data-label", HTMLLabelElement),
+        saveEl: ims.typedElement("camp-save", HTMLButtonElement),
+        parse: (value: string): ims.Place[] =>
+            (JSON.parse(value) as ims.BMCamp[]).map((ed: ims.BMCamp): ims.Place => ({
+                name: ed.name,
+                location_string: ed.location_string,
+                external_data: ed,
+            })),
+    },
+    {
+        placeType: "mv",
+        labelText: "Mutant vehicle JSON Data",
+        dataEl: ims.typedElement("mv-data", HTMLTextAreaElement),
+        labelEl: ims.typedElement("mv-data-label", HTMLLabelElement),
+        saveEl: ims.typedElement("mv-save", HTMLButtonElement),
+        parse: (value: string): ims.Place[] =>
+            (JSON.parse(value) as ims.BMMV[]).map((ed: ims.BMMV): ims.Place => ({
+                name: ed.name,
+                external_data: ed,
+            })),
+    },
+    {
+        placeType: "other",
+        labelText: "Other JSON Data",
+        dataEl: ims.typedElement("other-data", HTMLTextAreaElement),
+        labelEl: ims.typedElement("other-data-label", HTMLLabelElement),
+        saveEl: ims.typedElement("other-save", HTMLButtonElement),
+        parse: (value: string): ims.Place[] =>
+            (JSON.parse(value) as ims.OtherDest[]).map((ed: ims.OtherDest): ims.Place => ({
+                name: ed.name,
+                location_string: ed.location_string,
+                external_data: ed,
+            })),
+    },
+];
 
 initAdminPlacesPage();
 
@@ -50,10 +108,11 @@ async function initAdminPlacesPage(): Promise<void> {
         return;
     }
     window.loadPlaces = loadPlaces;
-    el.placeForm.addEventListener("submit", async (e: SubmitEvent): Promise<void> => {
-        e.preventDefault();
-        await submit();
-    })
+    for (const field of fields) {
+        field.saveEl.addEventListener("click", async (): Promise<void> => {
+            await save(field);
+        });
+    }
     drawEventNames(await initResult.eventDatas);
 
     // An "event_id" query param (which holds an event name, as elsewhere in IMS)
@@ -101,89 +160,38 @@ function drawEventNames(events: ims.EventData[]|null): void {
     }
 }
 
-function parsePlaces(artDataEl: HTMLTextAreaElement, campDataEl: HTMLTextAreaElement, mvDataEl: HTMLTextAreaElement, otherDataEl: HTMLTextAreaElement): ims.Places {
-    const places: ims.Places = {
-        art: [],
-        camp: [],
-        other: [],
-        mv: [],
-    }
-    {
-        const artExtDatas = JSON.parse(artDataEl.value) as ims.BMArt[];
-        for (const ed of artExtDatas) {
-            places.art!.push({
-                name: ed.name,
-                location_string: ed.location_string,
-                external_data: ed,
-            });
-        }
-    }
-    {
-        const campExtDatas = JSON.parse(campDataEl.value) as ims.BMCamp[];
-        for (const ed of campExtDatas) {
-            places.camp!.push({
-                name: ed.name,
-                location_string: ed.location_string,
-                external_data: ed,
-            });
-        }
-    }
-    {
-        const mvExtDatas = JSON.parse(mvDataEl.value) as ims.BMMV[];
-        for (const ed of mvExtDatas) {
-            places.mv!.push({
-                name: ed.name,
-                external_data: ed,
-            });
-        }
-    }
-    {
-        const otherExtDatas = JSON.parse(otherDataEl.value) as ims.OtherDest[];
-        for (const ed of otherExtDatas) {
-            places.other!.push({
-                name: ed.name,
-                location_string: ed.location_string,
-                external_data: ed,
-            });
-        }
-    }
-    return places
-}
-
-async function submit(): Promise<void> {
+async function save(field: PlaceField): Promise<void> {
     ims.clearErrorMessage();
-    let places: ims.Places|null = null;
-    try {
-        places = parsePlaces(el.artData, el.campData, el.mvData, el.otherData);
-    } catch (e: any) {
-        console.log(e);
-        ims.setErrorMessage(e);
-        return;
-    }
     const eventName = el.eventName.value;
     if (!eventName) {
         ims.setErrorMessage("Select an event before saving.");
         return;
     }
+    let places: ims.Places;
+    try {
+        places = {[field.placeType]: field.parse(field.dataEl.value)};
+    } catch (e: any) {
+        console.log(e);
+        ims.setErrorMessage(`Invalid ${field.labelText}: ${e}`);
+        ims.controlHasError(field.dataEl);
+        return;
+    }
 
+    // The API only replaces the place types present in the body, so this leaves
+    // the event's other three kinds of place untouched.
     const {err} = await ims.fetchNoThrow(
         url_places.replace("<event_id>", eventName), {
             body: JSON.stringify(places),
         });
     if (err != null) {
-        const message = `Failed to create place: ${err}`;
+        const message = `Failed to save ${field.placeType} places: ${err}`;
         console.log(message);
         ims.setErrorMessage(message);
-        ims.controlHasError(el.artData);
-        ims.controlHasError(el.campData);
-        ims.controlHasError(el.mvData);
-        ims.controlHasError(el.otherData);
+        ims.controlHasError(field.dataEl);
         return;
     }
-    ims.controlHasSuccess(el.artData);
-    ims.controlHasSuccess(el.campData);
-    ims.controlHasSuccess(el.mvData);
-    ims.controlHasSuccess(el.otherData);
+    ims.controlHasSuccess(field.dataEl);
+    await fetchPlaces([field]);
 }
 
 async function loadPlaces(): Promise<void> {
@@ -193,9 +201,14 @@ async function loadPlaces(): Promise<void> {
     if (!eventName) {
         return;
     }
+    await fetchPlaces(fields);
+}
 
+// Fetches the selected event's places and redraws the given fields from the
+// response, so that a just-saved field shows what the server actually stored.
+async function fetchPlaces(toDraw: PlaceField[]): Promise<void> {
     const {json, err} = await ims.fetchNoThrow<ims.Places>(
-        url_places.replace("<event_id>", eventName), {
+        url_places.replace("<event_id>", el.eventName.value), {
             headers: {"Cache-Control": "no-cache"},
         },
     );
@@ -206,36 +219,11 @@ async function loadPlaces(): Promise<void> {
         return;
     }
 
-    {
-        const arts: ims.BMArt[] = [];
-        for (const ed of json.art ?? []) {
-            arts.push(ed.external_data! as ims.BMArt);
-        }
-        el.artData.value = JSON.stringify(arts, null, 2);
-        el.artDataLabel.textContent = `Art JSON Data (${arts.length})`;
-    }
-    {
-        const camps: ims.BMCamp[] = [];
-        for (const ed of json.camp ?? []) {
-            camps.push(ed.external_data! as ims.BMCamp);
-        }
-        el.campData.value = JSON.stringify(camps, null, 2);
-        el.campDataLabel.textContent = `Camp JSON Data (${camps.length})`;
-    }
-    {
-        const mvs: ims.BMMV[] = [];
-        for (const ed of json.mv ?? []) {
-            mvs.push(ed.external_data! as ims.BMMV);
-        }
-        el.mvData.value = JSON.stringify(mvs, null, 2);
-        el.mvDataLabel.textContent = `Mutant vehicle JSON Data (${mvs.length})`;
-    }
-    {
-        const others: ims.OtherDest[] = [];
-        for (const ed of json.other ?? []) {
-            others.push(ed.external_data! as ims.OtherDest);
-        }
-        el.otherData.value = JSON.stringify(others, null, 2);
-        el.otherDataLabel.textContent = `Other JSON Data (${others.length})`;
+    for (const field of toDraw) {
+        const externalDatas = (json[field.placeType] ?? []).map(
+            (place: ims.Place) => place.external_data,
+        );
+        field.dataEl.value = JSON.stringify(externalDatas, null, 2);
+        field.labelEl.textContent = `${field.labelText} (${externalDatas.length})`;
     }
 }

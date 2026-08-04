@@ -43,6 +43,8 @@ const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
 const visitsPreferredStatusKey = "preferred_visits_status";
 const keyboardShortcutsKey = "keyboard_shortcuts_enabled";
+// Owned by theme.ts, which is a classic script and can't be imported from here.
+const themeKey = "theme";
 
 export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
 
@@ -1851,6 +1853,7 @@ export function clearLocalStorage(): void {
     localStorage.removeItem(visitsPreferredStatusKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
     localStorage.removeItem(keyboardShortcutsKey);
+    localStorage.removeItem(themeKey);
 }
 
 export function clearSessionStorage(): void {

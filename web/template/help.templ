@@ -56,6 +56,7 @@ templ Help(deployment, versionName, versionRef string) {
       <li><a href="#field-reports">Field Reports</a></li>
       <li><a href="#visits">Sanctuary Visits</a></li>
       <li><a href="#places">Places</a></li>
+      <li><a href="#addresses">How addresses are tidied up</a></li>
       <li><a href="#searching">Searching</a></li>
       <li><a href="#saving">How saving works</a></li>
       <li><a href="#printing">Printing</a></li>
@@ -104,11 +105,11 @@ templ Help(deployment, versionName, versionRef string) {
 <h2 id="navigation" class="h4 mt-4">Finding your way around</h2>
 <p>The bar at the top of every page has, from left to right:</p>
 <ul>
-  <li><strong>IMS logo</strong>: takes you back to the home page.</li>
+  <li><strong>IMS logo</strong>: takes you back to the list you came from. If you're looking at an Incident, a Field Report, or a Visit, it goes to that list for the event you're in; otherwise it goes to the home page.</li>
   <li><strong>Event picker</strong>: a dropdown showing the current event (usually the year). Use it to switch between events.</li>
   <li><strong>Incidents, Field Reports, Visits</strong>: links to the main pages for the selected event.</li>
-  <li><strong>Theme toggle</strong>: the half-circle icon switches between light mode, dark mode, and matching your device.</li>
-  <li><strong>Your handle</strong>: a menu with links to the Admin pages (administrators only), this Help page, the <a href="/ims/app/settings">Settings page</a>, and Log out.</li>
+  <li><strong>Theme toggle</strong>: the half-circle icon switches between light mode, dark mode, and matching your device. The same choice is available on the <a href="/ims/app/settings">Settings page</a>.</li>
+  <li><strong>Your handle</strong>: a menu with links to the Admin pages (administrators only), Home, the <a href="/ims/app/search">Search page</a>, the current event's <a href="#places">Places</a>, the <a href="/ims/app/settings">Settings page</a>, this Help page, and Log out.</li>
 </ul>
 
 <h2 id="events" class="h4 mt-4">Events: one per year</h2>
@@ -154,7 +155,7 @@ templ Help(deployment, versionName, versionRef string) {
   <li><strong>Summary</strong>: a one-line description shown in the Incidents list. Keep it short and informative.</li>
   <li><strong>Rangers</strong>: the Rangers involved. Start typing a handle to add one, and add a short note about each Ranger's role (such as "first on scene" or "transport"). The <strong>On-Duty</strong> link in this card's header opens the Clubhouse on-duty report for the time the Incident started, a handy way to see who was working when it began.</li>
   <li><strong>Incident Types</strong>: categories for the Incident, useful for filtering and for after-event analysis. Click <strong>Info</strong> to see a description of each type.</li>
-  <li><strong>Location</strong>: where it happened, with separate <strong>Name</strong>, <strong>Address</strong>, and <strong>Details</strong> fields. Start typing a camp or art name in <strong>Name</strong> and IMS suggests matches from <a href="#places">Places</a> and fills in the address automatically; you can also type an address by hand. Put anything extra (a landmark, a specific tent) in <strong>Details</strong>. The card header has a <strong>Places</strong> link to the Places reference and, where a map is configured for the event, a <strong>Map</strong> link.</li>
+  <li><strong>Location</strong>: where it happened, with separate <strong>Name</strong>, <strong>Address</strong>, and <strong>Details</strong> fields. Start typing a camp or art name in <strong>Name</strong> and IMS suggests matches from <a href="#places">Places</a> and fills in the address automatically; you can also type an address by hand. Put anything extra (a landmark, a specific tent) in <strong>Details</strong>. An address you type by hand may get tidied up on save; see <a href="#addresses">How addresses are tidied up</a>. The card header has a <strong>Places</strong> link to the Places reference and, where a map is configured for the event, a <strong>Map</strong> link.</li>
   <li><strong>Attached Field Reports/Visits</strong>: Field Reports and Sanctuary Visits related to this Incident. Attaching them makes their contents visible from the Incident. See <a href="#incident-attachments">Attaching Field Reports, Visits, and files</a>.</li>
   <li><strong>Linked Incidents</strong>: related Incidents, even from other years, so you can hop between them. See <a href="#incident-linking">Linking related Incidents</a>.</li>
   <li><strong>Entries</strong>: the running narrative. Type in the box at the bottom and click <strong>Add Entry</strong> (or press <code>Control</code>+<code>Enter</code>) to add a timestamped entry. This is where the story of the Incident lives: what was reported, what Rangers did, how it resolved. Where file attachments are enabled, you can also attach a photo or file to an entry with the <strong>Attach file</strong> button.</li>
@@ -187,7 +188,9 @@ templ Help(deployment, versionName, versionRef string) {
 <p>
   Where file attachments are turned on for your deployment, the entry box also has an
   <strong>Attach file</strong> button, so you can add a photo or document (such as a
-  picture of a whiteboard or a scanned form) alongside the written entries.
+  picture of a whiteboard or a scanned form) alongside the written entries. An entry with a
+  file on it gets a <strong>Download</strong> button, plus a <strong>Preview</strong> button on
+  files a browser can display, such as images and PDFs.
 </p>
 
 <h3 id="incident-linking" class="h5 mt-3">Linking related Incidents</h3>
@@ -266,7 +269,7 @@ templ Help(deployment, versionName, versionRef string) {
 <ul>
   <li><strong>Basics</strong>: the guest's preferred and legal names, a physical description, an action plan, and arrival/departure times.</li>
   <li><strong>Arrival/Departure</strong>: how and why the guest arrived and left, their state on each, and belongings brought.</li>
-  <li><strong>Camp and Contacts</strong>: the guest's camp name, address, description, and contacts.</li>
+  <li><strong>Camp and Contacts</strong>: the guest's camp name, address, description, and contacts. The camp address gets the same tidying as an Incident's address (see <a href="#addresses">How addresses are tidied up</a>).</li>
   <li><strong>Resources</strong>: what the Sanctuary provided, such as a sitter, a bed, bedding, clothing, food and beverage, commissary food, and anything else.</li>
   <li><strong>Rangers Involved</strong>: the Rangers involved in the Visit.</li>
   <li><strong>Visit Notes &amp; Report Entries</strong>: timestamped entries that work just like Incident entries, including <strong>Show history and stricken</strong>.</li>
@@ -292,6 +295,24 @@ templ Help(deployment, versionName, versionRef string) {
   IMS suggests matching Places and fills in the address automatically.
 </p>
 
+<h2 id="addresses" class="h4 mt-4">How addresses are tidied up</h2>
+<p>
+  Where an administrator has turned this on for the event, addresses you type by hand are
+  rewritten into standard Black Rock City form when they save, so that everyone writes them the
+  same way and searching for them works. This applies to an Incident's location
+  <strong>Address</strong> and to a Visit's guest camp address. For example:
+</p>
+<ul>
+  <li><code>7+e</code>, <code>7 E</code>, <code>E &amp; 7</code>, or <code>7:00 and e</code> all become <code>7:00 &amp; E</code>.</li>
+  <li><code>815 esp</code> becomes <code>8:15 &amp; Esplanade</code>.</li>
+  <li>An open-playa address like <code>12 2500 ft</code> becomes <code>12:00 2500'</code>.</li>
+</ul>
+<p>
+  Anything IMS can't confidently read as an address, such as "behind the porta potties at
+  center camp", is left exactly as you typed it. So write the address however is quickest. A
+  real address gets cleaned up, and anything else is kept exactly as you wrote it.
+</p>
+
 <h2 id="searching" class="h4 mt-4">Searching</h2>
 <p>There are a few ways to find things in IMS:</p>
 <ul>
@@ -312,11 +333,19 @@ templ Help(deployment, versionName, versionRef string) {
   <li>
     <strong>The Search page</strong>: <a href="/ims/app/search">a dedicated page</a> that
     searches Incidents, Field Reports, and Visits across every event you have access to.
+    Use the checkboxes beside the search box to leave out kinds of records you don't want,
+    and read the results table for the event, number, summary, and a matching excerpt.
   </li>
 </ul>
 <p>
   All searches are case-insensitive. If you know regular expressions, you can use one anywhere
   by enclosing it in slashes, like <code>/lost (kid|child)/</code>.
+</p>
+<p>
+  The Search page matches differently from the list pages: it looks for your text as one
+  continuous substring, so searching <code>cat dog</code> matches "Bobcat Dog" but not
+  "cat and dog". On a list page, the same search would match a row containing both words.
+  When a search on the Search page comes up emptier than you expect, try fewer words.
 </p>
 
 <h2 id="saving" class="h4 mt-4">How saving works</h2>
@@ -390,9 +419,15 @@ templ Help(deployment, versionName, versionRef string) {
 <h2 id="settings" class="h4 mt-4">Settings</h2>
 <p>
   The <a href="/ims/app/settings">Settings page</a> (under your handle in the top bar) lets you
-  set your preferred default filters for the Incidents and Visits tables, your preferred rows
-  per page, and whether single-key shortcuts are enabled. These preferences are stored in your
-  browser only, and they reset when you log out.
+  set:
+</p>
+<ul>
+  <li><strong>Preferred table filters</strong>: the default state filter for the Incidents table, the default status filter for the Visits table, and how many rows per page tables show.</li>
+  <li><strong>Color scheme</strong>: light, dark, or Auto to follow your device's setting. This is the same control as the theme toggle in the top bar; change it in either place.</li>
+  <li><strong>Single-key shortcuts</strong>: turn the one-key shortcuts off if they fire when you don't mean them to, which can happen with speech input.</li>
+</ul>
+<p>
+  These preferences are stored in your browser only, and they reset when you log out.
 </p>
 
 <h2 id="admin" class="h4 mt-4">Admin pages</h2>
@@ -411,7 +446,10 @@ templ Help(deployment, versionName, versionRef string) {
     <strong>Always</strong> or only <strong>On-Site</strong> (when the Ranger is marked on-site
     in Clubhouse), and can have not-before and not-after times. Use <strong>Explain</strong> to
     see who currently matches a grant, and watch for targets flagged in red as unknown (usually
-    a typo, fixable with the target's <strong>Fix</strong> button).
+    a typo, fixable with the target's <strong>Fix</strong> button). Editing an event also sets
+    its <strong>Map URL</strong> (the map linked from Incidents and Places) and its
+    <strong>Normalize Addresses</strong> setting (see
+    <a href="#addresses">How addresses are tidied up</a>), both of which take effect right away.
   </li>
   <li>
     <strong>Incident Types</strong>: manage the list of Incident Types Rangers can apply to
@@ -421,7 +459,8 @@ templ Help(deployment, versionName, versionRef string) {
   <li>
     <strong>Event Places</strong>: load the <a href="#places">Places</a> data (camps, art,
     mutant vehicles, and other locations) for an event by pasting in JSON data for each category.
-    This is what powers location suggestions on Incidents.
+    Each category has its own <strong>Save</strong> button and is saved on its own, so you can
+    update camps without touching art. This is what powers location suggestions on Incidents.
   </li>
   <li>
     <strong>User Directory</strong>: manage IMS's own users, teams, and positions, including
@@ -434,9 +473,9 @@ templ Help(deployment, versionName, versionRef string) {
   </li>
   <li>
     <strong>Error Logs</strong>: the requests that failed on the server's side, filterable the
-    same way. Expanding a row shows the message the client saw, the internal error chain, and
-    the stack trace when the server crashed outright. Client mistakes (bad requests, missing
-    records, denied permissions) aren't recorded here.
+    same way, and showing the last 7 days by default. Expanding a row shows the message the
+    client saw, the internal error chain, and the stack trace when the server crashed outright.
+    Client mistakes (bad requests, missing records, denied permissions) aren't recorded here.
   </li>
   <li>
     <strong>Server Debugging Details</strong>: technical server information (build info, runtime

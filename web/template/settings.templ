@@ -89,6 +89,28 @@ templ Settings(deployment, versionName, versionRef string) {
 </div>
 
 
+<h2 class="h5 mt-3">Appearance</h2>
+<div class="py-1">
+  <div class="input-group mb-1 flex-nowrap">
+    <label
+      class="control-label input-group-text"
+      for="preferred_theme"
+      title="The color scheme for IMS pages"
+    >Color Scheme</label>
+    <select
+      id="preferred_theme"
+      class="form-control form-select form-select-sm"
+      onchange="setPreferredTheme(this)"
+      style="max-width: 150px;"
+    >
+      <option value="auto" selected>Auto</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </div>
+  <div class="form-text">Auto follows your device's light/dark setting.</div>
+</div>
+
 <h2 class="h5 mt-3">Accessibility</h2>
 <div class="py-1">
   <div class="form-check">

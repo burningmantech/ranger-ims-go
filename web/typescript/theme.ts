@@ -16,10 +16,24 @@
 
 "use strict";
 
+// This file is loaded as a classic script rather than a module, so it can't be
+// imported from. Pages that offer their own theme control (the settings page)
+// use these window functions, and listen for the "ims:themechange" event to
+// follow along when the theme is changed from the navbar dropdown.
+interface Window {
+    imsThemeSetting: () => ThemeSetting;
+    imsSetThemeSetting: (theme: ThemeSetting) => void;
+}
+interface DocumentEventMap {
+    "ims:themechange": CustomEvent<ThemeSetting>;
+}
+window.imsThemeSetting = themeSetting;
+window.imsSetThemeSetting = chooseTheme;
+
 // Set the theme immediately, before the rest of the page loads, so that there's
 // no flickering. We'll then come back later to applyTheme, which sets the navbar
 // dropdown icons.
-setTheme(getPreferredTheme());
+setTheme(themeSetting());
 document.addEventListener("DOMContentLoaded", applyTheme);
 
 //
@@ -28,77 +42,78 @@ document.addEventListener("DOMContentLoaded", applyTheme);
 // Adapted from https://getbootstrap.com/docs/5.3/customize/color-modes/#javascript
 // Under Creative Commons Attribution 3.0 Unported License
 
-function getStoredTheme(): string|null {
-    return localStorage.getItem("theme");
-}
-function setStoredTheme(theme: string): void {
-    localStorage.setItem("theme", theme);
-}
-function getPreferredTheme(): string {
-    const stored = getStoredTheme();
-    if (stored != null) {
-        return stored;
+type ThemeSetting = "auto"|"light"|"dark";
+
+function asThemeSetting(value: string|null|undefined): ThemeSetting|null {
+    if (value === "auto" || value === "light" || value === "dark") {
+        return value;
     }
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return null;
 }
-function setTheme(theme: string): void {
+function themeSetting(): ThemeSetting {
+    return asThemeSetting(localStorage.getItem("theme")) ?? "auto";
+}
+function setTheme(theme: ThemeSetting): void {
+    let resolved: string = theme;
     if (theme === "auto") {
-        theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
-    document.documentElement.dataset["bsTheme"] = theme;
+    document.documentElement.dataset["bsTheme"] = resolved;
+}
+function chooseTheme(theme: ThemeSetting, focus: boolean = false): void {
+    localStorage.setItem("theme", theme);
+    setTheme(theme);
+    showActiveTheme(theme, focus);
+    document.dispatchEvent(new CustomEvent("ims:themechange", {detail: theme}));
+}
+function showActiveTheme(theme: ThemeSetting, focus: boolean = false): void {
+    const themeSwitcher: HTMLButtonElement|null = document.querySelector("#bd-theme");
+
+    if (!themeSwitcher) {
+        return;
+    }
+
+    const themeSwitcherText = document.querySelector("#bd-theme-text")!;
+    const activeThemeIcon = document.querySelector(".theme-icon-active use") as SVGUseElement;
+    const btnToActive: HTMLButtonElement = document.querySelector(`[data-bs-theme-value="${theme}"]`)!;
+    const svgOfActiveBtn: string = (btnToActive.querySelector("svg use") as SVGUseElement).href.baseVal;
+
+    for (const val of document.querySelectorAll("[data-bs-theme-value]")) {
+        val.classList.remove("active");
+        val.ariaPressed = "false";
+    }
+
+    btnToActive.classList.add("active");
+    btnToActive.ariaPressed = "true";
+    if (svgOfActiveBtn) {
+        activeThemeIcon.href.baseVal = svgOfActiveBtn;
+    }
+    if (themeSwitcherText) {
+        // Set theme switcher label
+        themeSwitcher.ariaLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset["bsThemeValue"]})`;
+    }
+
+    if (focus) {
+        themeSwitcher.focus();
+    }
 }
 function applyTheme(): void {
-    setTheme(getPreferredTheme());
-
-    function showActiveTheme(theme: string, focus: boolean = false): void {
-        const themeSwitcher: HTMLButtonElement|null = document.querySelector("#bd-theme");
-
-        if (!themeSwitcher) {
-            return;
-        }
-
-        const themeSwitcherText = document.querySelector("#bd-theme-text")!;
-        const activeThemeIcon = document.querySelector(".theme-icon-active use") as SVGUseElement;
-        const btnToActive: HTMLButtonElement = document.querySelector(`[data-bs-theme-value="${theme}"]`)!;
-        const svgOfActiveBtn: string = (btnToActive.querySelector("svg use") as SVGUseElement).href.baseVal;
-
-        for (const val of document.querySelectorAll("[data-bs-theme-value]")) {
-            val.classList.remove("active");
-            val.ariaPressed = "false";
-        }
-
-        btnToActive.classList.add("active");
-        btnToActive.ariaPressed = "true";
-        if (svgOfActiveBtn) {
-            activeThemeIcon.href.baseVal = svgOfActiveBtn;
-        }
-        if (themeSwitcherText) {
-            // Set theme switcher label
-            themeSwitcher.ariaLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset["bsThemeValue"]})`;
-        }
-
-        if (focus) {
-            themeSwitcher.focus();
-        }
-    }
+    setTheme(themeSetting());
 
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (): void => {
-        const storedTheme = getStoredTheme();
-        if (storedTheme !== "light" && storedTheme !== "dark") {
-            setTheme(getPreferredTheme());
+        if (themeSetting() === "auto") {
+            setTheme("auto");
         }
     });
 
-    showActiveTheme(getPreferredTheme());
+    showActiveTheme(themeSetting());
 
     for (const togEl of document.querySelectorAll("[data-bs-theme-value]")) {
         const toggle = togEl as HTMLElement;
         toggle.addEventListener("click", function(_e: MouseEvent): void {
-            const theme = toggle.dataset["bsThemeValue"];
+            const theme = asThemeSetting(toggle.dataset["bsThemeValue"]);
             if (theme) {
-                setStoredTheme(theme);
-                setTheme(theme);
-                showActiveTheme(theme, true);
+                chooseTheme(theme, true);
             }
         });
     }
@@ -108,6 +123,6 @@ function applyTheme(): void {
         setTheme("light");
     });
     window.addEventListener("afterprint", (_event: Event): void => {
-        setTheme(getPreferredTheme());
+        setTheme(themeSetting());
     });
 }

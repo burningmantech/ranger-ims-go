@@ -23,6 +23,7 @@ declare global {
         setPreferredState: (el: HTMLSelectElement) => Promise<void>;
         setPreferredVisitsStatus: (el: HTMLSelectElement) => Promise<void>;
         setPreferredRowsPerPage: (el: HTMLSelectElement) => Promise<void>;
+        setPreferredTheme: (el: HTMLSelectElement) => Promise<void>;
         setKeyboardShortcuts: (el: HTMLInputElement) => Promise<void>;
     }
 }
@@ -35,6 +36,7 @@ const el = {
     preferredState: ims.typedElement("preferred_state", HTMLSelectElement),
     preferredVisitsStatus: ims.typedElement("preferred_visits_status", HTMLSelectElement),
     preferredRowsPerPage: ims.typedElement("preferred_rows_per_page", HTMLSelectElement),
+    preferredTheme: ims.typedElement("preferred_theme", HTMLSelectElement),
     keyboardShortcuts: ims.typedElement("keyboard_shortcuts", HTMLInputElement),
 };
 
@@ -58,11 +60,18 @@ async function initSettingsPage(): Promise<void> {
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
+    el.preferredTheme.value = window.imsThemeSetting();
     el.keyboardShortcuts.checked = ims.keyboardShortcutsEnabled();
+
+    // Keep the select in step with the navbar's theme dropdown.
+    document.addEventListener("ims:themechange", (e: CustomEvent<ThemeSetting>): void => {
+        el.preferredTheme.value = e.detail;
+    });
 
     window.setPreferredState = setPreferredState;
     window.setPreferredVisitsStatus = setPreferredVisitsStatus;
     window.setPreferredRowsPerPage = setPreferredRowsPerPage;
+    window.setPreferredTheme = setPreferredTheme;
     window.setKeyboardShortcuts = setKeyboardShortcuts;
 }
 
@@ -91,6 +100,14 @@ async function setPreferredRowsPerPage(el: HTMLSelectElement): Promise<void> {
         ims.setPreferredTableRowsPerPage(null);
     }
     ims.controlHasSuccess(el);
+}
+
+async function setPreferredTheme(el: HTMLSelectElement): Promise<void> {
+    const theme = el.value;
+    if (theme === "auto" || theme === "light" || theme === "dark") {
+        window.imsSetThemeSetting(theme);
+        ims.controlHasSuccess(el);
+    }
 }
 
 async function setKeyboardShortcuts(el: HTMLInputElement): Promise<void> {

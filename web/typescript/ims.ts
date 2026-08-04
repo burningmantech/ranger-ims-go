@@ -2121,7 +2121,7 @@ export interface IncidentType {
     description?: string|null;
 }
 
-type PlaceType = "art"|"camp"|"other"|"mv";
+export type PlaceType = "art"|"camp"|"other"|"mv";
 
 export type Place = {
     name?: string|null;

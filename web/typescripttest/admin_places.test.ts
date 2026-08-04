@@ -15,8 +15,8 @@
 //
 
 // Tests for admin_places.ts against the real templ-rendered places admin page
-// (adminplaces.templ). The page loads an event's places into JSON textareas
-// and submits edited JSON back to the API.
+// (adminplaces.templ). The page loads an event's places into JSON textareas,
+// each of which has its own Save button that posts just that one place type.
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
@@ -63,6 +63,16 @@ function field(id: string): HTMLTextAreaElement {
     return document.getElementById(id) as HTMLTextAreaElement;
 }
 
+function clickSave(id: string): void {
+    (document.getElementById(id) as HTMLButtonElement).click();
+}
+
+function postBodies(mock: ReturnType<typeof mockFetch>): any[] {
+    return mock.mock.calls
+        .filter(([url, init]) => url === placesUrl && init?.body != null)
+        .map(([, init]) => JSON.parse(init!.body as string));
+}
+
 // Waits for drawEventNames, which runs after init awaits the events fetch.
 async function eventSelect(): Promise<HTMLSelectElement> {
     const select = document.getElementById("event-name") as HTMLSelectElement;
@@ -98,24 +108,19 @@ test("loading places with no event selected fetches nothing", async (): Promise<
     expect(mock.mock.calls.some(([url]) => url === placesUrl)).toBe(false);
 });
 
-test("submitting with no event selected surfaces an error and posts nothing", async (): Promise<void> => {
+test("saving with no event selected surfaces an error and posts nothing", async (): Promise<void> => {
     const mock = await initAdminPlacesPage();
     await eventSelect();
 
     field("art-data").value = "[]";
-    field("camp-data").value = "[]";
-    field("mv-data").value = "[]";
-    field("other-data").value = "[]";
 
-    document.getElementById("place-form")!.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    clickSave("art-save");
 
     await vi.waitFor((): void => {
         expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
     });
     expect(document.getElementById("error_text")!.textContent).toContain("Select an event");
-    expect(mock.mock.calls.some(([url, init]) => url === placesUrl && init?.body != null)).toBe(false);
+    expect(postBodies(mock)).toEqual([]);
 });
 
 test("loading places fills each JSON textarea and its count label", async (): Promise<void> => {
@@ -138,32 +143,83 @@ test("loading places fills each JSON textarea and its count label", async (): Pr
     expect(document.getElementById("camp-data-label")!.textContent).toBe("Camp JSON Data (0)");
 });
 
-test("submitting the form posts the parsed places to the event's places endpoint", async (): Promise<void> => {
+test("saving the art field posts only art places, leaving the other types alone", async (): Promise<void> => {
     const mock = await initAdminPlacesPage((init) => {
         if (init?.body != null) {
             return new Response(null, { status: 204 });
         }
-        return undefined;
+        return jsonResponse({ art: [], camp: [], mv: [], other: [] });
     });
 
     (await eventSelect()).value = "2025";
     field("art-data").value = JSON.stringify([{ name: "Temple", location_string: "9:00" }]);
-    field("camp-data").value = "[]";
-    field("mv-data").value = "[]";
-    field("other-data").value = "[]";
+    // Whatever is sitting in the other textareas stays out of the request, so
+    // an unsaved edit elsewhere can't ride along.
+    field("camp-data").value = JSON.stringify([{ name: "Unsaved Camp", location_string: "3:00" }]);
 
-    document.getElementById("place-form")!.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    clickSave("art-save");
 
     await vi.waitFor((): void => {
-        expect(mock.mock.calls.some(([url, init]) => url === placesUrl && init?.body != null)).toBe(true);
+        expect(postBodies(mock)).toHaveLength(1);
     });
-    const postCall = mock.mock.calls.find(([url, init]) => url === placesUrl && init?.body != null)!;
-    const body = JSON.parse(postCall[1]!.body as string);
+    const body = postBodies(mock)[0];
     expect(body.art).toEqual([
         { name: "Temple", location_string: "9:00", external_data: { name: "Temple", location_string: "9:00" } },
     ]);
+    // Types absent from the body are the ones the server won't touch.
+    expect(Object.keys(body)).toEqual(["art"]);
+});
+
+test("saving the mutant vehicle field posts only mv places", async (): Promise<void> => {
+    const mock = await initAdminPlacesPage((init) => {
+        if (init?.body != null) {
+            return new Response(null, { status: 204 });
+        }
+        return jsonResponse({ art: [], camp: [], mv: [], other: [] });
+    });
+
+    (await eventSelect()).value = "2025";
+    field("mv-data").value = JSON.stringify([{ name: "Art Car" }]);
+
+    clickSave("mv-save");
+
+    await vi.waitFor((): void => {
+        expect(postBodies(mock)).toHaveLength(1);
+    });
+    const body = postBodies(mock)[0];
+    // Mutant vehicles have no location of their own.
+    expect(body.mv).toEqual([{ name: "Art Car", external_data: { name: "Art Car" } }]);
+    expect(Object.keys(body)).toEqual(["mv"]);
+});
+
+test("a successful save reloads just that field from the server", async (): Promise<void> => {
+    await initAdminPlacesPage((init) => {
+        if (init?.body != null) {
+            return new Response(null, { status: 204 });
+        }
+        return jsonResponse({
+            art: [{ name: "Temple", location_string: "9:00", external_data: { name: "Temple", location_string: "9:00" } }],
+            camp: [{ name: "Camp", location_string: "3:00", external_data: { name: "Camp", location_string: "3:00" } }],
+            mv: [],
+            other: [],
+        });
+    });
+
+    (await eventSelect()).value = "2025";
+    await window.loadPlaces();
+    // A pending edit in another field must survive the art save.
+    field("camp-data").value = "pending edit";
+    field("art-data").value = JSON.stringify([{ name: "Whatever", location_string: "6:00" }]);
+
+    clickSave("art-save");
+
+    await vi.waitFor((): void => {
+        // Redrawn from the GET that follows the POST, not from what was typed.
+        expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
+    });
+    expect(document.getElementById("art-data-label")!.textContent).toBe("Art JSON Data (1)");
+    expect(field("camp-data").value).toBe("pending edit");
+    expect(field("art-data").classList.contains("is-valid")).toBe(true);
 });
 
 test("invalid JSON in a textarea surfaces an error and posts nothing", async (): Promise<void> => {
@@ -171,19 +227,38 @@ test("invalid JSON in a textarea surfaces an error and posts nothing", async ():
 
     (await eventSelect()).value = "2025";
     field("art-data").value = "this is not json";
-    field("camp-data").value = "[]";
-    field("mv-data").value = "[]";
-    field("other-data").value = "[]";
 
-    document.getElementById("place-form")!.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    clickSave("art-save");
 
     await vi.waitFor((): void => {
         expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
     });
-    expect(document.getElementById("error_text")!.textContent).toContain("Error");
-    expect(mock.mock.calls.some(([url, init]) => url === placesUrl && init?.body != null)).toBe(false);
+    expect(document.getElementById("error_text")!.textContent).toContain("Art JSON Data");
+    expect(postBodies(mock)).toEqual([]);
+    expect(field("art-data").classList.contains("is-invalid")).toBe(true);
+});
+
+test("a failed save marks only its own field and leaves the text as typed", async (): Promise<void> => {
+    const mock = await initAdminPlacesPage((init) => {
+        if (init?.body != null) {
+            return new Response("nope", { status: 403 });
+        }
+        return jsonResponse({ art: [], camp: [], mv: [], other: [] });
+    });
+
+    (await eventSelect()).value = "2025";
+    field("art-data").value = JSON.stringify([{ name: "Temple", location_string: "9:00" }]);
+
+    clickSave("art-save");
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(field("art-data").classList.contains("is-invalid")).toBe(true);
+    expect(field("camp-data").classList.contains("is-invalid")).toBe(false);
+    // The rejected edit isn't thrown away, so it can be fixed and retried.
+    expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
+    expect(postBodies(mock)).toHaveLength(1);
 });
 
 // The page keeps an "event_id" query param (which holds an event name, as

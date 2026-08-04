@@ -435,3 +435,21 @@ test("enableKeyboardSorting is a no-op when the table isn't there", (): void => 
         ims.enableKeyboardSorting("queue_table");
     }).not.toThrow();
 });
+
+test("clearLocalStorage drops the browser-local settings, including the theme", (): void => {
+    localStorage.setItem("access_token", "token");
+    localStorage.setItem("preferred_incidents_state", "open");
+    localStorage.setItem("preferred_visits_status", "current");
+    localStorage.setItem("preferred_table_rows_per_page", "50");
+    localStorage.setItem("keyboard_shortcuts_enabled", "false");
+    localStorage.setItem("theme", "dark");
+
+    ims.clearLocalStorage();
+
+    expect(localStorage.getItem("access_token")).toBeNull();
+    expect(localStorage.getItem("preferred_incidents_state")).toBeNull();
+    expect(localStorage.getItem("preferred_visits_status")).toBeNull();
+    expect(localStorage.getItem("preferred_table_rows_per_page")).toBeNull();
+    expect(localStorage.getItem("keyboard_shortcuts_enabled")).toBeNull();
+    expect(localStorage.getItem("theme")).toBeNull();
+});

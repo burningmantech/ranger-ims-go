@@ -41,6 +41,10 @@ async function initSettingsPage() {
         }
         return undefined;
     });
+    // Every page loads theme.ts too (head.templ), and the settings page's color
+    // scheme control is built on the window functions it installs.
+    // @ts-expect-error TS2306: theme.ts is intentionally not a module.
+    await import("../typescript/theme.ts");
     await import("../typescript/settings.ts");
     await vi.waitFor((): void => {
         expect(window.setPreferredState).toBeTypeOf("function");
@@ -91,6 +95,42 @@ test("choosing the default ('none') incidents state clears the stored preference
     await window.setPreferredState(stateSelect);
 
     expect(localStorage.getItem("preferred_incidents_state")).toBeNull();
+});
+
+test("the stored theme is reflected into the color scheme select on load", async (): Promise<void> => {
+    localStorage.setItem("theme", "dark");
+
+    await initSettingsPage();
+
+    expect(select("preferred_theme").value).toBe("dark");
+});
+
+test("with no stored theme the color scheme select shows auto", async (): Promise<void> => {
+    await initSettingsPage();
+
+    expect(select("preferred_theme").value).toBe("auto");
+});
+
+test("choosing a color scheme applies and persists it", async (): Promise<void> => {
+    await initSettingsPage();
+
+    const themeSelect = select("preferred_theme");
+    themeSelect.value = "dark";
+    await window.setPreferredTheme(themeSelect);
+
+    expect(localStorage.getItem("theme")).toBe("dark");
+    expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
+});
+
+test("the color scheme select follows the navbar theme dropdown", async (): Promise<void> => {
+    await initSettingsPage();
+    // applyTheme wires up the navbar dropdown on DOMContentLoaded, which has
+    // already fired for this document.
+    document.dispatchEvent(new Event("DOMContentLoaded", { bubbles: true }));
+
+    document.querySelector<HTMLButtonElement>('[data-bs-theme-value="light"]')!.click();
+
+    expect(select("preferred_theme").value).toBe("light");
 });
 
 test("the visits status and rows-per-page selects persist their valid values", async (): Promise<void> => {

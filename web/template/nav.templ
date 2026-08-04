@@ -177,21 +177,21 @@ templ Nav(eventName, eventSection string) {
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bd-theme-text">
             <li>
               <button type="button" class="dropdown-item d-flex align-items-center"
-                      data-bs-theme-value="light" aria-pressed="false">
+                      data-bs-theme-value="light" aria-pressed="false" title="Light theme">
                 <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#sun-fill" /></svg>
                 Light
               </button>
             </li>
             <li>
               <button type="button" class="dropdown-item d-flex align-items-center"
-                      data-bs-theme-value="dark" aria-pressed="false">
+                      data-bs-theme-value="dark" aria-pressed="false" title="Dark theme">
                 <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#moon-stars-fill" /></svg>
                 Dark
               </button>
             </li>
             <li>
               <button type="button" class="dropdown-item d-flex align-items-center active"
-                      data-bs-theme-value="auto" aria-pressed="true">
+                      data-bs-theme-value="auto" aria-pressed="true" title="Use system preferred theme">
                 <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#circle-half" /></svg>
                 Auto
               </button>
@@ -202,7 +202,7 @@ templ Nav(eventName, eventSection string) {
 
       <!-- Not logged in: offer to log in -->
       <ul class="navbar-nav if-not-logged-in hidden no-print">
-        <li id="nav_login"><a class="nav-link" href="/ims/auth/login">🚪 Log In</a></li>
+        <li id="nav_login"><a class="nav-link" href="/ims/auth/login">Log In</a></li>
       </ul>
 
       <!-- Logged in: show user menu -->

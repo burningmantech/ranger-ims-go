@@ -547,6 +547,90 @@ test("the edit modal hides address normalization for event groups", async (): Pr
     expect(document.getElementById("edit_normalize_addresses_group")!.classList.contains("d-none")).toBe(true);
 });
 
+test("the edit modal shows the event's release times, blank where there's no embargo", async (): Promise<void> => {
+    serverEvents = [{
+        id: 1,
+        name: "2025",
+        camp_locations_release: new Date(2025, 7, 20, 9, 0).toISOString(),
+        map_url_release: new Date(2025, 7, 22, 18, 30).toISOString(),
+    }];
+    await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    expect(document.getElementById("edit_release_times_group")!.classList.contains("d-none")).toBe(false);
+    expect((document.getElementById("edit_camp_locations_release") as HTMLInputElement).value)
+        .toBe("Wed 2025-08-20 @ 09:00");
+    expect((document.getElementById("edit_map_url_release") as HTMLInputElement).value)
+        .toBe("Fri 2025-08-22 @ 18:30");
+    // The event embargoes no art locations, so that field stays empty.
+    expect((document.getElementById("edit_art_locations_release") as HTMLInputElement).value).toBe("");
+});
+
+test("setting a release time posts the parsed time and reformats the field", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    const campRelease = document.getElementById("edit_camp_locations_release") as HTMLInputElement;
+    campRelease.value = "2025-08-24 15:00";
+    await window.setCampLocationsRelease(campRelease);
+
+    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+    expect(call).toBeDefined();
+    expect(JSON.parse(call![1]!.body as string)).toEqual({
+        id: 1,
+        name: null,
+        camp_locations_release: new Date(2025, 7, 24, 15, 0).toISOString(),
+    });
+    // The admin gets to see how the server understood what they typed.
+    expect(campRelease.value).toBe("Sun 2025-08-24 @ 15:00");
+});
+
+test("clearing a release time posts the zero time, which lifts the embargo", async (): Promise<void> => {
+    serverEvents = [{
+        id: 1,
+        name: "2025",
+        art_locations_release: new Date(2025, 7, 20, 9, 0).toISOString(),
+    }];
+    const mock = await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    const artRelease = document.getElementById("edit_art_locations_release") as HTMLInputElement;
+    artRelease.value = "";
+    await window.setArtLocationsRelease(artRelease);
+
+    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+    expect(call).toBeDefined();
+    expect(JSON.parse(call![1]!.body as string)).toEqual({
+        id: 1,
+        name: null,
+        art_locations_release: "0001-01-01T00:00:00Z",
+    });
+});
+
+test("an unparseable release time posts nothing", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    const mapRelease = document.getElementById("edit_map_url_release") as HTMLInputElement;
+    mapRelease.value = "sometime next week";
+    await window.setMapURLRelease(mapRelease);
+
+    expect(mock.mock.calls.find(([url, init]) => url === url_events && init?.body != null)).toBeUndefined();
+});
+
+test("the edit modal hides release times for event groups", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025", is_group: true }];
+    await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    expect(document.getElementById("edit_release_times_group")!.classList.contains("d-none")).toBe(true);
+});
+
 test("the delete button is disabled when the server disallows event deletion", async (): Promise<void> => {
     await initAdminEventsPage();
 

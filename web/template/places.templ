@@ -30,6 +30,9 @@ templ Places(deployment, versionName, versionRef, eventName string) {
 
 @ErrorInfo()
 
+    <!-- Embargo notice, filled in by places.js when the event withholds camp/art locations or the map link -->
+    <div id="embargo_notice" class="alert alert-info no-print d-none" role="status"></div>
+
     <!-- Help modal for places page -->
     <div class="modal no-print" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
       <div class="modal-dialog">

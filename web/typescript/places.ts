@@ -48,6 +48,7 @@ const el = {
     placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
     placeBody: ims.typedElement("placeBody", HTMLElement),
     mapLink: ims.typedElement("map-link", HTMLAnchorElement),
+    embargoNotice: ims.typedElement("embargo_notice", HTMLDivElement),
     helpModal: ims.typedElement("helpModal", HTMLDivElement),
 };
 
@@ -72,7 +73,9 @@ async function initPlacesPage(): Promise<void> {
     window.destShowRows = destShowRows;
     window.destShowType = destShowType;
 
-    ims.setupMapLink(el.mapLink, await initResult.eventDatas);
+    const eventDatas = await initResult.eventDatas;
+    ims.setupMapLink(el.mapLink, eventDatas);
+    renderEmbargoNotice(eventDatas, initResult.authInfo.admin);
 
     ims.disableEditing();
     initPlacesTable();
@@ -109,6 +112,50 @@ async function initPlacesPage(): Promise<void> {
             e.stopPropagation();
         }
     });
+}
+
+
+// Burning Man doesn't publish placement until shortly before the event, so the
+// event can embargo camp locations, art locations, and the map link. Tell the
+// reader when each of those will show up. Admins are never embargoed, so they're
+// told when everyone else will see the data instead.
+function renderEmbargoNotice(events: ims.EventData[]|null, isAdmin: boolean): void {
+    const event = (events??[]).find(e => e.name === ims.pathIds.eventName);
+    if (event == null) {
+        return;
+    }
+    const releases: [string, string, string|null|undefined][] = [
+        ["Camp addresses", "are", event.camp_locations_release],
+        ["Art addresses", "are", event.art_locations_release],
+        ["The event map", "is", event.map_url_release],
+    ];
+    let anyEmbargoed = false;
+    for (const [subject, verb, release] of releases) {
+        if (release == null) {
+            continue;
+        }
+        const date = new Date(release);
+        if (isNaN(date.getTime()) || date.getTime() <= Date.now()) {
+            continue;
+        }
+        anyEmbargoed = true;
+        const when = document.createElement("span");
+        when.title = ims.longFormatDate(date);
+        when.textContent = ims.formatDateShort(date);
+        const line = document.createElement("p");
+        line.classList.add("mb-0");
+        line.append(
+            isAdmin
+                ? `${subject} ${verb} hidden from non-admins until `
+                : `${subject} will be shown `,
+            when,
+            ".",
+        );
+        el.embargoNotice.append(line);
+    }
+    if (anyEmbargoed) {
+        el.embargoNotice.classList.remove("d-none");
+    }
 }
 
 

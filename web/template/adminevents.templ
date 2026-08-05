@@ -58,6 +58,36 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             </div>
             <span class="form-control form-control-sm text-smaller d-flex align-items-center">Rewrite addresses into BRC form, e.g. "7+e" becomes "7:00 &amp; E"</span>
           </div>
+          <div id="edit_release_times_group">
+            <p class="text-smaller mb-2">
+              Burning Man doesn't publish camp and art placement until shortly before the event.
+              Until a release time below arrives, only IMS admins see the data it covers; everyone
+              else sees blank locations, and the Map link stays hidden. An empty field means no
+              embargo. Type a time like <strong id="edit_date_format_example"></strong>, in your time
+              zone (<span id="edit_browser_tz"></span>), and clear the field to lift the embargo.
+            </p>
+            <div class="input-group mb-3">
+              <label for="edit_camp_locations_release" class="control-label input-group-text">Camp Locations Release</label>
+              <input id="edit_camp_locations_release" type="text" class="form-control form-control-sm"
+                     placeholder="No embargo"
+                     title="Camp Place locations are hidden from non-admins until this time."
+                     onchange="setCampLocationsRelease(this);" />
+            </div>
+            <div class="input-group mb-3">
+              <label for="edit_art_locations_release" class="control-label input-group-text">Art Locations Release</label>
+              <input id="edit_art_locations_release" type="text" class="form-control form-control-sm"
+                     placeholder="No embargo"
+                     title="Art Place locations are hidden from non-admins until this time."
+                     onchange="setArtLocationsRelease(this);" />
+            </div>
+            <div class="input-group mb-3">
+              <label for="edit_map_url_release" class="control-label input-group-text">Map Link Release</label>
+              <input id="edit_map_url_release" type="text" class="form-control form-control-sm"
+                     placeholder="No embargo"
+                     title="The event's Map link is hidden from non-admins until this time."
+                     onchange="setMapURLRelease(this);" />
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <!-- The title tooltip goes on the wrapper span, since disabled buttons don't fire the events that show tooltips. -->

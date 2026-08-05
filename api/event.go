@@ -88,14 +88,26 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 			authorizedEvents = append(authorizedEvents, eve)
 		}
 	}
+	isAdmin := globalPermissions&authz.GlobalAdministrateEvents != 0
+	now := time.Now()
 	resp := make(imsjson.Events, 0, len(authorizedEvents))
 	for _, eve := range authorizedEvents {
+		mapURL := conv.SqlToString(eve.Event.MapUrl)
+		// The map shows placement, so it stays with the admins until its
+		// release time arrives.
+		if !isAdmin && embargoed(eve.Event.MapUrlRelease, now) {
+			mapURL = nil
+		}
 		resp = append(resp, imsjson.Event{
 			ID:          eve.Event.ID,
 			Name:        &eve.Event.Name,
 			IsGroup:     &eve.Event.IsGroup,
 			ParentGroup: conv.SqlToInt32(eve.Event.ParentGroup),
-			MapURL:      conv.SqlToString(eve.Event.MapUrl),
+			MapURL:      mapURL,
+
+			CampLocationsRelease: conv.NullFloatToTimePtr(eve.Event.CampLocationsRelease),
+			ArtLocationsRelease:  conv.NullFloatToTimePtr(eve.Event.ArtLocationsRelease),
+			MapURLRelease:        conv.NullFloatToTimePtr(eve.Event.MapUrlRelease),
 
 			NormalizeAddresses: &eve.Event.NormalizeAddresses,
 		})
@@ -181,6 +193,10 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		ParentGroup: existingEventRow.Event.ParentGroup,
 		MapUrl:      existingEventRow.Event.MapUrl,
 
+		CampLocationsRelease: existingEventRow.Event.CampLocationsRelease,
+		ArtLocationsRelease:  existingEventRow.Event.ArtLocationsRelease,
+		MapUrlRelease:        existingEventRow.Event.MapUrlRelease,
+
 		NormalizeAddresses: existingEventRow.Event.NormalizeAddresses,
 	}
 
@@ -218,6 +234,26 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 			return nil, herr.BadRequest("An event group cannot have a map URL", nil)
 		}
 		updateParams.MapUrl = conv.StringToSql(editRequest.MapURL, 1024)
+	}
+	// Groups hold no places and get no map URL, so nothing about them can be
+	// embargoed.
+	if editRequest.CampLocationsRelease != nil {
+		if updateParams.IsGroup && !editRequest.CampLocationsRelease.IsZero() {
+			return nil, herr.BadRequest("An event group cannot have a camp locations release time", nil)
+		}
+		updateParams.CampLocationsRelease = conv.TimeToNullFloat(*editRequest.CampLocationsRelease)
+	}
+	if editRequest.ArtLocationsRelease != nil {
+		if updateParams.IsGroup && !editRequest.ArtLocationsRelease.IsZero() {
+			return nil, herr.BadRequest("An event group cannot have an art locations release time", nil)
+		}
+		updateParams.ArtLocationsRelease = conv.TimeToNullFloat(*editRequest.ArtLocationsRelease)
+	}
+	if editRequest.MapURLRelease != nil {
+		if updateParams.IsGroup && !editRequest.MapURLRelease.IsZero() {
+			return nil, herr.BadRequest("An event group cannot have a map URL release time", nil)
+		}
+		updateParams.MapUrlRelease = conv.TimeToNullFloat(*editRequest.MapURLRelease)
 	}
 	if editRequest.NormalizeAddresses != nil {
 		if updateParams.IsGroup && *editRequest.NormalizeAddresses {

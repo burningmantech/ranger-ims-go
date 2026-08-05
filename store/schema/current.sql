@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (39);
+insert into SCHEMA_INFO (VERSION) values (40);
 
 
 create table `EVENT` (
@@ -16,6 +16,12 @@ create table `EVENT` (
     IS_GROUP        boolean not null default false,
     PARENT_GROUP    integer,
     MAP_URL         varchar(1024),
+
+    -- Times at which camp/art placement and the map link stop being embargoed,
+    -- i.e. become visible to non-admins. Null means no embargo.
+    CAMP_LOCATIONS_RELEASE  double,
+    ART_LOCATIONS_RELEASE   double,
+    MAP_URL_RELEASE         double,
 
     -- Whether to rewrite client-supplied addresses into canonical BRC form.
     NORMALIZE_ADDRESSES boolean not null default false,

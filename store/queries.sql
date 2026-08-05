@@ -20,6 +20,9 @@ set
     IS_GROUP = ?,
     PARENT_GROUP = ?,
     MAP_URL = ?,
+    CAMP_LOCATIONS_RELEASE = ?,
+    ART_LOCATIONS_RELEASE = ?,
+    MAP_URL_RELEASE = ?,
     NORMALIZE_ADDRESSES = ?
 where ID = ?
 ;

@@ -130,6 +130,16 @@ func (a ApiHelper) getPlaces(ctx context.Context, eventName string) (imsjson.Pla
 	return *bod.(*imsjson.Places), resp
 }
 
+func (a ApiHelper) getPlacesExcludingExternalData(ctx context.Context, eventName string) (imsjson.Places, *http.Response) {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/places")
+	q := path.Query()
+	q.Set("exclude_external_data", "true")
+	path.RawQuery = q.Encode()
+	bod, resp := a.imsGet(ctx, path.String(), &imsjson.Places{})
+	return *bod.(*imsjson.Places), resp
+}
+
 func (a ApiHelper) newFieldReport(ctx context.Context, req imsjson.FieldReport) *http.Response {
 	a.t.Helper()
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/"+req.Event+"/field_reports").String())

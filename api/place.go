@@ -77,6 +77,8 @@ func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError)
 		return nil, herr.InternalServerError("Failed to fetch Places", err).From("[Places]")
 	}
 
+	isAdmin := globalPermissions&authz.GlobalAdministratePlaces != 0
+	now := time.Now()
 	for _, rowDest := range places {
 		dType := string(rowDest.Type)
 		apiDest := imsjson.Place{
@@ -90,6 +92,9 @@ func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError)
 				return nil, herr.InternalServerError("Failed to unmarshal place", err).From("[Unmarshal]")
 			}
 			apiDest.ExternalData = ed
+		}
+		if !isAdmin && placeLocationsEmbargoed(event, rowDest.Type, now) {
+			redactPlaceLocation(&apiDest)
 		}
 		resp[dType] = append(resp[dType], apiDest)
 	}

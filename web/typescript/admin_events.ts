@@ -23,6 +23,9 @@ declare global {
         addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
         setParentGroup: (el: HTMLInputElement) => Promise<void>;
         setMapURL: (el: HTMLInputElement) => Promise<void>;
+        setCampLocationsRelease: (el: HTMLInputElement) => Promise<void>;
+        setArtLocationsRelease: (el: HTMLInputElement) => Promise<void>;
+        setMapURLRelease: (el: HTMLInputElement) => Promise<void>;
         setNormalizeAddresses: (el: HTMLInputElement) => Promise<void>;
     }
 }
@@ -37,6 +40,8 @@ let editEventModal: ims.bootstrap.Modal|null = null;
 const el = {
     browserTz: ims.typedElement("browser_tz", HTMLElement),
     dateFormatExample: ims.typedElement("date_format_example", HTMLElement),
+    editBrowserTz: ims.typedElement("edit_browser_tz", HTMLElement),
+    editDateFormatExample: ims.typedElement("edit_date_format_example", HTMLElement),
     explainModal: ims.typedElement("explainModal", HTMLElement),
     editEventModal: ims.typedElement("editEventModal", HTMLElement),
     eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
@@ -69,11 +74,18 @@ async function initAdminEventsPage(): Promise<void> {
     window.addEvent = addEvent;
     window.setParentGroup = setParentGroup;
     window.setMapURL = setMapURL;
+    window.setCampLocationsRelease = setCampLocationsRelease;
+    window.setArtLocationsRelease = setArtLocationsRelease;
+    window.setMapURLRelease = setMapURLRelease;
     window.setNormalizeAddresses = setNormalizeAddresses;
 
-    el.browserTz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    el.browserTz.textContent = browserTz;
+    el.editBrowserTz.textContent = browserTz;
     // Show the current time as the example, so it's useful to copy-paste from.
-    el.dateFormatExample.textContent = formatDateForInput(new Date());
+    const dateExample = formatDateForInput(new Date());
+    el.dateFormatExample.textContent = dateExample;
+    el.editDateFormatExample.textContent = dateExample;
 
     await Promise.all([loadAccessControlList(), loadAccessTargets()]);
     expandEventsWithRules();
@@ -403,6 +415,19 @@ function eventCard(event: ims.EventData): DocumentFragment {
         // groups can't have map URLs
         mapURLInput.disabled = event.is_group??false;
         mapURLInput.value = event.map_url??"";
+
+        // Groups hold no places and get no map URL, so they have nothing to
+        // embargo.
+        const releaseGroup = el.editEventModal.querySelector("#edit_release_times_group") as HTMLElement;
+        releaseGroup.classList.toggle("d-none", event.is_group??false);
+        for (const [selector, release] of [
+            ["#edit_camp_locations_release", event.camp_locations_release],
+            ["#edit_art_locations_release", event.art_locations_release],
+            ["#edit_map_url_release", event.map_url_release],
+        ] as const) {
+            const input = el.editEventModal.querySelector(selector) as HTMLInputElement;
+            input.value = release ? formatDateForInput(new Date(release)) : "";
+        }
 
         // Groups hold no incidents or visits, so address normalization is
         // meaningless for them.
@@ -748,8 +773,7 @@ function displayMode(m: AccessMode): string {
 // Format a date for display in a grant's date input, in the browser's time zone,
 // e.g. "Sun 2026-08-23 @ 12:00". This matches the format parseDateInput accepts.
 function formatDateForInput(date: Date): string {
-    const weekday = new Intl.DateTimeFormat("en-US", {weekday: "short"}).format(date);
-    return `${weekday} ${ims.localDateISO(date)} @ ${ims.localTimeHHMM(date)}`;
+    return ims.formatDateShort(date);
 }
 
 // Parse a human-entered datetime into a Date in the browser's time zone. Returns
@@ -1207,6 +1231,59 @@ async function setNormalizeAddresses(sender: HTMLInputElement): Promise<void> {
         ims.controlHasError(sender);
         return;
     }
+    ims.controlHasSuccess(sender);
+    await loadAccessControlList();
+    drawAccess();
+}
+
+// Go's zero time, which the events API reads as "clear this release time".
+// Leaving the field out of the request instead means "leave it as it is".
+const clearedReleaseTime = "0001-01-01T00:00:00Z";
+
+type ReleaseTimeField = "camp_locations_release"|"art_locations_release"|"map_url_release";
+
+async function setCampLocationsRelease(sender: HTMLInputElement): Promise<void> {
+    await setReleaseTime(sender, "camp_locations_release");
+}
+
+async function setArtLocationsRelease(sender: HTMLInputElement): Promise<void> {
+    await setReleaseTime(sender, "art_locations_release");
+}
+
+async function setMapURLRelease(sender: HTMLInputElement): Promise<void> {
+    await setReleaseTime(sender, "map_url_release");
+}
+
+async function setReleaseTime(sender: HTMLInputElement, field: ReleaseTimeField): Promise<void> {
+    const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"])!;
+
+    const date = parseDateInput(sender.value);
+    if (date === undefined) {
+        ims.controlHasError(sender);
+        return;
+    }
+
+    const requestBod: ims.EventData = {
+        id: eventId,
+        // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.
+        name: null,
+        [field]: date?.toISOString()??clearedReleaseTime,
+    };
+    const {err} = await ims.fetchNoThrow(url_events, {
+        body: JSON.stringify(requestBod),
+    });
+    if (err != null) {
+        const message = `Failed to edit event: ${err}`;
+        console.log(message);
+        window.alert(message);
+        await loadAccessControlList();
+        drawAccess();
+        ims.controlHasError(sender);
+        return;
+    }
+    // Show the time back in the canonical format, so the admin can see how the
+    // server understood whatever they typed.
+    sender.value = date ? formatDateForInput(date) : "";
     ims.controlHasSuccess(sender);
     await loadAccessControlList();
     drawAccess();

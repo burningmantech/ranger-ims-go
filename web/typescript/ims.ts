@@ -959,6 +959,12 @@ export function localTimeHHMM(date: Date): string {
     return `${hours}:${minutes}`;
 }
 
+// Format a date in the browser's time zone, e.g. "Sun 2026-08-23 @ 12:00".
+export function formatDateShort(date: Date): string {
+    const weekday = new Intl.DateTimeFormat("en-US", {weekday: "short"}).format(date);
+    return `${weekday} ${localDateISO(date)} @ ${localTimeHHMM(date)}`;
+}
+
 export function renderDate(date: string|undefined, type: string, _incidentOrFROrVisit: any): RenderValue {
     if (date === undefined) {
         return undefined;
@@ -2097,6 +2103,11 @@ export type EventData = {
     is_group?: boolean,
     parent_group?: number|null,
     map_url?: string|null,
+    // Times (ISO 8601) before which camp locations, art locations, and the map
+    // link are hidden from non-admins. Absent means no embargo.
+    camp_locations_release?: string|null,
+    art_locations_release?: string|null,
+    map_url_release?: string|null,
     normalize_addresses?: boolean|null,
 }
 

@@ -29,6 +29,7 @@ const placesUrl = `/ims/api/events/${eventName}/places`;
 let serverEventAccess: ims.AuthInfoEventAccess;
 let serverPlaces: ims.Places;
 let serverEvents: ims.EventData[];
+let serverAdmin: boolean;
 
 beforeEach((): void => {
     vi.resetModules();
@@ -55,6 +56,7 @@ beforeEach((): void => {
         other: [{ name: "First Camp", location_string: null, external_data: { name: "First Camp", location_string: null } as ims.OtherDest }],
     };
     serverEvents = [{ id: eventId, name: eventName }];
+    serverAdmin = false;
 });
 
 function placesRoutes(url: string, init?: RequestInit): Response | undefined {
@@ -62,7 +64,7 @@ function placesRoutes(url: string, init?: RequestInit): Response | undefined {
         return jsonResponse({
             authenticated: true,
             user: "Tester",
-            admin: false,
+            admin: serverAdmin,
             event_access: { [eventName]: serverEventAccess },
         });
     }
@@ -332,6 +334,75 @@ test("the map link is revealed when the current event has a map URL", async (): 
     const mapLink = document.getElementById("map-link") as HTMLAnchorElement;
     expect(mapLink.href).toBe("https://map.example/2025");
     expect(mapLink.classList.contains("d-none")).toBe(false);
+});
+
+test("no embargo notice shows when the event has no release times", async (): Promise<void> => {
+    await initPlacesPage();
+
+    expect(document.getElementById("embargo_notice")!.classList.contains("d-none")).toBe(true);
+});
+
+test("no embargo notice shows when every release time has passed", async (): Promise<void> => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    serverEvents = [{
+        id: eventId, name: eventName,
+        camp_locations_release: past,
+        art_locations_release: past,
+        map_url_release: past,
+    }];
+    await initPlacesPage();
+
+    expect(document.getElementById("embargo_notice")!.classList.contains("d-none")).toBe(true);
+});
+
+test("the embargo notice gives one line per embargoed thing, with its release time", async (): Promise<void> => {
+    const campRelease = new Date(2030, 7, 21, 18, 0);
+    const artRelease = new Date(2030, 7, 22, 12, 0);
+    serverEvents = [{
+        id: eventId, name: eventName,
+        camp_locations_release: campRelease.toISOString(),
+        art_locations_release: artRelease.toISOString(),
+    }];
+    await initPlacesPage();
+
+    const notice = document.getElementById("embargo_notice")!;
+    expect(notice.classList.contains("d-none")).toBe(false);
+    const lines = notice.querySelectorAll("p");
+    expect(lines.length).toBe(2);
+    expect(lines[0]!.textContent).toBe("Camp addresses will be shown Wed 2030-08-21 @ 18:00.");
+    expect(lines[1]!.textContent).toBe("Art addresses will be shown Thu 2030-08-22 @ 12:00.");
+    // The short date carries the full date, zone and all, as a hover title.
+    expect(lines[0]!.querySelector("span")!.title).toContain("2030-08-21");
+});
+
+test("the embargo notice covers an embargoed map, and skips things that are released", async (): Promise<void> => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    serverEvents = [{
+        id: eventId, name: eventName,
+        map_url: "https://map.example/2025",
+        camp_locations_release: past,
+        map_url_release: new Date(2030, 7, 21, 18, 0).toISOString(),
+    }];
+    await initPlacesPage();
+
+    const lines = document.getElementById("embargo_notice")!.querySelectorAll("p");
+    expect(lines.length).toBe(1);
+    expect(lines[0]!.textContent).toBe("The event map will be shown Wed 2030-08-21 @ 18:00.");
+});
+
+test("admins are told when the embargoed data becomes visible to everyone else", async (): Promise<void> => {
+    serverAdmin = true;
+    serverEvents = [{
+        id: eventId, name: eventName,
+        camp_locations_release: new Date(2030, 7, 21, 18, 0).toISOString(),
+        map_url_release: new Date(2030, 7, 21, 18, 0).toISOString(),
+    }];
+    await initPlacesPage();
+
+    const lines = document.getElementById("embargo_notice")!.querySelectorAll("p");
+    expect(lines.length).toBe(2);
+    expect(lines[0]!.textContent).toBe("Camp addresses are hidden from non-admins until Wed 2030-08-21 @ 18:00.");
+    expect(lines[1]!.textContent).toBe("The event map is hidden from non-admins until Wed 2030-08-21 @ 18:00.");
 });
 
 test("the slash key focuses the search box", async (): Promise<void> => {

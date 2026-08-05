@@ -16,6 +16,8 @@
 
 package json
 
+import "time"
+
 type Events []Event
 type Event struct {
 	ID          int32   `json:"id"`
@@ -23,6 +25,19 @@ type Event struct {
 	IsGroup     *bool   `json:"is_group"`
 	ParentGroup *int32  `json:"parent_group"`
 	MapURL      *string `json:"map_url"`
+
+	// These three release times embargo data that Burning Man hasn't published
+	// yet. Until a release time arrives, only IMS admins see the data it
+	// guards: camp Place locations, art Place locations, and the event's
+	// MapURL. A nil release time means no embargo, i.e. the data is available
+	// to everyone who can read it.
+	//
+	// In an edit request, a nil release time means "leave this as it is", and
+	// a zero time means "clear this release time".
+	CampLocationsRelease *time.Time `json:"camp_locations_release,omitempty"`
+	ArtLocationsRelease  *time.Time `json:"art_locations_release,omitempty"`
+	MapURLRelease        *time.Time `json:"map_url_release,omitempty"`
+
 	// NormalizeAddresses turns on canonicalization of the BRC addresses
 	// clients send for this event's Incidents and Visits.
 	NormalizeAddresses *bool `json:"normalize_addresses"`

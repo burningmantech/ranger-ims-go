@@ -23,6 +23,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -336,6 +337,33 @@ func TestEventGroups_errors(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, status)
 	require.Contains(t, body, "cannot have a map URL")
 
+	// An event group holds no places and gets no map URL, so it has nothing to
+	// embargo.
+	future := time.Now().AddDate(1, 0, 0)
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{
+		ID:                   groupID,
+		CampLocationsRelease: &future,
+		IsGroup:              new(true),
+	})
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, body, "cannot have a camp locations release time")
+
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{
+		ID:                  groupID,
+		ArtLocationsRelease: &future,
+		IsGroup:             new(true),
+	})
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, body, "cannot have an art locations release time")
+
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{
+		ID:            groupID,
+		MapURLRelease: &future,
+		IsGroup:       new(true),
+	})
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, body, "cannot have a map URL release time")
+
 	// An event group holds no incidents or visits, so it can't normalize addresses.
 	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{
 		ID:                 groupID,
@@ -344,6 +372,81 @@ func TestEventGroups_errors(t *testing.T) {
 	})
 	require.Equal(t, http.StatusBadRequest, status)
 	require.Contains(t, body, "cannot normalize addresses")
+}
+
+// TestEventMapURLEmbargo checks that an event's map URL is withheld from
+// non-admins until its release time arrives.
+func TestEventMapURLEmbargo(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := rand.NonCryptoText()
+	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Readers: []imsjson.AccessRule{{Expression: "person:" + userAliceHandle, Validity: "always"}},
+		},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	mapURL := "https://example.com/mymap"
+	resp = apisAdmin.editEvent(ctx, imsjson.Event{ID: eventID, MapURL: &mapURL})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// With no release time set, Alice gets the map URL.
+	events, resp := apisAlice.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	event := findEvent(events, eventID)
+	require.NotNil(t, event)
+	require.NotNil(t, event.MapURL)
+	require.Equal(t, mapURL, *event.MapURL)
+
+	// Embargo the map until next year.
+	future := time.Now().AddDate(1, 0, 0)
+	resp = apisAdmin.editEvent(ctx, imsjson.Event{ID: eventID, MapURLRelease: &future})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	events, resp = apisAlice.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	event = findEvent(events, eventID)
+	require.NotNil(t, event)
+	require.Nil(t, event.MapURL)
+
+	// The admin still sees it, along with the release time.
+	events, resp = apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	event = findEvent(events, eventID)
+	require.NotNil(t, event)
+	require.NotNil(t, event.MapURL)
+	require.Equal(t, mapURL, *event.MapURL)
+	require.NotNil(t, event.MapURLRelease)
+	require.WithinDuration(t, future, *event.MapURLRelease, time.Second)
+
+	// A release time in the past is no embargo.
+	past := time.Now().AddDate(-1, 0, 0)
+	resp = apisAdmin.editEvent(ctx, imsjson.Event{ID: eventID, MapURLRelease: &past})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	events, resp = apisAlice.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	event = findEvent(events, eventID)
+	require.NotNil(t, event)
+	require.NotNil(t, event.MapURL)
+	require.Equal(t, mapURL, *event.MapURL)
 }
 
 // findEvent returns a pointer to the event with the given ID, or nil if not present.

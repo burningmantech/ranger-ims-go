@@ -100,8 +100,7 @@ async function initIncidentsPage(): Promise<void> {
             "You're not currently authorized to access Incidents for this event. " +
             "You may be able to write Field Reports though. If you need access to " +
             "IMS Incidents while on-site, please get in touch with an on-duty " +
-            "Operator. For post-event access, reach out to the tech cadre, at " +
-            "ranger-tech-" + "" + "cadre" + "@burningman.org"
+            "Operator. For post-event access, reach out to the Ranger Tech Cadre"
         );
         return;
     }

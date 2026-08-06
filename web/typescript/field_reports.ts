@@ -281,6 +281,19 @@ function frInitDataTables() {
                 "responsivePriority": 4,
             },
             {   // 3
+                "name": "field_report_author",
+                "className": "field_report_author text-center",
+                "data": "report_entries",
+                "defaultContent": "",
+                "render": function(reportEntries: ims.ReportEntry[]|null|undefined, _type: string, _fr: ims.FieldReport): ims.RenderValue {
+                    if (reportEntries && reportEntries[0]?.author) {
+                        return DataTable.render.text().display(reportEntries[0].author) as string;
+                    }
+                    return "None?";
+                },
+                "responsivePriority": 4,
+            },
+            {   // 4
                 "name": "field_report_summary",
                 "className": "field_report_summary all",
                 "data": "summary",

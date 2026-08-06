@@ -150,6 +150,54 @@ test("the summary column falls back to the first report entry line", async (): P
     expect(render("", "display", serverFieldReports[0]!)).toBe("First line");
 });
 
+test("the author column shows the author of the first report entry", async (): Promise<void> => {
+    serverFieldReports[0]!.report_entries = [
+        { text: "Created field report", system_entry: true, author: "Hardware" },
+    ];
+    await initFieldReportsPage();
+    const render = renderColumn("field_report_author");
+    const report = serverFieldReports[0]!;
+
+    expect(render(report.report_entries, "display", report)).toBe("Hardware");
+});
+
+test("the author column takes the first entry's author, not a later one's", async (): Promise<void> => {
+    serverFieldReports[0]!.report_entries = [
+        { text: "started it", system_entry: false, author: "Hardware" },
+        { text: "chimed in", system_entry: false, author: "Loosey" },
+    ];
+    await initFieldReportsPage();
+    const render = renderColumn("field_report_author");
+    const report = serverFieldReports[0]!;
+
+    expect(render(report.report_entries, "display", report)).toBe("Hardware");
+});
+
+test("the author column falls back when there's no authored first entry", async (): Promise<void> => {
+    await initFieldReportsPage();
+    const render = renderColumn("field_report_author");
+    const report = serverFieldReports[0]!; // no report entries at all
+
+    expect(render(report.report_entries, "display", report)).toBe("None?");
+    expect(render(null, "display", report)).toBe("None?");
+    expect(render(undefined, "display", report)).toBe("None?");
+    // An entry that somehow carries no author.
+    expect(render([{ text: "anonymous", system_entry: false }], "display", report)).toBe("None?");
+});
+
+test("the table's columns line up with the rendered table headers", async (): Promise<void> => {
+    await initFieldReportsPage();
+    const columns = MockDataTable.lastInstance!.options.columns;
+    const headers = [...document.querySelectorAll("#field_reports_table thead th")]
+        .map((th): string|null => th.textContent);
+
+    expect(headers).toEqual(["FR#", "IMS#", "Created", "Author", "Summary"]);
+    expect(columns.map((c): string|undefined => c.name)).toEqual([
+        "field_report_number", "field_report_incident", "field_report_created",
+        "field_report_author", "field_report_summary",
+    ]);
+});
+
 test("the modification-date filter passes everything until a window is set", async (): Promise<void> => {
     serverFieldReports[0]!.created = new Date().toISOString();
     serverFieldReports[1]!.created = "2000-01-01T00:00:00Z";

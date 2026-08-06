@@ -123,6 +123,16 @@ func (a ApiHelper) editPlaces(ctx context.Context, eventName string, req imsjson
 	return a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/events/", eventName, "/places").String())
 }
 
+func (a ApiHelper) importPlaces(ctx context.Context, eventName, placeType, year string) *http.Response {
+	a.t.Helper()
+	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/places/import")
+	q := path.Query()
+	q.Set("place_type", placeType)
+	q.Set("year", year)
+	path.RawQuery = q.Encode()
+	return a.imsPost(ctx, nil, path.String())
+}
+
 func (a ApiHelper) getPlaces(ctx context.Context, eventName string) (imsjson.Places, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/places").String()

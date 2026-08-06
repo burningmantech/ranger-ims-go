@@ -17,11 +17,15 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/bmapi"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -139,36 +143,137 @@ func (action UpdatePlaces) run(req *http.Request) *herr.HTTPError {
 	// for each type supplied, delete everything we have currently for that type
 	// before adding in everything from the request.
 	for dType, dests := range destByType {
-		err := action.imsDBQ.RemovePlaces(ctx, action.imsDBQ,
-			imsdb.RemovePlacesParams{
-				Event: event.ID,
-				Type:  imsdb.PlaceType(dType),
-			},
-		)
-		if err != nil {
-			return herr.InternalServerError("Failed to remove places", err).From("[RemovePlaces]")
-		}
-
-		for i, d := range dests {
-			marshal, err := json.Marshal(d.ExternalData)
-			if err != nil {
-				return herr.InternalServerError("Failed to marshal place", err).From("[Marshal]")
-			}
-			err = action.imsDBQ.CreatePlace(ctx, action.imsDBQ,
-				imsdb.CreatePlaceParams{
-					Event:          event.ID,
-					Number:         int32(i),
-					Type:           imsdb.PlaceType(dType),
-					Name:           d.Name,
-					LocationString: d.LocationString,
-					ExternalData:   marshal,
-				},
-			)
-			if err != nil {
-				return herr.InternalServerError("Failed to create place", err).From("[UpdatePlace]")
-			}
+		errHTTP = replacePlaces(ctx, action.imsDBQ, event.ID, imsdb.PlaceType(dType), dests)
+		if errHTTP != nil {
+			return errHTTP.From("[replacePlaces]")
 		}
 	}
 
 	return nil
+}
+
+// replacePlaces swaps out everything the event has of one place type for the
+// places provided.
+func replacePlaces(
+	ctx context.Context, imsDBQ *store.DBQ, eventID int32, placeType imsdb.PlaceType, places []imsjson.Place,
+) *herr.HTTPError {
+	err := imsDBQ.RemovePlaces(ctx, imsDBQ,
+		imsdb.RemovePlacesParams{
+			Event: eventID,
+			Type:  placeType,
+		},
+	)
+	if err != nil {
+		return herr.InternalServerError("Failed to remove places", err).From("[RemovePlaces]")
+	}
+
+	for i, d := range places {
+		marshal, err := json.Marshal(d.ExternalData)
+		if err != nil {
+			return herr.InternalServerError("Failed to marshal place", err).From("[Marshal]")
+		}
+		err = imsDBQ.CreatePlace(ctx, imsDBQ,
+			imsdb.CreatePlaceParams{
+				Event:          eventID,
+				Number:         int32(i),
+				Type:           placeType,
+				Name:           d.Name,
+				LocationString: d.LocationString,
+				ExternalData:   marshal,
+			},
+		)
+		if err != nil {
+			return herr.InternalServerError("Failed to create place", err).From("[UpdatePlace]")
+		}
+	}
+	return nil
+}
+
+// ImportPlaces replaces one place type's places for an event with what the
+// Burning Man API has for a given year. The year is a request parameter rather
+// than something derived from the event, since an IMS event isn't necessarily
+// named for the year whose data it wants.
+type ImportPlaces struct {
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	imsAdmins []string
+	bmAPI     conf.BurningManAPI
+}
+
+type ImportPlacesResponse struct {
+	// Count is how many places were stored.
+	Count int `json:"count"`
+}
+
+func (action ImportPlaces) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	resp, errHTTP := action.run(req)
+	if errHTTP != nil {
+		errHTTP.From("[run]").WriteResponse(w)
+		return
+	}
+	mustWriteJSON(w, req, resp)
+}
+
+func (action ImportPlaces) run(req *http.Request) (ImportPlacesResponse, *herr.HTTPError) {
+	ctx := req.Context()
+	var resp ImportPlacesResponse
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[getGlobalPermissions]")
+	}
+	if globalPermissions&authz.GlobalAdministratePlaces == 0 {
+		return resp, herr.Forbidden("The requestor does not have GlobalAdministratePlaces permission", nil)
+	}
+	if !action.bmAPI.Enabled() {
+		return resp, herr.New(http.StatusServiceUnavailable,
+			"This server has no Burning Man API key configured", nil)
+	}
+	event, errHTTP := getEvent(req, req.PathValue("eventName"), action.imsDBQ)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[getEvent]")
+	}
+	err := req.ParseForm()
+	if err != nil {
+		return resp, herr.BadRequest("Failed to parse form", err)
+	}
+	kind, err := bmapi.ParseKind(req.Form.Get("place_type"))
+	if err != nil {
+		return resp, herr.BadRequest(err.Error(), err)
+	}
+	year, err := conv.ParseInt32(req.Form.Get("year"))
+	if err != nil {
+		return resp, herr.BadRequest("The year must be a number", err)
+	}
+
+	records, err := bmapi.NewClient(action.bmAPI.URL, action.bmAPI.APIKey).Fetch(ctx, kind, year)
+	if err != nil {
+		return resp, herr.New(http.StatusBadGateway,
+			fmt.Sprintf("Failed to fetch %v data for %v from the Burning Man API: %v", kind, year, err),
+			err,
+		).From("[Fetch]")
+	}
+	// A year the API has no data for comes back as an empty array, which would
+	// otherwise silently wipe out whatever the event already had.
+	if len(records) == 0 {
+		return resp, herr.New(http.StatusBadGateway,
+			fmt.Sprintf("The Burning Man API has no %v data for %v. Nothing was changed.", kind, year),
+			nil,
+		)
+	}
+
+	places := make([]imsjson.Place, 0, len(records))
+	for _, r := range records {
+		places = append(places, imsjson.Place{
+			Name:           r.Name,
+			LocationString: r.LocationString,
+			ExternalData:   r.Raw,
+		})
+	}
+	errHTTP = replacePlaces(ctx, action.imsDBQ, event.ID, imsdb.PlaceType(kind), places)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[replacePlaces]")
+	}
+
+	resp.Count = len(places)
+	return resp, nil
 }

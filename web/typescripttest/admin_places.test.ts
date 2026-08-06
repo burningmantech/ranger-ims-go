@@ -23,9 +23,14 @@ import type * as ims from "../typescript/ims.ts";
 import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
 
 const placesUrl = url_places.replace("<event_id>", "2025");
+const importUrl = url_placesImport.replace("<event_id>", "2025");
 const adminPlacesPath = "/ims/app/admin/places";
 
 let serverEvents: ims.EventData[];
+let serverAuth: ims.AuthInfo;
+// Requests to the places import endpoint, which carries its arguments in the
+// query string rather than a body.
+let importHandler: (url: string) => Response | undefined;
 
 beforeEach((): void => {
     vi.resetModules();
@@ -37,15 +42,20 @@ beforeEach((): void => {
         { id: 2, name: "2024" },
         { id: 3, name: "Group", is_group: true },
     ];
+    serverAuth = { authenticated: true, user: "Tester", admin: true, places_import_allowed: true };
+    importHandler = (): Response | undefined => jsonResponse({ count: 0 });
 });
 
 async function initAdminPlacesPage(placesHandler: (init?: RequestInit) => Response | undefined = () => undefined) {
     const mock = mockFetch((url, init) => {
         if (url === url_auth && init?.body == null) {
-            return jsonResponse({ authenticated: true, user: "Tester", admin: true });
+            return jsonResponse(serverAuth);
         }
         if (url === url_events && init?.body == null) {
             return jsonResponse(serverEvents);
+        }
+        if (url.startsWith(importUrl)) {
+            return importHandler(url);
         }
         if (url === placesUrl) {
             return placesHandler(init);
@@ -296,6 +306,193 @@ test("an event_id for an event the user can't see errors out and loads nothing",
     // The select falls back to the placeholder rather than showing nothing at all.
     expect((await eventSelect()).value).toBe("");
     expect(mock.mock.calls.some(([url]) => url === url_places.replace("<event_id>", "1999"))).toBe(false);
+});
+
+// The "Set from API" buttons have the server pull a place type straight from
+// the Burning Man API, for a year the admin gives separately (an IMS event
+// isn't necessarily named for the year whose data it wants).
+
+function importButton(placeType: string): HTMLButtonElement {
+    return document.getElementById(`${placeType}-api-import`) as HTMLButtonElement;
+}
+
+function yearInput(placeType: string): HTMLInputElement {
+    return document.getElementById(`${placeType}-api-year`) as HTMLInputElement;
+}
+
+function importUrls(mock: ReturnType<typeof mockFetch>): string[] {
+    return mock.mock.calls.map(([url]) => url).filter(url => url.startsWith(importUrl));
+}
+
+test("the import buttons are disabled when the server has no Burning Man API key", async (): Promise<void> => {
+    serverAuth = { authenticated: true, user: "Tester", admin: true, places_import_allowed: false };
+    const mock = await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
+
+    await vi.waitFor((): void => {
+        expect(importButton("camp").disabled).toBe(true);
+    });
+    // The explanation goes on the wrapper, since a disabled button doesn't fire
+    // the events a tooltip needs.
+    expect(document.getElementById("camp-api-wrapper")!.title).toContain("no Burning Man API key");
+
+    (await eventSelect()).value = "2025";
+    vi.stubGlobal("confirm", vi.fn((): boolean => true));
+    importButton("camp").click();
+
+    expect(importUrls(mock)).toEqual([]);
+});
+
+test("only art, camp, and mv have import controls; other does not", async (): Promise<void> => {
+    await initAdminPlacesPage();
+
+    await vi.waitFor((): void => {
+        expect(importButton("camp").disabled).toBe(false);
+    });
+    expect(importButton("art")).not.toBeNull();
+    expect(importButton("mv")).not.toBeNull();
+    // "Other" places are hand-written, with no upstream API to pull from.
+    expect(importButton("other")).toBeNull();
+    expect(yearInput("other")).toBeNull();
+});
+
+test("the year inputs are prefilled from the selected event name", async (): Promise<void> => {
+    await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
+
+    (await eventSelect()).value = "2024";
+    await window.loadPlaces();
+
+    expect(yearInput("camp").value).toBe("2024");
+    expect(yearInput("art").value).toBe("2024");
+    expect(yearInput("mv").value).toBe("2024");
+});
+
+test("an event name with no year in it prefills the current year", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "Training" }];
+    await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
+
+    (await eventSelect()).value = "Training";
+    await window.loadPlaces();
+
+    expect(yearInput("camp").value).toBe(new Date().getFullYear().toString());
+});
+
+test("importing camps posts the place type and year, then reloads just that field", async (): Promise<void> => {
+    importHandler = (): Response => jsonResponse({ count: 2 });
+    const mock = await initAdminPlacesPage(() => jsonResponse({
+        art: [],
+        camp: [
+            { name: "Camp A", location_string: "3:00", external_data: { name: "Camp A", location_string: "3:00" } },
+            { name: "Camp B", location_string: "4:00", external_data: { name: "Camp B", location_string: "4:00" } },
+        ],
+        mv: [],
+        other: [],
+    }));
+
+    (await eventSelect()).value = "2025";
+    await window.loadPlaces();
+    // An unsaved edit in another field must survive the camp import.
+    field("art-data").value = "pending edit";
+    yearInput("camp").value = "2019";
+    vi.stubGlobal("confirm", vi.fn((): boolean => true));
+
+    importButton("camp").click();
+
+    await vi.waitFor((): void => {
+        expect(importUrls(mock)).toHaveLength(1);
+    });
+    const params = new URLSearchParams(importUrls(mock)[0]!.split("?")[1]);
+    expect(params.get("place_type")).toBe("camp");
+    // The year the admin typed, not the event name.
+    expect(params.get("year")).toBe("2019");
+
+    await vi.waitFor((): void => {
+        expect(JSON.parse(field("camp-data").value)).toHaveLength(2);
+    });
+    expect(document.getElementById("camp-data-label")!.textContent).toBe("Camp JSON Data (2)");
+    // The count comes from the server's response, not from the textarea.
+    expect(document.getElementById("camp-api-status")!.textContent).toContain("Saved 2 camps");
+    expect(field("camp-data").classList.contains("is-valid")).toBe(true);
+    expect(field("art-data").value).toBe("pending edit");
+});
+
+test("the import confirmation names what it's about to delete, and declining sends nothing", async (): Promise<void> => {
+    const mock = await initAdminPlacesPage(() => jsonResponse({
+        art: [],
+        camp: [{ name: "Camp A", location_string: "3:00", external_data: { name: "Camp A" } }],
+        mv: [],
+        other: [],
+    }));
+
+    (await eventSelect()).value = "2025";
+    await window.loadPlaces();
+    const confirmMock = vi.fn((_message: string): boolean => false);
+    vi.stubGlobal("confirm", confirmMock);
+
+    importButton("camp").click();
+
+    await vi.waitFor((): void => {
+        expect(confirmMock).toHaveBeenCalledTimes(1);
+    });
+    const prompt: string = confirmMock.mock.calls[0]![0];
+    expect(prompt).toContain("2025");
+    // The count the page last loaded, so the admin knows the size of the loss.
+    expect(prompt).toContain("delete the 1 camps");
+    expect(importUrls(mock)).toEqual([]);
+});
+
+test("importing with no event selected surfaces an error and sends nothing", async (): Promise<void> => {
+    const mock = await initAdminPlacesPage();
+    await eventSelect();
+    vi.stubGlobal("confirm", vi.fn((): boolean => true));
+
+    importButton("camp").click();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(document.getElementById("error_text")!.textContent).toContain("Select an event");
+    expect(importUrls(mock)).toEqual([]);
+});
+
+test("importing with an empty year surfaces an error and sends nothing", async (): Promise<void> => {
+    const mock = await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
+
+    (await eventSelect()).value = "2025";
+    await window.loadPlaces();
+    yearInput("camp").value = "";
+    vi.stubGlobal("confirm", vi.fn((): boolean => true));
+
+    importButton("camp").click();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(document.getElementById("error_text")!.textContent).toContain("year");
+    expect(yearInput("camp").classList.contains("is-invalid")).toBe(true);
+    expect(importUrls(mock)).toEqual([]);
+});
+
+test("a failed import surfaces the server's message and re-enables the button", async (): Promise<void> => {
+    importHandler = (): Response => new Response(
+        JSON.stringify({ detail: "The Burning Man API has no camp data for 1999. Nothing was changed." }),
+        { status: 502, headers: { "content-type": "application/problem+json" } },
+    );
+    await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
+
+    (await eventSelect()).value = "2025";
+    await window.loadPlaces();
+    yearInput("camp").value = "1999";
+    vi.stubGlobal("confirm", vi.fn((): boolean => true));
+
+    importButton("camp").click();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(document.getElementById("error_text")!.textContent).toContain("no camp data for 1999");
+    expect(document.getElementById("camp-api-status")!.textContent).toBe("");
+    // The admin can fix the year and try again.
+    expect(importButton("camp").disabled).toBe(false);
 });
 
 test("selecting an event writes the event_id query param", async (): Promise<void> => {

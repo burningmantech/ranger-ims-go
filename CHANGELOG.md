@@ -31,6 +31,7 @@ https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
 ### Added
 
 - Added server-side error logging, surfaced on a new Error Logs admin page. This makes it much easier to spot problems during the event. https://github.com/burningmantech/ranger-ims-go/pull/737
+- Added "Set from API" buttons to the Admin Places page for camps, art, and mutant vehicles, so that an admin can have the server pull that data from the Burning Man API for a given year rather than pasting the response in by hand. This needs a Burning Man API key in the server's config (`IMS_BM_API_KEY`); without one, the buttons stay disabled.
 - Added normalization of Black Rock City addresses, so that an Incident location or a Sanctuary Visit guest camp address typed as "7+e" is saved as "7:00 & E". It's opt-in per event, toggled from the Admin Events page, so it can be turned on or off without a server restart. https://github.com/burningmantech/ranger-ims-go/pull/736
 
 ### Fixed

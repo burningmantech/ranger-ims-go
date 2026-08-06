@@ -96,6 +96,12 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	if v, ok := lookupEnv("IMS_EVENT_DELETION_ENABLED"); ok {
 		baseCfg.Core.EventDeletionEnabled = strings.EqualFold(v, "true")
 	}
+	if v, ok := lookupEnv("IMS_BM_API_URL"); ok {
+		baseCfg.BurningManAPI.URL = strings.TrimSuffix(v, "/")
+	}
+	if v, ok := lookupEnv("IMS_BM_API_KEY"); ok {
+		baseCfg.BurningManAPI.APIKey = v
+	}
 	if v, ok := lookupEnv("IMS_DIRECTORY"); ok {
 		baseCfg.Directory.Directory = conf.DirectoryType(strings.ToLower(v))
 	}

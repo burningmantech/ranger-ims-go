@@ -178,6 +178,7 @@ type GetAuth struct {
 	admins               []string
 	attachmentsEnabled   bool
 	eventDeletionEnabled bool
+	bmAPIEnabled         bool
 }
 
 type GetAuthResponse struct {
@@ -189,6 +190,10 @@ type GetAuthResponse struct {
 	// EventDeletionAllowed tells the admin events page whether this server
 	// permits deleting events (the EventDeletionEnabled server config).
 	EventDeletionAllowed bool `json:"event_deletion_allowed"`
+
+	// PlacesImportAllowed tells the admin places page whether this server has a
+	// Burning Man API key, and so can pull an event's places from that API.
+	PlacesImportAllowed bool `json:"places_import_allowed"`
 }
 
 type AccessForEvent struct {
@@ -231,6 +236,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 		User:                 handle,
 		Admin:                slices.Contains(roles, authz.Administrator),
 		EventDeletionAllowed: action.eventDeletionEnabled,
+		PlacesImportAllowed:  action.bmAPIEnabled,
 	}
 	// event_id is an optional query param for this endpoint
 	eventName := req.FormValue("event_id")

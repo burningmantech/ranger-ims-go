@@ -2148,6 +2148,12 @@ export type Place = {
 
 export type Places = Partial<Record<PlaceType, Place[]|null|undefined>>;
 
+// The response from the places import endpoint, which pulls a place type from
+// the Burning Man API server-side.
+export type ImportPlacesResponse = {
+    count: number;
+}
+
 export type BMArt = {
     name: string;
     location_string: string|null;
@@ -2250,6 +2256,9 @@ export type AuthenticatedAuthInfo = {
     event_access?: Record<string, AuthInfoEventAccess>,
     // Whether this server permits deleting events (an admin-only, config-gated feature).
     event_deletion_allowed?: boolean,
+    // Whether this server has a Burning Man API key, and so can pull an event's
+    // places from that API.
+    places_import_allowed?: boolean,
 }
 
 export type AuthInfo = UnauthenticatedAuthInfo | AuthenticatedAuthInfo;

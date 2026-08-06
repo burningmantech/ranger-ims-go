@@ -42,21 +42,21 @@ templ AdminPlaces(deployment, versionName, versionRef string) {
     <label id="art-data-label" for="art-data" class="form-label">Art JSON Data</label>
     <textarea id="art-data" type="text" class="form-control font-monospace" aria-describedby="art-help" rows="12"></textarea>
     <div id="art-help" class="form-text">Paste in the full API response from the Burning Man v2 art endpoint.</div>
-    <button id="art-save" type="button" class="btn btn-primary mt-2">Save art data</button>
+    @placeButtons("art", "Save art data", "Set art from API")
   </div>
   <h2 class="h5">Camp data</h2>
     <div class="mb-3">
       <label id="camp-data-label" for="camp-data" class="form-label">Camp JSON Data</label>
       <textarea id="camp-data" type="text" class="form-control font-monospace" aria-describedby="camp-help" rows="12"></textarea>
       <div id="camp-help" class="form-text">Paste in the full API response from the Burning Man v2 camp endpoint.</div>
-      <button id="camp-save" type="button" class="btn btn-primary mt-2">Save camp data</button>
+      @placeButtons("camp", "Save camp data", "Set camps from API")
     </div>
   <h2 class="h5">Mutant vehicle data</h2>
     <div class="mb-3">
       <label id="mv-data-label" for="mv-data" class="form-label">Mutant vehicle JSON Data</label>
       <textarea id="mv-data" type="text" class="form-control font-monospace" aria-describedby="mv-help" rows="12"></textarea>
       <div id="mv-help" class="form-text">Paste in the full API response from the Burning Man v2 mv endpoint.</div>
-      <button id="mv-save" type="button" class="btn btn-primary mt-2">Save mutant vehicle data</button>
+      @placeButtons("mv", "Save mutant vehicle data", "Set mutant vehicles from API")
     </div>
   <h2 class="h5">Other data</h2>
     <div class="mb-3">
@@ -73,4 +73,31 @@ templ AdminPlaces(deployment, versionName, versionRef string) {
 </div>
 </body>
 </html>
+}
+
+// placeButtons renders one place section's Save button next to the controls for
+// pulling that place type straight from the Burning Man API. The year is its own
+// input because an IMS event isn't necessarily named for the year whose data it
+// wants. "Other" places have no upstream API, so they don't get this.
+templ placeButtons(placeType, saveText, importText string) {
+<div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+  <button id={ placeType + "-save" } type="button" class="btn btn-primary">{ saveText }</button>
+  // The title lives on the wrapper because a disabled button doesn't fire the
+  // events a tooltip needs.
+  <span id={ placeType + "-api-wrapper" } class="d-inline-flex align-items-center gap-2 ms-auto">
+    <label for={ placeType + "-api-year" } class="form-label mb-0">Year</label>
+    <input
+      id={ placeType + "-api-year" }
+      type="number"
+      class="form-control"
+      style="width: 7em;"
+      inputmode="numeric"
+      min="2000"
+      max="2100"
+      step="1"
+    />
+    <button id={ placeType + "-api-import" } type="button" class="btn btn-secondary">{ importText }</button>
+  </span>
+</div>
+<div id={ placeType + "-api-status" } class="form-text"></div>
 }

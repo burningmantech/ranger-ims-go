@@ -40,10 +40,42 @@ interface PlaceField {
     dataEl: HTMLTextAreaElement;
     labelEl: HTMLLabelElement;
     saveEl: HTMLButtonElement;
+    // Present for the place types the Burning Man API can provide, i.e. all but
+    // "other".
+    apiImport?: PlaceImport;
     // Converts the pasted external data (e.g. a Burning Man API response) into
     // the Places the IMS API takes.
     parse: (value: string) => ims.Place[];
 }
+
+// The controls for having the server fetch a place type straight from the
+// Burning Man API, rather than an admin pasting the response in by hand.
+interface PlaceImport {
+    // Plural, lowercase, for use in messages, e.g. "camps".
+    noun: string;
+    wrapperEl: HTMLElement;
+    yearEl: HTMLInputElement;
+    buttonEl: HTMLButtonElement;
+    statusEl: HTMLElement;
+}
+
+function placeImport(placeType: ims.PlaceType, noun: string): PlaceImport {
+    return {
+        noun: noun,
+        wrapperEl: ims.typedElement(`${placeType}-api-wrapper`, HTMLElement),
+        yearEl: ims.typedElement(`${placeType}-api-year`, HTMLInputElement),
+        buttonEl: ims.typedElement(`${placeType}-api-import`, HTMLButtonElement),
+        statusEl: ims.typedElement(`${placeType}-api-status`, HTMLElement),
+    };
+}
+
+// Whether this server has a Burning Man API key. Without one, the "Set from
+// API" buttons stay disabled.
+let placesImportAllowed: boolean = false;
+
+// How many places of each type the server last told us it had, used to say what
+// an import is about to destroy.
+const loadedCounts = new Map<ims.PlaceType, number>();
 
 const fields: PlaceField[] = [
     {
@@ -52,6 +84,7 @@ const fields: PlaceField[] = [
         dataEl: ims.typedElement("art-data", HTMLTextAreaElement),
         labelEl: ims.typedElement("art-data-label", HTMLLabelElement),
         saveEl: ims.typedElement("art-save", HTMLButtonElement),
+        apiImport: placeImport("art", "art"),
         parse: (value: string): ims.Place[] =>
             (JSON.parse(value) as ims.BMArt[]).map((ed: ims.BMArt): ims.Place => ({
                 name: ed.name,
@@ -65,6 +98,7 @@ const fields: PlaceField[] = [
         dataEl: ims.typedElement("camp-data", HTMLTextAreaElement),
         labelEl: ims.typedElement("camp-data-label", HTMLLabelElement),
         saveEl: ims.typedElement("camp-save", HTMLButtonElement),
+        apiImport: placeImport("camp", "camps"),
         parse: (value: string): ims.Place[] =>
             (JSON.parse(value) as ims.BMCamp[]).map((ed: ims.BMCamp): ims.Place => ({
                 name: ed.name,
@@ -78,6 +112,7 @@ const fields: PlaceField[] = [
         dataEl: ims.typedElement("mv-data", HTMLTextAreaElement),
         labelEl: ims.typedElement("mv-data-label", HTMLLabelElement),
         saveEl: ims.typedElement("mv-save", HTMLButtonElement),
+        apiImport: placeImport("mv", "mutant vehicles"),
         parse: (value: string): ims.Place[] =>
             (JSON.parse(value) as ims.BMMV[]).map((ed: ims.BMMV): ims.Place => ({
                 name: ed.name,
@@ -108,11 +143,24 @@ async function initAdminPlacesPage(): Promise<void> {
         return;
     }
     window.loadPlaces = loadPlaces;
+    placesImportAllowed = initResult.authInfo.places_import_allowed??false;
     for (const field of fields) {
         field.saveEl.addEventListener("click", async (): Promise<void> => {
             await save(field);
         });
+        const apiImport: PlaceImport|undefined = field.apiImport;
+        if (!apiImport) {
+            continue;
+        }
+        apiImport.buttonEl.disabled = !placesImportAllowed;
+        apiImport.wrapperEl.title = placesImportAllowed
+            ? `Replace this event's ${apiImport.noun} with the Burning Man API's data for this year`
+            : "This IMS server has no Burning Man API key configured";
+        apiImport.buttonEl.addEventListener("click", async (): Promise<void> => {
+            await importFromAPI(field);
+        });
     }
+    setYearInputs(el.eventName.value);
     drawEventNames(await initResult.eventDatas);
 
     // An "event_id" query param (which holds an event name, as elsewhere in IMS)
@@ -198,10 +246,86 @@ async function loadPlaces(): Promise<void> {
     ims.clearErrorMessage();
     const eventName = el.eventName.value;
     setEventURLParam(eventName);
+    setYearInputs(eventName);
+    for (const field of fields) {
+        if (field.apiImport) {
+            field.apiImport.statusEl.textContent = "";
+        }
+    }
     if (!eventName) {
         return;
     }
     await fetchPlaces(fields);
+}
+
+// The Burning Man API year isn't necessarily the IMS event name, but it usually
+// is, so start from any four-digit year in the event name and fall back to the
+// current year. The admin can always type something else.
+function setYearInputs(eventName: string): void {
+    const fromName: RegExpMatchArray|null = eventName.match(/(?:^|\D)(\d{4})(?:\D|$)/);
+    const year: string = fromName?.[1] ?? new Date().getFullYear().toString();
+    for (const field of fields) {
+        if (field.apiImport) {
+            field.apiImport.yearEl.value = year;
+        }
+    }
+}
+
+// Has the server fetch this place type from the Burning Man API and store the
+// result, replacing whatever the event had. The server does the fetching, since
+// that's where the API key lives.
+async function importFromAPI(field: PlaceField): Promise<void> {
+    const apiImport: PlaceImport|undefined = field.apiImport;
+    if (!apiImport || !placesImportAllowed) {
+        return;
+    }
+    ims.clearErrorMessage();
+    apiImport.statusEl.textContent = "";
+    const eventName = el.eventName.value;
+    if (!eventName) {
+        ims.setErrorMessage("Select an event before setting places from the API.");
+        return;
+    }
+    const year: number|null = ims.parseInt10(apiImport.yearEl.value);
+    if (year == null) {
+        ims.setErrorMessage(`Enter the year to fetch ${apiImport.noun} from the API.`);
+        ims.controlHasError(apiImport.yearEl);
+        return;
+    }
+    const existing: number|undefined = loadedCounts.get(field.placeType);
+    const doomed: string = existing == null
+        ? `all ${apiImport.noun} currently stored`
+        : `the ${existing} ${apiImport.noun} currently stored`;
+    if (!confirm(
+        `Set ${apiImport.noun} for event "${eventName}" from the Burning Man API's ${year} data?\n\n` +
+        `This will delete ${doomed} for this event. This cannot be undone.`)) {
+        return;
+    }
+
+    const params: URLSearchParams = new URLSearchParams({
+        place_type: field.placeType,
+        year: year.toString(),
+    });
+    apiImport.buttonEl.disabled = true;
+    apiImport.statusEl.textContent = `Fetching ${apiImport.noun} for ${year}…`;
+    const {json, err} = await ims.fetchNoThrow<ims.ImportPlacesResponse>(
+        `${url_placesImport.replace("<event_id>", eventName)}?${params.toString()}`, {
+            method: "POST",
+        });
+    apiImport.buttonEl.disabled = false;
+    if (err != null || json == null) {
+        apiImport.statusEl.textContent = "";
+        const message = `Failed to set ${apiImport.noun} from the API: ${err}`;
+        console.error(message);
+        ims.setErrorMessage(message);
+        ims.controlHasError(field.dataEl);
+        return;
+    }
+    apiImport.statusEl.textContent =
+        `Saved ${json.count} ${apiImport.noun} from the ${year} Burning Man API data.`;
+    ims.controlHasSuccess(field.dataEl);
+    ims.announce(apiImport.statusEl.textContent);
+    await fetchPlaces([field]);
 }
 
 // Fetches the selected event's places and redraws the given fields from the
@@ -225,5 +349,6 @@ async function fetchPlaces(toDraw: PlaceField[]): Promise<void> {
         );
         field.dataEl.value = JSON.stringify(externalDatas, null, 2);
         field.labelEl.textContent = `${field.labelText} (${externalDatas.length})`;
+        loadedCounts.set(field.placeType, externalDatas.length);
     }
 }

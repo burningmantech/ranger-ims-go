@@ -39,6 +39,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -64,6 +65,42 @@ var shared struct {
 	serverURL    *url.URL
 	actionLogger *actionlog.Logger
 	errorLogger  *errorlog.Logger
+	bmAPIServer  *httptest.Server
+}
+
+// bmAPIYearNoData and bmAPIYearBroken are the years the fake Burning Man API
+// treats specially. See fakeBMAPI.
+const (
+	bmAPIYearNoData = "1999"
+	bmAPIYearBroken = "1900"
+)
+
+// fakeBMAPI stands in for the public Burning Man API, which the places import
+// endpoint calls. It answers from the request alone, holding no state of its
+// own, so that the tests using it can still run in parallel.
+func fakeBMAPI(w http.ResponseWriter, req *http.Request) {
+	if req.Header.Get("X-API-Key") != shared.cfg.BurningManAPI.APIKey {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	kind := strings.TrimPrefix(req.URL.Path, "/api/")
+	year := req.URL.Query().Get("year")
+	w.Header().Set("Content-Type", "application/json")
+	switch year {
+	case bmAPIYearBroken:
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"detail": "the API is having a bad day"}`))
+	case bmAPIYearNoData:
+		// What the real API gives for a year it has nothing for.
+		_, _ = w.Write([]byte(`[]`))
+	default:
+		// #nosec G705 // XSS via taint analysis. This test fake just echoes the
+		// request it was given back as JSON.
+		_, _ = fmt.Fprintf(w, `[
+			{"uid": "%[1]v-1", "name": "%[1]v One", "location_string": "3:00 & A", "year": %[2]v},
+			{"uid": "%[1]v-2", "name": "%[1]v Two", "location_string": "4:00 & B", "year": %[2]v}
+		]`, kind, year)
+	}
 }
 
 // panicPath is a test-only route that always panics, so that the error log
@@ -124,6 +161,11 @@ func setup(ctx context.Context, tempDir string) {
 	shared.cfg.Directory.ClubhouseDB.Database = "clubhouse-" + rand.NonCryptoText()
 	shared.cfg.Directory.ClubhouseDB.Username = "rangers-" + rand.NonCryptoText()
 	shared.cfg.Directory.ClubhouseDB.Password = "password-" + rand.NonCryptoText()
+	shared.bmAPIServer = httptest.NewServer(http.HandlerFunc(fakeBMAPI))
+	shared.cfg.BurningManAPI = conf.BurningManAPI{
+		URL:    shared.bmAPIServer.URL,
+		APIKey: "bmapikey-" + rand.NonCryptoText(),
+	}
 	must(shared.cfg.Validate())
 	shared.es = api.NewEventSourcerer()
 
@@ -210,6 +252,9 @@ func shutdown(ctx context.Context, tempDir string) {
 	_ = os.RemoveAll(tempDir)
 	if shared.testServer != nil {
 		shared.testServer.Close()
+	}
+	if shared.bmAPIServer != nil {
+		shared.bmAPIServer.Close()
 	}
 	if shared.imsDBQ != nil {
 		_ = shared.imsDBQ.Close()

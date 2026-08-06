@@ -91,6 +91,9 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 		Authenticated: true,
 		User:          userAliceHandle,
 		Admin:         false,
+		// The test server is configured with a Burning Man API key. This says
+		// nothing about whether this user may use it.
+		PlacesImportAllowed: true,
 	}, getAuth)
 	require.NoError(t, resp.Body.Close())
 
@@ -99,9 +102,10 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, api.GetAuthResponse{
-		Authenticated: true,
-		User:          userAdminHandle,
-		Admin:         true,
+		Authenticated:       true,
+		User:                userAdminHandle,
+		Admin:               true,
+		PlacesImportAllowed: true,
 	}, getAuth)
 	require.NoError(t, resp.Body.Close())
 
@@ -144,9 +148,10 @@ func TestGetAuthWithEvent(t *testing.T) {
 	eventID := authResp.EventAccess[eventName].EventID
 	require.NotZero(t, eventID)
 	require.Equal(t, api.GetAuthResponse{
-		Authenticated: true,
-		User:          userAdminHandle,
-		Admin:         true,
+		Authenticated:       true,
+		User:                userAdminHandle,
+		Admin:               true,
+		PlacesImportAllowed: true,
 		EventAccess: map[string]api.AccessForEvent{
 			eventName: {
 				EventID:           eventID,

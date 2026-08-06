@@ -113,6 +113,7 @@ func AddToMux(
 			cfg.Core.Admins,
 			attachmentsEnabled,
 			cfg.Core.EventDeletionEnabled,
+			cfg.BurningManAPI.Enabled(),
 		}, true, OptionalAuthN(jwter))
 
 	// This endpoint does not require authentication, nor does it even consider
@@ -160,6 +161,7 @@ func AddToMux(
 
 	authed("GET /ims/api/events/{eventName}/places", GetPlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
 	authed("POST /ims/api/events/{eventName}/places", UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
+	authed("POST /ims/api/events/{eventName}/places/import", ImportPlaces{db, userStore, cfg.Core.Admins, cfg.BurningManAPI}, true)
 
 	authed("GET /ims/api/events", GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, true)

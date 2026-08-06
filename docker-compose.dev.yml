@@ -54,6 +54,10 @@ services:
       IMS_DMS_USERNAME: "${IMS_DMS_USERNAME:-clubhouseuser}"
       IMS_DMS_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
       IMS_EVENT_DELETION_ENABLED: "true"
+      # Optional. With no key, the Admin Places page's "Set from API" buttons
+      # stay disabled and places must be pasted in by hand.
+      IMS_BM_API_KEY: "${IMS_BM_API_KEY:-}"
+      IMS_BM_API_URL: "${IMS_BM_API_URL:-https://api.burningman.org}"
     ports:
       # Override IMS_HOST_PORT to set the port mapping on the host.
       - "127.0.0.1:${IMS_HOST_PORT:-8080}:8080"

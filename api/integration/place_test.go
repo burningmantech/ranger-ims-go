@@ -17,10 +17,12 @@
 package integration_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/stretchr/testify/assert"
@@ -242,4 +244,152 @@ func TestPlaceLocationEmbargoExcludingExternalData(t *testing.T) {
 	assert.Equal(t, "Camp Fun Times", places["camp"][0].Name)
 	assert.Empty(t, places["camp"][0].LocationString)
 	assert.Nil(t, places["camp"][0].ExternalData)
+}
+
+// TestImportPlacesFromAPI covers the Places admin page's "Set from API"
+// buttons, which have the server fetch a place type from the Burning Man API
+// and store it, rather than an admin pasting the response in by hand. The
+// Burning Man API is stood in for by fakeBMAPI.
+func TestImportPlacesFromAPI(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	eventName := rand.NonCryptoText()
+	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.importPlaces(ctx, eventName, "camp", "2025")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var imported api.ImportPlacesResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&imported))
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, 2, imported.Count)
+
+	places, resp := apis.getPlaces(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, places["camp"], 2)
+	assert.Equal(t, "camp One", places["camp"][0].Name)
+	assert.Equal(t, "3:00 & A", places["camp"][0].LocationString)
+	// The whole upstream object is kept as the Place's external data.
+	assert.Equal(t, map[string]any{
+		"uid": "camp-1", "name": "camp One", "location_string": "3:00 & A", "year": float64(2025),
+	}, places["camp"][0].ExternalData)
+
+	// Importing one type leaves the others alone.
+	resp = apis.importPlaces(ctx, eventName, "art", "2025")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	places, resp = apis.getPlaces(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Len(t, places["camp"], 2)
+	require.Len(t, places["art"], 2)
+	assert.Equal(t, "art One", places["art"][0].Name)
+}
+
+// A year the Burning Man API has no data for must not wipe out what the event
+// already has, since that's an easy typo to make in the year input.
+func TestImportPlacesEmptyResponseChangesNothing(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	eventName := rand.NonCryptoText()
+	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.editPlaces(ctx, eventName, imsjson.Places{
+		"camp": {{Name: "Camp Fun Times", LocationString: "4:15 & E"}},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.importPlaces(ctx, eventName, "camp", bmAPIYearNoData)
+	assert.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	places, resp := apis.getPlaces(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, places["camp"], 1)
+	assert.Equal(t, "Camp Fun Times", places["camp"][0].Name)
+}
+
+func TestImportPlacesUpstreamFailure(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	eventName := rand.NonCryptoText()
+	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.importPlaces(ctx, eventName, "camp", bmAPIYearBroken)
+	assert.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	places, resp := apis.getPlaces(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Empty(t, places["camp"])
+}
+
+func TestImportPlacesBadRequests(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+
+	eventName := rand.NonCryptoText()
+	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// "Other" places are hand-written in IMS, with no upstream API to pull from.
+	resp = apis.importPlaces(ctx, eventName, "other", "2025")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.importPlaces(ctx, eventName, "camp", "not a year")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apis.importPlaces(ctx, "no-such-event", "camp", "2025")
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}
+
+// Importing places rewrites an event's data wholesale, so it takes the same
+// admin-only permission that saving them by hand does.
+func TestImportPlacesRequiresAdmin(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := rand.NonCryptoText()
+	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apisAdmin.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Writers: []imsjson.AccessRule{{Expression: "person:" + userAliceHandle, Validity: "always"}},
+		},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp = apisAlice.importPlaces(ctx, eventName, "camp", "2025")
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }

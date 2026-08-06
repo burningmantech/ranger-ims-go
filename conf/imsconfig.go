@@ -71,6 +71,9 @@ func DefaultIMS() *IMSConfig {
 		AttachmentsStore: AttachmentsStore{
 			Type: AttachmentsStoreNone,
 		},
+		BurningManAPI: BurningManAPI{
+			URL: "https://api.burningman.org",
+		},
 	}
 }
 
@@ -143,6 +146,7 @@ type IMSConfig struct {
 	AttachmentsStore AttachmentsStore
 	Store            DBStore
 	Directory        Directory
+	BurningManAPI    BurningManAPI
 }
 
 type DirectoryType string
@@ -243,6 +247,22 @@ type ConfigCore struct {
 	// test events. It should stay false in production, where such a destructive operation
 	// shouldn't be needed.
 	EventDeletionEnabled bool
+}
+
+// BurningManAPI configures IMS's access to the public Burning Man API, which
+// is where the Places admin page can pull an event's camp, art, and mutant
+// vehicle data from instead of having an admin paste it in by hand. It's
+// optional: without an APIKey, that feature is just switched off.
+type BurningManAPI struct {
+	// URL is the API's base URL, without a trailing slash.
+	URL string
+	// #nosec G117 // Exported secret struct field
+	APIKey string `redact:"true"`
+}
+
+// Enabled reports whether the server can call the Burning Man API.
+func (b BurningManAPI) Enabled() bool {
+	return b.URL != "" && b.APIKey != ""
 }
 
 type DBStore struct {

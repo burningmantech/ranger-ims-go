@@ -65,6 +65,7 @@ const url_visitAttachments = "/ims/api/events/<event_id>/visits/<visit_number>/a
 const url_visitAttachmentNumber = "/ims/api/events/<event_id>/visits/<visit_number>/attachments/<attachment_number>";
 const url_visitRanger = "/ims/api/events/<event_id>/visits/<visit_number>/rangers/<ranger_name>";
 const url_places = "/ims/api/events/<event_id>/places";
+const url_placesImport = "/ims/api/events/<event_id>/places/import";
 const url_eventSource = "/ims/api/eventsource";
 const url_debugBuildInfo = "/ims/api/debug/buildinfo";
 const url_debugRuntimeMetrics = "/ims/api/debug/runtimemetrics";

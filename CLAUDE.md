@@ -211,6 +211,9 @@ Key configuration concepts:
   or `noop` (testing only)
 - **DB store types**: `MariaDB` (persistent storage) or `noop` (no-op for testing only)
 - **Attachments stores**: `local` (filesystem) or `s3` (AWS S3)
+- **Burning Man API**: `IMS_BM_API_KEY` (and `IMS_BM_API_URL`, which defaults to the real
+  host) enable the Places admin page's "Set from API" buttons. Both are optional; without a
+  key that feature is switched off, and places must be pasted in by hand
 
 ### API Structure
 
@@ -223,6 +226,7 @@ The API (`api/` package) uses a custom middleware adapter pattern:
 - Incidents, Field Reports, and Visits carry a `VERSION` counter used as an internal concurrency gate: an edit reads the record, then applies a version-guarded `UPDATE`, and retries the read-merge-write if a concurrent writer moved the version first (`maxCASAttempts` in `api/incident.go`). The counter is reported in the record body but is not part of the request contract — clients send no precondition header. It guards only the record's own columns, so nothing else moves it: report entries, roster changes, incident types, links, and field-report/visit assignment all live in other tables, where no edit can clobber them. Set-valued fields are mutated one member at a time through their own endpoints so that concurrent writers can't undo each other
 - Cross-event search (`api/search.go`) matches a substring or regex query against Incidents, Field Reports, and Visits across all events the requestor can read
 - Burning Man doesn't publish camp and art placement until shortly before the event, so an Event carries release times (set on the Edit Event modal) that embargo that data. Until a release time arrives, only IMS admins see it: `api/embargo.go` strips camp/art Place locations out of the `GetPlaces` response and withholds the event's `MapURL` from `GetEvents`. A null release time means no embargo. The release times themselves go out to everyone, so the Places page can show a banner naming what's still embargoed and when it'll appear
+- Camp, art, and mutant vehicle Places can come straight from the public Burning Man API instead of being pasted in: `ImportPlaces` (`api/place.go`) fetches one place type for a given year through `lib/bmapi` and replaces the event's places of that type. The year is a request parameter, since an IMS event isn't necessarily named for the year whose data it wants. The API key lives only on the server, so the browser never sees it; `GetAuth` reports whether one is configured, which is what disables the admin page's buttons. An empty upstream response is rejected rather than applied, so a mistyped year can't wipe an event's places
 
 ### Web UI
 

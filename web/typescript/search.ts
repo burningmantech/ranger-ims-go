@@ -54,14 +54,23 @@ function formatCreated(d: Date): string {
     return `${ims.localDateISO(d)} @ ${ims.localTimeHHMM(d)}`;
 }
 
-const _searchDelayMs = 250;
-let _searchDelayTimer: number|undefined = undefined;
-
 // Distinguishes the newest search request from any stale in-flight ones.
 let _searchSequence = 0;
 
+// The in-flight search, if any. Searches can be expensive server-side, so
+// starting a new one aborts the old request, which drops the connection and
+// cancels the queries the server was still running for it.
+let _searchAbort: AbortController|null = null;
+
+// The info line for the results on screen, and the query parameters that
+// produced them, so that later edits to the form can be flagged as unapplied.
+let _resultsInfo = "";
+let _resultsParams: string|null = null;
+
 const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
+    searchButton: ims.typedElement("search_button", HTMLButtonElement),
+    searchSpinner: ims.typedElement("search_spinner", HTMLSpanElement),
     kindIncident: ims.typedElement("kind_incident", HTMLInputElement),
     kindFieldReport: ims.typedElement("kind_field_report", HTMLInputElement),
     kindVisit: ims.typedElement("kind_visit", HTMLInputElement),
@@ -90,10 +99,21 @@ async function initSearchPage(): Promise<void> {
         el.kindFieldReport.checked = kindSet.has(kindFieldReport);
         el.kindVisit.checked = kindSet.has(kindVisit);
     }
-    el.searchInput.addEventListener("input", search);
-    el.kindIncident.addEventListener("change", search);
-    el.kindFieldReport.addEventListener("change", search);
-    el.kindVisit.addEventListener("change", search);
+    // Searches only run when asked for, since each one is a real load on the
+    // server. Edits to the form just keep the shareable URL current and note
+    // that the results on screen no longer match the form.
+    el.searchInput.addEventListener("input", formChanged);
+    el.kindIncident.addEventListener("change", formChanged);
+    el.kindFieldReport.addEventListener("change", formChanged);
+    el.kindVisit.addEventListener("change", formChanged);
+
+    el.searchButton.addEventListener("click", doSearch);
+    el.searchInput.addEventListener("keydown", function(e: KeyboardEvent): void {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            doSearch();
+        }
+    });
 
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (ims.blockKeyboardShortcutFieldActive()) {
@@ -117,9 +137,30 @@ async function initSearchPage(): Promise<void> {
     }
 }
 
-function search(): void {
-    clearTimeout(_searchDelayTimer);
-    _searchDelayTimer = window.setTimeout(doSearch, _searchDelayMs);
+function formChanged(): void {
+    replaceWindowState();
+    refreshInfo();
+}
+
+// refreshInfo writes the results info line, which says what the results on
+// screen are, whether a search is running, and whether the form has moved on
+// from the results being shown.
+function refreshInfo(): void {
+    if (_searchAbort != null) {
+        el.resultsInfo.textContent = "Searching…";
+        return;
+    }
+    let info = _resultsInfo;
+    const current = currentQuery();
+    if (_resultsParams != null && "params" in current && current.params !== _resultsParams) {
+        info += " — press Search to apply your changes";
+    }
+    el.resultsInfo.textContent = info;
+}
+
+function setSearching(searching: boolean): void {
+    el.searchSpinner.classList.toggle("d-none", !searching);
+    el.searchButton.setAttribute("aria-busy", searching ? "true" : "false");
 }
 
 function selectedKinds(): string[] {
@@ -149,23 +190,20 @@ function replaceWindowState(): void {
     history.replaceState(null, "", fragment ? "#" + fragment : window.location.pathname);
 }
 
-async function doSearch(): Promise<void> {
-    replaceWindowState();
-
+// currentQuery returns the query parameters the form currently describes, or
+// a message explaining why there's nothing to search for yet.
+function currentQuery(): {params: string}|{problem: string} {
     const rawQuery = el.searchInput.value.trim();
     // A query enclosed in slashes, like /ab?c/, is a regular expression.
     const isRegex = rawQuery.length > 2 && rawQuery.startsWith("/") && rawQuery.endsWith("/");
     const query = isRegex ? rawQuery.slice(1, -1) : rawQuery;
     const kinds = selectedKinds();
-    const sequence = ++_searchSequence;
 
-    if (query.length < minQueryLength || kinds.length === 0) {
-        renderResults([]);
-        el.resultsInfo.textContent =
-            kinds.length === 0
-                ? "Select at least one record type to search."
-                : `Enter at least ${minQueryLength} characters to search.`;
-        return;
+    if (kinds.length === 0) {
+        return {problem: "Select at least one record type to search."};
+    }
+    if (query.length < minQueryLength) {
+        return {problem: `Enter at least ${minQueryLength} characters to search.`};
     }
 
     const params = new URLSearchParams([["q", query]]);
@@ -175,26 +213,60 @@ async function doSearch(): Promise<void> {
     if (kinds.length < 3) {
         params.set("kinds", kinds.join(","));
     }
+    return {params: params.toString()};
+}
 
-    const {resp, json, err} = await ims.fetchNoThrow<SearchResults>(
-        `${url_search}?${params.toString()}`, null,
-    );
-    if (sequence !== _searchSequence) {
-        // A newer search has been issued; discard this result.
+async function doSearch(): Promise<void> {
+    replaceWindowState();
+
+    const current = currentQuery();
+    const sequence = ++_searchSequence;
+    // Whatever the previous search was still doing, it's obsolete now.
+    _searchAbort?.abort();
+    _searchAbort = null;
+
+    if ("problem" in current) {
+        renderResults([]);
+        setSearching(false);
+        _resultsInfo = current.problem;
+        _resultsParams = null;
+        refreshInfo();
         return;
     }
+
+    const abort = new AbortController();
+    _searchAbort = abort;
+    setSearching(true);
+    refreshInfo();
+
+    const {resp, json, err} = await ims.fetchNoThrow<SearchResults>(
+        `${url_search}?${current.params}`, {signal: abort.signal},
+    );
+    if (sequence !== _searchSequence) {
+        // A newer search has been issued; it owns the page now.
+        return;
+    }
+    _searchAbort = null;
+    setSearching(false);
+
     if (err != null || json == null) {
-        if (resp?.status === 400) {
-            // The query itself was rejected (e.g. an invalid regular
-            // expression), so report that where the results would go.
+        // A rejected query (e.g. an invalid regular expression) or one that
+        // ran out of time is about the search itself, so report it where the
+        // results would go rather than in the page-wide error banner.
+        if (resp?.status === 400 || resp?.status === 503) {
             renderResults([]);
-            el.resultsInfo.textContent = err ?? "Search failed";
+            _resultsInfo = err ?? "Search failed";
+            _resultsParams = null;
+            refreshInfo();
             ims.clearErrorMessage();
             return;
         }
         const message = `Search failed: ${err}`;
         console.error(message);
         ims.setErrorMessage(message);
+        _resultsInfo = "";
+        _resultsParams = null;
+        refreshInfo();
         return;
     }
     ims.clearErrorMessage();
@@ -204,7 +276,9 @@ async function doSearch(): Promise<void> {
     if (json.truncated) {
         info += " (too many matches; not all are shown — try a more specific search)";
     }
-    el.resultsInfo.textContent = info;
+    _resultsInfo = info;
+    _resultsParams = current.params;
+    refreshInfo();
 }
 
 function resultURL(hit: SearchResult): string {

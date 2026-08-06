@@ -53,7 +53,7 @@ const (
 	searchMinQueryRunes  = 2
 	searchDefaultLimit   = 100
 	searchMaxLimit       = 1000
-	searchQueryTimeout   = 10 * time.Second
+	searchQueryTimeout   = 20 * time.Second
 	searchSnippetPrefix  = 40
 	searchSnippetMaxLen  = 200
 	searchSnippetMarker  = "…"

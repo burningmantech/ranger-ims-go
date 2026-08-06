@@ -246,6 +246,103 @@ func TestSearchRegexp(t *testing.T) {
 	assert.Len(t, results.Hits, 1)
 }
 
+func TestSearchFieldReportAuthor(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := rand.NonCryptoText()
+	_, resp := adminUser.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	// Both users write on this Event, so set the writers in one call, since
+	// each call replaces the previous writer list.
+	resp = adminUser.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Writers: []imsjson.AccessRule{
+				{Expression: "person:" + userAliceHandle, Validity: "always"},
+				{Expression: "person:" + userAdminHandle, Validity: "always"},
+			},
+		},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A Field Report Alice started, so that she authored its first entry.
+	aliceFRNumber := aliceUser.newFieldReportSuccess(ctx, imsjson.FieldReport{
+		Event:   eventName,
+		Summary: new("An FR summary"),
+		ReportEntries: []imsjson.ReportEntry{
+			{Text: "some field report text"},
+		},
+	})
+
+	// A Field Report the admin started and Alice added to later. Its first
+	// entry's author is the admin, so it isn't Alice's report.
+	adminFRNumber := adminUser.newFieldReportSuccess(ctx, imsjson.FieldReport{
+		Event:   eventName,
+		Summary: new("Another FR summary"),
+		ReportEntries: []imsjson.ReportEntry{
+			{Text: "more field report text"},
+		},
+	})
+	resp = aliceUser.updateFieldReport(ctx, eventName, adminFRNumber, imsjson.FieldReport{
+		ReportEntries: []imsjson.ReportEntry{
+			{Text: "and a bit from Alice"},
+		},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Both users author Field Reports in other tests too, so consider only the
+	// hits from this test's own Event.
+	hitsInEvent := func(query url.Values) []imsjson.SearchResult {
+		t.Helper()
+		query.Set("kinds", imsjson.SearchResultKindFieldReport)
+		query.Set("limit", "1000")
+		results, resp := aliceUser.search(ctx, query)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.False(t, results.Truncated)
+		var hits []imsjson.SearchResult
+		for _, hit := range results.Hits {
+			if hit.Event == eventName {
+				hits = append(hits, hit)
+			}
+		}
+		return hits
+	}
+
+	// Searching Alice's handle finds the report she started, and not the one
+	// she merely contributed an entry to.
+	hits := hitsInEvent(url.Values{"q": []string{userAliceHandle}})
+	require.Len(t, hits, 1)
+	assert.Equal(t, aliceFRNumber, hits[0].Number)
+	// Nothing in the report's text matched, so there's no snippet to show.
+	assert.Empty(t, hits[0].Snippet)
+
+	// Searching the admin's handle finds the report the admin started.
+	hits = hitsInEvent(url.Values{"q": []string{userAdminHandle}})
+	require.Len(t, hits, 1)
+	assert.Equal(t, adminFRNumber, hits[0].Number)
+
+	// The author is matched as a substring, like every other search field.
+	hits = hitsInEvent(url.Values{"q": []string{strings.ToLower(userAliceHandle[:8])}})
+	require.Len(t, hits, 1)
+	assert.Equal(t, aliceFRNumber, hits[0].Number)
+
+	// Regexp searches match the author too.
+	hits = hitsInEvent(url.Values{"q": []string{"^" + userAliceHandle + "$"}, "regex": []string{"true"}})
+	require.Len(t, hits, 1)
+	assert.Equal(t, aliceFRNumber, hits[0].Number)
+
+	// A handle that authored nothing here matches nothing here.
+	hits = hitsInEvent(url.Values{"q": []string{"NotARealTestRanger"}})
+	assert.Empty(t, hits)
+}
+
 func TestSearchAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

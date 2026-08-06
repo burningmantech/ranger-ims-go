@@ -889,6 +889,20 @@ where fr.EVENT in (sqlc.slice(event_ids))
                 and re.STRICKEN = false
                 and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         )
+        -- The author of the oldest Report Entry is what the UI shows as the
+        -- Field Report's author, so match on that too. The subquery yields the
+        -- match result for that one entry (or null, when the Field Report has
+        -- no entries), rather than for whichever entry happens to match.
+        or (
+            select re.AUTHOR like sqlc.narg(text_like) or regexp_instr(re.AUTHOR, sqlc.narg(text_regexp)) > 0
+            from FIELD_REPORT__REPORT_ENTRY frre
+                join REPORT_ENTRY re
+                    on re.ID = frre.REPORT_ENTRY
+            where frre.EVENT = fr.EVENT
+                and frre.FIELD_REPORT_NUMBER = fr.NUMBER
+            order by re.CREATED, re.ID
+            limit 1
+        )
     )
 order by fr.CREATED desc
 limit ?

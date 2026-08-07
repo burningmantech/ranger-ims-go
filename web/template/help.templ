@@ -24,7 +24,7 @@ templ Help(deployment, versionName, versionRef string) {
 <body>
 <div class="container-fluid">
 @Header(deployment)
-@Nav("", "")
+@Nav("")
 <main id="main" tabindex="-1">
 <h1 id="doc-title">IMS Help</h1>
 
@@ -105,11 +105,11 @@ templ Help(deployment, versionName, versionRef string) {
 <h2 id="navigation" class="h4 mt-4">Finding your way around</h2>
 <p>The bar at the top of every page has, from left to right:</p>
 <ul>
-  <li><strong>IMS logo</strong>: takes you back to the list you came from. If you're looking at an Incident, a Field Report, or a Visit, it goes to that list for the event you're in; otherwise it goes to the home page.</li>
+  <li><strong>IMS logo</strong>: goes to the Incidents list for the event you're in, or to the home page when you're not in an event.</li>
   <li><strong>Event picker</strong>: a dropdown showing the current event (usually the year). Use it to switch between events.</li>
-  <li><strong>Incidents, Field Reports, Visits</strong>: links to the main pages for the selected event.</li>
+  <li><strong>Incidents, Field Reports, Sanctuary Visits, Places</strong>: links to the main pages for the selected event, with the one you're on highlighted. On a narrow screen the two longest labels shorten to "FRs" and "Sanc".</li>
   <li><strong>Theme toggle</strong>: the half-circle icon switches between light mode, dark mode, and matching your device. The same choice is available on the <a href="/ims/app/settings">Settings page</a>.</li>
-  <li><strong>Your handle</strong>: a menu with links to the Admin pages (administrators only), Home, the <a href="/ims/app/search">Search page</a>, the current event's <a href="#places">Places</a>, the <a href="/ims/app/settings">Settings page</a>, this Help page, and Log out.</li>
+  <li><strong>Your handle</strong>: a menu with links to the Admin pages (administrators only), Home, the <a href="/ims/app/search">Search page</a>, the <a href="/ims/app/settings">Settings page</a>, this Help page, and Log out.</li>
 </ul>
 
 <h2 id="events" class="h4 mt-4">Events: one per year</h2>
@@ -262,9 +262,11 @@ templ Help(deployment, versionName, versionRef string) {
   notes, much like Incident entries.
 </p>
 <p>
-  Open the <strong>Visits</strong> page from the top bar and click a row to open a Visit, or
-  click <strong>New</strong> (or press <code>n</code>) to start one. A Visit is organized into
-  collapsible sections; expand the ones you need and fill in what applies:
+  Open the <strong>Sanctuary Visits</strong> page from the top bar and click a row to open a
+  Visit, or click <strong>New</strong> (or press <code>n</code>) to start one. A Visit is
+  organized into collapsible sections. Any section that already has something recorded in it
+  starts open, so you can read an existing Visit without clicking through it; expand the rest
+  as you need them and fill in what applies:
 </p>
 <ul>
   <li><strong>Basics</strong>: the guest's preferred and legal names, a physical description, an action plan, and arrival/departure times.</li>
@@ -285,8 +287,9 @@ templ Help(deployment, versionName, versionRef string) {
 
 <h2 id="places" class="h4 mt-4">Places</h2>
 <p>
-  The <strong>Places</strong> page is a reference list of the city's camps, art installations,
-  and other named locations, with their addresses and descriptions. Click a row for details
+  The <strong>Places</strong> page, linked from the top bar, is a reference list of the city's
+  camps, art installations, and other named locations, with their addresses and descriptions.
+  Click a row for details
   like a location description, landmark notes, and contact info, and use the <strong>Map</strong>
   link (where available) to see the location on the city map.
 </p>

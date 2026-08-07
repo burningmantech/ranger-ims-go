@@ -147,6 +147,39 @@ test("page init draws the visit's number, names, and arrival state from the API"
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
 });
 
+function expanded(collapseId: string): boolean {
+    return document.getElementById(collapseId)!.classList.contains("show");
+}
+
+test("sections holding data start open, empty ones stay closed", async (): Promise<void> => {
+    serverVisit.resource_bed_id = "B4";
+    await initVisitPage();
+
+    // Arrival state, a bed, and a Ranger are all set on this visit.
+    expect(expanded("collapse-arrival")).toBe(true);
+    expect(expanded("collapse-resources")).toBe(true);
+    expect(expanded("collapse-rangers")).toBe(true);
+    // No camp details were recorded.
+    expect(expanded("collapse-camp")).toBe(false);
+    // Instructions is prose, not data, so it stays shut regardless.
+    expect(expanded("collapse-instructions")).toBe(false);
+
+    // An opened section's header button reflects the state too.
+    const button = document.querySelector("[data-bs-target=\"#collapse-arrival\"]")!;
+    expect(button.classList.contains("collapsed")).toBe(false);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+});
+
+test("a visit with nothing recorded leaves every collapsed section closed", async (): Promise<void> => {
+    serverVisit = { number: 2 };
+    await initVisitPage();
+
+    expect(expanded("collapse-arrival")).toBe(false);
+    expect(expanded("collapse-camp")).toBe(false);
+    expect(expanded("collapse-resources")).toBe(false);
+    expect(expanded("collapse-rangers")).toBe(false);
+});
+
 test("editing the guest's preferred name posts the change to the visit", async (): Promise<void> => {
     const mock = await initVisitPage();
 

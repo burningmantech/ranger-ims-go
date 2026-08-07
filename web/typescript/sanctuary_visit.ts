@@ -187,6 +187,8 @@ async function initSanctuaryVisitPage(): Promise<void> {
 
     // TODO: draw other fields
 
+    expandSectionsWithData();
+
     ims.hideLoadingOverlay();
 
     // For a new visit, jump to the name field
@@ -395,6 +397,33 @@ function drawVisitFields(): void {
     ims.setInputValue(el.resourceOther, (visit?.resource_other?.toString())??"");
 
     drawRangers();
+}
+
+// Opens each collapsed section that already holds something, so a visit's
+// existing details aren't hidden behind a click. This runs once on load, not on
+// each redraw, so that a section someone deliberately closed stays closed.
+// Instructions is prose rather than data, so it's left alone.
+function expandSectionsWithData(): void {
+    for (const collapse of document.querySelectorAll<HTMLElement>(".accordion-collapse:not(.show)")) {
+        if (collapse.id === "collapse-instructions" || !sectionHasData(collapse)) {
+            continue;
+        }
+        collapse.classList.add("show");
+        const button = document.querySelector<HTMLElement>(`[data-bs-target="#${collapse.id}"]`);
+        button?.classList.remove("collapsed");
+        button?.setAttribute("aria-expanded", "true");
+    }
+}
+
+function sectionHasData(collapse: HTMLElement): boolean {
+    // The Rangers section's content is its roster; the "Add:" field below the
+    // roster is a control, and an added Ranger needn't have a role filled in.
+    if (collapse.querySelector("#visit_rangers_list li") != null) {
+        return true;
+    }
+    const fields = collapse.querySelectorAll<HTMLInputElement|HTMLTextAreaElement>(
+        "input:not(#ranger_add), textarea");
+    return Array.from(fields).some((field): boolean => field.value !== "");
 }
 
 function drawVisitTitle(mode: "for_display"|"for_print_to_pdf"): void {

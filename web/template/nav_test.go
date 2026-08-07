@@ -28,10 +28,10 @@ import (
 func TestNavLogoLink(t *testing.T) {
 	t.Parallel()
 
-	logoLink := func(t *testing.T, eventName, eventSection string) string {
+	logoLink := func(t *testing.T, eventName string) string {
 		t.Helper()
 		var sb strings.Builder
-		require.NoError(t, template.Nav(eventName, eventSection).Render(t.Context(), &sb))
+		require.NoError(t, template.Nav(eventName).Render(t.Context(), &sb))
 		match := regexp.MustCompile(`<a id="ims-logo"[^>]*href="([^"]*)"`).FindStringSubmatch(sb.String())
 		require.NotNil(t, match, "no ims-logo link found")
 		return match[1]
@@ -39,26 +39,11 @@ func TestNavLogoLink(t *testing.T) {
 
 	t.Run("no event", func(t *testing.T) {
 		t.Parallel()
-		require.Equal(t, "/ims/app", logoLink(t, "", ""))
+		require.Equal(t, "/ims/app", logoLink(t, ""))
 	})
 
-	t.Run("event, no section", func(t *testing.T) {
+	t.Run("event", func(t *testing.T) {
 		t.Parallel()
-		require.Equal(t, "/ims/app/events/2026", logoLink(t, "2026", ""))
-	})
-
-	t.Run("incidents", func(t *testing.T) {
-		t.Parallel()
-		require.Equal(t, "/ims/app/events/2026/incidents", logoLink(t, "2026", "incidents"))
-	})
-
-	t.Run("field reports", func(t *testing.T) {
-		t.Parallel()
-		require.Equal(t, "/ims/app/events/2026/field_reports", logoLink(t, "2026", "field_reports"))
-	})
-
-	t.Run("visits", func(t *testing.T) {
-		t.Parallel()
-		require.Equal(t, "/ims/app/events/2026/visits", logoLink(t, "2026", "visits"))
+		require.Equal(t, "/ims/app/events/2026/incidents", logoLink(t, "2026"))
 	})
 }

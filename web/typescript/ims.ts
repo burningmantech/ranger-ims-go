@@ -478,6 +478,10 @@ function renderCommonPageItems(authInfo: AuthInfo): void {
         if (activeEventPlaces != null) {
             activeEventPlaces.href = urlReplace(url_viewPlaces);
             activeEventPlaces.classList.remove("hidden");
+
+            if (window.location.pathname.startsWith(urlReplace(url_viewPlaces))) {
+                activeEventPlaces.classList.add("active");
+            }
         }
     }
 }

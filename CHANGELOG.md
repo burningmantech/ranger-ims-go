@@ -25,7 +25,9 @@ https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
 ### Changed
 
 - Dropped the ETag/If-Match handshake that clients used to guard their edits. The server now does the concurrency check itself: it re-reads the record, merges the change, and retries if someone else got there first, so a client no longer has to track a version or handle a "your copy is stale" rejection. Report entries, Ranger rosters, Incident Types, links, and Field Report/Visit assignment live in their own tables, so none of them can clobber (or be clobbered by) an edit to the record's own fields. https://github.com/burningmantech/ranger-ims-go/pull/732
-- Made the IMS logo in the navbar link to the table for whatever you're looking at, so that from a Field Report it goes to that event's Field Reports table rather than to the home page. The user dropdown also gained a "Home" link (and some emoji). https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
+- Made the IMS logo in the navbar link to the current event's Incidents table, rather than to the home page. The user dropdown also gained a "Home" link (and some emoji). https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
+- Moved Places out of the user dropdown and up into the navbar, alongside Incidents, Field Reports, and Sanctuary Visits, and gave it the same highlight the others get when you're on that page. "Visits" is now labelled "Sanctuary Visits", and on a narrow screen the two longest labels shorten to "FRs" and "Sanc" so the bar still fits.
+- Started opening a Sanctuary Visit's collapsed sections that already have something recorded in them, so an existing Visit's details are visible on arrival rather than behind a click each. A section you close stays closed.
 - Started saying "Set role for X" in the change log when a Ranger's role within an Incident or Sanctuary Visit changes, rather than describing it as a removal and re-addition. https://github.com/burningmantech/ranger-ims-go/commit/9ae0919
 
 ### Added

@@ -16,18 +16,12 @@
 
 package template
 
-// eventSection, when set, is the event-scoped URL segment of the current page
-// ("incidents", "field_reports" or "visits"). It sends the logo link to that
-// section's root rather than to the event's home page.
-templ Nav(eventName, eventSection string) {
+templ Nav(eventName string) {
 {{
   eventSet := eventName != ""
   logoHref := "/ims/app"
   if eventSet {
-    logoHref = "/ims/app/events/" + eventName
-    if eventSection != "" {
-      logoHref += "/" + eventSection
-    }
+    logoHref = "/ims/app/events/" + eventName + "/incidents"
   } else {
     eventName = "Event"
   }
@@ -131,7 +125,10 @@ templ Nav(eventName, eventSection string) {
         </li>
       </ul>
 
-      <!-- Links to Incidents, Field Reports, Visits for current event -->
+      <!-- Links to Incidents, Field Reports, Visits for current event.
+           Between the sm and md breakpoints the nav is expanded but tight, so
+           the two long labels shrink to abbreviations there. Below sm the nav
+           is a dropdown with room to spare, so the full labels come back. -->
       <ul class="navbar-nav">
         <li class="nav-item">
           <a id="active-event-incidents"
@@ -149,7 +146,10 @@ templ Nav(eventName, eventSection string) {
              } else {
                class="nav-link hidden"
              }
-             href="">Field Reports</a>
+             href="">
+            <span class="d-inline d-sm-none d-md-inline">Field Reports</span>
+            <span class="d-none d-sm-inline d-md-none" title="Field Reports">FRs</span>
+          </a>
         </li>
         <li class="nav-item">
           <a id="active-event-visits"
@@ -158,7 +158,19 @@ templ Nav(eventName, eventSection string) {
              } else {
                class="nav-link hidden"
              }
-             href="">Visits</a>
+             href="">
+            <span class="d-inline d-sm-none d-md-inline">Sanctuary Visits</span>
+            <span class="d-none d-sm-inline d-md-none" title="Sanctuary Visits">Sanc</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a id="active-event-places"
+             if eventSet {
+               class="nav-link"
+             } else {
+               class="nav-link hidden"
+             }
+             href="">Places</a>
         </li>
       </ul>
 
@@ -216,16 +228,6 @@ templ Nav(eventName, eventSection string) {
             <li class="if-admin hidden"><a href="/ims/app/admin" class="dropdown-item">🛡️ Admin</a></li>
             <li><a href="/ims/app" class="dropdown-item">🏠 Home</a></li>
             <li><a href="/ims/app/search" class="dropdown-item">🔍 Search</a></li>
-            <li class="nav-item">
-              <a id="active-event-places"
-                 if eventSet {
-                   class="dropdown-item"
-                 } else {
-                   class="dropdown-item hidden"
-                 }
-                 href="">⛺ Places
-               </a>
-            </li>
             <li><a href="/ims/app/settings" class="dropdown-item">⚙️ Settings</a></li>
             <li><a href="/ims/app/help" class="dropdown-item">❔ Help</a></li>
             <li><a href="/ims/auth/logout" class="dropdown-item">🚪 Log out</a></li>

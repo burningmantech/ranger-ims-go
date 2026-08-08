@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockFlatpickr, mockFetch } from "./helpers.ts";
+import { captureLinkClicks, jsonResponse, loadFixture, MockFlatpickr, mockFetch } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -97,6 +97,9 @@ function visitRoutes(url: string, init?: RequestInit): Response | undefined {
     }
     if (url === `${visitsUrl}/2/attachments` && hasBody) {
         return new Response(null, { status: 200 });
+    }
+    if (/\/attachments\/\d+$/.test(url) && !hasBody) {
+        return new Response("file contents", { status: 200 });
     }
     return undefined;
 }
@@ -220,6 +223,25 @@ test("a viewer without visit read access sees an authorization error", async ():
 
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
     expect(document.getElementById("error_text")!.textContent).toContain("not currently authorized");
+});
+
+test("an entry's attachment is fetched from the visit's own endpoint", async (): Promise<void> => {
+    serverVisit.report_entries![0]!.attachment = { name: "checkin.jpg", previewable: true };
+    const mock = await initVisitPage();
+    const links = captureLinkClicks();
+
+    const entry = document.querySelector<HTMLDivElement>("#report_entries .report_entry")!;
+    const download = [...entry.querySelectorAll("button")]
+        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Download"))!;
+    mock.mockClear();
+    download.click();
+
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.map(([url]): string => url)).toContain(`${visitsUrl}/2/attachments/1`);
+        expect(links.length).toBe(1);
+    });
+    expect(links[0]!.download).toBe("checkin.jpg");
+    expect(document.getElementById("error_text")!.textContent).toBe("");
 });
 
 test("attachFile shows an uploading state, posts the file, then confirms and reverts", async (): Promise<void> => {

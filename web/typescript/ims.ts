@@ -1179,7 +1179,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             url = urlReplace(url_visitAttachmentNumber)
                 .replace("<visit_number>", pathIds.visitNumber.toString())
                 .replace("<attachment_number>", entry.id!.toString());
-        } else if (pathIds.incidentNumber != null && entry.frNum == null) {
+        } else if (pathIds.incidentNumber != null && entry.frNum == null && entry.visitNum == null) {
             // incident attachment on incident page
             url = urlReplace(url_incidentAttachmentNumber)
                 .replace("<incident_number>", pathIds.incidentNumber.toString())

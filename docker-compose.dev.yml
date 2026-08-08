@@ -54,6 +54,9 @@ services:
       IMS_DMS_USERNAME: "${IMS_DMS_USERNAME:-clubhouseuser}"
       IMS_DMS_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
       IMS_EVENT_DELETION_ENABLED: "true"
+      IMS_ATTACHMENTS_STORE: "${IMS_ATTACHMENTS_STORE:-}"
+      IMS_ATTACHMENTS_LOCAL_DIR: "${IMS_ATTACHMENTS_LOCAL_DIR:-}"
+
       # Optional. With no key, the Admin Places page's "Set from API" buttons
       # stay disabled and places must be pasted in by hand.
       IMS_BM_API_KEY: "${IMS_BM_API_KEY:-}"

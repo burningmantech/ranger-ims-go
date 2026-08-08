@@ -84,17 +84,21 @@ type FlatpickrHook = (selectedDates: Date[], dateStr: string, instance: MockFlat
 
 interface FlatpickrOptionsLike {
     altFormat?: string;
+    defaultHour?: number;
+    defaultMinute?: number;
     onReady?: FlatpickrHook;
     onChange?: FlatpickrHook;
     onClose?: FlatpickrHook;
+    onOpen?: FlatpickrHook;
 }
 
 // A minimal stand-in for the flatpickr date picker, which production pages
 // load as a classic script. It mirrors the parts of the Flatpickr interface
 // that ims.ts uses: altInput creation, _flatpickr on the input element,
-// setDate, and the onReady/onChange hooks. setup.ts installs the factory as
-// the flatpickr global; tests can inspect MockFlatpickr.instances and call
-// setDate(date, true) to simulate the user picking a date.
+// setDate, the time spinner inputs, and the onReady/onChange/onOpen hooks.
+// setup.ts installs the factory as the flatpickr global; tests can inspect
+// MockFlatpickr.instances and call setDate(date, true) to simulate the user
+// picking a date, or open() to simulate them opening the calendar.
 export class MockFlatpickr {
     static instances: MockFlatpickr[] = [];
 
@@ -102,6 +106,11 @@ export class MockFlatpickr {
     selectedDates: Date[] = [];
     input: HTMLInputElement;
     altInput: HTMLInputElement;
+    // The calendar's time spinners, which the real flatpickr reads when a day is
+    // clicked, so setting them decides what time an otherwise-empty pick lands on.
+    hourElement: HTMLInputElement;
+    minuteElement: HTMLInputElement;
+    jumpedTo: Date | string | null = null;
 
     constructor(selector: string | Node, opts: FlatpickrOptionsLike) {
         this.config = opts;
@@ -112,9 +121,20 @@ export class MockFlatpickr {
         this.input = input;
         this.altInput = document.createElement("input");
         this.input.insertAdjacentElement("afterend", this.altInput);
+        this.hourElement = document.createElement("input");
+        this.minuteElement = document.createElement("input");
         (this.input as HTMLInputElement & { _flatpickr: MockFlatpickr })._flatpickr = this;
         opts.onReady?.([], "", this);
         MockFlatpickr.instances.push(this);
+    }
+
+    // Simulate the user opening the calendar.
+    open(): void {
+        this.config.onOpen?.(this.selectedDates, this.altInput.value, this);
+    }
+
+    jumpToDate(date: Date | string, _triggerChange: boolean): void {
+        this.jumpedTo = date;
     }
 
     setDate(date: Date | string | Date[], triggerChange: boolean, _format?: string): void {

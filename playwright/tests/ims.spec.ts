@@ -867,6 +867,29 @@ test("sanctuary_visits", async ({ page, browser }) => {
       }
     }
 
+    // The "Now" and clear buttons beside the arrival/departure times. Unlike the
+    // pickers themselves, these work the same on mobile, so they're tested
+    // outside the !onMobile branch above. Each click saves, so the page title
+    // flipping between Current and Past is the round trip's confirmation.
+    {
+      await visitPage.locator("#departure_time_clear").click();
+      await expect(visitPage.locator("#alt_departure_time")).toHaveValue("");
+      await expect(visitPage.locator("#doc-title")).toHaveText(`Current Sanctuary Visit (${guestName})`);
+
+      // With no departure time set, the arrival time can safely move to now.
+      await visitPage.locator("#arrival_time_now").click();
+      await expect(visitPage.locator("#alt_arrival_time")).toHaveValue(/\d{4}-\d{2}-\d{2} @ \d{2}:\d{2}/);
+
+      await visitPage.locator("#departure_time_now").click();
+      await expect(visitPage.locator("#alt_departure_time")).toHaveValue(/\d{4}-\d{2}-\d{2} @ \d{2}:\d{2}/);
+      await expect(visitPage.locator("#doc-title")).toHaveText(`Past Sanctuary Visit (${guestName})`);
+
+      // The saved times survive a reload.
+      const departureTime = await visitPage.locator("#alt_departure_time").inputValue();
+      await visitPage.reload();
+      await expect(visitPage.locator("#alt_departure_time")).toHaveValue(departureTime);
+    }
+
     await visitPage.close();
     await tablePage.close();
     await ctx.close();

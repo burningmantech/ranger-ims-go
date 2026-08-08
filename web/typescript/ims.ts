@@ -2377,7 +2377,10 @@ function newFlatpickrInternal(selector: string|Node, opts: FlatpickrOptions): Fl
     return flatpickr(selector, opts);
 }
 
-export function newFlatpickr(selector: string|Node, altInputId: string, onChange: FlatpickrEventFunc): Flatpickr {
+export function newFlatpickr(
+    selector: string|Node, altInputId: string, onChange: FlatpickrEventFunc,
+    startAtNow?: boolean,
+): Flatpickr {
     return newFlatpickrInternal(selector, {
         altInput: true,
         altFormat: 'D Y-m-d @ H:i',
@@ -2385,9 +2388,14 @@ export function newFlatpickr(selector: string|Node, altInputId: string, onChange
         allowInput: true,
         dateFormat: 'Y-m-d H:i',
         time_24hr: true,
-        minuteIncrement: 5,
+        minuteIncrement: 1,
         onReady: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
             instance.altInput!.id = altInputId;
+        },
+        onOpen: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
+            if (startAtNow) {
+                startEmptyPickerAtNow(instance);
+            }
         },
         onChange: onChange,
         // This lets us set the date even on manual data entry in the altInput field.
@@ -2395,6 +2403,37 @@ export function newFlatpickr(selector: string|Node, altInputId: string, onChange
             instance.setDate(instance.altInput!.value, true, instance.config.altFormat!);
         },
     });
+}
+
+// Point an unset picker at the current date and time, so that opening it lands
+// on now rather than on today-at-noon. This deliberately selects nothing: the
+// time only gets committed once the user picks a day, since flatpickr reads the
+// hour/minute inputs when a date is selected.
+function startEmptyPickerAtNow(instance: Flatpickr): void {
+    if (instance.selectedDates.length > 0) {
+        return;
+    }
+    const now = new Date();
+    instance.config.defaultHour = now.getHours();
+    instance.config.defaultMinute = now.getMinutes();
+    if (instance.hourElement != null && instance.minuteElement != null) {
+        instance.hourElement.value = padTwo(now.getHours());
+        instance.minuteElement.value = padTwo(now.getMinutes());
+    }
+    // The picker's idea of "this month" is fixed at construction, which goes
+    // stale on a page that's been open across a month boundary.
+    instance.jumpToDate(now, false);
+}
+
+// Set a flatpickr to the current date and time, saving via its onChange.
+export function setFlatpickrToNow(element: FlatpickrHTMLInputElement): void {
+    const fp = element._flatpickr;
+    fp.setDate(new Date(), true, fp.config.altFormat!);
+}
+
+// Unset a flatpickr's date, saving via its onChange.
+export function clearFlatpickrDate(element: FlatpickrHTMLInputElement): void {
+    element._flatpickr.clear(true);
 }
 
 type FlatpickrEventFunc = (selectedDates: Date[], dateStr: string, instance: Flatpickr) => void;
@@ -2422,8 +2461,12 @@ export interface Flatpickr {
     selectedDates: Date[];
     input?: FlatpickrHTMLInputElement;
     altInput?: HTMLInputElement;
+    hourElement?: HTMLInputElement;
+    minuteElement?: HTMLInputElement;
     setDate(date: Date|string|Date[], triggerChange: boolean, dateStrFormat: string): void;
+    clear(triggerChange: boolean): void;
     parseDate(date: string|number, format: string): Date;
+    jumpToDate(date: Date|string, triggerChange: boolean): void;
 }
 
 export interface FlatpickrHTMLInputElement extends HTMLInputElement {

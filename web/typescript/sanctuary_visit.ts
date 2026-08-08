@@ -31,6 +31,11 @@ declare global {
         editGuestCampDescription: () => void;
         editGuestCampContacts: () => void;
 
+        setArrivalTimeNow: () => void;
+        clearArrivalTime: () => void;
+        setDepartureTimeNow: () => void;
+        clearDepartureTime: () => void;
+
         editArrivalMethod: () => void;
         editArrivalState: () => void;
         editArrivalReason: () => void;
@@ -137,6 +142,11 @@ async function initSanctuaryVisitPage(): Promise<void> {
     window.editGuestCampDescription = editGuestCampDescription;
     window.editGuestCampContacts = editGuestCampContacts;
 
+    window.setArrivalTimeNow = setArrivalTimeNow;
+    window.clearArrivalTime = clearArrivalTime;
+    window.setDepartureTimeNow = setDepartureTimeNow;
+    window.clearDepartureTime = clearDepartureTime;
+
     window.editArrivalMethod = editArrivalMethod;
     window.editArrivalState = editArrivalState;
     window.editArrivalReason = editArrivalReason;
@@ -173,8 +183,8 @@ async function initSanctuaryVisitPage(): Promise<void> {
     //     instance.altInput!.title = ims.longFormatDate(selectedDates[0]!);
     // };
 
-    ims.newFlatpickr(el.arrivalTime, "alt_arrival_time", editArrivalTime);
-    ims.newFlatpickr(el.departureTime, "alt_departure_time", editDepartureTime);
+    ims.newFlatpickr(el.arrivalTime, "alt_arrival_time", editArrivalTime, true);
+    ims.newFlatpickr(el.departureTime, "alt_departure_time", editDepartureTime, true);
 
     ims.disableEditing();
     displayVisit();
@@ -568,6 +578,12 @@ async function editArrivalTime(selectedDates: Date[], _dateStr: string, sender: 
     const newDateStr = ()=> (newDate?.toISOString()) || zeroTimeValue;
     await ims.editFromElement(sender.altInput!, "arrival_time", newDateStr);
 }
+function setArrivalTimeNow(): void {
+    ims.setFlatpickrToNow(el.arrivalTime);
+}
+function clearArrivalTime(): void {
+    ims.clearFlatpickrDate(el.arrivalTime);
+}
 async function editArrivalMethod(): Promise<void> {
     await ims.editFromElement(el.arrivalMethod, "arrival_method");
 }
@@ -590,6 +606,12 @@ async function editDepartureTime(selectedDates: Date[], _dateStr: string, sender
     }
     const newDateStr = ()=> (newDate?.toISOString()) || zeroTimeValue;
     await ims.editFromElement(sender.altInput!, "departure_time", newDateStr);
+}
+function setDepartureTimeNow(): void {
+    ims.setFlatpickrToNow(el.departureTime);
+}
+function clearDepartureTime(): void {
+    ims.clearFlatpickrDate(el.departureTime);
 }
 async function editDepartureMethod(): Promise<void> {
     await ims.editFromElement(el.departureMethod, "departure_method");

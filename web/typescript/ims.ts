@@ -1198,27 +1198,34 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             throw new Error(`Unknown attachment source for entry: ${entry}`);
         }
 
+        const downloadKey: string = `download ${url}`;
         const downloadButt: HTMLButtonElement = createSvgTextButton("#download", "Download");
         downloadButt.onclick = async (e: MouseEvent): Promise<void> => {
             e.preventDefault();
-            const {resp, err} = await fetchNoThrow(url, {});
-            if (err != null || resp == null) {
-                setErrorMessage(`Failed to fetch attachment. ${err}`);
-                return;
-            }
-            const blobUrl: string = window.URL.createObjectURL(await resp.blob());
-            const tmpLink: HTMLAnchorElement = document.createElement("a");
+            const transfer: AttachmentTransfer = startTransfer(downloadKey, downloadButt, "Download");
+            try {
+                const blob: Blob|null = await fetchAttachment(url, transfer);
+                if (blob == null) {
+                    return;
+                }
+                const blobUrl: string = window.URL.createObjectURL(blob);
+                const tmpLink: HTMLAnchorElement = document.createElement("a");
 
-            // Download mode: set a suggested filename.
-            tmpLink.download = entry?.attachment?.name ?? "imsfile";
-            tmpLink.href = blobUrl;
-            document.body.appendChild(tmpLink);
-            tmpLink.click();
-            document.body.removeChild(tmpLink);
-            URL.revokeObjectURL(blobUrl);
+                // Download mode: set a suggested filename.
+                tmpLink.download = entry?.attachment?.name ?? "imsfile";
+                tmpLink.href = blobUrl;
+                document.body.appendChild(tmpLink);
+                tmpLink.click();
+                document.body.removeChild(tmpLink);
+                URL.revokeObjectURL(blobUrl);
+            } finally {
+                attachmentTransfers.delete(downloadKey);
+            }
         };
+        adoptTransfer(downloadKey, downloadButt);
 
         if (entry.attachment?.previewable) {
+            const previewKey: string = `preview ${url}`;
             const previewButt: HTMLButtonElement = createSvgTextButton("#preview", "Preview");
 
             // We need to do a JavaScript fetch of the file, rather than simply
@@ -1226,30 +1233,39 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             // the Authorization header.
             previewButt.onclick = async (e: MouseEvent): Promise<void> => {
                 e.preventDefault();
-                const {resp, err} = await fetchNoThrow(url, {});
-                if (err != null || resp == null) {
-                    setErrorMessage(`Failed to fetch attachment. ${err}`);
+
+                // Second click on a file that's already in hand. This runs
+                // before any await, so the click still authorizes a new tab.
+                const ready: string|null = attachmentTransfers.get(previewKey)?.readyBlobUrl??null;
+                if (ready != null) {
+                    attachmentTransfers.delete(previewKey);
+                    resetTransferButton(previewButt, "Preview");
+                    openPreviewTab(ready);
                     return;
                 }
-                const blobUrl: string = window.URL.createObjectURL(await resp.blob());
-                const tmpLink: HTMLAnchorElement = document.createElement("a");
 
-                // Preview mode: open a preview in a new window.
-                // We'd use window.open with target _blank, but Safari iOS doesn't support that,
-                // and a lot of Rangers use iPhones.
-                tmpLink.target = "_blank";
-                tmpLink.href = blobUrl;
-                document.body.appendChild(tmpLink);
-                tmpLink.click();
-                document.body.removeChild(tmpLink);
+                const transfer: AttachmentTransfer = startTransfer(previewKey, previewButt, "Preview");
+                const clickedAt: number = Date.now();
+                const blob: Blob|null = await fetchAttachment(url, transfer);
+                if (blob == null) {
+                    attachmentTransfers.delete(previewKey);
+                    return;
+                }
+                const blobUrl: string = window.URL.createObjectURL(blob);
+                if (clickStillOpensTabs(clickedAt)) {
+                    attachmentTransfers.delete(previewKey);
+                    openPreviewTab(blobUrl);
+                    return;
+                }
 
-                // Wait a little while before cleaning up the blob, in case the user opts
-                // to download the file from the preview (that will fail once the object URL
-                // has been revoked).
-                setTimeout(function (): void {
-                    URL.revokeObjectURL(blobUrl);
-                }, 60_000 /* milliseconds */);
+                // The download took long enough that the browser no longer
+                // considers the click to be what's opening the tab, and would
+                // block it as a popup. Hold the file and say so; the next
+                // click opens it immediately.
+                transfer.readyBlobUrl = blobUrl;
+                renderTransfer(transfer);
             };
+            adoptTransfer(previewKey, previewButt);
             entryContainer.append(previewButt);
         }
         entryContainer.append(downloadButt);
@@ -1262,6 +1278,143 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
     entryContainer.append(hr);
 
     return entryContainer;
+}
+
+// Open a fetched attachment in a new tab. Browsers only allow this while the
+// user's click still counts as activation, so callers must either run this
+// promptly after the click or wait for another one.
+function openPreviewTab(blobUrl: string): void {
+    const tmpLink: HTMLAnchorElement = document.createElement("a");
+
+    // We'd use window.open with target _blank, but Safari iOS doesn't support that,
+    // and a lot of Rangers use iPhones.
+    tmpLink.target = "_blank";
+    tmpLink.href = blobUrl;
+    document.body.appendChild(tmpLink);
+    tmpLink.click();
+    document.body.removeChild(tmpLink);
+
+    // Wait a little while before cleaning up the blob, in case the user opts
+    // to download the file from the preview (that will fail once the object URL
+    // has been revoked).
+    setTimeout(function (): void {
+        URL.revokeObjectURL(blobUrl);
+    }, 60_000 /* milliseconds */);
+}
+
+// Whether a click made at clickedAt would still be allowed to open a new tab.
+// Browsers only honor a click for a few seconds, so a slow attachment download
+// can outlive the click that started it, after which opening the preview is
+// blocked as a popup.
+function clickStillOpensTabs(clickedAt: number): boolean {
+    if (navigator.userActivation != null) {
+        return navigator.userActivation.isActive;
+    }
+    // Safari doesn't report activation state, and is stricter than the several
+    // seconds other browsers allow, so only trust a nearly instant download.
+    return Date.now() - clickedAt < 1000 /* milliseconds */;
+}
+
+// An attachment being fetched, or one that's been fetched and is waiting to be
+// opened. This outlives the button that started it: the report entries are
+// redrawn from scratch whenever anything on the page changes (including an
+// update someone else made, which arrives over the event source), and that
+// replaces every attachment button mid-transfer.
+interface AttachmentTransfer {
+    // The button currently standing in for this transfer, swapped out for the
+    // newly drawn one each time the entries are redrawn.
+    butt: HTMLButtonElement;
+    // The button's usual label, e.g. "Download".
+    name: string;
+    // How far along the fetch is, e.g. "42%", or null when nothing's moving.
+    progress: string|null;
+    // A file that's been fetched but not yet opened, because the download
+    // outlived the click that asked for it. It waits here for the next click.
+    readyBlobUrl: string|null;
+}
+
+const attachmentTransfers: Map<string, AttachmentTransfer> = new Map();
+
+function startTransfer(key: string, butt: HTMLButtonElement, name: string): AttachmentTransfer {
+    const transfer: AttachmentTransfer = {butt: butt, name: name, progress: null, readyBlobUrl: null};
+    attachmentTransfers.set(key, transfer);
+    return transfer;
+}
+
+// Hand a freshly drawn button whatever its predecessor was in the middle of, so
+// that a redraw doesn't strand a download in progress or a file waiting to be
+// opened.
+function adoptTransfer(key: string, butt: HTMLButtonElement): void {
+    const transfer: AttachmentTransfer|undefined = attachmentTransfers.get(key);
+    if (transfer == null) {
+        return;
+    }
+    transfer.butt = butt;
+    renderTransfer(transfer);
+}
+
+function renderTransfer(transfer: AttachmentTransfer): void {
+    const label: HTMLSpanElement = transfer.butt.querySelector("span")!;
+    if (transfer.progress != null) {
+        transfer.butt.disabled = true;
+        transfer.butt.title = "";
+        label.textContent = `${transfer.name} ${transfer.progress}`;
+    } else if (transfer.readyBlobUrl != null) {
+        transfer.butt.disabled = false;
+        transfer.butt.title = `Click again to open the ${transfer.name.toLowerCase()}`;
+        label.textContent = `${transfer.name} Ready`;
+    } else {
+        resetTransferButton(transfer.butt, transfer.name);
+    }
+}
+
+function resetTransferButton(butt: HTMLButtonElement, name: string): void {
+    butt.disabled = false;
+    butt.title = "";
+    butt.querySelector("span")!.textContent = name;
+}
+
+// Fetch an attachment, using the transfer's button as the progress indicator,
+// since a large file on a slow connection can take a long while with nothing
+// else to show for it. Returns null if the fetch failed, having already shown
+// the user an error.
+async function fetchAttachment(url: string, transfer: AttachmentTransfer): Promise<Blob|null> {
+    transfer.progress = "…";
+    renderTransfer(transfer);
+    try {
+        const {resp, err} = await fetchNoThrow(url, {});
+        if (err != null || resp == null) {
+            setErrorMessage(`Failed to fetch attachment. ${err}`);
+            return null;
+        }
+        if (resp.body == null) {
+            return await resp.blob();
+        }
+        // The server sends Content-Length for attachments, but fall back to
+        // counting bytes if some proxy in between drops it.
+        const total: number = parseInt10(resp.headers.get("Content-Length"))??0;
+        // The lib types allow chunks backed by a SharedArrayBuffer, which Blob
+        // won't accept, but fetch never produces those.
+        const reader = resp.body.getReader() as ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>;
+        const chunks: Uint8Array<ArrayBuffer>[] = [];
+        let loaded = 0;
+        for (;;) {
+            const {done, value} = await reader.read();
+            if (done) {
+                break;
+            }
+            chunks.push(value);
+            loaded += value.length;
+            transfer.progress = total > 0
+                ? `${Math.min(100, Math.floor(100 * loaded / total))}%`
+                : `${(loaded / 1e6).toFixed(1)} MB`;
+            renderTransfer(transfer);
+        }
+        return new Blob(chunks, {type: resp.headers.get("Content-Type")??""});
+    } finally {
+        transfer.progress = null;
+        renderTransfer(transfer);
+    }
 }
 
 // Create a button that'll show an SVG icon and some text as its content.

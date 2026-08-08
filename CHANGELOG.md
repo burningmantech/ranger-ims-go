@@ -35,6 +35,7 @@ https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
 - Added server-side error logging, surfaced on a new Error Logs admin page. This makes it much easier to spot problems during the event. https://github.com/burningmantech/ranger-ims-go/pull/737
 - Added "Set from API" buttons to the Admin Places page for camps, art, and mutant vehicles, so that an admin can have the server pull that data from the Burning Man API for a given year rather than pasting the response in by hand. This needs a Burning Man API key in the server's config (`IMS_BM_API_KEY`); without one, the buttons stay disabled.
 - Added normalization of Black Rock City addresses, so that an Incident location or a Sanctuary Visit guest camp address typed as "7+e" is saved as "7:00 & E". It's opt-in per event, toggled from the Admin Events page, so it can be turned on or off without a server restart. https://github.com/burningmantech/ranger-ims-go/pull/736
+- Made a Place's detail popup on the Places page linkable: opening one adds a short code for that Place to the page's URL, and following such a link opens the same Place's popup straight away. The code is derived from the Place's Burning Man ID (or from its name and type, for a Place that has no such ID), so a link keeps working across the wholesale deletion and reimport of an event's places.
 
 ### Fixed
 
@@ -89,7 +90,6 @@ https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
 ### Added
 
 - Showed an "uploading" indicator while a file attachment is in progress. https://github.com/burningmantech/ranger-ims-go/pull/661
-
 - Added a "not before" access mode and renamed the old "expired" concept to "not after". Together these let admins specify both when an event permission becomes active and when it lapses. https://github.com/burningmantech/ranger-ims-go/pull/648
 - Started using flatpickr for selecting the "not before" and "not after" permission times. https://github.com/burningmantech/ranger-ims-go/pull/649
 - Added an optional map link for each event, which surfaces as a "Map" link (e.g. on the Incident page) pointing to the official PDF map of public camps. https://github.com/burningmantech/ranger-ims-go/pull/652 https://github.com/burningmantech/ranger-ims-go/pull/653

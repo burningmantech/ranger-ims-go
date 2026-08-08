@@ -36,6 +36,12 @@ const destDefaultRows = "25";
 let _destShowType: string|null = null;
 const destDefaultType = "all";
 
+// The key of the place whose modal is currently open (or which a shared link
+// asked for), as it appears in the URL fragment.
+let _destShowPlace: string|null = null;
+
+let placeInfoModal: ReturnType<typeof ims.bsModal>|null = null;
+
 //
 // Initialize UI
 //
@@ -164,6 +170,16 @@ function renderEmbargoNotice(events: ims.EventData[]|null, isAdmin: boolean): vo
 //
 
 function initPlacesTable() {
+    placeInfoModal = ims.bsModal(el.placeInfoModal);
+
+    // A shared link names the place to open. Read it before anything can rewrite
+    // the fragment, and drop it again once the reader closes the modal.
+    _destShowPlace = ims.windowFragmentParams().get("place");
+    el.placeInfoModal.addEventListener("hidden.bs.modal", function(): void {
+        _destShowPlace = null;
+        destReplaceWindowState();
+    });
+
     destInitDataTables();
     destInitTableButtons();
     destInitSearchField();
@@ -182,8 +198,6 @@ declare let DataTable: any;
 //
 
 function destInitDataTables() {
-    const placeInfoModal = ims.bsModal(el.placeInfoModal);
-
     DataTable.ext.errMode = "none";
     placesTable = new DataTable("#places_table", {
         // Save table state to SessionStorage (-1). This tells DataTables to save state
@@ -244,6 +258,7 @@ function destInitDataTables() {
                     places.push(other);
                 }
                 callback({data: places});
+                openLinkedPlace(places);
             }
             doAjax();
         },
@@ -277,15 +292,71 @@ function destInitDataTables() {
 
         "createdRow": function (row: HTMLElement, place: ims.Place, _index: number) {
             const openLink = function(_e: MouseEvent): void {
-                el.placeInfoModalLabel.textContent = place.name??"(unnamed place)";
-                el.placeBody.replaceChildren(placeToHTML(place));
-                placeInfoModal.toggle();
+                showPlace(place);
             }
             row.addEventListener("click", openLink);
             row.addEventListener("auxclick", openLink);
         },
     });
 }
+
+
+function showPlace(place: ims.Place): void {
+    el.placeInfoModalLabel.textContent = place.name??"(unnamed place)";
+    el.placeBody.replaceChildren(placeToHTML(place));
+    _destShowPlace = placeKey(place);
+    destReplaceWindowState();
+    placeInfoModal!.show();
+}
+
+
+// Open the place named by a shared link, once the table data has arrived.
+function openLinkedPlace(places: ims.Place[]): void {
+    if (_destShowPlace == null) {
+        return;
+    }
+    const place = places.find((p: ims.Place): boolean => placeKey(p) === _destShowPlace);
+    if (place == null) {
+        ims.setErrorMessage(
+            `The linked place isn't in Event "${ims.pathIds.eventName}" anymore.`
+        );
+        _destShowPlace = null;
+        destReplaceWindowState();
+        return;
+    }
+    showPlace(place);
+}
+
+
+// The URL-shareable name for a place. Our own Place IDs churn, since places get
+// deleted and reimported wholesale, so key off the Burning Man Salesforce UID
+// where there is one and off the type and name where there isn't. Both are too
+// long and too ugly to paste into a URL, so carry a hash of them instead: 8
+// base36 digits is ~41 bits, which leaves collisions well below one in 100,000
+// across an event's few thousand places.
+function placeKey(place: ims.Place): string {
+    const uid = (place.external_data as {uid?: string|null}|null)?.uid;
+    const identity = uid || `${place.type}/${(place.name??"").trim().toLowerCase()}`;
+    return hash53(identity).toString(36).padStart(11, "0").slice(-8);
+}
+
+
+// cyrb53, a small non-cryptographic 53-bit string hash. Deliberately not
+// crypto.subtle.digest, which is both async and unavailable outside secure
+// contexts, and we need neither property here.
+function hash53(str: string): number {
+    let h1 = 0xdeadbeef;
+    let h2 = 0x41c6ce57;
+    for (let i = 0; i < str.length; i++) {
+        const ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
 
 function placeToHTML(place: ims.Place): Node {
     function setImageDetails(imageDd: HTMLElement, imageURL?: string|null) {
@@ -587,6 +658,9 @@ function destReplaceWindowState(): void {
     }
     if (_destShowType != null && _destShowType !== destDefaultType) {
         newParams.push(["type", _destShowType]);
+    }
+    if (_destShowPlace != null) {
+        newParams.push(["place", _destShowPlace]);
     }
     const newURL = `${ims.urlReplace(url_viewPlaces)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);

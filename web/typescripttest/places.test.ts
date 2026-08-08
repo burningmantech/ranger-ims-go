@@ -235,6 +235,119 @@ test("clicking an 'other' place with missing details shows 'None provided' fallb
     expect(body.querySelector("#image_dd")!.textContent).toContain("None provided");
 });
 
+// The place key in the URL fragment, if any.
+function placeParam(): string|null {
+    return new URLSearchParams(window.location.hash.substring(1)).get("place");
+}
+
+test("opening a place puts a short, opaque key for it in the URL hash", async (): Promise<void> => {
+    await initPlacesPage();
+    const camp: ims.Place = {
+        name: "Camp Friendly", type: "camp",
+        external_data: { name: "Camp Friendly", uid: "a1XVI000009jNPY2A2" } as ims.BMCamp,
+    };
+    openPlace(camp);
+
+    const key = placeParam();
+    expect(key).toMatch(/^[0-9a-z]{8}$/);
+    // The key gives away neither the UID nor the name.
+    expect(camp.external_data!.name!.toLowerCase()).not.toContain(key!);
+    expect("a1XVI000009jNPY2A2".toLowerCase()).not.toContain(key!);
+});
+
+test("the place key follows the Salesforce UID, not our own row order or the name", async (): Promise<void> => {
+    await initPlacesPage();
+    openPlace({ name: "Camp Friendly", type: "camp", external_data: { uid: "sf-1" } as ims.BMCamp });
+    const first = placeParam();
+
+    // Same place, renamed and re-imported into a different table position.
+    openPlace({ name: "Camp Friendlier", type: "camp", external_data: { uid: "sf-1" } as ims.BMCamp });
+    expect(placeParam()).toBe(first);
+
+    // A different place with the same name is a different key.
+    openPlace({ name: "Camp Friendly", type: "camp", external_data: { uid: "sf-2" } as ims.BMCamp });
+    expect(placeParam()).not.toBe(first);
+});
+
+test("a place with no UID keys off its type and name", async (): Promise<void> => {
+    await initPlacesPage();
+    openPlace({ name: "First Camp", type: "other", external_data: { name: "First Camp" } as ims.OtherDest });
+    const first = placeParam();
+    expect(first).toMatch(/^[0-9a-z]{8}$/);
+
+    // Whitespace and case in the name don't change the key.
+    openPlace({ name: "  first camp ", type: "other", external_data: {} as ims.OtherDest });
+    expect(placeParam()).toBe(first);
+
+    // The same name under another type is a different place.
+    openPlace({ name: "First Camp", type: "camp", external_data: {} as ims.BMCamp });
+    expect(placeParam()).not.toBe(first);
+});
+
+test("closing the modal drops the place from the URL hash but keeps the other state", async (): Promise<void> => {
+    await initPlacesPage();
+    window.destShowType("camp", true);
+    openPlace({ name: "Camp Friendly", type: "camp", external_data: { uid: "sf-1" } as ims.BMCamp });
+    expect(placeParam()).not.toBeNull();
+
+    document.getElementById("placeInfoModal")!.dispatchEvent(new Event("hidden.bs.modal"));
+
+    expect(placeParam()).toBeNull();
+    expect(window.location.hash).toContain("type=camp");
+});
+
+// The keys the page derives for the two seeded places below. Pinned literally,
+// so that a change to the key encoding — which would break every link Rangers
+// have already shared — has to be a deliberate edit here.
+const campKey = "mwx4f1r0";  // uid "sf-camp"
+const otherKey = "in9dy0c5"; // no uid: type "other", name "First Camp"
+
+test("the derived key for a place is stable across releases", async (): Promise<void> => {
+    await initPlacesPage();
+
+    openPlace({ name: "Camp Friendly", type: "camp", external_data: { uid: "sf-camp" } as ims.BMCamp });
+    expect(placeParam()).toBe(campKey);
+
+    openPlace({ name: "First Camp", type: "other", external_data: {} as ims.OtherDest });
+    expect(placeParam()).toBe(otherKey);
+});
+
+test("a place fragment opens that place's modal on load", async (): Promise<void> => {
+    serverPlaces.camp![0]!.external_data = {
+        name: "Camp Friendly", description: "Friendly folks", uid: "sf-camp",
+    } as ims.BMCamp;
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/places#place=${campKey}`);
+    await initPlacesPage();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("placeInfoModalLabel")!.textContent).toBe("Camp Friendly");
+    });
+    expect(document.getElementById("placeBody")!.querySelector("#description")!.textContent)
+        .toBe("Friendly folks");
+    // The link stays shareable after it's followed.
+    expect(placeParam()).toBe(campKey);
+});
+
+test("a place fragment resolves a place that has no Salesforce UID", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/places#place=${otherKey}`);
+    await initPlacesPage();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("placeInfoModalLabel")!.textContent).toBe("First Camp");
+    });
+});
+
+test("a place fragment naming a place that's no longer there reports it and clears the link", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/places#place=deadbeef`);
+    await initPlacesPage();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(document.getElementById("error_text")!.textContent).toContain("linked place");
+    expect(placeParam()).toBeNull();
+});
+
 test("destShowRows updates the dropdown label, page length, and URL hash", async (): Promise<void> => {
     await initPlacesPage();
 

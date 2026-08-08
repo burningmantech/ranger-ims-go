@@ -500,8 +500,8 @@ func TestVisitDepartureBeforeStoredArrivalIsRejected(t *testing.T) {
 	requireEqualishTimePtr(t, &sampleDeparture, visit.DepartureTime)
 }
 
-// Both times in one request are applied arrival-first, so an out-of-order pair
-// is caught by the departure check even though neither is being compared
+// A request carrying both times is judged on the pair it asked for, so an
+// out-of-order pair is rejected even though neither time is being compared
 // against a stored value.
 func TestVisitArrivalAndDepartureSentTogetherOutOfOrderIsRejected(t *testing.T) {
 	t.Parallel()
@@ -532,6 +532,69 @@ func TestVisitArrivalAndDepartureSentTogetherOutOfOrderIsRejected(t *testing.T) 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	requireEqualishTimePtr(t, &sampleArrival, visit.ArrivalTime)
 	requireEqualishTimePtr(t, &sampleDeparture, visit.DepartureTime)
+}
+
+// Moving a whole visit later in one request is allowed, even though the new
+// arrival time lands after the departure time that's currently stored. The pair
+// in the request is in order, which is what matters; checking the new arrival
+// against the stored departure used to reject this.
+func TestVisitArrivalAndDepartureSentTogetherPastStoredDepartureIsAllowed(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	// Both are after the stored departure, and in order relative to each other.
+	newArrival := sampleDeparture.Add(time.Hour)
+	newDeparture := sampleDeparture.Add(2 * time.Hour)
+	resp := apisAlice.updateVisit(ctx, eventName, num, imsjson.Visit{
+		ArrivalTime:   &newArrival,
+		DepartureTime: &newDeparture,
+	})
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	visit, resp := apisAlice.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	requireEqualishTimePtr(t, &newArrival, visit.ArrivalTime)
+	requireEqualishTimePtr(t, &newDeparture, visit.DepartureTime)
+}
+
+// Clearing a time says so in the change log, rather than reporting the zero time
+// the client sends to clear it.
+func TestVisitClearedArrivalTimeIsNamedInTheChangeLog(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
+
+	resp := apisAlice.updateVisit(ctx, eventName, num, imsjson.Visit{ArrivalTime: &time.Time{}})
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	visit, resp := apisAlice.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Nil(t, visit.ArrivalTime)
+
+	var systemEntries []string
+	for _, entry := range visit.ReportEntries {
+		if entry.SystemEntry {
+			systemEntries = append(systemEntries, entry.Text)
+		}
+	}
+	changeLog := strings.Join(systemEntries, "\n")
+	require.Contains(t, changeLog, "Changed ArrivalTime: (cleared)")
+	require.NotContains(t, changeLog, "0001-01-01")
 }
 
 // The comparison is strict, so a guest who left the same instant they arrived

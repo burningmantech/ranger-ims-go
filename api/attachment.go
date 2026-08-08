@@ -427,8 +427,11 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		return 0, herr.Forbidden("The requestor does not have permission to write Field Reports on this Event", nil)
 	}
-	// i.e. the user has EventReadOwnFieldReports, but not EventReadAllFieldReports
-	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
+	// i.e. the user has EventWriteOwnFieldReports, but not EventWriteAllFieldReports.
+	// This gates on the write permission, not the read one: attaching a file adds
+	// a Report Entry, so it's an edit, and it has to be held to what
+	// EditFieldReport allows.
+	limitedAccess := eventPermissions&authz.EventWriteAllFieldReports == 0
 	ctx := req.Context()
 
 	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
@@ -442,7 +445,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	}
 	if limitedAccess {
 		if !containsAuthor(entries, jwtCtx.Claims.RangerHandle()) {
-			return 0, herr.Forbidden("The requestor does not have permission to read this particular Field Report", nil)
+			return 0, herr.Forbidden("The requestor does not have permission to edit this particular Field Report", nil)
 		}
 	}
 

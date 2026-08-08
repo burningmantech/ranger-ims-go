@@ -25,6 +25,7 @@ import (
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
+	"time"
 )
 
 //go:embed schema/current.sql
@@ -82,6 +83,15 @@ func openDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (*sql.DB, error) {
 		return nil, fmt.Errorf("[sql.Open]: %w", err)
 	}
 	db.SetMaxOpenConns(int(mariaCfg.MaxOpenConns))
+	// database/sql keeps only two idle connections by default, so anything above
+	// two concurrent queries would hand back its connection to be closed and pay
+	// for a fresh TCP and auth handshake on the next query. Let every connection
+	// the pool is allowed to open stay in it.
+	db.SetMaxIdleConns(int(mariaCfg.MaxOpenConns))
+	// Retire connections well before anything between here and the database
+	// (MariaDB's own wait_timeout, a load balancer's idle timeout) can drop one
+	// out from under us and turn it into a failed query.
+	db.SetConnMaxLifetime(5 * time.Minute)
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
 		return nil, fmt.Errorf("[db.PingContext]: %w", pingErr)

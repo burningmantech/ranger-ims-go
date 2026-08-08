@@ -26,6 +26,7 @@ import (
 	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
+	"time"
 )
 
 //go:embed schema/current.sql
@@ -61,6 +62,10 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	// Some arbitrary value. We'll get errors from MariaDB if the server
 	// hits the DB with too many parallel requests.
 	db.SetMaxOpenConns(int(chDBCfg.MaxOpenConns))
+	// As in store.openDB: database/sql keeps only two idle connections by
+	// default, so busier moments pay for a connection handshake per query.
+	db.SetMaxIdleConns(int(chDBCfg.MaxOpenConns))
+	db.SetConnMaxLifetime(5 * time.Minute)
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
 		return nil, fmt.Errorf("[PingContext]: %w", pingErr)

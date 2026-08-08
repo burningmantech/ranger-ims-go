@@ -453,6 +453,16 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 	return false, nil
 }
 
+// visitTimeLogValue renders an arrival or departure time for the change log. A
+// client clears one of these by sending the zero time, which must not reach the
+// log as a date in the year 1.
+func visitTimeLogValue(t *time.Time) string {
+	if t == nil || t.IsZero() {
+		return "(cleared)"
+	}
+	return t.In(time.UTC).Format(time.RFC3339)
+}
+
 // buildVisitUpdate merges the client-provided fields of newVisit over the
 // stored Visit, returning the update parameters along with change-log lines
 // describing each modified field. It rejects updates that would put the
@@ -518,10 +528,7 @@ func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddre
 
 	if newVisit.ArrivalTime != nil {
 		update.ArrivalTime = conv.TimeToNullFloat(*newVisit.ArrivalTime)
-		if update.ArrivalTime.Valid && update.DepartureTime.Valid && update.DepartureTime.Float64 < update.ArrivalTime.Float64 {
-			return update, nil, herr.BadRequest("Arrival time cannot be after departure time", errors.New("arrival time cannot be after departure time"))
-		}
-		logs = append(logs, fmt.Sprintf("Changed ArrivalTime: %v", newVisit.ArrivalTime.In(time.UTC).Format(time.RFC3339)))
+		logs = append(logs, fmt.Sprintf("Changed ArrivalTime: %v", visitTimeLogValue(newVisit.ArrivalTime)))
 	}
 	applyStringChange(&update.ArrivalMethod, newVisit.ArrivalMethod, "ArrivalMethod", &logs)
 	applyStringChange(&update.ArrivalState, newVisit.ArrivalState, "ArrivalState", &logs)
@@ -530,10 +537,23 @@ func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddre
 
 	if newVisit.DepartureTime != nil {
 		update.DepartureTime = conv.TimeToNullFloat(*newVisit.DepartureTime)
-		if update.ArrivalTime.Valid && update.DepartureTime.Valid && update.DepartureTime.Float64 < update.ArrivalTime.Float64 {
-			return update, nil, herr.BadRequest("Departure time cannot be before arrival time", errors.New("departure time cannot be before arrival time"))
+		logs = append(logs, fmt.Sprintf("Changed DepartureTime: %v", visitTimeLogValue(newVisit.DepartureTime)))
+	}
+
+	// Both times are applied before this check, so that a request setting arrival
+	// and departure together is judged on the pair it asked for. Checking each one
+	// as it was applied rejected such a request whenever the new arrival time was
+	// after the *stored* departure time, even when the new departure time it came
+	// with was later still.
+	if update.ArrivalTime.Valid && update.DepartureTime.Valid && update.DepartureTime.Float64 < update.ArrivalTime.Float64 {
+		// Name the end of the visit the request actually moved. When it moved
+		// both, the departure is the one to complain about, since it's the one
+		// that ends up earlier than it may be.
+		msg := "Departure time cannot be before arrival time"
+		if newVisit.DepartureTime == nil {
+			msg = "Arrival time cannot be after departure time"
 		}
-		logs = append(logs, fmt.Sprintf("Changed DepartureTime: %v", newVisit.DepartureTime.In(time.UTC).Format(time.RFC3339)))
+		return update, nil, herr.BadRequest(msg, nil)
 	}
 	applyStringChange(&update.DepartureMethod, newVisit.DepartureMethod, "DepartureMethod", &logs)
 	applyStringChange(&update.DepartureState, newVisit.DepartureState, "DepartureState", &logs)

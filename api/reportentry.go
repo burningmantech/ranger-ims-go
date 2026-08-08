@@ -188,6 +188,8 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 	if eventPermissions&(authz.EventWriteAllFieldReports|authz.EventWriteOwnFieldReports) == 0 {
 		return herr.Forbidden("The requestor does not have permission to write Field Reports on this Event", nil)
 	}
+	// i.e. they have EventWriteOwnFieldReports, but not EventWriteAllFieldReports
+	limitedAccess := eventPermissions&authz.EventWriteAllFieldReports == 0
 	ctx := req.Context()
 
 	author := jwtCtx.Claims.RangerHandle()
@@ -206,12 +208,14 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return errHTTP.From("[readBodyAs]")
 	}
 
-	_, err = action.imsDBQ.FieldReport(ctx, action.imsDBQ, imsdb.FieldReportParams{
-		Event:  event.ID,
-		Number: fieldReportNumber,
-	})
-	if err != nil {
-		return herr.NotFound("There is no Field Report for the provided ID", err).From("[FieldReport]")
+	_, entries, errHTTP := fetchFieldReport(ctx, action.imsDBQ, event.ID, fieldReportNumber)
+	if errHTTP != nil {
+		return errHTTP.From("[fetchFieldReport]")
+	}
+	// Striking an entry is an edit of the Field Report, so a Ranger who may only
+	// write their own has to be one of its authors, as in EditFieldReport.
+	if limitedAccess && !containsAuthor(entries, author) {
+		return herr.Forbidden("The requestor does not have permission to edit this particular Field Report", nil)
 	}
 
 	if re.Stricken == nil {

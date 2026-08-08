@@ -228,3 +228,65 @@ func TestEditVisitReportEntry(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 }
+
+// Striking a Report Entry edits the Field Report it belongs to, so a Reporter,
+// who may only write their own, must not be able to strike an entry on someone
+// else's — not even one they can't read.
+func TestStrikeFieldReportEntryDeniedForNonAuthoringReporter(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithReporter(t, apisAdmin)
+
+	// The admin authors the Field Report, so Alice authored nothing on it.
+	num := apisAdmin.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
+	fieldReport, resp := apisAdmin.getFieldReport(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.NotEmpty(t, fieldReport.ReportEntries)
+
+	entry := fieldReport.ReportEntries[0]
+	entry.Stricken = new(true)
+	resp = apisAlice.updateFieldReportReportEntry(ctx, eventName, num, entry)
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// The entry is untouched, confirming the 403 landed before the write.
+	fieldReport, resp = apisAdmin.getFieldReport(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.False(t, *fieldReport.ReportEntries[0].Stricken)
+
+	// The admin, who may write all Field Reports, can strike it.
+	resp = apisAdmin.updateFieldReportReportEntry(ctx, eventName, num, entry)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}
+
+// A Reporter striking an entry on their *own* Field Report is allowed. This is
+// the other side of the authorship check above.
+func TestStrikeFieldReportEntryAllowedForAuthoringReporter(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithReporter(t, apisAdmin)
+	num := apisAlice.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
+
+	fieldReport, resp := apisAlice.getFieldReport(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.NotEmpty(t, fieldReport.ReportEntries)
+
+	entry := fieldReport.ReportEntries[0]
+	entry.Stricken = new(true)
+	resp = apisAlice.updateFieldReportReportEntry(ctx, eventName, num, entry)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	fieldReport, resp = apisAlice.getFieldReport(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.True(t, *fieldReport.ReportEntries[0].Stricken)
+}

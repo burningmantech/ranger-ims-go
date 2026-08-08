@@ -18,10 +18,12 @@ package actionlog
 
 import (
 	"context"
+	"log/slog"
+	"sync/atomic"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"log/slog"
-	"time"
 )
 
 const (
@@ -34,6 +36,10 @@ type Logger struct {
 	imsDBQ              *store.DBQ
 	actionLogEnabled    bool
 	synchronousForTests bool
+
+	// dropped counts the rows discarded because the queue was full, for the
+	// worker to report once it's keeping up again.
+	dropped atomic.Int64
 }
 
 func NewLogger(
@@ -52,12 +58,21 @@ func NewLogger(
 	return logger
 }
 
+// Log queues a row to be written by the worker goroutine. This is called from
+// request handlers, so the send must never block: the queue fills up exactly
+// when the database is struggling, and blocking here would stall every request
+// in flight and turn a slow database into a hung server. A dropped audit row is
+// the cheaper loss.
 func (l *Logger) Log(ctx context.Context, record imsdb.AddActionLogParams) {
 	if l.actionLogEnabled {
 		if l.synchronousForTests {
 			l.writeRow(ctx, record)
-		} else {
-			l.work <- record
+			return
+		}
+		select {
+		case l.work <- record:
+		default:
+			l.dropped.Add(1)
 		}
 	}
 }
@@ -67,6 +82,11 @@ func (l *Logger) Close() {}
 func (l *Logger) startWorker(ctx context.Context) {
 	for row := range l.work {
 		l.writeRow(ctx, row)
+		// Report drops from the worker rather than from Log, so that a full
+		// queue produces one line per drained row instead of one per request.
+		if dropped := l.dropped.Swap(0); dropped > 0 {
+			slog.Warn("action log queue was full; rows were dropped", "count", dropped)
+		}
 	}
 	slog.Info("actionlog.Logger worker finished")
 }

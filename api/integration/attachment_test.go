@@ -70,6 +70,56 @@ func newEventWithReporter(t *testing.T, admin ApiHelper) (eventName string) {
 	return eventName
 }
 
+// newEventWithReporterAndReader creates a fresh Event on which Alice is both a
+// Reporter and a Reader, and the admin is a Writer. That combination — may read
+// every Field Report, may write only her own — is what a Ranger ends up with
+// from a blanket "report" rule plus a "read" rule for their position, and it's
+// the case that tells a handler gating on EventWriteAllFieldReports apart from
+// one wrongly gating on EventReadAllFieldReports.
+func newEventWithReporterAndReader(t *testing.T, admin ApiHelper) (eventName string) {
+	t.Helper()
+	ctx := t.Context()
+	eventName = rand.NonCryptoText()
+	_, resp := admin.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	alice := []imsjson.AccessRule{{Expression: "person:" + userAliceHandle, Validity: "always"}}
+	resp = admin.editAccess(ctx, imsjson.EventsAccess{
+		eventName: imsjson.EventAccess{
+			Readers:   alice,
+			Reporters: alice,
+			Writers:   []imsjson.AccessRule{{Expression: "person:" + userAdminHandle, Validity: "always"}},
+		},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	return eventName
+}
+
+// Attaching a file adds a Report Entry, so it's an edit, and it has to be held
+// to the write permission. A Ranger who may read every Field Report but write
+// only her own must not be able to attach to someone else's.
+func TestAttachToFieldReportDeniedForReaderWhoMayOnlyWriteOwn(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+
+	eventName := newEventWithReporterAndReader(t, apisAdmin)
+	num := apisAdmin.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
+
+	_, resp := apisAlice.attachFileToFieldReport(ctx, eventName, num, []byte("Alice was here"))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	// Alice can read that same Field Report, which is what makes the 403 above
+	// about the write permission rather than the read one.
+	_, resp = apisAlice.getFieldReport(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
 // A Reporter may only read Field Reports they authored. Reading an attachment on
 // someone else's Field Report must be refused, even though the Reporter can read
 // Field Reports on this Event in general.

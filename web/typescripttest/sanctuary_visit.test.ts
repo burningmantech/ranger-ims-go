@@ -594,3 +594,110 @@ test("clearing the departure time posts the zero time value", async (): Promise<
         departure_time: "0001-01-01T00:00:00Z",
     });
 });
+
+// Fixture pages load with JavaScript evaluation disabled, so a real click never
+// runs the inline onclick attribute. Call the function the attribute names,
+// which also checks that the template and the module agree on that name.
+function clickButton(id: string): void {
+    const button = document.getElementById(id);
+    if (!(button instanceof HTMLButtonElement)) {
+        throw new Error(`no button element with id ${id}`);
+    }
+    const handlerName = button.getAttribute("onclick")!.replace(/\(\)$/, "");
+    const handler = (window as unknown as Record<string, unknown>)[handlerName];
+    if (typeof handler !== "function") {
+        throw new Error(`button ${id} calls ${handlerName}(), which isn't defined on window`);
+    }
+    (handler as () => void)();
+}
+
+test("the departure time's Now button posts the current time", async (): Promise<void> => {
+    const mock = await initVisitPage();
+
+    mock.mockClear();
+    const before = Date.now();
+    clickButton("departure_time_now");
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([u, init]) =>
+            u === `${visitsUrl}/2` && init?.body != null)).toBe(true);
+    });
+
+    const post = mock.mock.calls.find(([u, init]) => u === `${visitsUrl}/2` && init?.body != null)!;
+    const posted = new Date(JSON.parse(post[1]!.body as string).departure_time).getTime();
+    expect(posted).toBeGreaterThanOrEqual(before);
+    expect(posted).toBeLessThanOrEqual(Date.now());
+});
+
+// Overwriting an already-set time is the whole point for corrections, so Now
+// must not quietly do nothing when the field is populated.
+test("the arrival time's Now button overwrites a time that's already set", async (): Promise<void> => {
+    serverVisit.arrival_time = "2025-08-25T12:00:00Z";
+    const mock = await initVisitPage();
+
+    mock.mockClear();
+    const before = Date.now();
+    clickButton("arrival_time_now");
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([u, init]) =>
+            u === `${visitsUrl}/2` && init?.body != null)).toBe(true);
+    });
+
+    const post = mock.mock.calls.find(([u, init]) => u === `${visitsUrl}/2` && init?.body != null)!;
+    const posted = new Date(JSON.parse(post[1]!.body as string).arrival_time).getTime();
+    expect(posted).toBeGreaterThanOrEqual(before);
+    expect(posted).toBeLessThanOrEqual(Date.now());
+});
+
+test("the arrival time's clear button posts the zero time value", async (): Promise<void> => {
+    serverVisit.arrival_time = "2025-08-25T12:00:00Z";
+    const mock = await initVisitPage();
+
+    mock.mockClear();
+    clickButton("arrival_time_clear");
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([u, init]) =>
+            u === `${visitsUrl}/2` && init?.body != null)).toBe(true);
+    });
+
+    const post = mock.mock.calls.find(([u, init]) => u === `${visitsUrl}/2` && init?.body != null)!;
+    expect(JSON.parse(post[1]!.body as string)).toMatchObject({
+        arrival_time: "0001-01-01T00:00:00Z",
+    });
+});
+
+// An empty picker should open on now rather than on today-at-noon, so that
+// picking a day nearby doesn't also require fixing the hour.
+test("opening an unset picker points its time spinners at now", async (): Promise<void> => {
+    await initVisitPage();
+
+    const fp = flatpickrFor("departure_time");
+    const before = new Date();
+    fp.open();
+    const after = new Date();
+
+    // The clock could tick between the two samples, so either reading is right.
+    const pad = (n: number): string => n.toString().padStart(2, "0");
+    expect([pad(before.getHours()), pad(after.getHours())]).toContain(fp.hourElement.value);
+    expect([pad(before.getMinutes()), pad(after.getMinutes())]).toContain(fp.minuteElement.value);
+    expect([before.getHours(), after.getHours()]).toContain(fp.config.defaultHour);
+    expect([before.getMinutes(), after.getMinutes()]).toContain(fp.config.defaultMinute);
+    // Nothing is selected yet, so nothing should have been saved.
+    expect(fp.selectedDates).toHaveLength(0);
+});
+
+// Opening a picker that already holds a time must leave it alone, or merely
+// looking at an arrival time would rewrite it.
+test("opening a picker that already has a time leaves it alone", async (): Promise<void> => {
+    serverVisit.arrival_time = "2025-08-25T12:00:00Z";
+    const mock = await initVisitPage();
+
+    const fp = flatpickrFor("arrival_time");
+    mock.mockClear();
+    fp.open();
+
+    expect(fp.hourElement.value).toBe("");
+    expect(fp.minuteElement.value).toBe("");
+    expect(fp.selectedDates[0]!.toISOString()).toBe("2025-08-25T12:00:00.000Z");
+    expect(mock.mock.calls.some(([u, init]) =>
+        u === `${visitsUrl}/2` && init?.body != null)).toBe(false);
+});

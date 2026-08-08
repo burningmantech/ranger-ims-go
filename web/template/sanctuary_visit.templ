@@ -183,15 +183,53 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <div title="When this guest arrived at Sanctuary" class="input-group row align-items-center">
                 <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
                 <label class="col-sm-2 col-form-label control-label" for="alt_arrival_time">Arrival time:</label>
-                <div class="col-sm-10">
+                <div class="col-sm-10 flex-input-container gap-1">
                   <input id="arrival_time" type="text" class="form-control form-control-sm" />
+                  <button
+                          id="arrival_time_now"
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary form-control-lite no-print"
+                          title="Set the arrival time to right now"
+                          onclick="setArrivalTimeNow()"
+                  >
+                    Now
+                  </button>
+                  <button
+                          id="arrival_time_clear"
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary form-control-lite no-print"
+                          title="Clear the arrival time"
+                          aria-label="Clear arrival time"
+                          onclick="clearArrivalTime()"
+                  >
+                    &times;
+                  </button>
                 </div>
               </div>
               <div title="When this guest departed from Sanctuary"  class="input-group row align-items-center">
                 <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
                 <label class="col-sm-2 col-form-label control-label" for="alt_departure_time">Departure time:</label>
-                <div class="col-sm-10">
+                <div class="col-sm-10 flex-input-container gap-1">
                   <input id="departure_time" type="text" class="form-control form-control-sm" />
+                  <button
+                          id="departure_time_now"
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary form-control-lite no-print"
+                          title="Set the departure time to right now"
+                          onclick="setDepartureTimeNow()"
+                  >
+                    Now
+                  </button>
+                  <button
+                          id="departure_time_clear"
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary form-control-lite no-print"
+                          title="Clear the departure time"
+                          aria-label="Clear departure time"
+                          onclick="clearDepartureTime()"
+                  >
+                    &times;
+                  </button>
                 </div>
               </div>
             </form>

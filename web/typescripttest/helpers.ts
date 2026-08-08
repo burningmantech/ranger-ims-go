@@ -63,6 +63,25 @@ export function problemResponse(detail: string, status: number): Response {
     });
 }
 
+// Swallow clicks on <a> elements, returning the array the clicked links are
+// recorded into. The attachment download/preview handlers work by clicking a
+// temporary anchor, and happy-dom honors such a click by navigating away, which
+// would tear down the page the test is inspecting.
+//
+// Call this after the page under test has initialized: loadFixture reopens the
+// document, which drops its event listeners.
+export function captureLinkClicks(): HTMLAnchorElement[] {
+    const clicked: HTMLAnchorElement[] = [];
+    document.addEventListener("click", (e: Event): void => {
+        const link = (e.target as Element | null)?.closest("a");
+        if (link != null) {
+            clicked.push(link as HTMLAnchorElement);
+            e.preventDefault();
+        }
+    });
+    return clicked;
+}
+
 export type FetchHandler = (url: string, init?: RequestInit) => Response | undefined;
 
 // Replace global fetch with a route handler, returning the mock function so

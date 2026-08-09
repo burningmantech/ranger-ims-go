@@ -255,6 +255,7 @@ function destInitDataTables() {
                 }
                 for (const other of json.other??[]) {
                     other.type = "other";
+                    other.description = (other.external_data as ims.OtherDest).description??"";
                     places.push(other);
                 }
                 callback({data: places});

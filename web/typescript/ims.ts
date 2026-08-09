@@ -173,24 +173,15 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
     if (init.body != null) {
         init.method = init.method || "POST";
 
-        if (init.body.constructor.name === "FormData") {
-            let size = 0;
-            const fd = init.body as FormData;
-            for(const [k,v] of fd.entries()) {
-                size += k.length;
-                if (v instanceof Blob) {
-                    size += v.size;
-                } else {
-                    size += v.length;
-                }
-            }
-            // don't JSONify, don't set a Content-Type (fetch does it automatically for FormData)
-        } else {
-            // otherwise assume body is supposed to be json
-            init.headers.set("Content-Type", "application/json");
-            if (typeof init.body !== "string") {
-                init.body = JSON.stringify(init.body);
-            }
+        // A FormData would otherwise be JSONified into "{}" below, silently
+        // sending an empty request instead of the file.
+        if (init.body instanceof FormData) {
+            throw new Error("fetchNoThrow can't send FormData; use uploadNoThrow");
+        }
+        // assume body is supposed to be json
+        init.headers.set("Content-Type", "application/json");
+        if (typeof init.body !== "string") {
+            init.body = JSON.stringify(init.body);
         }
     }
     let response: Response;
@@ -215,6 +206,56 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
         json = await response.json();
     }
     return {resp: response, json: json, err: err};
+}
+
+// Upload FormData, reporting how much of the request body has gone out. This
+// uses XMLHttpRequest rather than fetch, because only XHR reports the progress
+// of a request. onProgress gets a label like "42%", or a byte count when the
+// total size isn't known.
+export async function uploadNoThrow(
+    url: string, body: FormData, onProgress: (progress: string) => void,
+): Promise<{err: string|null}> {
+    await maybeRefreshAuth();
+    return new Promise((resolve): void => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url);
+        xhr.setRequestHeader("Accept", "application/json");
+        const tok = getAccessToken();
+        if (tok) {
+            xhr.setRequestHeader("Authorization", "Bearer " + tok);
+        }
+        // Don't set a Content-Type: XHR derives it, with the multipart
+        // boundary, from the FormData body, just as fetch does.
+        xhr.upload.onprogress = (e: ProgressEvent): void => {
+            onProgress(e.lengthComputable
+                ? `${Math.min(100, Math.floor(100 * e.loaded / e.total))}%`
+                : `${(e.loaded / 1e6).toFixed(1)} MB`);
+        };
+        // The bytes are out, but the server still has to store the file, so
+        // stop showing a percentage while that finishes.
+        xhr.upload.onload = (): void => {
+            onProgress("…");
+        };
+        xhr.onload = (): void => {
+            resolve({err: xhr.status < 400 ? null : uploadError(xhr)});
+        };
+        xhr.onerror = (): void => {
+            resolve({err: "Upload failed"});
+        };
+        xhr.send(body);
+    });
+}
+
+function uploadError(xhr: XMLHttpRequest): string {
+    if (xhr.getResponseHeader("content-type") === "application/problem+json") {
+        try {
+            const problem: Problem = JSON.parse(xhr.responseText);
+            return `${problem.detail??""} (HTTP ${xhr.status})`;
+        } catch {
+            // Fall through to the bare status.
+        }
+    }
+    return `${xhr.statusText} (${xhr.status})`;
 }
 
 //

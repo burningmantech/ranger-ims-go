@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { captureLinkClicks, jsonResponse, loadFixture, MockFlatpickr, mockFetch } from "./helpers.ts";
+import { captureLinkClicks, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -245,23 +245,33 @@ test("an entry's attachment is fetched from the visit's own endpoint", async ():
 });
 
 test("attachFile shows an uploading state, posts the file, then confirms and reverts", async (): Promise<void> => {
-    const mock = await initVisitPage();
+    await initVisitPage();
     const button = document.getElementById("attach_file") as HTMLInputElement;
     expect(button.value).toBe("Attach file");
+
+    const labels: string[] = [];
+    const uploads = mockXHR(
+        (url) => url === `${visitsUrl}/2/attachments` ? new Response(null, { status: 204 }) : undefined,
+        { progress: [0.25, 1], onProgress: (): void => { labels.push(button.value); } },
+    );
 
     vi.useFakeTimers();
     try {
         // The synchronous prefix of attachFile disables the button and relabels
-        // it before the upload fetch is awaited.
+        // it before the upload is awaited.
         const pending = window.attachFile();
         expect(button.disabled).toBe(true);
-        expect(button.value).toBe("Uploading...");
+        expect(button.value).toBe("Uploading …");
 
         await pending;
 
         // The file form data went to the attachments endpoint.
-        expect(mock.mock.calls.some(([url, init]) =>
-            url === `${visitsUrl}/2/attachments` && init?.body instanceof FormData)).toBe(true);
+        expect(uploads.length).toBe(1);
+        expect(uploads[0]!.url).toBe(`${visitsUrl}/2/attachments`);
+        expect(uploads[0]!.body).toBeInstanceOf(FormData);
+
+        // The button tracked the upload, then waited on the server to store it.
+        expect(labels).toEqual(["Uploading 25%", "Uploading 100%", "Uploading …"]);
 
         // On success the button re-enables and briefly confirms.
         expect(button.disabled).toBe(false);
@@ -276,12 +286,8 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
 });
 
 test("a failed attachment re-enables the button and surfaces the error", async (): Promise<void> => {
-    await initVisitPage((url, init) => {
-        if (url === `${visitsUrl}/2/attachments` && init?.body != null) {
-            return undefined;
-        }
-        return visitRoutes(url, init);
-    });
+    await initVisitPage();
+    mockXHR(() => undefined);
     const button = document.getElementById("attach_file") as HTMLInputElement;
 
     await window.attachFile();

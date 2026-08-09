@@ -99,6 +99,102 @@ export function mockFetch(handler: FetchHandler) {
     return mock;
 }
 
+export interface XHRCall {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body: FormData | null;
+}
+
+export type XHRHandler = (url: string, body: FormData | null) => Response | undefined;
+
+export interface MockXHROptions {
+    // Fractions of the upload (0 through 1) to report progress at before the
+    // request completes.
+    progress?: number[];
+    // Whether the progress events know the upload's total size. Defaults to
+    // true; turn it off to exercise the byte-count fallback.
+    lengthComputable?: boolean;
+    // Called after each upload event has been delivered — every progress
+    // fraction, then the one marking the body fully sent — so that a test can
+    // record how the page looked mid-upload.
+    onProgress?: () => void;
+}
+
+// Replace global XMLHttpRequest with a fake that routes requests through a
+// handler, returning the array of calls it records. Attachment uploads go
+// through ims.uploadNoThrow, which uses XHR rather than fetch (only XHR reports
+// request progress), so mockFetch doesn't see them.
+//
+// The fake completes a request as soon as it's sent, having first delivered the
+// progress events the options ask for. Returning undefined from the handler
+// fails the request, as a network error would.
+export function mockXHR(handler: XHRHandler, options: MockXHROptions = {}): XHRCall[] {
+    const calls: XHRCall[] = [];
+    // Progress is reported against an arbitrary total, since happy-dom won't
+    // tell us how large a FormData body is. Only the fractions matter.
+    const total = 1000;
+
+    class FakeXHR {
+        upload = {
+            onprogress: null as ((e: ProgressEvent) => void) | null,
+            onload: null as (() => void) | null,
+        };
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        status = 0;
+        statusText = "";
+        responseText = "";
+        private method = "";
+        private url = "";
+        private headers: Record<string, string> = {};
+        private responseHeaders = new Headers();
+
+        open(method: string, url: string): void {
+            this.method = method;
+            this.url = url;
+        }
+
+        setRequestHeader(name: string, value: string): void {
+            this.headers[name] = value;
+        }
+
+        getResponseHeader(name: string): string | null {
+            return this.responseHeaders.get(name);
+        }
+
+        send(body: FormData | null): void {
+            calls.push({ method: this.method, url: this.url, headers: this.headers, body: body });
+
+            for (const fraction of options.progress ?? []) {
+                this.upload.onprogress?.(new ProgressEvent("progress", {
+                    lengthComputable: options.lengthComputable ?? true,
+                    loaded: Math.round(fraction * total),
+                    total: total,
+                }));
+                options.onProgress?.();
+            }
+            this.upload.onload?.();
+            options.onProgress?.();
+
+            const response = handler(this.url, body);
+            if (response == null) {
+                this.onerror?.();
+                return;
+            }
+            void response.text().then((text: string): void => {
+                this.status = response.status;
+                this.statusText = response.statusText;
+                this.responseHeaders = response.headers;
+                this.responseText = text;
+                this.onload?.();
+            });
+        }
+    }
+    vi.stubGlobal("XMLHttpRequest", FakeXHR);
+    return calls;
+}
+
 type FlatpickrHook = (selectedDates: Date[], dateStr: string, instance: MockFlatpickr) => void;
 
 interface FlatpickrOptionsLike {

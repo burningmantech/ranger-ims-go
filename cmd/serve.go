@@ -141,7 +141,7 @@ func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printC
 
 	s := &http.Server{
 		Handler:     mux,
-		ReadTimeout: 1 * time.Minute,
+		ReadTimeout: 5 * time.Minute,
 		// This needs to be long to support long-lived EventSource calls.
 		// After this duration, a client will be disconnected and forced
 		// to reconnect.

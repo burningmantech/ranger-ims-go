@@ -542,6 +542,57 @@ test("incidents", async ({ page, browser }) => {
 })
 
 
+// Attaching a file is the one flow that goes out over XMLHttpRequest rather
+// than fetch (only XHR reports upload progress), so the Vitest suite's mocked
+// fetch can't cover it. A few bytes are plenty: this checks the round trip, not
+// throughput.
+test("attachments", async ({ page }) => {
+  await login(page);
+  const eventName: string = randomName("event");
+  await addEvent(page, eventName);
+  await addWriter(page, eventName, "person:" + username);
+
+  await page.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
+  await page.getByRole("link", {name: "New"}).click();
+  await page.getByLabel("Summary").fill(randomName("summary"));
+  await page.getByLabel("Summary").press("Tab");
+  await expect(page.getByLabel("IMS #", {exact: true})).toHaveValue(/^\d+$/);
+
+  // The Attach file button only appears when the server has an attachments
+  // store configured (IMS_ATTACHMENTS_STORE), which a dev stack needn't.
+  const attachButt = page.locator("#attach_file");
+  if (!await attachButt.isVisible()) {
+    test.skip(true, "server has no attachments store configured");
+  }
+
+  const contents = `attached by playwright ${crypto.randomUUID()}`;
+  await page.locator("#attach_file_input").setInputFiles({
+    name: "note.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(contents),
+  });
+
+  // The upload lands as a report entry offering the file back, and the button
+  // returns to its resting label rather than sticking on a progress percentage.
+  const downloadButt = page.getByRole("button", {name: "Download"});
+  await expect(downloadButt).toBeVisible();
+  await expect(attachButt).toHaveValue("Attach file");
+
+  // Downloading gives back the bytes that went up, so the multipart body the
+  // XHR sent really did arrive intact.
+  const download = await Promise.all([
+    page.waitForEvent("download"),
+    downloadButt.click(),
+  ]).then(([d]) => d);
+  expect(download.suggestedFilename()).toBe("note.txt");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk));
+  }
+  expect(Buffer.concat(chunks).toString()).toBe(contents);
+});
+
 test("field_reports", async ({ page, browser }) => {
   test.slow();
 

@@ -676,10 +676,10 @@ async function attachFile(): Promise<void> {
         .replace("<visit_number>", (ims.pathIds.visitNumber??"").toString());
 
     el.attachFile.disabled = true;
-    el.attachFile.value = "Uploading...";
+    el.attachFile.value = "Uploading …";
     try {
-        const {err} = await ims.fetchNoThrow(attachURL, {
-            body: formData,
+        const {err} = await ims.uploadNoThrow(attachURL, formData, (progress: string): void => {
+            el.attachFile.value = `Uploading ${progress}`;
         });
         if (err != null) {
             const message = `Failed to attach file: ${err}`;
@@ -688,7 +688,6 @@ async function attachFile(): Promise<void> {
             return;
         }
         ims.clearErrorMessage();
-        el.attachFileInput.value = "";
         await loadAndDisplayVisit();
 
         // Brief confirmation, then revert.
@@ -698,6 +697,10 @@ async function attachFile(): Promise<void> {
             attachFileRevertTimeout = null;
         }, 2000);
     } finally {
+        // Clear the picked file even when the upload failed. A change event on
+        // the file input is what starts an upload, so leaving the value set
+        // would make picking the same file again do nothing at all.
+        el.attachFileInput.value = "";
         el.attachFile.disabled = false;
     }
 }

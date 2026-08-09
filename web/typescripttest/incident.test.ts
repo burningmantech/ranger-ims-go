@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { captureLinkClicks, jsonResponse, loadFixture, MockFlatpickr, mockFetch } from "./helpers.ts";
+import { captureLinkClicks, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -948,34 +948,35 @@ test("printing swaps in a filesystem-safe document title", async (): Promise<voi
     expect(document.title).toBe("#1 Dust storm | 2025");
 });
 
-test("attachFile posts the file form data to the attachments endpoint", async (): Promise<void> => {
-    const mock = await initIncidentPage();
-
-    await window.attachFile();
-    const attach = mock.mock.calls.find(
-        ([url, init]): boolean =>
-            url === "/ims/api/events/2025/incidents/1/attachments" && init?.body instanceof FormData);
-    expect(attach).toBeDefined();
-});
-
 test("attachFile shows an uploading state, posts the file, then confirms and reverts", async (): Promise<void> => {
-    const mock = await initIncidentPage();
+    await initIncidentPage();
+    const attachUrl = `/ims/api/events/${eventName}/incidents/1/attachments`;
     const button = document.getElementById("attach_file") as HTMLInputElement;
     expect(button.value).toBe("Attach file");
+
+    const labels: string[] = [];
+    const uploads = mockXHR(
+        (url) => url === attachUrl ? new Response(null, { status: 204 }) : undefined,
+        { progress: [0.25, 1], onProgress: (): void => { labels.push(button.value); } },
+    );
 
     vi.useFakeTimers();
     try {
         // The synchronous prefix of attachFile disables the button and relabels
-        // it before the upload fetch is awaited.
+        // it before the upload is awaited.
         const pending = window.attachFile();
         expect(button.disabled).toBe(true);
-        expect(button.value).toBe("Uploading...");
+        expect(button.value).toBe("Uploading …");
 
         await pending;
 
         // The file form data went to the attachments endpoint.
-        expect(mock.mock.calls.some(([url, init]) =>
-            url === `/ims/api/events/${eventName}/incidents/1/attachments` && init?.body instanceof FormData)).toBe(true);
+        expect(uploads.length).toBe(1);
+        expect(uploads[0]!.url).toBe(attachUrl);
+        expect(uploads[0]!.body).toBeInstanceOf(FormData);
+
+        // The button tracked the upload, then waited on the server to store it.
+        expect(labels).toEqual(["Uploading 25%", "Uploading 100%", "Uploading …"]);
 
         // On success the button re-enables and briefly confirms.
         expect(button.disabled).toBe(false);
@@ -990,12 +991,8 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
 });
 
 test("a failed attachment re-enables the button and surfaces the error", async (): Promise<void> => {
-    await initIncidentPage((url, init) => {
-        if (url === `/ims/api/events/${eventName}/incidents/1/attachments` && init?.body != null) {
-            return undefined;
-        }
-        return incidentRoutes(url, init);
-    });
+    await initIncidentPage();
+    mockXHR(() => undefined);
     const button = document.getElementById("attach_file") as HTMLInputElement;
 
     await window.attachFile();

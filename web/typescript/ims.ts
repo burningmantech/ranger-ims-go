@@ -2440,6 +2440,7 @@ export type BMMVImage = {
 export type OtherDest = {
     name: string;
     location_string: string|null;
+    description?: string|null;
 }
 
 

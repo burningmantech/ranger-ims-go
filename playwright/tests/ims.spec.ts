@@ -26,6 +26,11 @@ async function login(page: Page): Promise<void> {
   await expect(page.getByRole("button", { name: /^Log (In|Out)$/ })).toBeVisible();
   if (await page.getByRole("button", { name: "Log In" }).isVisible()) {
     await page.getByRole("button", { name: "Log In" }).click();
+    // The login page's inputs are usable before its JavaScript has finished
+    // initializing, and submitting that early does a native form POST to a
+    // GET-only route (a 405). Page init ends by focusing the username input,
+    // so that's the signal that the form is ready to submit.
+    await expect(page.getByPlaceholder("name@example.com")).toBeFocused();
     await page.getByPlaceholder("name@example.com").click();
     await page.getByPlaceholder("name@example.com").fill(username);
     await page.getByPlaceholder("Password").fill(username);

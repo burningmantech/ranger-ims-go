@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
@@ -47,18 +48,35 @@ func TestIndexFold(t *testing.T) {
 func TestSearchQueryError(t *testing.T) {
 	t.Parallel()
 
+	ctx := t.Context()
+
 	// A database-side regexp error means the client sent a bad pattern.
 	regexpErr := &mysql.MySQLError{Number: 1139, Message: "Regex error 'missing closing parenthesis'"}
-	httpErr := searchQueryError("Incidents", regexpErr)
+	httpErr := searchQueryError(ctx, "Incidents", regexpErr)
 	assert.Equal(t, http.StatusBadRequest, httpErr.Code)
 
 	// Hitting the search deadline is reported as unavailability, not a 500.
 	deadlineErr := fmt.Errorf("query: %w", context.DeadlineExceeded)
-	httpErr = searchQueryError("Incidents", deadlineErr)
+	httpErr = searchQueryError(ctx, "Incidents", deadlineErr)
 	assert.Equal(t, http.StatusServiceUnavailable, httpErr.Code)
 
+	// The driver often notices the cancellation first and reports its own
+	// error instead, so an expired context alone is enough to call it a
+	// timeout.
+	expired, cancel := context.WithDeadline(ctx, time.Now().Add(-time.Second))
+	defer cancel()
+	httpErr = searchQueryError(expired, "Incidents", errors.New("invalid connection"))
+	assert.Equal(t, http.StatusServiceUnavailable, httpErr.Code)
+
+	// A cancelled — as opposed to timed-out — context is not the search
+	// taking too long; that's the client hanging up.
+	cancelled, cancel2 := context.WithCancel(ctx)
+	cancel2()
+	httpErr = searchQueryError(cancelled, "Incidents", context.Canceled)
+	assert.Equal(t, http.StatusInternalServerError, httpErr.Code)
+
 	// Anything else is an internal error.
-	httpErr = searchQueryError("Incidents", errors.New("connection lost"))
+	httpErr = searchQueryError(ctx, "Incidents", errors.New("connection lost"))
 	assert.Equal(t, http.StatusInternalServerError, httpErr.Code)
 }
 

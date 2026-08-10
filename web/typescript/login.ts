@@ -39,15 +39,19 @@ const el = {
 initLoginPage();
 
 async function initLoginPage(): Promise<void> {
-    await ims.commonPageInit();
-
     window.login = login;
     window.toggleShowPassword = toggleShowPassword;
 
+    // Attach this before awaiting anything. The form's inputs are usable as
+    // soon as the HTML parses, and a submit that isn't intercepted here falls
+    // through to a native POST to this page's URL, which is a GET-only route.
     el.loginForm.addEventListener("submit", (e: SubmitEvent): void => {
         e.preventDefault();
         login();
     });
+
+    await ims.commonPageInit();
+
     el.usernameInput.focus();
 }
 

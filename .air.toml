@@ -27,7 +27,9 @@ tmp_dir = "air_tmp"
 
   #  ]
   exclude_regex = ["_test.go"]
-  exclude_unchanged = false
+  # Only rebuild when a watched file's contents actually differ, so a spurious
+  # event (Docker Desktop's file sharing emits plenty) doesn't restart the server.
+  exclude_unchanged = true
   follow_symlink = false
   full_bin = ""
   include_dir = []

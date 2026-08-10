@@ -13,6 +13,8 @@
 // limitations under the License.
 
 import { defineConfig, devices } from '@playwright/test';
+import os from 'os';
+import path from 'path';
 
 /**
  * Read environment variables from file.
@@ -21,6 +23,13 @@ import { defineConfig, devices } from '@playwright/test';
 // import dotenv from 'dotenv';
 // import path from 'path';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+/* Artifacts live outside the repo on purpose. The dev stack bind-mounts the
+ * repo into the container, and Docker Desktop reports host writes under the
+ * mount as a nameless event on the mount root, which makes air re-walk and
+ * re-watch the whole tree mid-run. Writing test-results and the HTML report
+ * elsewhere keeps that churn out of the mount. */
+const artifactsDir = path.join(os.tmpdir(), 'ims-playwright');
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -39,8 +48,13 @@ export default defineConfig({
   /* List gives live per-test terminal output; the html report only pops open on failure. */
   reporter: [
     ['list'],
-    ['html', { open: process.env.CI ? 'never' : 'on-failure' }],
+    ['html', {
+      outputFolder: path.join(artifactsDir, 'report'),
+      open: process.env.CI ? 'never' : 'on-failure',
+    }],
   ],
+  /* Traces, screenshots and other per-test output. */
+  outputDir: path.join(artifactsDir, 'test-results'),
   /* Possibly wait upto this long for expectations. IMS can be slow. */
   expect: { timeout: 15_000 },
   /* With a 15s expect timeout, the default 30s per-test budget leaves room

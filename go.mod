@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/aws/aws-sdk-go-v2/config v1.32.35
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.5
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.0
 	github.com/aws/smithy-go v1.27.6
 	github.com/gabriel-vasile/mimetype v1.4.15
 	github.com/go-sql-driver/mysql v1.10.0

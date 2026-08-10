@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"slices"
@@ -54,6 +55,7 @@ const (
 	searchDefaultLimit   = 100
 	searchMaxLimit       = 1000
 	searchQueryTimeout   = 20 * time.Second
+	searchSlowThreshold  = 2 * time.Second
 	searchSnippetPrefix  = 40
 	searchSnippetMaxLen  = 200
 	searchSnippetMarker  = "…"
@@ -192,15 +194,25 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		return searchSnippet(text, matchAt)
 	}
 
+	// Logged however this ends, so that a search that fails or times out is
+	// still accounted for.
+	searchStarted := time.Now()
+	var incidentStat, fieldReportStat, visitStat searchQueryStat
+	defer func() {
+		action.logSearch(ctx, query, regex, limit, time.Since(searchStarted), incidentStat, fieldReportStat, visitStat)
+	}()
+
 	if searchIncidents && len(incidentEventIDs) > 0 {
+		started := time.Now()
 		rows, err := action.imsDBQ.SearchIncidents(ctx, action.imsDBQ, imsdb.SearchIncidentsParams{
 			TextLike:   textLike,
 			TextRegexp: textRegexp,
 			EventIds:   incidentEventIDs,
 			Limit:      limit,
 		})
+		incidentStat = searchQueryStat{ran: true, elapsed: time.Since(started), rows: len(rows), err: err}
 		if err != nil {
-			return resp, searchQueryError("Incidents", err).From("[SearchIncidents]")
+			return resp, searchQueryError(ctx, "Incidents", err).From("[SearchIncidents]")
 		}
 		for _, row := range rows {
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
@@ -217,14 +229,16 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	}
 
 	if searchFieldReports && len(fieldReportEventIDs) > 0 {
+		started := time.Now()
 		rows, err := action.imsDBQ.SearchFieldReports(ctx, action.imsDBQ, imsdb.SearchFieldReportsParams{
 			TextLike:   textLike,
 			TextRegexp: textRegexp,
 			EventIds:   fieldReportEventIDs,
 			Limit:      limit,
 		})
+		fieldReportStat = searchQueryStat{ran: true, elapsed: time.Since(started), rows: len(rows), err: err}
 		if err != nil {
-			return resp, searchQueryError("Field Reports", err).From("[SearchFieldReports]")
+			return resp, searchQueryError(ctx, "Field Reports", err).From("[SearchFieldReports]")
 		}
 		for _, row := range rows {
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
@@ -242,14 +256,16 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	}
 
 	if searchVisits && len(visitEventIDs) > 0 {
+		started := time.Now()
 		rows, err := action.imsDBQ.SearchVisits(ctx, action.imsDBQ, imsdb.SearchVisitsParams{
 			TextLike:   textLike,
 			TextRegexp: textRegexp,
 			EventIds:   visitEventIDs,
 			Limit:      limit,
 		})
+		visitStat = searchQueryStat{ran: true, elapsed: time.Since(started), rows: len(rows), err: err}
 		if err != nil {
-			return resp, searchQueryError("Visits", err).From("[SearchVisits]")
+			return resp, searchQueryError(ctx, "Visits", err).From("[SearchVisits]")
 		}
 		for _, row := range rows {
 			summary := row.GuestPreferredName.String
@@ -270,11 +286,84 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		resp.Truncated = resp.Truncated || len(rows) == int(limit)
 	}
 
-	slices.SortFunc(resp.Hits, func(a, b imsjson.SearchResult) int {
+	slices.SortStableFunc(resp.Hits, func(a, b imsjson.SearchResult) int {
 		return b.Created.Compare(a.Created)
 	})
 
 	return resp, nil
+}
+
+// searchQueryStat is what one of the three searches leaves behind for the
+// diagnostic log line, whether it succeeded or not.
+type searchQueryStat struct {
+	ran     bool
+	elapsed time.Duration
+	rows    int
+	err     error
+}
+
+func (s searchQueryStat) logAttrs(prefix string) []any {
+	if !s.ran {
+		return nil
+	}
+	attrs := []any{
+		prefix + "Millis", s.elapsed.Milliseconds(),
+		prefix + "Rows", s.rows,
+	}
+	if s.err != nil {
+		attrs = append(attrs, prefix+"Err", s.err.Error())
+	}
+	return attrs
+}
+
+// logSearch emits one line accounting for a search's time in the database.
+// A search that times out in production is otherwise near-impossible to
+// explain after the fact: this says which of the three searches was slow, how
+// much of the corpus it was allowed to scan, whether it hit the row limit
+// (i.e. the query was broad enough to match a large fraction of the corpus,
+// which is what makes these queries expensive), and what the connection pool
+// looked like — pool wait counts against the same deadline as the query
+// itself, so a saturated pool and a slow database look identical from the
+// client side.
+func (action GetSearch) logSearch(
+	ctx context.Context,
+	query string, regex bool, limit int32,
+	total time.Duration,
+	incidents, fieldReports, visits searchQueryStat,
+) {
+	level := slog.LevelDebug
+	if total >= searchSlowThreshold {
+		level = slog.LevelWarn
+	}
+	for _, stat := range []searchQueryStat{incidents, fieldReports, visits} {
+		if stat.err != nil {
+			level = slog.LevelWarn
+		}
+	}
+	if !slog.Default().Enabled(ctx, level) {
+		return
+	}
+
+	pool := action.imsDBQ.Stats()
+	attrs := []any{
+		"q", query,
+		"regex", regex,
+		"limit", limit,
+		"totalMillis", total.Milliseconds(),
+	}
+	attrs = append(attrs, incidents.logAttrs("incident")...)
+	attrs = append(attrs, fieldReports.logAttrs("fieldReport")...)
+	attrs = append(attrs, visits.logAttrs("visit")...)
+	attrs = append(attrs,
+		"poolInUse", pool.InUse,
+		"poolIdle", pool.Idle,
+		"poolMaxOpen", pool.MaxOpenConnections,
+		// Cumulative over the process's lifetime, so read these as a rate
+		// across successive log lines rather than as this request's own wait.
+		"poolWaitsSinceStart", pool.WaitCount,
+		"poolWaitMillisSinceStart", pool.WaitDuration.Milliseconds(),
+	)
+	slog.Log(ctx, level, "Served a cross-event search", attrs...)
 }
 
 // escapeLikePattern escapes the characters that have special meaning inside
@@ -302,13 +391,17 @@ func textColumn(v any) string {
 // HTTP error. A pattern that Go's regexp compiler accepted but the database's
 // PCRE engine rejected (MariaDB error 1139) is the client's fault, not ours,
 // and hitting the search deadline deserves better advice than a plain 500.
-func searchQueryError(what string, err error) *herr.HTTPError {
+func searchQueryError(ctx context.Context, what string, err error) *herr.HTTPError {
 	const mySQLErRegexpError = 1139
 	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
 	if ok && mysqlErr.Number == mySQLErRegexpError {
 		return herr.BadRequest("Invalid regular expression", err)
 	}
-	if errors.Is(err, context.DeadlineExceeded) {
+	// The deadline doesn't always come back as context.DeadlineExceeded: when
+	// the driver notices the cancellation first, it tears the connection down
+	// and reports its own error (e.g. "invalid connection") instead. Ask the
+	// context rather than trusting the error to say so.
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return herr.New(http.StatusServiceUnavailable, "Search took too long — try a more specific query", err)
 	}
 	return herr.InternalServerError("Failed to search "+what, err)

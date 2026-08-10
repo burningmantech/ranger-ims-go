@@ -17,6 +17,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -286,8 +287,15 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		resp.Truncated = resp.Truncated || len(rows) == int(limit)
 	}
 
+	// Newest first, by the same (Event, Number) ordering the Search* queries
+	// use to pick their rows, so that what the client sees is ordered the same
+	// way the results were selected. Ties between the three kinds keep the
+	// order they were appended in, since the sort is stable.
 	slices.SortStableFunc(resp.Hits, func(a, b imsjson.SearchResult) int {
-		return b.Created.Compare(a.Created)
+		return cmp.Or(
+			cmp.Compare(b.EventID, a.EventID),
+			cmp.Compare(b.Number, a.Number),
+		)
 	})
 
 	return resp, nil

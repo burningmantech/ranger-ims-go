@@ -791,7 +791,11 @@ where ID = ?;
 -- name: SearchIncidents :many
 select
     i.EVENT,
-    e.NAME as EVENT_NAME,
+    -- Looked up per row rather than joined, so that INCIDENT is the driving
+    -- table. Joining EVENT lets the optimizer drive from that table instead,
+    -- which destroys the primary-key ordering the limit below relies on. See
+    -- the note on the order by.
+    (select e.NAME from EVENT e where e.ID = i.EVENT) as EVENT_NAME,
     i.NUMBER,
     i.CREATED,
     i.PRIORITY,
@@ -811,8 +815,6 @@ select
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
 from INCIDENT i
-    join EVENT e
-        on e.ID = i.EVENT
 where i.EVENT in (sqlc.slice(event_ids))
     and (
         (i.SUMMARY like sqlc.narg(text_like) or regexp_instr(i.SUMMARY, sqlc.narg(text_regexp)) > 0)
@@ -847,14 +849,22 @@ where i.EVENT in (sqlc.slice(event_ids))
                 and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         )
     )
-order by i.CREATED desc
+-- Ordering by the primary key, rather than by CREATED, lets this walk the
+-- index backwards and stop once it has `limit` rows. Ordering by CREATED (an
+-- unindexed column) needs a filesort, which means evaluating the expensive
+-- predicates above against every Incident in every searched Event, and running
+-- the MATCHED_ENTRY_TEXT subquery for every one that matches, before the limit
+-- can apply. Incident numbers are assigned in creation order within an Event,
+-- so this orders the results the same way in practice.
+order by i.EVENT desc, i.NUMBER desc
 limit ?
 ;
 
 -- name: SearchFieldReports :many
 select
     fr.EVENT,
-    e.NAME as EVENT_NAME,
+    -- Looked up per row rather than joined. See the note on SearchIncidents.
+    (select e.NAME from EVENT e where e.ID = fr.EVENT) as EVENT_NAME,
     fr.NUMBER,
     fr.CREATED,
     fr.SUMMARY,
@@ -873,8 +883,6 @@ select
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
 from FIELD_REPORT fr
-    join EVENT e
-        on e.ID = fr.EVENT
 where fr.EVENT in (sqlc.slice(event_ids))
     and (
         (fr.SUMMARY like sqlc.narg(text_like) or regexp_instr(fr.SUMMARY, sqlc.narg(text_regexp)) > 0)
@@ -904,14 +912,17 @@ where fr.EVENT in (sqlc.slice(event_ids))
             limit 1
         )
     )
-order by fr.CREATED desc
+-- Ordered by primary key rather than CREATED, to avoid a filesort. See the
+-- note on SearchIncidents.
+order by fr.EVENT desc, fr.NUMBER desc
 limit ?
 ;
 
 -- name: SearchVisits :many
 select
     v.EVENT,
-    e.NAME as EVENT_NAME,
+    -- Looked up per row rather than joined. See the note on SearchIncidents.
+    (select e.NAME from EVENT e where e.ID = v.EVENT) as EVENT_NAME,
     v.NUMBER,
     v.CREATED,
     v.INCIDENT_NUMBER,
@@ -932,8 +943,6 @@ select
         limit 1
     ), '') as MATCHED_ENTRY_TEXT
 from VISIT v
-    join EVENT e
-        on e.ID = v.EVENT
 where v.EVENT in (sqlc.slice(event_ids))
     and (
         (v.GUEST_PREFERRED_NAME like sqlc.narg(text_like) or regexp_instr(v.GUEST_PREFERRED_NAME, sqlc.narg(text_regexp)) > 0)
@@ -960,6 +969,8 @@ where v.EVENT in (sqlc.slice(event_ids))
                 and (re.TEXT like sqlc.narg(text_like) or regexp_instr(re.TEXT, sqlc.narg(text_regexp)) > 0)
         )
     )
-order by v.CREATED desc
+-- Ordered by primary key rather than CREATED, to avoid a filesort. See the
+-- note on SearchIncidents.
+order by v.EVENT desc, v.NUMBER desc
 limit ?
 ;

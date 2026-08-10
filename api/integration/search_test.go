@@ -125,9 +125,14 @@ func TestSearchAcrossEvents(t *testing.T) {
 	assert.Equal(t, visitNumber, visitHit.Number)
 	assert.Equal(t, "Guesty "+token, visitHit.Summary)
 
-	// Results come back sorted by creation time, newest first.
+	// Results come back newest first, by (Event, Number) descending.
 	for i := 1; i < len(results.Hits); i++ {
-		assert.False(t, results.Hits[i-1].Created.Before(results.Hits[i].Created))
+		prev, cur := results.Hits[i-1], results.Hits[i]
+		if prev.EventID == cur.EventID {
+			assert.GreaterOrEqual(t, prev.Number, cur.Number)
+		} else {
+			assert.Greater(t, prev.EventID, cur.EventID)
+		}
 	}
 
 	// The kinds filter restricts which record types are searched.

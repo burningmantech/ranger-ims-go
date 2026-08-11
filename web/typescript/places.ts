@@ -284,7 +284,7 @@ function destInitDataTables() {
                 "name": "place_description",
                 "className": "place_description text-left",
                 "data":  "description",
-                "render": renderWithMaxLength(200),
+                "render": renderDescription,
             },
         ],
         "order": [
@@ -491,23 +491,40 @@ function placeToHTML(place: ims.Place): Node {
     }
 }
 
-function renderWithMaxLength(maxLength: number): (data: (string | null), type: string, _dest: ims.Place) => (string | undefined) {
-    return function (data: string|null, type: string, _dest: ims.Place): string|undefined {
-        switch (type) {
-            case "display":
-                if ((data?.length??0) > maxLength+3) {
-                    data = data!.substring(0, maxLength) + "...";
-                }
-                // XSS prevention
-                return DataTable.render.text().display(data) as string;
-            case "sort":
-            case "filter":
-                return data??"";
-            case "type":
-                return "";
-        }
-        return undefined;
+const descriptionMaxLength = 200;
+
+function renderDescription(data: string|null, type: string, place: ims.Place): string|undefined {
+    switch (type) {
+        case "display":
+            if ((data?.length??0) > descriptionMaxLength+3) {
+                data = data!.substring(0, descriptionMaxLength) + "...";
+            }
+            // XSS prevention
+            return DataTable.render.text().display(data) as string;
+        case "sort":
+            return data??"";
+        case "filter":
+            return [data??"", ...hiddenSearchText(place)].join(" ");
+        case "type":
+            return "";
     }
+    return undefined;
+}
+
+
+// The table only shows a place's name, address, type and description, but
+// someone looking for a place often has some other scrap of its data instead:
+// the landmark they were told to look for, an artist, a contact email, a UID
+// from another system. Fold those into the description cell's filter text, so
+// the search box finds them without the table having to show them.
+function hiddenSearchText(place: ims.Place): string[] {
+    const data = place.external_data as Partial<ims.BMArt & ims.BMCamp & ims.BMMV>|null;
+    if (data == null) {
+        return [];
+    }
+    return [
+        data.landmark, data.uid, data.url, data.contact_email, data.artist, data.hometown,
+    ].filter((v): v is string => !!v);
 }
 //
 // Initialize table buttons

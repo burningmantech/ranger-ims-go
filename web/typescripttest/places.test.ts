@@ -155,6 +155,73 @@ test("the description column truncates for display and passes raw text for sort/
     expect(display.endsWith("...")).toBe(true);
 });
 
+test("a camp's filter text carries its landmark, uid, website, email and hometown", async (): Promise<void> => {
+    const camp: ims.Place = {
+        name: "Camp Friendly", type: "camp", description: "Friendly folks",
+        external_data: {
+            name: "Camp Friendly", description: "Friendly folks", landmark: "big flag",
+            uid: "camp-1", url: "https://camp.example", contact_email: "hi@camp.example",
+            hometown: "Reno",
+        } as ims.BMCamp,
+    };
+    await initPlacesPage();
+    const render = renderColumn("place_description");
+
+    const filter = render("Friendly folks", "filter", camp) as string;
+    expect(filter).toContain("Friendly folks");
+    expect(filter).toContain("big flag");
+    expect(filter).toContain("camp-1");
+    expect(filter).toContain("https://camp.example");
+    expect(filter).toContain("hi@camp.example");
+    expect(filter).toContain("Reno");
+    // Only the description is shown in the table.
+    expect(render("Friendly folks", "display", camp)).toBe("Friendly folks");
+    expect(render("Friendly folks", "sort", camp)).toBe("Friendly folks");
+});
+
+test("an art place's filter text carries its artist", async (): Promise<void> => {
+    const art: ims.Place = {
+        name: "Temple", type: "art", description: "A big temple",
+        external_data: { name: "Temple", description: "A big temple", artist: "Jane", uid: "art-1" } as ims.BMArt,
+    };
+    await initPlacesPage();
+    const render = renderColumn("place_description");
+
+    const filter = render("A big temple", "filter", art) as string;
+    expect(filter).toContain("A big temple");
+    expect(filter).toContain("Jane");
+    expect(filter).toContain("art-1");
+});
+
+test("a mutant vehicle's filter text carries its artist and contact details", async (): Promise<void> => {
+    const mv: ims.Place = {
+        name: "Disco Bus", type: "mv", description: "Boogie",
+        external_data: {
+            name: "Disco Bus", description: "Boogie", artist: "DJ", contact_email: "mv@example",
+            hometown: "SF", url: "https://mv.example", uid: "mv-1",
+        } as ims.BMMV,
+    };
+    await initPlacesPage();
+    const render = renderColumn("place_description");
+
+    const filter = render("Boogie", "filter", mv) as string;
+    expect(filter).toContain("DJ");
+    expect(filter).toContain("mv@example");
+    expect(filter).toContain("SF");
+    expect(filter).toContain("https://mv.example");
+    expect(filter).toContain("mv-1");
+});
+
+test("a place with no external data filters on its description alone", async (): Promise<void> => {
+    const other: ims.Place = {
+        name: "First Camp", type: "other", description: "HQ", external_data: null,
+    };
+    await initPlacesPage();
+    const render = renderColumn("place_description");
+
+    expect(render("HQ", "filter", other)).toBe("HQ");
+});
+
 test("clicking a camp row fills the modal with its details", async (): Promise<void> => {
     const camp: ims.Place = {
         name: "Camp Friendly", type: "camp",

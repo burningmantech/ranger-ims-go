@@ -13,7 +13,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/launchdarkly/eventsource v1.13.0
 	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/testcontainers/testcontainers-go v0.44.0
 	golang.org/x/crypto v0.55.0
 	golang.org/x/sync v0.22.0
@@ -111,7 +111,6 @@ require (
 	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86 // indirect
 	github.com/pingcap/log v1.1.0 // indirect
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20260418072757-ce92298d1124 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20260805114148-88456608a4f6 // indirect
 	github.com/riza-io/grpc-go v0.2.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.7 // indirect

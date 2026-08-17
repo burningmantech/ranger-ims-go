@@ -282,6 +282,11 @@ h1 {
   abbr[title]:after {
     content: "";
   }
+
+  .event_access .card-header {
+    position: static;
+    box-shadow: none;
+  }
 }
 
 .hidden {
@@ -317,6 +322,25 @@ h1 {
 :is(#queue_table, #field_reports_table, #visits_table, #places_table, #search_results_table) > tbody > tr,
 .show-pointer {
   cursor: pointer;
+}
+
+/*
+ * Event cards on the admin Events & Permissions page can be taller than the
+ * window, so each card's header stays pinned to the top while its own card is
+ * on screen. The header's usual background is translucent, so it needs an
+ * opaque backing color to keep the card body from showing through it.
+ */
+.event_access .card-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: var(--bs-card-bg);
+  background-image: linear-gradient(var(--bs-card-cap-bg), var(--bs-card-cap-bg));
+}
+
+/* Set by admin_events.ts while the header is actually pinned. */
+.event_access .card-header.is-stuck {
+  box-shadow: 0 0.25rem 0.35rem -0.1rem rgba(var(--bs-body-color-rgb), 0.2);
 }
 
 /*

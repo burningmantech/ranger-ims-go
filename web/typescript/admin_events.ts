@@ -393,6 +393,7 @@ function eventCard(event: ims.EventData): DocumentFragment {
             collapseToggle.click();
         }
     });
+    observeStuckHeader(cardHeader);
 
     const editButton = card.querySelector(".show-edit-modal") as HTMLButtonElement;
     editButton.addEventListener("click", (_e: MouseEvent): void => {
@@ -498,6 +499,24 @@ function eventCard(event: ims.EventData): DocumentFragment {
     });
 
     return cardFrag;
+}
+
+// observeStuckHeader marks a card header with "is-stuck" while it's pinned to
+// the top of the window, which is what gives it its drop shadow. The 1px root
+// margin means the header stops fully intersecting the moment it's pinned; the
+// boundingClientRect check rules out the other way to be partly out of view,
+// which is hanging off the bottom of the window.
+function observeStuckHeader(header: HTMLElement): void {
+    const observer = new IntersectionObserver(
+        (entries: IntersectionObserverEntry[]): void => {
+            for (const entry of entries) {
+                const stuck = entry.intersectionRatio < 1 && entry.boundingClientRect.top <= 1;
+                header.classList.toggle("is-stuck", stuck);
+            }
+        },
+        {threshold: [1], rootMargin: "-1px 0px 0px 0px"},
+    );
+    observer.observe(header);
 }
 
 // grantBlock renders one grant. Exactly one of `grant` (an existing grant) or

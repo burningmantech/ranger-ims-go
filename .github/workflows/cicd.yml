@@ -137,6 +137,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.txt
+          flags: go
           env_vars: GITHUB_REF,GITHUB_COMMIT,GITHUB_USER,GITHUB_WORKFLOW
           fail_ci_if_error: false
         env:
@@ -159,9 +160,11 @@ jobs:
         with:
           egress-policy: block
           allowed-endpoints: >
+            *.codecov.io:443
             *.github.com:443
             *.githubusercontent.com:443
             *.golang.org:443
+            *.sentry.io:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
             code.jquery.com:443
@@ -169,6 +172,7 @@ jobs:
             github.com:443
             go.dev:443
             golang.org:443
+            keybase.io:443
             registry.npmjs.org:443
             storage.googleapis.com:443
 
@@ -200,10 +204,24 @@ jobs:
       - name: Type-check TypeScript tests
         run: npm run typecheck
 
-      # The "pretest" npm script renders the templ HTML fixtures (via Go)
-      # that the Vitest tests run against; `npm test` runs it automatically.
+      # The "pretest:coverage" npm script renders the templ HTML fixtures (via
+      # Go) that the Vitest tests run against; npm runs it automatically.
       - name: Run TypeScript tests
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          flags: typescript
+          env_vars: GITHUB_REF,GITHUB_COMMIT,GITHUB_USER,GITHUB_WORKFLOW
+          fail_ci_if_error: false
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_COMMIT: ${{ github.sha }}
+          GITHUB_USER: ${{ github.actor }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
 
 
   docker-build:

@@ -2,6 +2,17 @@
 comment:
   require_changes: true
 
+# Coverage arrives as two uploads per commit, from two CI jobs: `go test` for the
+# Go code and Vitest for the TypeScript in web/typescript. Both jobs run on every
+# commit, so neither flag needs carryforward.
+flags:
+  go:
+    paths:
+      - "!web/typescript/"
+  typescript:
+    paths:
+      - "web/typescript/"
+
 # Require 100% diff coverage, only complain about project coverage.
 coverage:
   status:
@@ -9,6 +20,16 @@ coverage:
       default:
         informational: true
         target: 100%
+      go:
+        informational: true
+        target: 100%
+        flags:
+          - go
+      typescript:
+        informational: true
+        target: 100%
+        flags:
+          - typescript
     patch:
       default:
         informational: false

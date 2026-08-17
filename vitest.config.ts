@@ -26,6 +26,9 @@ export default defineConfig({
         coverage: {
             // Report on the real TypeScript sources, not the test helpers.
             include: ["web/typescript/**"],
+            // "html" is for `make cover/ts`; "lcovonly" is what CI uploads to
+            // Codecov ("lcov" would also re-render the HTML report, in lcov-report/).
+            reporter: ["text", "html", "lcovonly"],
         },
         environmentOptions: {
             happyDOM: {

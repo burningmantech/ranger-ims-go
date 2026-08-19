@@ -52,10 +52,11 @@ type GetSearch struct {
 }
 
 const (
-	searchMinQueryRunes  = 2
-	searchDefaultLimit   = 100
-	searchMaxLimit       = 1000
-	searchQueryTimeout   = 20 * time.Second
+	searchMinQueryRunes = 2
+	searchDefaultLimit  = 100
+	searchMaxLimit      = 1000
+	// searchQueryTimeout is absurdly long, because sometimes cold search queries in AWS take over 20 seconds.
+	searchQueryTimeout   = 50 * time.Second
 	searchSlowThreshold  = 2 * time.Second
 	searchSnippetPrefix  = 40
 	searchSnippetMaxLen  = 200
@@ -410,7 +411,7 @@ func searchQueryError(ctx context.Context, what string, err error) *herr.HTTPErr
 	// and reports its own error (e.g. "invalid connection") instead. Ask the
 	// context rather than trusting the error to say so.
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return herr.New(http.StatusServiceUnavailable, "Search took too long — try a more specific query", err)
+		return herr.New(http.StatusServiceUnavailable, "Search took too long. Try again now, as this may have been due to a cold database read", err)
 	}
 	return herr.InternalServerError("Failed to search "+what, err)
 }

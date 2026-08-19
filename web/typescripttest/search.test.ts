@@ -322,7 +322,7 @@ test("an invalid regular expression shows the server's message in the results in
 });
 
 test("a search that times out reports so where the results would go", async (): Promise<void> => {
-    serverProblem = { detail: "Search took too long — try a more specific query", status: 503 };
+    serverProblem = { detail: "Search took too long. Try again now, as this may have been due to a cold database read", status: 503 };
 
     await initSearchPage();
 

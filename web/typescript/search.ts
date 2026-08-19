@@ -274,7 +274,7 @@ async function doSearch(): Promise<void> {
     renderResults(json.hits);
     let info = json.hits.length === 1 ? "1 result" : `${json.hits.length} results`;
     if (json.truncated) {
-        info += " (too many matches; not all are shown — try a more specific search)";
+        info += " (too many matches; not all are shown. Try a more specific search)";
     }
     _resultsInfo = info;
     _resultsParams = current.params;

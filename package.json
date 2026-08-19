@@ -13,9 +13,9 @@
     "typecheck": "go tool tsgo -p web/typescripttest --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "@vitest/coverage-v8": "^4.1.10",
-    "happy-dom": "^20.11.1",
-    "vitest": "^4.1.10"
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "happy-dom": "^20.11.2",
+    "vitest": "^4.1.11"
   }
 }

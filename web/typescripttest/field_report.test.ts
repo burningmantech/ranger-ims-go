@@ -180,6 +180,32 @@ test("an entry's attachment is fetched from the field report's own endpoint", as
     expect(document.getElementById("error_text")!.textContent).toBe("");
 });
 
+test("attachment buttons stay usable for a reader who can't write the field report", async (): Promise<void> => {
+    serverEventAccess.writeFieldReports = false;
+    serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
+    const mock = await initFieldReportPage();
+    const links = captureLinkClicks();
+
+    // Editing is off for this user.
+    expect((document.getElementById("field_report_summary") as HTMLInputElement).disabled).toBe(true);
+
+    const entry = document.querySelector<HTMLDivElement>("#report_entries .report_entry")!;
+    const download = [...entry.querySelectorAll("button")]
+        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Download"))!;
+    const preview = [...entry.querySelectorAll("button")]
+        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Preview"))!;
+    expect(download.disabled).toBe(false);
+    expect(preview.disabled).toBe(false);
+
+    mock.mockClear();
+    download.click();
+
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.map(([url]): string => url)).toContain(`${frUrl}/7/attachments/1`);
+        expect(links.length).toBe(1);
+    });
+});
+
 test("downloading an attachment shows progress on the button, then restores it", async (): Promise<void> => {
     serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
 

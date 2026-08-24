@@ -122,6 +122,23 @@ test("an unattached field report offers the create-incident button to incident w
     expect(inputValue("incident_number")).toBe("");
 });
 
+test("the IMS # placeholder tells a non-incident-writer to put the number in the summary", async (): Promise<void> => {
+    serverEventAccess.writeIncidents = false;
+
+    await initFieldReportPage();
+
+    const incidentInput = document.getElementById("incident_number") as HTMLInputElement;
+    expect(incidentInput.placeholder).toBe("(include in summary)");
+    expect(incidentInput.readOnly).toBe(true);
+    expect(document.getElementById("create_incident")!.classList.contains("hidden")).toBe(true);
+});
+
+test("the IMS # placeholder is just \"(none)\" for an incident writer", async (): Promise<void> => {
+    await initFieldReportPage();
+
+    expect((document.getElementById("incident_number") as HTMLInputElement).placeholder).toBe("(none)");
+});
+
 test("makeIncident creates an incident, attaches the report, and links it", async (): Promise<void> => {
     const mock = await initFieldReportPage();
 

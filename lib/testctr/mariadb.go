@@ -42,16 +42,14 @@ func MariaDBContainer(ctx context.Context, database, username, password string) 
 	ctr, err = testcontainers.GenericContainer(
 		ctx,
 		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        MariaDBDockerImage,
-				ExposedPorts: []string{"3306/tcp"},
-				WaitingFor:   wait.ForLog("port: 3306  mariadb.org binary distribution"),
-				Env: map[string]string{
-					"MARIADB_RANDOM_ROOT_PASSWORD": "true",
-					"MARIADB_DATABASE":             database,
-					"MARIADB_USER":                 username,
-					"MARIADB_PASSWORD":             password,
-				},
+			Image:        MariaDBDockerImage,
+			ExposedPorts: []string{"3306/tcp"},
+			WaitingFor:   wait.ForLog("port: 3306  mariadb.org binary distribution"),
+			Env: map[string]string{
+				"MARIADB_RANDOM_ROOT_PASSWORD": "true",
+				"MARIADB_DATABASE":             database,
+				"MARIADB_USER":                 username,
+				"MARIADB_PASSWORD":             password,
 			},
 			Started: true,
 		},

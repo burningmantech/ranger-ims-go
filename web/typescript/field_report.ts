@@ -297,9 +297,12 @@ function drawNumber(): void {
 
 function drawIncident(): void {
     ims.setInputValue(el.incidentNumber, "");
+    // Without Incident write access, the user can't set this field at all, so say
+    // where the IMS# should go instead.
+    const noIncidentPlaceholder = ims.eventAccess?.writeIncidents ? "(none)" : "(include in summary)";
     // New Field Report. There can be no Incident
     if (fieldReport!.number == null) {
-        el.incidentNumber.placeholder = "(none)";
+        el.incidentNumber.placeholder = noIncidentPlaceholder;
         return;
     }
     // If there's an attached Incident, then show a link to it
@@ -309,7 +312,7 @@ function drawIncident(): void {
         ims.setInputValue(el.incidentNumber, incident.toString());
         el.incidentNumberLink.href = incidentURL;
     }
-    el.incidentNumber.placeholder = "(none)";
+    el.incidentNumber.placeholder = noIncidentPlaceholder;
     // If there's no attached Incident, show a button for making
     // a new Incident
     if (incident == null && ims.eventAccess?.writeIncidents) {

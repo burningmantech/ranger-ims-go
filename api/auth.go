@@ -215,7 +215,7 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mustWriteJSON(w, req, resp)
 }
 func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPError) {
-	resp := GetAuthResponse{}
+	var resp GetAuthResponse
 
 	// This endpoint is unauthenticated (doesn't require an Authorization header).
 	jwtCtx, found := req.Context().Value(JWTContextKey).(JWTContext)

@@ -25,6 +25,7 @@ linters:
     - staticcheck  # annoying and hard to disable: https://github.com/golangci/golangci-lint/issues/741
     - dupword  # annoying
     - noctx # issues with deadlocks in txns for in-process MySQL
+    - exhaustruct_v5 # became part of golangci-lint right before BRC. Punt until post-2026 event
 
     # Uberbonked
     - dogsled  # dumb

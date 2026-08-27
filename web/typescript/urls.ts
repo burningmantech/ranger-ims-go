@@ -70,6 +70,7 @@ const url_eventSource = "/ims/api/eventsource";
 const url_debugBuildInfo = "/ims/api/debug/buildinfo";
 const url_debugRuntimeMetrics = "/ims/api/debug/runtimemetrics";
 const url_debugGC = "/ims/api/debug/gc";
+const url_debugConfig = "/ims/api/debug/config";
 const url_static = "/ims/static";
 const url_styleSheet = "/ims/static/style.css";
 const url_authApp = "/ims/auth";

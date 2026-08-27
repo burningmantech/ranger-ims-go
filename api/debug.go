@@ -19,6 +19,7 @@ package api
 import (
 	"bytes"
 	"fmt"
+	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
@@ -45,6 +46,13 @@ type GetRuntimeMetrics struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
 	imsAdmins []string
+}
+
+type GetConfig struct {
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	imsAdmins []string
+	cfg       *conf.IMSConfig
 }
 
 type PerformGC struct {
@@ -166,6 +174,27 @@ func medianBucket(h *metrics.Float64Histogram) float64 {
 		}
 	}
 	panic("should not happen")
+}
+
+func (action GetConfig) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	cfgString, errHTTP := action.getConfig(req)
+	if errHTTP != nil {
+		errHTTP.From("[getConfig]").WriteResponse(w)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-cache")
+	herr.WriteOKResponse(w, cfgString)
+}
+
+func (action GetConfig) getConfig(req *http.Request) (string, *herr.HTTPError) {
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return "", errHTTP.From("[getGlobalPermissions]")
+	}
+	if globalPermissions&authz.GlobalAdministrateDebugging == 0 {
+		return "", herr.Forbidden("The requestor does not have GlobalAdministrateDebugging permission", nil)
+	}
+	return action.cfg.String(), nil
 }
 
 func (action PerformGC) ServeHTTP(w http.ResponseWriter, req *http.Request) {

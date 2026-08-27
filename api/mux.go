@@ -194,6 +194,7 @@ func AddToMux(
 	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins}, true)
 	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, true)
 	authed("POST /ims/api/debug/gc", PerformGC{db, userStore, cfg.Core.Admins}, true)
+	authed("GET /ims/api/debug/config", GetConfig{db, userStore, cfg.Core.Admins, cfg}, true)
 
 	// Uncomment these to add pprof into the program. Note that we'd probably want
 	// these endpoints to be restricted to admins only, were this going to run in

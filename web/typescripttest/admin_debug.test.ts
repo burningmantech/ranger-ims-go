@@ -15,8 +15,9 @@
 //
 
 // Tests for admin_debug.ts against the real templ-rendered debug page
-// (admindebug.templ). The page lazily fetches build info, runtime metrics,
-// and triggers GC, revealing each result panel on demand.
+// (admindebug.templ). The page lazily fetches build info, the redacted server
+// config, and runtime metrics, and triggers GC, revealing each result panel on
+// demand.
 
 import { beforeEach, expect, test, vi } from "vitest";
 import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
@@ -43,6 +44,9 @@ async function initAdminDebugPage() {
             return textResponse(
                 "go\tgo1.99\nbuild\tvcs.revision=abcdef0123456789\nbuild\tvcs.modified=true\n",
             );
+        }
+        if (url === url_debugConfig) {
+            return textResponse("Core\n    JWTSecret = [\u{1F910}\u{1F910}]\n");
         }
         if (url === url_debugRuntimeMetrics) {
             return textResponse("/sched/goroutines:goroutines 7");
@@ -88,6 +92,18 @@ test("fetching runtime metrics reveals the metrics panel", async (): Promise<voi
 
     expect(div.style.display).toBe("");
     expect(document.getElementById("runtime-metrics")!.textContent).toContain("goroutines");
+});
+
+test("fetching the server config reveals the config panel", async (): Promise<void> => {
+    await initAdminDebugPage();
+
+    const div = document.getElementById("config-div") as HTMLDivElement;
+    expect(div.style.display).toBe("none");
+
+    await window.fetchConfig(document.body);
+
+    expect(div.style.display).toBe("");
+    expect(document.getElementById("config")!.textContent).toContain("JWTSecret");
 });
 
 test("performing GC posts to the GC endpoint and reveals its panel", async (): Promise<void> => {

@@ -37,6 +37,13 @@ templ AdminDebug(deployment, versionName, versionRef string) {
   <pre id="build-info"></pre>
 </div>
 
+<h2 class="h4">Server Configuration</h2>
+<p><button id="show-config" onclick="fetchConfig()" class="btn btn-sm btn-default btn-primary">Fetch Server Configuration</button></p>
+<div id="config-div" style="display:none;">
+  <p id="config-p">Secrets are redacted.</p>
+  <pre id="config"></pre>
+</div>
+
 <h2 class="h4">Garbage Collection</h2>
 <p><button id="perform-gc" onclick="performGC()" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
 <div id="gc-div" style="display:none;">

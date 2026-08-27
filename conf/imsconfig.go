@@ -214,7 +214,6 @@ type ConfigCore struct {
 	AccessTokenLifetime  time.Duration
 	RefreshTokenLifetime time.Duration
 	Admins               []string
-	MasterKey            string `redact:"true"`
 	// #nosec G117 // Exported secret struct field
 	JWTSecret  string `redact:"true"`
 	Deployment DeploymentType

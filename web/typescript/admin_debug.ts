@@ -22,6 +22,7 @@ declare global {
     interface Window {
         fetchBuildInfo: (el: HTMLElement) => Promise<void>;
         fetchRuntimeMetrics: (el: HTMLElement) => Promise<void>;
+        fetchConfig: (el: HTMLElement) => Promise<void>;
         performGC: (el: HTMLElement) => Promise<void>;
     }
 }
@@ -35,6 +36,8 @@ const el = {
     buildInfoDiv: ims.typedElement("build-info-div", HTMLDivElement),
     runtimeMetrics: ims.typedElement("runtime-metrics", HTMLPreElement),
     runtimeMetricsDiv: ims.typedElement("runtime-metrics-div", HTMLDivElement),
+    config: ims.typedElement("config", HTMLPreElement),
+    configDiv: ims.typedElement("config-div", HTMLDivElement),
     gc: ims.typedElement("gc", HTMLPreElement),
     gcDiv: ims.typedElement("gc-div", HTMLDivElement),
 };
@@ -50,6 +53,7 @@ async function initAdminDebugPage(): Promise<void> {
 
     window.fetchBuildInfo = fetchBuildInfo;
     window.fetchRuntimeMetrics = fetchRuntimeMetrics;
+    window.fetchConfig = fetchConfig;
     window.performGC = performGC;
 }
 
@@ -90,6 +94,15 @@ async function fetchRuntimeMetrics(): Promise<void> {
     }
     el.runtimeMetrics.textContent = await resp.text();
     el.runtimeMetricsDiv.style.display = "";
+}
+
+async function fetchConfig(): Promise<void> {
+    const {resp, err} = await ims.fetchNoThrow(url_debugConfig, {});
+    if (err != null || resp == null) {
+        throw err;
+    }
+    el.config.textContent = await resp.text();
+    el.configDiv.style.display = "";
 }
 
 async function performGC(): Promise<void> {

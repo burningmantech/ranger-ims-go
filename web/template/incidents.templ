@@ -107,6 +107,9 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
           <li id="show_state_active" title="New, dispatched, or on-scene">
             <button type="button" class="name dropdown-item" onclick="showState('active', true);">Active</button>
           </li>
+          <li id="show_state_on_hold" title="On hold only">
+            <button type="button" class="name dropdown-item" onclick="showState('on_hold', true);">On Hold</button>
+          </li>
           <li class="border-top">
             <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
           </li>

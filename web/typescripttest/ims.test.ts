@@ -137,6 +137,7 @@ test("isValidIncidentsTableState accepts only known states", (): void => {
     expect(ims.isValidIncidentsTableState("all")).toBe(true);
     expect(ims.isValidIncidentsTableState("open")).toBe(true);
     expect(ims.isValidIncidentsTableState("active")).toBe(true);
+    expect(ims.isValidIncidentsTableState("on_hold")).toBe(true);
     expect(ims.isValidIncidentsTableState("closed")).toBe(false);
     expect(ims.isValidIncidentsTableState(null)).toBe(false);
 });

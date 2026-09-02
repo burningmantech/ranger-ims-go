@@ -198,7 +198,7 @@ test("the types column renders type names and handles missing ids", async (): Pr
     expect(render(incident.incident_type_ids, "bogus", incident)).toBeUndefined();
 });
 
-test("the state filter shows open, active, and all states correctly", async (): Promise<void> => {
+test("the state filter shows open, active, on hold, and all states correctly", async (): Promise<void> => {
     // data[0] on_scene (open+active), data[1] closed, data[2] on_hold (open but not active)
     serverIncidents.push({
         number: 3, event: eventName, state: "on_hold", priority: 3, summary: "On hold", incident_type_ids: [1], report_entries: [],
@@ -223,6 +223,11 @@ test("the state filter shows open, active, and all states correctly", async (): 
     expect(table.fixedSearch("state", 0)).toBe(true);
     expect(table.fixedSearch("state", 1)).toBe(true);
     expect(table.fixedSearch("state", 2)).toBe(true);
+
+    window.showState("on_hold", false);
+    expect(table.fixedSearch("state", 0)).toBe(false); // on_scene hidden
+    expect(table.fixedSearch("state", 1)).toBe(false); // closed hidden
+    expect(table.fixedSearch("state", 2)).toBe(true); // on_hold only
 });
 
 test("toggling all types off then on drives the type filter", async (): Promise<void> => {

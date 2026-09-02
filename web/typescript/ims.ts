@@ -1966,7 +1966,7 @@ export function refreshTokenAfter(): number|null {
     return parseInt10(localStorage.getItem(accessTokenRefreshAfterKey));
 }
 
-export const incidentTableStates = ["all", "open", "active"] as const;
+export const incidentTableStates = ["all", "open", "active", "on_hold"] as const;
 export type IncidentsTableState = typeof incidentTableStates[number];
 export function isValidIncidentsTableState(value: string|null): value is IncidentsTableState {
     if (value) {

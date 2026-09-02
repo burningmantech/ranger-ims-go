@@ -706,6 +706,12 @@ function initSearch(): void {
                         return false;
                     }
                     break;
+                case "on_hold":
+                    state = ims.stateForIncident(incident);
+                    if (state !== "on_hold") {
+                        return false;
+                    }
+                    break;
             }
         }
         return true;

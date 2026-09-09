@@ -94,7 +94,7 @@ compose/quickstart: .env.quickstart
 ## upgrade/deps/go: upgrade all Go deps
 .PHONY: upgrade/deps/go
 upgrade/deps/go:
-	go get tool
+	go get -u tool
 	go get -t -u ./...
 	go mod tidy
 

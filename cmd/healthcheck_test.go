@@ -27,7 +27,10 @@ func TestHealthCheckSuccess(t *testing.T) {
 	t.Parallel()
 
 	// this serves the real endpoint used in the server
-	ser := httptest.NewServer(api.AddBasicHandlers(nil))
+	ser := httptest.NewTestServer(t, api.AddBasicHandlers(nil))
+	// The health check dials the address itself, so this needs a real port
+	// rather than httptest's in-memory network.
+	ser.Start()
 
 	exitCode := runHealthCheckInternal(t.Context(), ser.URL)
 	if exitCode != 0 {
@@ -38,12 +41,13 @@ func TestHealthCheckSuccess(t *testing.T) {
 func TestHealthCheckBadStatus(t *testing.T) {
 	t.Parallel()
 
-	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ser := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/ims/api/ping" {
 			w.WriteHeader(http.StatusTeapot)
 			_, _ = w.Write([]byte("ack"))
 		}
 	}))
+	ser.Start()
 
 	exitCode := runHealthCheckInternal(t.Context(), ser.URL)
 	if exitCode != 5 {
@@ -54,10 +58,11 @@ func TestHealthCheckBadStatus(t *testing.T) {
 func TestHealthCheckBadResponse(t *testing.T) {
 	t.Parallel()
 
-	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ser := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// the server returns a 200, but not the expected text ("ack")
 		w.WriteHeader(http.StatusOK)
 	}))
+	ser.Start()
 
 	exitCode := runHealthCheckInternal(t.Context(), ser.URL)
 	if exitCode != 6 {

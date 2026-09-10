@@ -27,7 +27,6 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -37,10 +36,19 @@ import (
 )
 
 type ApiHelper struct {
-	t         *testing.T
+	t *testing.T
+	// serverURL and client both belong to one testServer. That server speaks
+	// over an in-memory network, so requests must go through its own client.
 	serverURL *url.URL
+	client    *http.Client
 	jwt       string
 	referrer  string
+}
+
+// withReferrer returns a copy of the helper that sends the given Referer header.
+func (a ApiHelper) withReferrer(referrer string) ApiHelper {
+	a.referrer = referrer
+	return a
 }
 
 func (a ApiHelper) postAuth(ctx context.Context, req api.PostAuthRequest) (statusCode int, body, validJWT string) {
@@ -70,11 +78,7 @@ func (a ApiHelper) refreshAccessToken(ctx context.Context, refreshCookie *http.C
 	}
 	httpPost.AddCookie(refreshCookie)
 	// #nosec G704 // SSRF via taint analysis. We control the URLs.
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-	// #nosec G704 // SSRF via taint analysis.
-	resp, err := client.Do(httpPost)
+	resp, err := a.client.Do(httpPost)
 	require.NoError(a.t, err)
 
 	b, err := io.ReadAll(resp.Body)
@@ -473,11 +477,8 @@ func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, i
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
 	httpPost.Header.Set("Content-Type", writer.FormDataContentType())
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
 	// #nosec G704 // SSRF via taint analysis. We control the URLs.
-	resp, err := client.Do(httpPost)
+	resp, err := a.client.Do(httpPost)
 	require.NoError(a.t, err)
 
 	reID, _ := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
@@ -505,11 +506,8 @@ func (a ApiHelper) attachFileToVisit(ctx context.Context, eventName string, visi
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
 	httpPost.Header.Set("Content-Type", writer.FormDataContentType())
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-	// #nosec G704 // SSRF via taint analysis.
-	resp, err := client.Do(httpPost)
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
+	resp, err := a.client.Do(httpPost)
 	require.NoError(a.t, err)
 
 	reID, _ := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
@@ -549,11 +547,8 @@ func (a ApiHelper) attachFileToFieldReport(ctx context.Context, eventName string
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
 	httpPost.Header.Set("Content-Type", writer.FormDataContentType())
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-	// #nosec G704 // SSRF via taint analysis.
-	resp, err := client.Do(httpPost)
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
+	resp, err := a.client.Do(httpPost)
 	require.NoError(a.t, err)
 
 	reID, _ := conv.ParseInt32(resp.Header.Get("IMS-Report-Entry-Number"))
@@ -580,11 +575,8 @@ func (a ApiHelper) imsPost[T any](ctx context.Context, body T, path string) *htt
 	if a.referrer != "" {
 		httpPost.Header.Set("Referer", a.referrer)
 	}
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-	// #nosec G704 // SSRF via taint analysis.
-	resp, err := client.Do(httpPost)
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
+	resp, err := a.client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp
 }
@@ -602,11 +594,8 @@ func (a ApiHelper) imsPostContentType(ctx context.Context, path, contentType str
 	if a.jwt != "" {
 		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
 	}
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
 	// #nosec G704 // SSRF via taint analysis. We control the URLs.
-	resp, err := client.Do(httpPost)
+	resp, err := a.client.Do(httpPost)
 	require.NoError(a.t, err)
 	return resp
 }
@@ -639,11 +628,8 @@ func (a ApiHelper) imsDoNoReqBody[V any](ctx context.Context, method, path strin
 	if a.referrer != "" {
 		httpReq.Header.Set("Referer", a.referrer)
 	}
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-	// #nosec G704 // SSRF via taint analysis.
-	get, err := client.Do(httpReq)
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
+	get, err := a.client.Do(httpReq)
 	require.NoError(a.t, err)
 	b, err := io.ReadAll(get.Body)
 	require.NoError(a.t, err)
@@ -679,26 +665,4 @@ func (a ApiHelper) getErrorLogs(ctx context.Context, minTime, maxTime string) (i
 	path.RawQuery = q.Encode()
 
 	return a.imsGet[imsjson.ErrorLogs](ctx, path.String())
-}
-
-func jwtForAlice(t *testing.T, ctx context.Context) string {
-	t.Helper()
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
-	statusCode, _, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
-		Identification: userAliceEmail,
-		Password:       userAlicePassword,
-	})
-	require.Equal(t, http.StatusOK, statusCode)
-	return token
-}
-
-func jwtForAdmin(ctx context.Context, t *testing.T) string {
-	t.Helper()
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
-	statusCode, _, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
-		Identification: userAdminEmail,
-		Password:       userAdminPassword,
-	})
-	require.Equal(t, http.StatusOK, statusCode)
-	return token
 }

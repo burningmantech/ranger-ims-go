@@ -32,8 +32,9 @@ import (
 func TestCreatePlace(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := srv.admin(ctx)
 
 	// Make an event
 	eventName := rand.NonCryptoText()
@@ -83,9 +84,10 @@ func TestCreatePlace(t *testing.T) {
 func TestPlaceLocationEmbargo(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -205,9 +207,10 @@ func TestPlaceLocationEmbargo(t *testing.T) {
 func TestPlaceLocationEmbargoExcludingExternalData(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -253,8 +256,9 @@ func TestPlaceLocationEmbargoExcludingExternalData(t *testing.T) {
 func TestImportPlacesFromAPI(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := srv.admin(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -296,8 +300,9 @@ func TestImportPlacesFromAPI(t *testing.T) {
 func TestImportPlacesEmptyResponseChangesNothing(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := srv.admin(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -324,8 +329,9 @@ func TestImportPlacesEmptyResponseChangesNothing(t *testing.T) {
 func TestImportPlacesUpstreamFailure(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := srv.admin(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -345,8 +351,9 @@ func TestImportPlacesUpstreamFailure(t *testing.T) {
 func TestImportPlacesBadRequests(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := srv.admin(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -372,9 +379,10 @@ func TestImportPlacesBadRequests(t *testing.T) {
 func TestImportPlacesRequiresAdmin(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})

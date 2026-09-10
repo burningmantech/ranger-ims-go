@@ -52,10 +52,11 @@ func sampleIncident1(eventName string) imsjson.Incident {
 func TestIncidentAPIAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	notAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	adminUser := srv.admin(ctx)
+	aliceUser := srv.alice(ctx)
+	notAuthenticated := srv.unauthed()
 
 	// Make an event to which no one has any access
 	eventName := rand.NonCryptoText()
@@ -131,9 +132,10 @@ func TestIncidentAPIAuthorization(t *testing.T) {
 func TestCreateAndGetIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -199,9 +201,10 @@ func TestCreateAndGetIncident(t *testing.T) {
 func TestCreateAndUpdateIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -299,9 +302,10 @@ func TestCreateAndUpdateIncident(t *testing.T) {
 func TestCreateAndAttachFileToIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -340,9 +344,10 @@ func TestCreateAndAttachFileToIncident(t *testing.T) {
 func TestCreateAndLinkIncidents(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -436,9 +441,10 @@ func lastReportEntryText(t *testing.T, incident imsjson.Incident) string {
 func TestAttachAndDetachIncidentType(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	typeName := rand.NonCryptoText()
@@ -508,9 +514,10 @@ func TestAttachAndDetachIncidentType(t *testing.T) {
 func TestAttachIncidentTypeIsCommutative(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
@@ -546,9 +553,10 @@ func TestAttachIncidentTypeIsCommutative(t *testing.T) {
 func TestEditIncidentRejectsSetReplacement(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
@@ -604,9 +612,10 @@ func TestEditIncidentRejectsSetReplacement(t *testing.T) {
 func TestLinkAndUnlinkIncidentEndpoints(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
@@ -694,9 +703,10 @@ func TestLinkAndUnlinkIncidentEndpoints(t *testing.T) {
 func TestLinkIncidentAcrossEvents(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventA := newEventWithWriter(t, apisAdmin)
 	eventB := newEventWithWriter(t, apisAdmin)
 

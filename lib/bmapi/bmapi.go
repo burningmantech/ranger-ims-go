@@ -74,6 +74,19 @@ func NewClient(baseURL, apiKey string) *Client {
 	}
 }
 
+// WithHTTPClient returns a copy of the client that sends its requests through
+// httpClient, or the client unchanged if httpClient is nil. IMS's own tests use
+// this to reach a stand-in API server on httptest's in-memory network, which
+// nothing can dial by address.
+func (c *Client) WithHTTPClient(httpClient *http.Client) *Client {
+	if httpClient == nil {
+		return c
+	}
+	clone := *c
+	clone.httpClient = httpClient
+	return &clone
+}
+
 // Fetch returns every record of the given kind for the given year.
 func (c *Client) Fetch(ctx context.Context, kind Kind, year int32) ([]Record, error) {
 	u := fmt.Sprintf("%v/api/%v?%v", c.baseURL, kind,

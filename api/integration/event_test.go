@@ -20,12 +20,9 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
-	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -35,8 +32,9 @@ import (
 func TestGetAndEditEvent(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	testEventName := rand.NonCryptoText()
 
@@ -100,8 +98,9 @@ func TestGetAndEditEvent(t *testing.T) {
 func TestEventNormalizeAddresses(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	eventName := rand.NonCryptoText()
 	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -182,8 +181,9 @@ func TestEventNormalizeAddresses(t *testing.T) {
 func TestEditEvent_errors(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	testEventName := "This name is ugly (has spaces and parentheses)"
 
@@ -213,8 +213,9 @@ func editEventBody(ctx context.Context, t *testing.T, a ApiHelper, req imsjson.E
 func TestEventGroups(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	// Create an event group.
 	groupName := rand.NonCryptoText()
@@ -277,8 +278,9 @@ func TestEventGroups(t *testing.T) {
 func TestEventGroups_errors(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	// A group to reference as a parent.
 	groupName := rand.NonCryptoText()
@@ -379,9 +381,10 @@ func TestEventGroups_errors(t *testing.T) {
 func TestEventMapURLEmbargo(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -462,21 +465,17 @@ func findEvent(events imsjson.Events, id int32) *imsjson.Event {
 func TestDeleteEvent(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	// The shared test server keeps EventDeletionEnabled at its default of false.
-	// This second server, backed by the same database, has the feature enabled.
+	// srv keeps EventDeletionEnabled at its default of false. This second
+	// server, backed by the same database, has the feature enabled.
 	cfg := *shared.cfg
 	cfg.Core.EventDeletionEnabled = true
-	deletionServer := httptest.NewServer(
-		api.AddToMux(nil, api.NewEventSourcerer(), &cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger, shared.errorLogger),
-	)
-	t.Cleanup(deletionServer.Close)
-	deletionServerURL, err := url.Parse(deletionServer.URL)
-	require.NoError(t, err)
+	deletionSrv := newCustomServer(t, &cfg, shared.imsDBQ, shared.userStore)
 
-	adminNoDeletion := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	admin := ApiHelper{t: t, serverURL: deletionServerURL, jwt: jwtForAdmin(ctx, t)}
-	alice := ApiHelper{t: t, serverURL: deletionServerURL, jwt: jwtForAlice(t, ctx)}
+	adminNoDeletion := srv.admin(ctx)
+	admin := deletionSrv.admin(ctx)
+	alice := deletionSrv.alice(ctx)
 
 	// The auth endpoint tells clients whether the server permits event deletion.
 	authResp, resp := adminNoDeletion.getAuth(ctx, "")

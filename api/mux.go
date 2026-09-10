@@ -49,6 +49,9 @@ func AddToMux(
 	s3Client *attachment.S3Client,
 	actionLogger *actionlog.Logger,
 	errorLogger *errorlog.Logger,
+	// bmAPIHTTPClient, when non-nil, is what calls to the Burning Man API go
+	// through instead of that client's own. Only tests set it.
+	bmAPIHTTPClient *http.Client,
 ) *http.ServeMux {
 	if mux == nil {
 		mux = http.NewServeMux()
@@ -161,7 +164,7 @@ func AddToMux(
 
 	authed("GET /ims/api/events/{eventName}/places", GetPlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
 	authed("POST /ims/api/events/{eventName}/places", UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
-	authed("POST /ims/api/events/{eventName}/places/import", ImportPlaces{db, userStore, cfg.Core.Admins, cfg.BurningManAPI}, true)
+	authed("POST /ims/api/events/{eventName}/places/import", ImportPlaces{db, userStore, cfg.Core.Admins, cfg.BurningManAPI, bmAPIHTTPClient}, true)
 
 	authed("GET /ims/api/events", GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
 	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, true)

@@ -30,9 +30,10 @@ import (
 func TestGetErrorLog(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
 	referrer := "testGetErrorLog"
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t), referrer: referrer}
+	apisAdmin := srv.admin(ctx).withReferrer(referrer)
 
 	// Provoke a real 500 by way of a handler that panics.
 	_, resp := apisAdmin.imsGet[map[string]any](ctx, apisAdmin.serverURL.JoinPath(panicPath).String())
@@ -68,9 +69,10 @@ func TestGetErrorLog(t *testing.T) {
 func TestGetErrorLog_ClientErrorsAreNotRecorded(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
 	referrer := "testErrorLogClientError"
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t), referrer: referrer}
+	apisAdmin := srv.admin(ctx).withReferrer(referrer)
 
 	notFound := apisAdmin.serverURL.JoinPath("/ims/api/events/SomeFakeEvent/incidents/1").String()
 	_, resp := apisAdmin.imsGet[map[string]any](ctx, notFound)
@@ -93,8 +95,9 @@ func TestGetErrorLog_ClientErrorsAreNotRecorded(t *testing.T) {
 func TestGetErrorLog_BadTimeFilters(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	_, response := apisAdmin.getErrorLogs(ctx, "not a valid time", "")
 	require.NotNil(t, response)

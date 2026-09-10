@@ -35,8 +35,9 @@ func TestEventAccessTODO(t *testing.T) {
 func TestEventAccessDescription(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	testEventName := rand.NonCryptoText()
 	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &testEventName})
@@ -81,9 +82,10 @@ func TestEventAccessDescription(t *testing.T) {
 func TestEventAccessOneExpressionManyModes(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -169,8 +171,9 @@ func TestEventAccessOneExpressionManyModes(t *testing.T) {
 func TestEventAccessModesAreIndependent(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -244,22 +247,23 @@ func TestEventAccessModesAreIndependent(t *testing.T) {
 func TestGetAccessTargets(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
 	// An unauthenticated user gets a 401
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisNotAuthenticated := srv.unauthed()
 	_, resp := apisNotAuthenticated.getAccessTargets(ctx)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
 	// A non-admin user gets a 403
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAlice := srv.alice(ctx)
 	_, resp = apisAlice.getAccessTargets(ctx)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
 	// An admin gets all the persons, positions, and teams from the directory
 	// (these values come from clubhousedb_test_seed.sql)
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 	targets, resp := apisAdmin.getAccessTargets(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

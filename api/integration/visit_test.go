@@ -70,10 +70,11 @@ func sampleVisit1(eventName string) imsjson.Visit {
 func TestVisitAPIAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	notAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	adminUser := srv.admin(ctx)
+	aliceUser := srv.alice(ctx)
+	notAuthenticated := srv.unauthed()
 
 	// Make an event to which no one has any access
 	eventName := rand.NonCryptoText()
@@ -149,9 +150,10 @@ func TestVisitAPIAuthorization(t *testing.T) {
 func TestCreateAndGetVisit(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -216,9 +218,10 @@ func TestCreateAndGetVisit(t *testing.T) {
 func TestCreateAndUpdateVisit(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user WriteVisits role on that event
@@ -367,9 +370,10 @@ func TestCreateAndUpdateVisit(t *testing.T) {
 func TestCreateAndAttachFileToVisit(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user VisitWriter role on that event
@@ -453,9 +457,10 @@ var (
 func TestVisitArrivalAfterStoredDepartureIsRejected(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
@@ -479,9 +484,10 @@ func TestVisitArrivalAfterStoredDepartureIsRejected(t *testing.T) {
 func TestVisitDepartureBeforeStoredArrivalIsRejected(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
@@ -506,9 +512,10 @@ func TestVisitDepartureBeforeStoredArrivalIsRejected(t *testing.T) {
 func TestVisitArrivalAndDepartureSentTogetherOutOfOrderIsRejected(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
@@ -541,9 +548,10 @@ func TestVisitArrivalAndDepartureSentTogetherOutOfOrderIsRejected(t *testing.T) 
 func TestVisitArrivalAndDepartureSentTogetherPastStoredDepartureIsAllowed(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
@@ -570,9 +578,10 @@ func TestVisitArrivalAndDepartureSentTogetherPastStoredDepartureIsAllowed(t *tes
 func TestVisitClearedArrivalTimeIsNamedInTheChangeLog(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
@@ -602,9 +611,10 @@ func TestVisitClearedArrivalTimeIsNamedInTheChangeLog(t *testing.T) {
 func TestVisitDepartureEqualToArrivalIsAllowed(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
@@ -623,9 +633,10 @@ func TestVisitDepartureEqualToArrivalIsAllowed(t *testing.T) {
 func TestVisitArrivalMovedWithinRangeIsAccepted(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))

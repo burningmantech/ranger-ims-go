@@ -33,9 +33,10 @@ import (
 func TestConcurrentIncidentRangerRosterWrites(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
 
@@ -157,9 +158,10 @@ func lastVisitReportEntryText(t *testing.T, visit imsjson.Visit) string {
 func TestIncidentRangerRoleChangeLog(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
 
@@ -240,9 +242,10 @@ func TestIncidentRangerRoleChangeLog(t *testing.T) {
 func TestVisitRangerRoleChangeLog(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithVisitWriter(t, apisAdmin)
 	num := apis.newVisitSuccess(ctx, sampleVisit1(eventName))
 
@@ -271,9 +274,10 @@ func TestVisitRangerRoleChangeLog(t *testing.T) {
 func TestConcurrentVisitRangerRosterWrites(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithVisitWriter(t, apisAdmin)
 	num := apis.newVisitSuccess(ctx, sampleVisit1(eventName))
 

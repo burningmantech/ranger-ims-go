@@ -31,9 +31,10 @@ import (
 func TestSearchAcrossEvents(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	adminUser := srv.admin(ctx)
+	aliceUser := srv.alice(ctx)
 
 	// A search term that won't collide with data from any other test.
 	token := "srchtok" + rand.NonCryptoText()
@@ -169,9 +170,10 @@ func TestSearchAcrossEvents(t *testing.T) {
 func TestSearchRegexp(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	adminUser := srv.admin(ctx)
+	aliceUser := srv.alice(ctx)
 
 	// A search term that won't collide with data from any other test.
 	token := "rgxtok" + rand.NonCryptoText()
@@ -254,9 +256,10 @@ func TestSearchRegexp(t *testing.T) {
 func TestSearchFieldReportAuthor(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	adminUser := srv.admin(ctx)
+	aliceUser := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := adminUser.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -351,10 +354,11 @@ func TestSearchFieldReportAuthor(t *testing.T) {
 func TestSearchAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	adminUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	notAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	adminUser := srv.admin(ctx)
+	aliceUser := srv.alice(ctx)
+	notAuthenticated := srv.unauthed()
 
 	token := "srchtok" + rand.NonCryptoText()
 
@@ -396,8 +400,9 @@ func TestSearchAuthorization(t *testing.T) {
 func TestSearchBadRequests(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	aliceUser := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	aliceUser := srv.alice(ctx)
 
 	// Query too short
 	_, resp := aliceUser.search(ctx, url.Values{"q": []string{"x"}})

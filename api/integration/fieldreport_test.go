@@ -41,9 +41,10 @@ func sampleFieldReport1(eventName string) imsjson.FieldReport {
 func TestCreateAndGetFieldReport(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event
@@ -103,9 +104,10 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 func TestCreateAndUpdateFieldReport(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// give itself Writer role,
@@ -221,9 +223,10 @@ func TestCreateAndUpdateFieldReport(t *testing.T) {
 func TestCreateAndAttachFileToFieldReport(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Reporter role on that event

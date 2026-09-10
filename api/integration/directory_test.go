@@ -386,7 +386,7 @@ func TestDirectoryPersonValidation(t *testing.T) {
 
 	// A non-numeric person ID in the path is a 400, for delete and
 	// for password-setting.
-	_, resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/persons/pippin").String(), nil)
+	resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/persons/pippin").String())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.imsPost(ctx, imsjson.DirectoryPersonPassword{Password: "irrelevant"},
@@ -727,10 +727,10 @@ func TestDirectoryGroupDelete(t *testing.T) {
 	require.Empty(t, *person.PositionIDs)
 
 	// A non-numeric team or position ID in the path is a 400.
-	_, resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/teams/legolas").String(), nil)
+	resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/teams/legolas").String())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	_, resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/positions/gimli").String(), nil)
+	resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/positions/gimli").String())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -746,14 +746,12 @@ func TestDirectoryGroupDelete(t *testing.T) {
 
 func (a ApiHelper) getDirectory(ctx context.Context) (imsjson.Directory, *http.Response) {
 	a.t.Helper()
-	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/directory").String(), &imsjson.Directory{})
-	return *bod.(*imsjson.Directory), resp
+	return a.imsGet[imsjson.Directory](ctx, a.serverURL.JoinPath("/ims/api/directory").String())
 }
 
 func (a ApiHelper) getPersonnel(ctx context.Context) ([]imsjson.Person, *http.Response) {
 	a.t.Helper()
-	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/personnel").String(), &[]imsjson.Person{})
-	return *bod.(*[]imsjson.Person), resp
+	return a.imsGet[[]imsjson.Person](ctx, a.serverURL.JoinPath("/ims/api/personnel").String())
 }
 
 func (a ApiHelper) editDirectoryPerson(ctx context.Context, req imsjson.DirectoryPerson) (*int64, *http.Response) {
@@ -794,18 +792,15 @@ func (a ApiHelper) setDirectoryPersonPassword(ctx context.Context, personID int6
 
 func (a ApiHelper) deleteDirectoryPerson(ctx context.Context, personID int64) *http.Response {
 	a.t.Helper()
-	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/persons/", conv.FormatInt(personID)).String(), nil)
-	return resp
+	return a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/persons/", conv.FormatInt(personID)).String())
 }
 
 func (a ApiHelper) deleteDirectoryTeam(ctx context.Context, teamID int64) *http.Response {
 	a.t.Helper()
-	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/teams/", conv.FormatInt(teamID)).String(), nil)
-	return resp
+	return a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/teams/", conv.FormatInt(teamID)).String())
 }
 
 func (a ApiHelper) deleteDirectoryPosition(ctx context.Context, positionID int64) *http.Response {
 	a.t.Helper()
-	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/positions/", conv.FormatInt(positionID)).String(), nil)
-	return resp
+	return a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/positions/", conv.FormatInt(positionID)).String())
 }

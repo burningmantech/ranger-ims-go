@@ -356,7 +356,7 @@ func apiCall(t *testing.T, api MethodURL, user ApiHelper) (statusCode int) {
 	var httpResp *http.Response
 	switch api.Method {
 	case http.MethodDelete:
-		_, httpResp = user.imsDelete(ctx, user.serverURL.JoinPath(api.Path).String(), nil)
+		httpResp = user.imsDelete(ctx, user.serverURL.JoinPath(api.Path).String())
 	case http.MethodGet:
 		_, httpResp = user.imsGetBodyBytes(ctx, user.serverURL.JoinPath(api.Path).String())
 	case http.MethodPost:

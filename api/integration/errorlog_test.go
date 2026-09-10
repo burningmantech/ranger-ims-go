@@ -35,7 +35,7 @@ func TestGetErrorLog(t *testing.T) {
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t), referrer: referrer}
 
 	// Provoke a real 500 by way of a handler that panics.
-	_, resp := apisAdmin.imsGet(ctx, apisAdmin.serverURL.JoinPath(panicPath).String(), nil)
+	_, resp := apisAdmin.imsGet[map[string]any](ctx, apisAdmin.serverURL.JoinPath(panicPath).String())
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -73,7 +73,7 @@ func TestGetErrorLog_ClientErrorsAreNotRecorded(t *testing.T) {
 	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t), referrer: referrer}
 
 	notFound := apisAdmin.serverURL.JoinPath("/ims/api/events/SomeFakeEvent/incidents/1").String()
-	_, resp := apisAdmin.imsGet(ctx, notFound, nil)
+	_, resp := apisAdmin.imsGet[map[string]any](ctx, notFound)
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

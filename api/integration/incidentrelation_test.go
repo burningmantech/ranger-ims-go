@@ -115,7 +115,7 @@ func TestIncidentRelationEndpointsRejectBadPathValues(t *testing.T) {
 		resp := apis.imsPost(ctx, struct{}{}, path)
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
-		_, resp = apis.imsDelete(ctx, path, nil)
+		resp = apis.imsDelete(ctx, path)
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
 	}
@@ -146,7 +146,7 @@ func TestIncidentRelationEndpointsRejectBadPathValues(t *testing.T) {
 		resp := apis.imsPost(ctx, struct{}{}, path)
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
-		_, resp = apis.imsDelete(ctx, path, nil)
+		resp = apis.imsDelete(ctx, path)
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
 	}

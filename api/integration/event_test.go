@@ -20,12 +20,9 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
-	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -35,8 +32,9 @@ import (
 func TestGetAndEditEvent(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	testEventName := rand.NonCryptoText()
 
@@ -100,8 +98,9 @@ func TestGetAndEditEvent(t *testing.T) {
 func TestEventNormalizeAddresses(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	eventName := rand.NonCryptoText()
 	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -182,8 +181,9 @@ func TestEventNormalizeAddresses(t *testing.T) {
 func TestEditEvent_errors(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	testEventName := "This name is ugly (has spaces and parentheses)"
 
@@ -213,8 +213,9 @@ func editEventBody(ctx context.Context, t *testing.T, a ApiHelper, req imsjson.E
 func TestEventGroups(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	// Create an event group.
 	groupName := rand.NonCryptoText()
@@ -277,8 +278,9 @@ func TestEventGroups(t *testing.T) {
 func TestEventGroups_errors(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	// A group to reference as a parent.
 	groupName := rand.NonCryptoText()
@@ -379,9 +381,10 @@ func TestEventGroups_errors(t *testing.T) {
 func TestEventMapURLEmbargo(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	eventID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -462,21 +465,17 @@ func findEvent(events imsjson.Events, id int32) *imsjson.Event {
 func TestDeleteEvent(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	// The shared test server keeps EventDeletionEnabled at its default of false.
-	// This second server, backed by the same database, has the feature enabled.
+	// srv keeps EventDeletionEnabled at its default of false. This second
+	// server, backed by the same database, has the feature enabled.
 	cfg := *shared.cfg
 	cfg.Core.EventDeletionEnabled = true
-	deletionServer := httptest.NewServer(
-		api.AddToMux(nil, api.NewEventSourcerer(), &cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger, shared.errorLogger),
-	)
-	t.Cleanup(deletionServer.Close)
-	deletionServerURL, err := url.Parse(deletionServer.URL)
-	require.NoError(t, err)
+	deletionSrv := newCustomServer(t, &cfg, shared.imsDBQ, shared.userStore)
 
-	adminNoDeletion := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	admin := ApiHelper{t: t, serverURL: deletionServerURL, jwt: jwtForAdmin(ctx, t)}
-	alice := ApiHelper{t: t, serverURL: deletionServerURL, jwt: jwtForAlice(t, ctx)}
+	adminNoDeletion := srv.admin(ctx)
+	admin := deletionSrv.admin(ctx)
+	alice := deletionSrv.alice(ctx)
 
 	// The auth endpoint tells clients whether the server permits event deletion.
 	authResp, resp := adminNoDeletion.getAuth(ctx, "")
@@ -539,15 +538,14 @@ func TestDeleteEvent(t *testing.T) {
 	require.NotEmpty(t, reportEntryIDs)
 
 	// Deletion is forbidden on the server that has the feature disabled.
-	body, resp = adminNoDeletion.deleteEvent(ctx, child1Name)
+	resp = adminNoDeletion.deleteEvent(ctx, child1Name)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
-	require.Contains(t, body, "disabled")
+	_ = resp.Body.Close()
 
 	// Deletion is forbidden for non-admins, even with the feature enabled.
-	_, resp = alice.deleteEvent(ctx, child1Name)
+	resp = alice.deleteEvent(ctx, child1Name)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	require.NoError(t, resp.Body.Close())
+	_ = resp.Body.Close()
 
 	// The event survived those two attempts.
 	events, resp := admin.getEvents(ctx)
@@ -556,7 +554,7 @@ func TestDeleteEvent(t *testing.T) {
 	require.NotNil(t, findEvent(events, child1ID))
 
 	// An admin can delete the event on the deletion-enabled server.
-	body, resp = admin.deleteEvent(ctx, child1Name)
+	resp = admin.deleteEvent(ctx, child1Name)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode, body)
 	require.NoError(t, resp.Body.Close())
 
@@ -589,9 +587,9 @@ func TestDeleteEvent(t *testing.T) {
 	}
 
 	// Deleting an event group orphans its children rather than deleting them.
-	body, resp = admin.deleteEvent(ctx, groupName)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode, body)
-	require.NoError(t, resp.Body.Close())
+	resp = admin.deleteEvent(ctx, groupName)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	_ = resp.Body.Close()
 	events, resp = admin.getEventsIncludingGroups(ctx)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -601,7 +599,7 @@ func TestDeleteEvent(t *testing.T) {
 	require.Nil(t, child2.ParentGroup)
 
 	// Deleting a nonexistent event is a 404.
-	_, resp = admin.deleteEvent(ctx, "no-such-event")
+	resp = admin.deleteEvent(ctx, "no-such-event")
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 }

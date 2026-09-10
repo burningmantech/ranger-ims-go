@@ -37,10 +37,11 @@ type MethodURL struct {
 func TestAdminOnlyEndpoints(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
+	apisNotAuthenticated := srv.unauthed()
 
 	adminOnly := []MethodURL{
 		{http.MethodGet, "/ims/api/access"},
@@ -78,10 +79,11 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 func TestAnyUnauthenticatedUserEndpoints(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
+	apisNotAuthenticated := srv.unauthed()
 
 	anyAuthenticatedUserEndpoints := []MethodURL{
 		{http.MethodGet, "/ims/api/personnel"},
@@ -108,9 +110,10 @@ func TestAnyUnauthenticatedUserEndpoints(t *testing.T) {
 func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisAdmin := srv.admin(ctx)
+	apisNotAuthenticated := srv.unauthed()
 
 	eventName := rand.NonCryptoText()
 	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})
@@ -316,11 +319,12 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 
 func TestPublicAPIs_RequireNoAuthn(t *testing.T) {
 	t.Parallel()
+	srv := newServer(t)
 	public := []MethodURL{
 		{http.MethodGet, "/"},
 		{http.MethodGet, "/ims/api/ping"},
 	}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisNotAuthenticated := srv.unauthed()
 	for _, api := range public {
 		code := apiCall(t, api, apisNotAuthenticated)
 		require.Equalf(t, http.StatusOK, code, "Got status code %v for %v %v", code, api.Method, api.Path)
@@ -330,14 +334,14 @@ func TestPublicAPIs_RequireNoAuthn(t *testing.T) {
 func TestEventSource_RequiresNoAuthn(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	path := shared.serverURL.JoinPath("ims/api/eventsource")
+	path := srv.url.JoinPath("ims/api/eventsource")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
-	client := http.Client{Timeout: 10 * time.Second}
 
 	// #nosec G704 // SSRF via taint analysis.
-	resp, err := client.Do(req)
+	resp, err := srv.client.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -356,7 +360,7 @@ func apiCall(t *testing.T, api MethodURL, user ApiHelper) (statusCode int) {
 	var httpResp *http.Response
 	switch api.Method {
 	case http.MethodDelete:
-		_, httpResp = user.imsDelete(ctx, user.serverURL.JoinPath(api.Path).String(), nil)
+		httpResp = user.imsDelete(ctx, user.serverURL.JoinPath(api.Path).String())
 	case http.MethodGet:
 		_, httpResp = user.imsGetBodyBytes(ctx, user.serverURL.JoinPath(api.Path).String())
 	case http.MethodPost:
@@ -390,12 +394,13 @@ func forbiddenOrNotFound(status int) bool {
 // tests in api/globalperms_test.go instead.
 func TestHandlelessTokenIsRejectedByAuthentication(t *testing.T) {
 	t.Parallel()
+	srv := newServer(t)
 
 	token, err := authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}.CreateAccessToken(
 		"", 0, nil, nil, false, nil, time.Now().Add(time.Hour),
 	)
 	require.NoError(t, err)
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: token}
+	apis := srv.withJWT(token)
 
 	code := apiCall(t, MethodURL{http.MethodGet, "/ims/api/events"}, apis)
 	require.Equal(t, http.StatusUnauthorized, code)
@@ -406,8 +411,9 @@ func TestHandlelessTokenIsRejectedByAuthentication(t *testing.T) {
 func TestOrdinaryUserHoldsTheGlobalReadPermissions(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apis := srv.alice(ctx)
 
 	require.True(t, permitted(apiCall(t, MethodURL{http.MethodGet, "/ims/api/events"}, apis)))
 	require.True(t, permitted(apiCall(t, MethodURL{http.MethodGet, "/ims/api/incident_types"}, apis)))
@@ -421,9 +427,10 @@ func TestOrdinaryUserHoldsTheGlobalReadPermissions(t *testing.T) {
 func TestGetPlacesForbiddenForNonAdminWithoutEventAccess(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := rand.NonCryptoText()
 	_, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &eventName})

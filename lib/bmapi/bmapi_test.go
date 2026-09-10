@@ -27,11 +27,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// fakeAPI starts a stand-in for the Burning Man API. It listens on a loopback
+// port rather than on httptest's in-memory network, since the client under test
+// dials the address itself.
+func fakeAPI(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	server := httptest.NewTestServer(t, handler)
+	server.Start()
+	return server
+}
+
 func TestFetchCamps(t *testing.T) {
 	t.Parallel()
 
 	var gotPath, gotQuery, gotAPIKey string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := fakeAPI(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		gotPath = req.URL.Path
 		gotQuery = req.URL.RawQuery
 		gotAPIKey = req.Header.Get("X-API-Key")
@@ -41,7 +51,6 @@ func TestFetchCamps(t *testing.T) {
 			{"uid": "a2", "name": "Camp Quiet", "location_string": null, "year": 2025}
 		]`))
 	}))
-	defer server.Close()
 
 	records, err := bmapi.NewClient(server.URL, "secret-key").
 		Fetch(t.Context(), bmapi.KindCamp, 2025)
@@ -71,12 +80,11 @@ func TestFetchArtAndMV(t *testing.T) {
 	t.Parallel()
 
 	var gotPaths []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := fakeAPI(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		gotPaths = append(gotPaths, req.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`[{"uid": "a1", "name": "Something"}]`))
 	}))
-	defer server.Close()
 
 	client := bmapi.NewClient(server.URL, "secret-key")
 
@@ -94,11 +102,10 @@ func TestFetchArtAndMV(t *testing.T) {
 func TestFetchEmptyYear(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := fakeAPI(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`[]`))
 	}))
-	defer server.Close()
 
 	// A year the API has nothing for isn't an error here. Deciding what to do
 	// about that is the caller's business.
@@ -111,11 +118,10 @@ func TestFetchEmptyYear(t *testing.T) {
 func TestFetchErrorStatus(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := fakeAPI(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		_, _ = w.Write([]byte(`{"detail": "year must be greater than 2025"}`))
 	}))
-	defer server.Close()
 
 	_, err := bmapi.NewClient(server.URL, "secret-key").
 		Fetch(t.Context(), bmapi.KindMV, 2020)
@@ -128,11 +134,10 @@ func TestFetchErrorStatus(t *testing.T) {
 func TestFetchNotAnArray(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := fakeAPI(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(`<html>who knows</html>`))
 	}))
-	defer server.Close()
 
 	_, err := bmapi.NewClient(server.URL, "secret-key").
 		Fetch(t.Context(), bmapi.KindCamp, 2025)
@@ -143,7 +148,7 @@ func TestFetchNotAnArray(t *testing.T) {
 func TestFetchUnreachable(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	server := fakeAPI(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	serverURL := server.URL
 	server.Close()
 
@@ -179,12 +184,11 @@ func TestTrailingSlashInBaseURL(t *testing.T) {
 	t.Parallel()
 
 	var gotPath string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := fakeAPI(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		gotPath = req.URL.Path
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`[]`))
 	}))
-	defer server.Close()
 
 	_, err := bmapi.NewClient(server.URL+"/", "secret-key").
 		Fetch(t.Context(), bmapi.KindCamp, 2025)

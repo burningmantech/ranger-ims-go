@@ -30,8 +30,9 @@ import (
 func TestIncidentTypeNameMayNotBeEmpty(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := srv.admin(ctx)
 
 	// Creating a type with an empty name is rejected.
 	emptyName := ""
@@ -74,8 +75,9 @@ func TestIncidentTypeNameMayNotBeEmpty(t *testing.T) {
 func TestCreateIncidentTypes(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apis := srv.admin(ctx)
 
 	// Make three new incident types
 	typeA, typeB, typeC := rand.NonCryptoText(), rand.NonCryptoText(), rand.NonCryptoText()

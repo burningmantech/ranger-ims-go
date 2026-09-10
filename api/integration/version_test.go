@@ -19,12 +19,9 @@ package integration_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"sync/atomic"
 	"testing"
 
-	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
 	"github.com/burningmantech/ranger-ims-go/store"
@@ -68,9 +65,10 @@ func fieldReportVersion(ctx context.Context, t *testing.T, apis ApiHelper, event
 func TestIncidentVersionLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	// Creation goes through the guarded update path, so a new incident's
@@ -97,9 +95,10 @@ func TestIncidentVersionLifecycle(t *testing.T) {
 func TestReportEntryAppendDoesNotBumpIncidentVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -126,9 +125,10 @@ func TestReportEntryAppendDoesNotBumpIncidentVersion(t *testing.T) {
 func TestRangerRosterDoesNotBumpIncidentVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -156,9 +156,10 @@ func TestRangerRosterDoesNotBumpIncidentVersion(t *testing.T) {
 func TestFieldReportVersionLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	// A field report is created directly, so it starts at version 1.
@@ -178,9 +179,10 @@ func TestFieldReportVersionLifecycle(t *testing.T) {
 func TestFieldReportAttachDoesNotBumpIncidentVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	frNum := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{Event: eventName, Summary: new("an FR")})
@@ -204,9 +206,10 @@ func TestFieldReportAttachDoesNotBumpIncidentVersion(t *testing.T) {
 func TestIncidentTypeAttachDoesNotBumpIncidentVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
@@ -244,9 +247,10 @@ func TestIncidentTypeAttachDoesNotBumpIncidentVersion(t *testing.T) {
 func TestIncidentLinkEndpointDoesNotBumpEitherVersion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
@@ -285,9 +289,10 @@ func TestIncidentLinkEndpointDoesNotBumpEitherVersion(t *testing.T) {
 func TestVisitVersionLifecycleAndReassignment(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	resp := apisAdmin.addVisitWriter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
@@ -381,18 +386,12 @@ func (q casInterceptor) UpdateVisit(ctx context.Context, db imsdb.DBTX, arg imsd
 }
 
 // interceptedServer starts a second in-process IMS server on the shared
-// database, identical to the shared one except for the interceptor's hooks.
-func interceptedServer(t *testing.T, interceptor casInterceptor) *url.URL {
+// database, identical to newServer's except for the interceptor's hooks.
+func interceptedServer(t *testing.T, interceptor casInterceptor) testServer {
 	t.Helper()
 	interceptor.Querier = imsdb.New()
 	dbq := store.NewDBQ(shared.imsDBQ.DB, interceptor)
-	server := httptest.NewServer(
-		api.AddToMux(nil, shared.es, shared.cfg, dbq, shared.userStore, nil, shared.actionLogger, shared.errorLogger),
-	)
-	t.Cleanup(server.Close)
-	serverURL, err := url.Parse(server.URL)
-	require.NoError(t, err)
-	return serverURL
+	return newCustomServer(t, shared.cfg, dbq, shared.userStore)
 }
 
 // The bump helpers below commit a version bump for the record being updated,
@@ -425,23 +424,24 @@ func bumpVisitVersion(ctx context.Context, t *testing.T, event, number int32) {
 func TestIncidentEditRetriesPastConcurrentWrite(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
 
 	// Another writer's edit commits after this edit has read the incident, but
 	// before its guarded UPDATE runs, so the first attempt is a CAS conflict.
 	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeUpdateIncident: func(ctx context.Context, arg imsdb.UpdateIncidentParams) {
 			if updateAttempts.Add(1) == 1 {
 				bumpIncidentVersion(ctx, t, arg.Event, arg.Number)
 			}
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	// The server retries the read-merge-write internally, so the edit still
 	// lands, on the second attempt.
@@ -464,21 +464,22 @@ func TestIncidentEditRetriesPastConcurrentWrite(t *testing.T) {
 func TestIncidentEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
 
 	// A competing write lands inside the race window on every attempt.
 	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeUpdateIncident: func(ctx context.Context, arg imsdb.UpdateIncidentParams) {
 			updateAttempts.Add(1)
 			bumpIncidentVersion(ctx, t, arg.Event, arg.Number)
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	resp := hookedApis.updateIncident(ctx, eventName, num, imsjson.Incident{
 		Event:   eventName,
@@ -500,23 +501,24 @@ func TestIncidentEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 func TestFieldReportEditRetriesPastConcurrentWrite(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{Event: eventName, Summary: new("original summary")})
 
 	// Another writer's edit commits after this edit has read the field report,
 	// but before its guarded UPDATE runs, so the first attempt is a CAS conflict.
 	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeUpdateFieldReport: func(ctx context.Context, arg imsdb.UpdateFieldReportParams) {
 			if updateAttempts.Add(1) == 1 {
 				bumpFieldReportVersion(ctx, t, arg.Event, arg.Number)
 			}
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	// The server retries the read-merge-write internally, so the edit still
 	// lands, on the second attempt.
@@ -539,21 +541,22 @@ func TestFieldReportEditRetriesPastConcurrentWrite(t *testing.T) {
 func TestFieldReportEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{Event: eventName, Summary: new("original summary")})
 
 	// A competing write lands inside the race window on every attempt.
 	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeUpdateFieldReport: func(ctx context.Context, arg imsdb.UpdateFieldReportParams) {
 			updateAttempts.Add(1)
 			bumpFieldReportVersion(ctx, t, arg.Event, arg.Number)
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	resp := hookedApis.updateFieldReport(ctx, eventName, num, imsjson.FieldReport{
 		Event:   eventName,
@@ -588,9 +591,10 @@ func newEventWithVisitWriter(t *testing.T, apisAdmin ApiHelper) (eventName strin
 func TestVisitEditRetriesPastConcurrentWrite(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithVisitWriter(t, apisAdmin)
 	num := apis.newVisitSuccess(ctx, imsjson.Visit{
 		Event:            eventName,
@@ -600,14 +604,14 @@ func TestVisitEditRetriesPastConcurrentWrite(t *testing.T) {
 	// Another writer's edit commits after this edit has read the visit, but
 	// before its guarded UPDATE runs, so the first attempt is a CAS conflict.
 	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeUpdateVisit: func(ctx context.Context, arg imsdb.UpdateVisitParams) {
 			if updateAttempts.Add(1) == 1 {
 				bumpVisitVersion(ctx, t, arg.Event, arg.Number)
 			}
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	// The server retries the read-merge-write internally, so the edit still
 	// lands, on the second attempt.
@@ -630,9 +634,10 @@ func TestVisitEditRetriesPastConcurrentWrite(t *testing.T) {
 func TestVisitEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithVisitWriter(t, apisAdmin)
 	num := apis.newVisitSuccess(ctx, imsjson.Visit{
 		Event:            eventName,
@@ -641,13 +646,13 @@ func TestVisitEditGivesUpAfterRepeatedConcurrentWrites(t *testing.T) {
 
 	// A competing write lands inside the race window on every attempt.
 	var updateAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeUpdateVisit: func(ctx context.Context, arg imsdb.UpdateVisitParams) {
 			updateAttempts.Add(1)
 			bumpVisitVersion(ctx, t, arg.Event, arg.Number)
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	resp := hookedApis.updateVisit(ctx, eventName, num, imsjson.Visit{
 		Event:            eventName,

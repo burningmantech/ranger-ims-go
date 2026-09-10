@@ -57,9 +57,10 @@ func (q casInterceptor) CreateVisit(ctx context.Context, db imsdb.DBTX, arg imsd
 func TestNewIncidentRetriesWhenNumberIsTaken(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	// A concurrent creator claims the freshly allocated number before this
@@ -67,7 +68,7 @@ func TestNewIncidentRetriesWhenNumberIsTaken(t *testing.T) {
 	// The hook asserts rather than requires, since it runs on the server's
 	// request goroutine.
 	var createAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeCreateIncident: func(ctx context.Context, arg imsdb.CreateIncidentParams) {
 			if createAttempts.Add(1) == 1 {
 				_, err := shared.imsDBQ.CreateIncident(ctx, shared.imsDBQ, arg)
@@ -75,7 +76,7 @@ func TestNewIncidentRetriesWhenNumberIsTaken(t *testing.T) {
 			}
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	num := hookedApis.newIncidentSuccess(ctx, sampleIncident1(eventName))
 	// The competitor took number 1 in this fresh event; the retry landed on 2.
@@ -91,21 +92,22 @@ func TestNewIncidentRetriesWhenNumberIsTaken(t *testing.T) {
 func TestNewIncidentGivesUpWhenNumbersKeepBeingTaken(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	// A competing creator wins the number race on every attempt.
 	var createAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeCreateIncident: func(ctx context.Context, arg imsdb.CreateIncidentParams) {
 			createAttempts.Add(1)
 			_, err := shared.imsDBQ.CreateIncident(ctx, shared.imsDBQ, arg)
 			assert.NoError(t, err)
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	resp := hookedApis.newIncident(ctx, sampleIncident1(eventName))
 	require.Equal(t, http.StatusConflict, resp.StatusCode)
@@ -118,13 +120,14 @@ func TestNewIncidentGivesUpWhenNumbersKeepBeingTaken(t *testing.T) {
 func TestNewFieldReportRetriesWhenNumberIsTaken(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	var createAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeCreateFieldReport: func(ctx context.Context, arg imsdb.CreateFieldReportParams) {
 			if createAttempts.Add(1) == 1 {
 				err := shared.imsDBQ.CreateFieldReport(ctx, shared.imsDBQ, arg)
@@ -132,7 +135,7 @@ func TestNewFieldReportRetriesWhenNumberIsTaken(t *testing.T) {
 			}
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	num := hookedApis.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
 	require.Equal(t, int32(2), num)
@@ -147,16 +150,17 @@ func TestNewFieldReportRetriesWhenNumberIsTaken(t *testing.T) {
 func TestNewVisitRetriesWhenNumberIsTaken(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	resp := apisAdmin.addVisitWriter(ctx, eventName, userAliceHandle)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
 	var createAttempts atomic.Int32
-	hookedURL := interceptedServer(t, casInterceptor{
+	hooked := interceptedServer(t, casInterceptor{
 		beforeCreateVisit: func(ctx context.Context, arg imsdb.CreateVisitParams) {
 			if createAttempts.Add(1) == 1 {
 				_, err := shared.imsDBQ.CreateVisit(ctx, shared.imsDBQ, arg)
@@ -164,7 +168,7 @@ func TestNewVisitRetriesWhenNumberIsTaken(t *testing.T) {
 			}
 		},
 	})
-	hookedApis := ApiHelper{t: t, serverURL: hookedURL, jwt: apis.jwt}
+	hookedApis := hooked.withJWT(apis.jwt)
 
 	num := hookedApis.newVisitSuccess(ctx, imsjson.Visit{
 		Event:              eventName,

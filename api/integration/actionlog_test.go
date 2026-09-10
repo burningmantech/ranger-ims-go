@@ -29,9 +29,10 @@ import (
 func TestGetActionLog(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
 	referrer := "testGetActionLog"
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t), referrer: referrer}
+	apisAdmin := srv.admin(ctx).withReferrer(referrer)
 
 	// admin user can authenticate
 	_, resp := apisAdmin.getAuth(ctx, "")

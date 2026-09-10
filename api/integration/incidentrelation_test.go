@@ -36,9 +36,10 @@ import (
 func TestIncidentRelationPOSTsRequireJSONContentType(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
@@ -104,9 +105,10 @@ func TestIncidentRelationPOSTsRequireJSONContentType(t *testing.T) {
 func TestIncidentRelationEndpointsRejectBadPathValues(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
 
@@ -115,26 +117,26 @@ func TestIncidentRelationEndpointsRejectBadPathValues(t *testing.T) {
 		resp := apis.imsPost(ctx, struct{}{}, path)
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
-		_, resp = apis.imsDelete(ctx, path, nil)
+		resp = apis.imsDelete(ctx, path)
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
 	}
 
 	// A non-numeric Incident number, on each relation.
-	requireBadRequest(shared.serverURL.JoinPath(
+	requireBadRequest(srv.url.JoinPath(
 		"/ims/api/events/", eventName, "/incidents/", "not-a-number", "/incident_types/1",
 	).String())
-	requireBadRequest(shared.serverURL.JoinPath(
+	requireBadRequest(srv.url.JoinPath(
 		"/ims/api/events/", eventName, "/incidents/", "not-a-number", "/linked_incidents/", eventName, conv.FormatInt(num),
 	).String())
 
 	// A non-numeric Incident Type id.
-	requireBadRequest(shared.serverURL.JoinPath(
+	requireBadRequest(srv.url.JoinPath(
 		"/ims/api/events/", eventName, "/incidents/", conv.FormatInt(num), "/incident_types/", "Junk",
 	).String())
 
 	// A non-numeric linked Incident number.
-	requireBadRequest(shared.serverURL.JoinPath(
+	requireBadRequest(srv.url.JoinPath(
 		"/ims/api/events/", eventName, "/incidents/", conv.FormatInt(num), "/linked_incidents/", eventName, "the-other-one",
 	).String())
 
@@ -146,7 +148,7 @@ func TestIncidentRelationEndpointsRejectBadPathValues(t *testing.T) {
 		resp := apis.imsPost(ctx, struct{}{}, path)
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
-		_, resp = apis.imsDelete(ctx, path, nil)
+		resp = apis.imsDelete(ctx, path)
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
 	}
@@ -159,9 +161,10 @@ func TestIncidentRelationEndpointsRejectBadPathValues(t *testing.T) {
 func TestIncidentRelationEndpointsOnMissingIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
 
@@ -207,9 +210,10 @@ func TestIncidentRelationEndpointsOnMissingIncident(t *testing.T) {
 func TestAttachHiddenIncidentType(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	typeName := rand.NonCryptoText()
@@ -250,9 +254,10 @@ func TestAttachHiddenIncidentType(t *testing.T) {
 func TestConcurrentIncidentTypeAttach(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
 
@@ -319,9 +324,10 @@ func TestConcurrentIncidentTypeAttach(t *testing.T) {
 func TestConcurrentIncidentLinkAndUnlink(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 	eventName := newEventWithWriter(t, apisAdmin)
 	num1 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
 	num2 := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
@@ -387,9 +393,10 @@ func TestConcurrentIncidentLinkAndUnlink(t *testing.T) {
 func TestLinkIncidentChecksOnlyThePathEventPermissions(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apis := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
 
 	// Alice is a writer on the first Event and has no access to the second. Even
 	// the IMS admin needs the write grant on the second one: being an admin

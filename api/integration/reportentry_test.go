@@ -28,9 +28,10 @@ import (
 func TestEditIncidentReportEntry(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -95,9 +96,10 @@ func TestEditIncidentReportEntry(t *testing.T) {
 func TestEditFieldReportReportEntry(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user Writer role on that event
@@ -162,9 +164,10 @@ func TestEditFieldReportReportEntry(t *testing.T) {
 func TestEditVisitReportEntry(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
 
 	// Use the admin JWT to create a new event,
 	// then give the normal user VisitWriter role on that event
@@ -235,9 +238,10 @@ func TestEditVisitReportEntry(t *testing.T) {
 func TestStrikeFieldReportEntryDeniedForNonAuthoringReporter(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithReporter(t, apisAdmin)
 
@@ -269,9 +273,10 @@ func TestStrikeFieldReportEntryDeniedForNonAuthoringReporter(t *testing.T) {
 func TestStrikeFieldReportEntryAllowedForAuthoringReporter(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithReporter(t, apisAdmin)
 	num := apisAlice.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))

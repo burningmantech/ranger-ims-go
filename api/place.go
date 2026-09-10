@@ -198,6 +198,9 @@ type ImportPlaces struct {
 	userStore *directory.UserStore
 	imsAdmins []string
 	bmAPI     conf.BurningManAPI
+	// bmAPIHTTPClient, when non-nil, is what the Burning Man API call goes
+	// through instead of the API client's own. Only tests set it.
+	bmAPIHTTPClient *http.Client
 }
 
 type ImportPlacesResponse struct {
@@ -245,7 +248,9 @@ func (action ImportPlaces) run(req *http.Request) (ImportPlacesResponse, *herr.H
 		return resp, herr.BadRequest("The year must be a number", err)
 	}
 
-	records, err := bmapi.NewClient(action.bmAPI.URL, action.bmAPI.APIKey).Fetch(ctx, kind, year)
+	records, err := bmapi.NewClient(action.bmAPI.URL, action.bmAPI.APIKey).
+		WithHTTPClient(action.bmAPIHTTPClient).
+		Fetch(ctx, kind, year)
 	if err != nil {
 		return resp, herr.New(http.StatusBadGateway,
 			fmt.Sprintf("Failed to fetch %v data for %v from the Burning Man API: %v", kind, year, err),

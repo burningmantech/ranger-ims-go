@@ -35,8 +35,9 @@ import (
 func TestPostAuthAPIAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisNotAuthenticated := srv.unauthed()
 
 	// A user who doesn't exist gets s 401
 	statusCode, body, token := apisNotAuthenticated.postAuth(ctx, api.PostAuthRequest{
@@ -78,10 +79,11 @@ func TestPostAuthAPIAuthorization(t *testing.T) {
 func TestGetAuthAPIAuthorization(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisNonAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisAdmin := srv.admin(ctx)
+	apisNonAdmin := srv.alice(ctx)
+	apisNotAuthenticated := srv.unauthed()
 
 	// non-admin user can authenticate
 	getAuth, resp := apisNonAdmin.getAuth(ctx, "")
@@ -122,8 +124,9 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 func TestGetAuthWithEvent(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	// create event and give this user permissions on it
 	eventName := rand.NonCryptoText()
@@ -170,8 +173,9 @@ func TestGetAuthWithEvent(t *testing.T) {
 func TestGetAuthWithBadEventNames(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 
 	// non-existent event case
 	gar, httpResp := apisAdmin.getAuth(ctx, "ThisEventDoesNotExist")
@@ -197,8 +201,9 @@ func TestGetAuthWithBadEventNames(t *testing.T) {
 func TestPostAuthMakesRefreshCookie(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisNotAuthenticated := ApiHelper{t: t, serverURL: shared.serverURL, jwt: ""}
+	apisNotAuthenticated := srv.unauthed()
 
 	// A user with the correct password can log in and get refresh and access tokens
 	req := api.PostAuthRequest{
@@ -206,7 +211,7 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 		Password:       userAlicePassword,
 	}
 	response := &api.PostAuthResponse{}
-	resp := apisNotAuthenticated.imsPost(ctx, req, shared.serverURL.JoinPath("/ims/api/auth").String())
+	resp := apisNotAuthenticated.imsPost(ctx, req, srv.url.JoinPath("/ims/api/auth").String())
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
@@ -251,6 +256,7 @@ func TestPostAuthMakesRefreshCookie(t *testing.T) {
 func TestPostAuthRejectsCrossSiteFormPost(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
 	// This is what a cross-site form POST looks like on the wire: real credentials
 	// in a JSON body, but a Content-Type that a form (and only a form) would send.
@@ -260,15 +266,14 @@ func TestPostAuthRejectsCrossSiteFormPost(t *testing.T) {
 		Password:       userAlicePassword,
 	})
 	require.NoError(t, err)
-	authURL := shared.serverURL.JoinPath("/ims/api/auth").String()
+	authURL := srv.url.JoinPath("/ims/api/auth").String()
 
 	formPost := func(contentType string) *http.Response {
 		httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(postBody))
 		require.NoError(t, err)
 		httpPost.Header.Set("Content-Type", contentType)
-		client := &http.Client{Timeout: 10 * time.Second}
 		// #nosec G704 // SSRF via taint analysis. We control the URL.
-		resp, err := client.Do(httpPost)
+		resp, err := srv.client.Do(httpPost)
 		require.NoError(t, err)
 		return resp
 	}
@@ -292,7 +297,7 @@ func TestPostAuthRejectsCrossSiteFormPost(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	// The same credentials sent the way the IMS web app sends them still work.
-	statusCode, _, token := ApiHelper{t: t, serverURL: shared.serverURL}.postAuth(ctx,
+	statusCode, _, token := srv.unauthed().postAuth(ctx,
 		api.PostAuthRequest{
 			Identification: userAliceEmail,
 			Password:       userAlicePassword,

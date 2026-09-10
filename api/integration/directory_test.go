@@ -20,8 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -57,7 +55,7 @@ var (
 // IMS-native directory (backed by the shared IMS DB container) rather than
 // the Clubhouse directory. It also bootstraps an admin user in the
 // DIRECTORY_PERSON table, the way the add-user CLI command would.
-func newIMSDirectoryServer(t *testing.T, ctx context.Context) *url.URL {
+func newIMSDirectoryServer(t *testing.T, ctx context.Context) testServer {
 	t.Helper()
 
 	cfg := *shared.cfg
@@ -81,25 +79,13 @@ func newIMSDirectoryServer(t *testing.T, ctx context.Context) *url.URL {
 		directory.NewIMSSource(shared.imsDBQ),
 		cfg.Directory.InMemoryCacheTTL,
 	)
-	server := httptest.NewServer(
-		api.AddToMux(nil, api.NewEventSourcerer(), &cfg, shared.imsDBQ, userStore, nil, shared.actionLogger, shared.errorLogger),
-	)
-	t.Cleanup(server.Close)
-	serverURL, err := url.Parse(server.URL)
-	require.NoError(t, err)
-	return serverURL
+	return newCustomServer(t, &cfg, shared.imsDBQ, userStore)
 }
 
 // dirAdminJWT logs in as the bootstrapped IMS-native directory admin.
-func dirAdminJWT(t *testing.T, ctx context.Context, serverURL *url.URL) string {
+func dirAdminJWT(t *testing.T, ctx context.Context, srv testServer) string {
 	t.Helper()
-	unauthed := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
-	statusCode, _, jwt := unauthed.postAuth(ctx, api.PostAuthRequest{
-		Identification: dirAdminHandle,
-		Password:       dirAdminPassword,
-	})
-	require.Equal(t, http.StatusOK, statusCode)
-	return jwt
+	return srv.login(ctx, dirAdminHandle, dirAdminPassword)
 }
 
 // The DIRECTORY_* tables are shared by all tests in this package, so lookups
@@ -126,17 +112,17 @@ func findDirectoryGroup(groups []imsjson.DirectoryGroup, id int64) *imsjson.Dire
 func TestIMSNativeDirectory(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	serverURL := newIMSDirectoryServer(t, ctx)
+	srv := newIMSDirectoryServer(t, ctx)
 
 	// The bootstrapped admin can log in through the normal auth flow,
 	// with users coming from the IMS-native directory.
-	unauthed := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	unauthed := srv.unauthed()
 	statusCode, _, adminJWT := unauthed.postAuth(ctx, api.PostAuthRequest{
 		Identification: dirAdminHandle,
 		Password:       dirAdminPassword,
 	})
 	require.Equal(t, http.StatusOK, statusCode)
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: adminJWT}
+	apisAdmin := srv.withJWT(adminJWT)
 
 	// The admin can read the directory, which contains the admin itself.
 	// (Other parallel tests may have added more persons to the shared
@@ -207,7 +193,7 @@ func TestIMSNativeDirectory(t *testing.T) {
 		Password:       frodoPassword,
 	})
 	require.Equal(t, http.StatusOK, statusCode)
-	apisFrodo := ApiHelper{t: t, serverURL: serverURL, jwt: frodoJWT}
+	apisFrodo := srv.withJWT(frodoJWT)
 
 	// The new person shows up in the personnel API, with the fixed
 	// "active" status that all IMS-native directory users have.
@@ -285,10 +271,11 @@ func TestIMSNativeDirectory(t *testing.T) {
 func TestDirectoryAPIDisabledOnClubhouseDeployments(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
 	// On the main test server (which uses the Clubhouse directory), even an
 	// admin gets a 403 from the directory admin API.
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
+	apisAdmin := srv.admin(ctx)
 	_, resp := apisAdmin.getDirectory(ctx)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -300,11 +287,11 @@ func TestDirectoryAPIDisabledOnClubhouseDeployments(t *testing.T) {
 func TestDirectoryPersonValidation(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	serverURL := newIMSDirectoryServer(t, ctx)
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: dirAdminJWT(t, ctx, serverURL)}
+	srv := newIMSDirectoryServer(t, ctx)
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
 
 	// An unauthenticated request is rejected outright.
-	unauthed := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	unauthed := srv.unauthed()
 	_, resp := unauthed.getDirectory(ctx)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -386,11 +373,11 @@ func TestDirectoryPersonValidation(t *testing.T) {
 
 	// A non-numeric person ID in the path is a 400, for delete and
 	// for password-setting.
-	_, resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/persons/pippin").String(), nil)
+	resp = apisAdmin.imsDelete(ctx, srv.url.JoinPath("/ims/api/directory/persons/pippin").String())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	resp = apisAdmin.imsPost(ctx, imsjson.DirectoryPersonPassword{Password: "irrelevant"},
-		serverURL.JoinPath("/ims/api/directory/persons/pippin/password").String())
+		srv.url.JoinPath("/ims/api/directory/persons/pippin/password").String())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -403,8 +390,8 @@ func TestDirectoryPersonValidation(t *testing.T) {
 func TestDirectoryPersonPartialUpdate(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	serverURL := newIMSDirectoryServer(t, ctx)
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: dirAdminJWT(t, ctx, serverURL)}
+	srv := newIMSDirectoryServer(t, ctx)
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
 
 	teamA, resp := apisAdmin.editDirectoryGroup(ctx, "teams", imsjson.DirectoryGroup{
 		Title: new("TeamA-" + rand.NonCryptoText()),
@@ -523,9 +510,9 @@ func TestDirectoryPersonPartialUpdate(t *testing.T) {
 func TestDirectoryPersonPassword(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	serverURL := newIMSDirectoryServer(t, ctx)
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: dirAdminJWT(t, ctx, serverURL)}
-	unauthed := ApiHelper{t: t, serverURL: serverURL, jwt: ""}
+	srv := newIMSDirectoryServer(t, ctx)
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
+	unauthed := srv.unauthed()
 
 	handle := "PwPerson-" + rand.NonCryptoText()
 	personID, resp := apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{Handle: &handle})
@@ -579,8 +566,8 @@ func TestDirectoryPersonPassword(t *testing.T) {
 func TestDirectoryGroupValidationAndUpdate(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	serverURL := newIMSDirectoryServer(t, ctx)
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: dirAdminJWT(t, ctx, serverURL)}
+	srv := newIMSDirectoryServer(t, ctx)
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
 
 	// A new team must have a title.
 	_, resp := apisAdmin.editDirectoryGroup(ctx, "teams", imsjson.DirectoryGroup{})
@@ -679,8 +666,8 @@ func TestDirectoryGroupValidationAndUpdate(t *testing.T) {
 func TestDirectoryGroupDelete(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	serverURL := newIMSDirectoryServer(t, ctx)
-	apisAdmin := ApiHelper{t: t, serverURL: serverURL, jwt: dirAdminJWT(t, ctx, serverURL)}
+	srv := newIMSDirectoryServer(t, ctx)
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
 
 	teamID, resp := apisAdmin.editDirectoryGroup(ctx, "teams", imsjson.DirectoryGroup{
 		Title: new("DoomedTeam-" + rand.NonCryptoText()),
@@ -727,10 +714,10 @@ func TestDirectoryGroupDelete(t *testing.T) {
 	require.Empty(t, *person.PositionIDs)
 
 	// A non-numeric team or position ID in the path is a 400.
-	_, resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/teams/legolas").String(), nil)
+	resp = apisAdmin.imsDelete(ctx, srv.url.JoinPath("/ims/api/directory/teams/legolas").String())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	_, resp = apisAdmin.imsDelete(ctx, serverURL.JoinPath("/ims/api/directory/positions/gimli").String(), nil)
+	resp = apisAdmin.imsDelete(ctx, srv.url.JoinPath("/ims/api/directory/positions/gimli").String())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
@@ -746,14 +733,12 @@ func TestDirectoryGroupDelete(t *testing.T) {
 
 func (a ApiHelper) getDirectory(ctx context.Context) (imsjson.Directory, *http.Response) {
 	a.t.Helper()
-	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/directory").String(), &imsjson.Directory{})
-	return *bod.(*imsjson.Directory), resp
+	return a.imsGet[imsjson.Directory](ctx, a.serverURL.JoinPath("/ims/api/directory").String())
 }
 
 func (a ApiHelper) getPersonnel(ctx context.Context) ([]imsjson.Person, *http.Response) {
 	a.t.Helper()
-	bod, resp := a.imsGet(ctx, a.serverURL.JoinPath("/ims/api/personnel").String(), &[]imsjson.Person{})
-	return *bod.(*[]imsjson.Person), resp
+	return a.imsGet[[]imsjson.Person](ctx, a.serverURL.JoinPath("/ims/api/personnel").String())
 }
 
 func (a ApiHelper) editDirectoryPerson(ctx context.Context, req imsjson.DirectoryPerson) (*int64, *http.Response) {
@@ -794,18 +779,15 @@ func (a ApiHelper) setDirectoryPersonPassword(ctx context.Context, personID int6
 
 func (a ApiHelper) deleteDirectoryPerson(ctx context.Context, personID int64) *http.Response {
 	a.t.Helper()
-	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/persons/", conv.FormatInt(personID)).String(), nil)
-	return resp
+	return a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/persons/", conv.FormatInt(personID)).String())
 }
 
 func (a ApiHelper) deleteDirectoryTeam(ctx context.Context, teamID int64) *http.Response {
 	a.t.Helper()
-	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/teams/", conv.FormatInt(teamID)).String(), nil)
-	return resp
+	return a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/teams/", conv.FormatInt(teamID)).String())
 }
 
 func (a ApiHelper) deleteDirectoryPosition(ctx context.Context, positionID int64) *http.Response {
 	a.t.Helper()
-	_, resp := a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/positions/", conv.FormatInt(positionID)).String(), nil)
-	return resp
+	return a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/directory/positions/", conv.FormatInt(positionID)).String())
 }

@@ -20,6 +20,15 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -32,15 +41,9 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/errorlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"golang.org/x/sync/errgroup"
-	"log"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"os"
-	"strings"
-	"testing"
 )
 
 //go:embed clubhousedb_test_seed.sql
@@ -60,12 +63,8 @@ var shared struct {
 	cfg          *conf.IMSConfig
 	imsDBQ       *store.DBQ
 	userStore    *directory.UserStore
-	es           *api.EventSourcerer
-	testServer   *httptest.Server
-	serverURL    *url.URL
 	actionLogger *actionlog.Logger
 	errorLogger  *errorlog.Logger
-	bmAPIServer  *httptest.Server
 }
 
 // bmAPIYearNoData and bmAPIYearBroken are the years the fake Burning Man API
@@ -161,13 +160,15 @@ func setup(ctx context.Context, tempDir string) {
 	shared.cfg.Directory.ClubhouseDB.Database = "clubhouse-" + rand.NonCryptoText()
 	shared.cfg.Directory.ClubhouseDB.Username = "rangers-" + rand.NonCryptoText()
 	shared.cfg.Directory.ClubhouseDB.Password = "password-" + rand.NonCryptoText()
-	shared.bmAPIServer = httptest.NewServer(http.HandlerFunc(fakeBMAPI))
+	// Each test server gets its own stand-in for the Burning Man API, reached
+	// through an injected client rather than by address, so this URL is never
+	// dialed. It's an unresolvable one, so a broken injection fails loudly
+	// instead of calling the real API.
 	shared.cfg.BurningManAPI = conf.BurningManAPI{
-		URL:    shared.bmAPIServer.URL,
+		URL:    "http://burning-man-api.invalid",
 		APIKey: "bmapikey-" + rand.NonCryptoText(),
 	}
 	must(shared.cfg.Validate())
-	shared.es = api.NewEventSourcerer()
 
 	// Do IMS and Clubhouse DB setup in parallel, since the container startup takes a few seconds each
 	g := errgroup.Group{}
@@ -227,19 +228,85 @@ func setup(ctx context.Context, tempDir string) {
 
 	shared.actionLogger = actionlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ActionLogEnabled, true)
 	shared.errorLogger = errorlog.NewLogger(ctx, shared.imsDBQ, shared.cfg.Core.ErrorLogEnabled, true)
-	mux := api.AddToMux(nil, shared.es, shared.cfg, shared.imsDBQ, shared.userStore, nil, shared.actionLogger, shared.errorLogger)
+}
+
+// testServer is one test's own IMS API server. httptest.NewTestServer ties a
+// server's lifetime to the test that created it, so there's no sharing one
+// across the package the way the MariaDB containers are shared. The server
+// speaks over an in-memory network rather than a loopback port, so only the
+// client it hands out can reach it.
+type testServer struct {
+	t      *testing.T
+	server *httptest.Server
+	url    *url.URL
+	client *http.Client
+}
+
+// newServer starts a server for this test, using the package's standard
+// config, IMS database and Clubhouse directory.
+func newServer(t *testing.T) testServer {
+	t.Helper()
+	return newCustomServer(t, shared.cfg, shared.imsDBQ, shared.userStore)
+}
+
+// newCustomServer starts a server for a test that needs a different config,
+// database or user directory than newServer provides.
+func newCustomServer(
+	t *testing.T, cfg *conf.IMSConfig, imsDBQ *store.DBQ, userStore *directory.UserStore,
+) testServer {
+	t.Helper()
+	bmAPI := httptest.NewTestServer(t, http.HandlerFunc(fakeBMAPI))
+	mux := api.AddToMux(
+		nil, api.NewEventSourcerer(), cfg, imsDBQ, userStore, nil,
+		shared.actionLogger, shared.errorLogger, bmAPI.Client(),
+	)
 	mux.Handle(http.MethodGet+" "+panicPath, api.Adapt(
 		http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			panic("this handler always panics")
 		}),
 		api.RecordErrors(shared.errorLogger),
 		api.RecoverFromPanic(),
-		api.RequireAuthN(authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}),
-		api.LogRequest(false, shared.actionLogger, shared.userStore),
+		api.RequireAuthN(authz.JWTer{SecretKey: cfg.Core.JWTSecret}),
+		api.LogRequest(false, shared.actionLogger, userStore),
 	))
-	shared.testServer = httptest.NewServer(mux)
-	shared.serverURL, err = url.Parse(shared.testServer.URL)
-	must(err)
+	server := httptest.NewTestServer(t, mux)
+	client := *server.Client()
+	client.Timeout = 10 * time.Second
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+	return testServer{t: t, server: server, url: serverURL, client: &client}
+}
+
+// unauthed returns a helper that sends no Authorization header.
+func (s testServer) unauthed() ApiHelper {
+	return ApiHelper{t: s.t, serverURL: s.url, client: s.client}
+}
+
+// withJWT returns a helper authenticated with an already-obtained token.
+func (s testServer) withJWT(jwt string) ApiHelper {
+	return ApiHelper{t: s.t, serverURL: s.url, client: s.client, jwt: jwt}
+}
+
+// admin returns a helper logged in as the package's IMS admin.
+func (s testServer) admin(ctx context.Context) ApiHelper {
+	s.t.Helper()
+	return s.withJWT(s.login(ctx, userAdminEmail, userAdminPassword))
+}
+
+// alice returns a helper logged in as an ordinary, non-admin Ranger.
+func (s testServer) alice(ctx context.Context) ApiHelper {
+	s.t.Helper()
+	return s.withJWT(s.login(ctx, userAliceEmail, userAlicePassword))
+}
+
+func (s testServer) login(ctx context.Context, identification, password string) string {
+	s.t.Helper()
+	statusCode, _, token := s.unauthed().postAuth(ctx, api.PostAuthRequest{
+		Identification: identification,
+		Password:       password,
+	})
+	require.Equal(s.t, http.StatusOK, statusCode)
+	return token
 }
 
 func must(err error) {
@@ -250,12 +317,6 @@ func must(err error) {
 
 func shutdown(ctx context.Context, tempDir string) {
 	_ = os.RemoveAll(tempDir)
-	if shared.testServer != nil {
-		shared.testServer.Close()
-	}
-	if shared.bmAPIServer != nil {
-		shared.bmAPIServer.Close()
-	}
 	if shared.imsDBQ != nil {
 		_ = shared.imsDBQ.Close()
 	}

@@ -59,13 +59,13 @@ func TestTemplEndpoints(t *testing.T) {
 	ctx := t.Context()
 	cfg := conf.DefaultIMS()
 	require.NoError(t, cfg.Validate())
-	s := httptest.NewServer(web.AddToMux(nil, cfg))
-	defer s.Close()
+	s := httptest.NewTestServer(t, web.AddToMux(nil, cfg))
+	// The server speaks over an in-memory network, so only its own client can
+	// reach it. Asking for that client is also what populates s.URL.
+	client := s.Client()
+	client.Timeout = 10 * time.Second
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
 	for _, endpoint := range templEndpoints {
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, serverURL.JoinPath(endpoint).String(), nil)
 		require.NoError(t, err)
@@ -87,13 +87,13 @@ func TestRedirects(t *testing.T) {
 	ctx := t.Context()
 	cfg := conf.DefaultIMS()
 	require.NoError(t, cfg.Validate())
-	s := httptest.NewServer(web.AddToMux(nil, cfg))
-	defer s.Close()
+	s := httptest.NewTestServer(t, web.AddToMux(nil, cfg))
+	// The server speaks over an in-memory network, so only its own client can
+	// reach it. Asking for that client is also what populates s.URL.
+	client := s.Client()
+	client.Timeout = 10 * time.Second
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
 
 	// Note the trailing slash. This should get caught by the catchall handler,
 	// which will send us to the same URL without that trailing slash.

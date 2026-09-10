@@ -102,9 +102,10 @@ func newEventWithReporterAndReader(t *testing.T, admin ApiHelper) (eventName str
 func TestAttachToFieldReportDeniedForReaderWhoMayOnlyWriteOwn(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithReporterAndReader(t, apisAdmin)
 	num := apisAdmin.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
@@ -126,9 +127,10 @@ func TestAttachToFieldReportDeniedForReaderWhoMayOnlyWriteOwn(t *testing.T) {
 func TestGetFieldReportAttachmentDeniedForNonAuthoringReporter(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithReporter(t, apisAdmin)
 
@@ -154,9 +156,10 @@ func TestGetFieldReportAttachmentDeniedForNonAuthoringReporter(t *testing.T) {
 func TestAttachToFieldReportDeniedForNonAuthoringReporter(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithReporter(t, apisAdmin)
 	num := apisAdmin.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
@@ -171,9 +174,10 @@ func TestAttachToFieldReportDeniedForNonAuthoringReporter(t *testing.T) {
 func TestGetFieldReportAttachmentAllowedForAuthoringReporter(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithReporter(t, apisAdmin)
 	num := apisAlice.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
@@ -194,9 +198,10 @@ func TestGetFieldReportAttachmentAllowedForAuthoringReporter(t *testing.T) {
 func TestGetIncidentAttachmentForEntryWithNoFileIs404(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -218,9 +223,10 @@ func TestGetIncidentAttachmentForEntryWithNoFileIs404(t *testing.T) {
 func TestGetIncidentAttachmentForUnknownEntryIs404(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -235,14 +241,15 @@ func TestGetIncidentAttachmentForUnknownEntryIs404(t *testing.T) {
 func TestAttachToIncidentWithMalformedBodyIs400(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
 
-	path := shared.serverURL.JoinPath(
+	path := srv.url.JoinPath(
 		"/ims/api/events", eventName, "incidents", conv.FormatInt(num), "attachments",
 	).String()
 	// multipart/form-data with no boundary parameter, and a JSON body behind it.
@@ -254,14 +261,15 @@ func TestAttachToIncidentWithMalformedBodyIs400(t *testing.T) {
 func TestAttachToFieldReportWithMalformedBodyIs400(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
 
-	path := shared.serverURL.JoinPath(
+	path := srv.url.JoinPath(
 		"/ims/api/events", eventName, "field_reports", conv.FormatInt(num), "attachments",
 	).String()
 	resp := apisAlice.imsPostContentType(ctx, path, "multipart/form-data")
@@ -272,14 +280,15 @@ func TestAttachToFieldReportWithMalformedBodyIs400(t *testing.T) {
 func TestAttachToVisitWithMalformedBodyIs400(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newVisitSuccess(ctx, sampleVisit1(eventName))
 
-	path := shared.serverURL.JoinPath(
+	path := srv.url.JoinPath(
 		"/ims/api/events", eventName, "visits", conv.FormatInt(num), "attachments",
 	).String()
 	resp := apisAlice.imsPostContentType(ctx, path, "multipart/form-data")
@@ -292,27 +301,28 @@ func TestAttachToVisitWithMalformedBodyIs400(t *testing.T) {
 func TestIncidentAttachmentWithUnparseableNumbersIs400(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 
-	badIncident := shared.serverURL.JoinPath(
+	badIncident := srv.url.JoinPath(
 		"/ims/api/events", eventName, "incidents", "not-a-number", "attachments", "1",
 	).String()
 	_, resp := apisAlice.imsGetBodyBytes(ctx, badIncident)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
-	badAttachment := shared.serverURL.JoinPath(
+	badAttachment := srv.url.JoinPath(
 		"/ims/api/events", eventName, "incidents", "1", "attachments", "not-a-number",
 	).String()
 	_, resp = apisAlice.imsGetBodyBytes(ctx, badAttachment)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
-	badUpload := shared.serverURL.JoinPath(
+	badUpload := srv.url.JoinPath(
 		"/ims/api/events", eventName, "incidents", "not-a-number", "attachments",
 	).String()
 	resp = apisAlice.imsPostContentType(ctx, badUpload, "multipart/form-data")
@@ -323,27 +333,28 @@ func TestIncidentAttachmentWithUnparseableNumbersIs400(t *testing.T) {
 func TestFieldReportAttachmentWithUnparseableNumbersIs400(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 
-	badFieldReport := shared.serverURL.JoinPath(
+	badFieldReport := srv.url.JoinPath(
 		"/ims/api/events", eventName, "field_reports", "not-a-number", "attachments", "1",
 	).String()
 	_, resp := apisAlice.imsGetBodyBytes(ctx, badFieldReport)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
-	badAttachment := shared.serverURL.JoinPath(
+	badAttachment := srv.url.JoinPath(
 		"/ims/api/events", eventName, "field_reports", "1", "attachments", "not-a-number",
 	).String()
 	_, resp = apisAlice.imsGetBodyBytes(ctx, badAttachment)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
-	badUpload := shared.serverURL.JoinPath(
+	badUpload := srv.url.JoinPath(
 		"/ims/api/events", eventName, "field_reports", "not-a-number", "attachments",
 	).String()
 	resp = apisAlice.imsPostContentType(ctx, badUpload, "multipart/form-data")
@@ -354,27 +365,28 @@ func TestFieldReportAttachmentWithUnparseableNumbersIs400(t *testing.T) {
 func TestVisitAttachmentWithUnparseableNumbersIs400(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 
-	badVisit := shared.serverURL.JoinPath(
+	badVisit := srv.url.JoinPath(
 		"/ims/api/events", eventName, "visits", "not-a-number", "attachments", "1",
 	).String()
 	_, resp := apisAlice.imsGetBodyBytes(ctx, badVisit)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
-	badAttachment := shared.serverURL.JoinPath(
+	badAttachment := srv.url.JoinPath(
 		"/ims/api/events", eventName, "visits", "1", "attachments", "not-a-number",
 	).String()
 	_, resp = apisAlice.imsGetBodyBytes(ctx, badAttachment)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
-	badUpload := shared.serverURL.JoinPath(
+	badUpload := srv.url.JoinPath(
 		"/ims/api/events", eventName, "visits", "not-a-number", "attachments",
 	).String()
 	resp = apisAlice.imsPostContentType(ctx, badUpload, "multipart/form-data")
@@ -388,9 +400,10 @@ func TestVisitAttachmentWithUnparseableNumbersIs400(t *testing.T) {
 func TestUploadedHTMLIsNotServedAsHTML(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -415,9 +428,10 @@ func TestUploadedHTMLIsNotServedAsHTML(t *testing.T) {
 func TestUploadedSVGIsServedAsOctetStream(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -440,9 +454,10 @@ func TestUploadedSVGIsServedAsOctetStream(t *testing.T) {
 func TestUploadedPNGKeepsItsContentType(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName := newEventWithWriter(t, apisAdmin)
 	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -476,9 +491,10 @@ func TestUploadedPNGKeepsItsContentType(t *testing.T) {
 func TestAttachToLinkedFieldReportNotifiesParentIncident(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	srv := newServer(t)
 
-	apisAdmin := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAdmin(ctx, t)}
-	apisAlice := ApiHelper{t: t, serverURL: shared.serverURL, jwt: jwtForAlice(t, ctx)}
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
 
 	eventName, eventID := newEventWithWriterID(t, apisAdmin)
 	incidentNum := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
@@ -488,14 +504,12 @@ func TestAttachToLinkedFieldReportNotifiesParentIncident(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
-	events := subscribeToEventSource(ctx, t)
+	events := subscribeToEventSource(ctx, t, srv)
 
 	_, resp = apisAlice.attachFileToFieldReport(ctx, eventName, frNum, []byte("some evidence"))
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
-	// The SSE channel is global and other parallel tests publish to it, so match on
-	// this test's own Event ID rather than taking whatever arrives first.
 	wantIncident := api.IMSEventData{EventID: eventID, IncidentNumber: incidentNum}
 	wantFieldReport := api.IMSEventData{EventID: eventID, FieldReportNumber: frNum}
 	require.True(t, events.await(wantFieldReport), "no SSE push for the updated Field Report")
@@ -522,15 +536,17 @@ type sseWatcher struct {
 }
 
 // subscribeToEventSource opens a streaming connection to the SSE endpoint and reads
-// pushes into a channel until the test ends.
-func subscribeToEventSource(ctx context.Context, t *testing.T) *sseWatcher {
+// pushes into a channel until the test ends. It uses the server's own client
+// rather than the helpers', since that one has a request timeout that would cut
+// the stream off.
+func subscribeToEventSource(ctx context.Context, t *testing.T, srv testServer) *sseWatcher {
 	t.Helper()
 
-	path := shared.serverURL.JoinPath("ims/api/eventsource").String()
+	path := srv.url.JoinPath("ims/api/eventsource").String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	require.NoError(t, err)
 	// #nosec G704 // SSRF via taint analysis. We control the URLs.
-	resp, err := (&http.Client{}).Do(req)
+	resp, err := srv.server.Client().Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	t.Cleanup(func() { _ = resp.Body.Close() })
@@ -558,7 +574,7 @@ func subscribeToEventSource(ctx context.Context, t *testing.T) *sseWatcher {
 }
 
 // await reports whether want shows up on the channel before a short deadline,
-// discarding unrelated pushes from other parallel tests along the way.
+// discarding unrelated pushes along the way.
 func (w *sseWatcher) await(want api.IMSEventData) bool {
 	w.t.Helper()
 	deadline := time.After(15 * time.Second)

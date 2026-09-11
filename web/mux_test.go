@@ -24,7 +24,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/web"
@@ -63,7 +62,6 @@ func TestTemplEndpoints(t *testing.T) {
 	// The server speaks over an in-memory network, so only its own client can
 	// reach it. Asking for that client is also what populates s.URL.
 	client := s.Client()
-	client.Timeout = 10 * time.Second
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
 	for _, endpoint := range templEndpoints {
@@ -91,7 +89,6 @@ func TestRedirects(t *testing.T) {
 	// The server speaks over an in-memory network, so only its own client can
 	// reach it. Asking for that client is also what populates s.URL.
 	client := s.Client()
-	client.Timeout = 10 * time.Second
 	serverURL, err := url.Parse(s.URL)
 	require.NoError(t, err)
 

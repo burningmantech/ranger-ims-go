@@ -34,6 +34,7 @@ const el = {
     usernameInput: ims.typedElement("username_input", HTMLInputElement),
     passwordInput: ims.typedElement("password_input", HTMLInputElement),
     passwordShowHide: ims.typedElement("password_show_hide", HTMLButtonElement),
+    authFailMessage: ims.typedElement("auth_fail_message", HTMLDivElement),
 };
 
 initLoginPage();
@@ -76,6 +77,9 @@ async function login(): Promise<void> {
     });
     if (err != null || json == null) {
         ims.unhide(".if-authentication-failed");
+        if (err != null) {
+            el.authFailMessage.textContent = err;
+        }
         return;
     }
     ims.clearLocalStorage();

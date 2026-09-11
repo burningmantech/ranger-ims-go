@@ -34,7 +34,7 @@ templ Login(deployment, versionName, versionRef string) {
 
 <form method="POST" id="login_form" class="form-horizontal">
 
-<div role="alert" class="alert alert-danger if-authentication-failed hidden">Authentication Failed</div>
+<div id="auth_fail_message" role="alert" class="alert alert-danger if-authentication-failed hidden">Authentication Failed</div>
 <div role="status" class="alert alert-secondary if-logged-in hidden">You are already logged in as <span
         class="logged-in-user"/></div>
 

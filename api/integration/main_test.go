@@ -27,7 +27,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/burningmantech/ranger-ims-go/api"
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -271,7 +270,6 @@ func newCustomServer(
 	))
 	server := httptest.NewTestServer(t, mux)
 	client := *server.Client()
-	client.Timeout = 10 * time.Second
 	serverURL, err := url.Parse(server.URL)
 	require.NoError(t, err)
 	return testServer{t: t, server: server, url: serverURL, client: &client}

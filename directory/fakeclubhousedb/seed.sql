@@ -15,7 +15,7 @@ values
 (600,   "Hardware", "hardware@example.com", "$argon2id$v=19$m=8192,t=4,p=1$pGcXPQ1tP2Lz54c+R+8jgg$FZryn3Gttrxi7GoZXxyG/rGl/xNjOEjjDGeboEGMph8", "active",   true),
 (601,   "Loosy",    "loosy@example.com",    "$argon2id$v=19$m=8192,t=4,p=1$qGMBHtiPMl0MtCQncHhNdA$f1LbS0MIcIYjfiisvxAyEJC21lGVMBB11Yr9ctLP7aI", "active",   true),
 (602,   "Doggy",    "doggy@example.com",    "$argon2id$v=19$m=8192,t=4,p=1$L1EBUN9twap4arU4qurBdA$ML6fWDryXTmbyiAfzIQMFUoHYbJoOhwh58Oq3ffxeWA", "active",   true),
-(603,   "Runner",   "runner@example.com",   "$argon2id$v=19$m=8192,t=4,p=1$YY+aGB2MTKrnHFEQqdfdNg$Q9yByHhJ1GpOW+fUWePv+u76wE9fCGXSONkawTiyJEs", "active",   true),
+(603,   "Runner",   "runner@example.com",   concat(":", sha1("Runner")), "active",   true),
 (604,   "TheMan",   "theman@example.com",   "$argon2id$v=19$m=8192,t=4,p=1$5zituz25m5nT7J2MgGAwfQ$EtaP17cnQCVOaVx3Ns8TZPPN1s3zY7bLvKW4QlwSR9Y", "active",   true)
 ;
 

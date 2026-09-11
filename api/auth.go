@@ -120,7 +120,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 	correct, err := authn.Verify(vals.Password, matchedPerson.Password)
 	if err != nil {
 		return empty, nil, herr.InternalServerError(
-			"Invalid stored password. Get in touch with the tech team.",
+			"Stored credentials are stale. A simple login to Clubhouse should fix this. You do not need to change your password.",
 			fmt.Errorf("%w. Identification: %v", err, vals.Identification)).From("[Verify]")
 	}
 	if !correct {

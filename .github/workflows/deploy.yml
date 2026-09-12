@@ -107,11 +107,13 @@ jobs:
 
       - name: Update task definition and ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2.6.3
+        timeout-minutes: 12
         with:
           task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"
           service: "${{ env.AWS_ECS_SERVICE_PRODUCTION }}"
           cluster: "${{ env.AWS_ECS_CLUSTER }}"
           wait-for-service-stability: true
+          wait-for-minutes: 10
 
       - name: Fetch and update current task definition for training
         id: new-task-definition-training
@@ -137,8 +139,10 @@ jobs:
 
       - name: Update task definition and ECS service for training
         uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2.6.3
+        timeout-minutes: 12
         with:
           task-definition: "${{ steps.new-task-definition-training.outputs.task-definition }}"
           service: "${{ env.AWS_ECS_SERVICE_TRAINING }}"
           cluster: "${{ env.AWS_ECS_CLUSTER }}"
           wait-for-service-stability: true
+          wait-for-minutes: 10

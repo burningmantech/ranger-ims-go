@@ -38,6 +38,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/errorlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"github.com/go-jose/go-jose/v4/jwt"
 )
 
 func AddToMux(
@@ -493,7 +494,14 @@ func RequireAuthN(j authz.JWTer) Adapter {
 			header := r.Header.Get("Authorization")
 			claims, err := j.AuthenticateJWT(strings.TrimPrefix(header, "Bearer "))
 			if err != nil || claims == nil {
-				herr.Unauthorized("Invalid Authorization token", err).WriteResponse(w)
+				msg := "Invalid Authorization token"
+				if errors.Is(err, jwt.ErrExpired) {
+					msg = "Please log in again. Authorization token is expired"
+				}
+				if errors.Is(err, authz.ErrNoJWTString) {
+					msg = "Please log in again. No authorization token"
+				}
+				herr.Unauthorized(msg, err).WriteResponse(w)
 				return
 			}
 			jwtCtx := context.WithValue(r.Context(), JWTContextKey, JWTContext{

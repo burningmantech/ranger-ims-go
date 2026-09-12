@@ -19,8 +19,11 @@ package authz
 import (
 	"errors"
 	"fmt"
+
 	"github.com/golang-jwt/jwt/v5"
 )
+
+var ErrNoJWTString = errors.New("no JWT string provided")
 
 type JWTer struct {
 	SecretKey string
@@ -37,7 +40,7 @@ func (j JWTer) createJWT(claims IMSClaims) (string, error) {
 
 func (j JWTer) authenticateJWT(jwtStr, wantTokenType string) (*IMSClaims, error) {
 	if jwtStr == "" {
-		return nil, errors.New("no JWT string provided")
+		return nil, ErrNoJWTString
 	}
 	claims := IMSClaims{}
 	tok, err := jwt.ParseWithClaims(jwtStr, &claims, func(token *jwt.Token) (any, error) {

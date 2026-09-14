@@ -46,6 +46,7 @@ type PostAuth struct {
 	userStore     *directory.UserStore
 	jwtSecret     string
 	tokenLifetime time.Duration
+	cookies       authz.TokenCookies
 }
 
 type PostAuthRequest struct {
@@ -73,7 +74,7 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if cookie != nil {
 		http.SetCookie(w, cookie)
 	}
-	http.SetCookie(w, authz.ExpiredLegacyRefreshTokenCookie(req))
+	http.SetCookie(w, action.cookies.ExpiredLegacyRefreshToken(req))
 	mustWriteJSON(w, req, resp)
 }
 func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cookie, *herr.HTTPError) {
@@ -151,7 +152,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		resp.Token = jwt
 		return resp, nil, nil
 	}
-	return resp, authz.AccessTokenCookie(req, jwt, action.tokenLifetime), nil
+	return resp, action.cookies.AccessToken(req, jwt, action.tokenLifetime), nil
 }
 
 type GetAuth struct {

@@ -17,6 +17,7 @@
 package authz
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"net/netip"
@@ -28,68 +29,110 @@ import (
 // access token. Non-browser clients send the same token in an Authorization
 // header instead.
 //
-// Ideally we'd use a cookie prefix, but "__Host-" would require Path=/, and
-// either prefix would make local development with Chrome more difficult :(.
+// Browsers only accept a "__Host-" cookie that's Secure, has Path=/, and has no
+// Domain, which means it can only have been set by this exact host. Without the
+// prefix, a page on a sibling subdomain could plant a cookie carrying its own
+// valid token, and silently sign a Ranger in as someone else.
 //
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies#cookie_prefixes
-// https://issues.chromium.org/issues/40202941
-const AccessTokenCookieName = "ims_access_token"
+const AccessTokenCookieName = "__Host-ims_access_token" // #nosec G101 // A name, not a credential
 
-// accessTokenCookiePath limits the cookie to the API. The web app's pages are
-// static, and learn who's logged in by calling the API.
-const accessTokenCookiePath = "/ims/api"
+// LoopbackAccessTokenCookieName is the access token cookie's name for plain
+// HTTP to a loopback host in a dev deployment. That cookie can't be Secure (see
+// TokenCookies.secure), so browsers wouldn't accept the prefix.
+//
+// https://issues.chromium.org/issues/40202941
+const LoopbackAccessTokenCookieName = "ims_access_token"
+
+// ErrMultipleTokenCookies means a request carried more than one access token
+// cookie. IMS never sets more than one, so something else set the others.
+var ErrMultipleTokenCookies = errors.New("multiple access token cookies")
 
 // legacyRefreshTokenCookieName is the cookie that held refresh tokens, back when
 // IMS had them. It's only still named so that the server can expire it.
 const legacyRefreshTokenCookieName = "refresh_token"
 
-// AccessTokenCookie makes the cookie that carries a web client's access token,
-// in response to req.
-func AccessTokenCookie(req *http.Request, token string, lifetime time.Duration) *http.Cookie {
-	// #nosec G124 // Secure is only off for loopback; see secureCookies
+// TokenCookies makes and reads the cookies that carry a web client's access token.
+type TokenCookies struct {
+	// Dev is whether this is a dev deployment, the only kind that may use a
+	// cookie that isn't Secure.
+	Dev bool
+}
+
+// AccessToken makes the cookie that carries a web client's access token, in
+// response to req.
+func (c TokenCookies) AccessToken(req *http.Request, token string, lifetime time.Duration) *http.Cookie {
+	// #nosec G124 // Secure is only off for dev loopback; see secure
 	return &http.Cookie{
-		Name:     AccessTokenCookieName,
+		Name:     c.accessTokenName(req),
 		Value:    token,
-		Path:     accessTokenCookiePath,
+		Path:     "/",
 		MaxAge:   int(lifetime / time.Second),
 		HttpOnly: true,
-		Secure:   secureCookies(req),
+		Secure:   c.secure(req),
 		// The cookie is only needed by the API calls a page makes on itself, and
 		// never on a navigation from another site, so strict costs nothing.
 		SameSite: http.SameSiteStrictMode,
 	}
 }
 
-// ExpiredAccessTokenCookie makes a cookie that removes the access token cookie.
-func ExpiredAccessTokenCookie(req *http.Request) *http.Cookie {
-	c := AccessTokenCookie(req, "", 0) // #nosec G124 // See secureCookies
-	c.MaxAge = -1
-	return c
+// ExpiredAccessToken makes a cookie that removes the access token cookie.
+func (c TokenCookies) ExpiredAccessToken(req *http.Request) *http.Cookie {
+	cookie := c.AccessToken(req, "", 0) // #nosec G124 // See secure
+	cookie.MaxAge = -1
+	return cookie
 }
 
-// ExpiredLegacyRefreshTokenCookie makes a cookie that removes the refresh token
-// cookie set by older versions of IMS, which browsers would otherwise keep
-// sending until it expired on its own.
-func ExpiredLegacyRefreshTokenCookie(req *http.Request) *http.Cookie {
-	// #nosec G124 // Secure is only off for loopback; see secureCookies
+// ExpiredLegacyRefreshToken makes a cookie that removes the refresh token cookie
+// set by older versions of IMS, which browsers would otherwise keep sending
+// until it expired on its own.
+func (c TokenCookies) ExpiredLegacyRefreshToken(req *http.Request) *http.Cookie {
+	// #nosec G124 // Secure is only off for dev loopback; see secure
 	return &http.Cookie{
 		Name:     legacyRefreshTokenCookieName,
 		MaxAge:   -1,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   secureCookies(req),
+		Secure:   c.secure(req),
 		SameSite: http.SameSiteStrictMode,
 	}
 }
 
-// secureCookies reports whether cookies set in response to req should be
-// Secure, which is always, except for plain HTTP to a loopback host. WebKit
-// won't store a Secure cookie sent over http://localhost, so local development
-// in Safari (and Playwright's WebKit) couldn't log in at all. That exception
-// can't weaken a real deployment: no browser sends a loopback Host to one, and
-// a cookie set for localhost is never sent anywhere else.
-func secureCookies(req *http.Request) bool {
-	if req.TLS != nil {
+// AccessTokenFrom returns the token in req's access token cookie, or "" if
+// there isn't one.
+func (c TokenCookies) AccessTokenFrom(req *http.Request) (string, error) {
+	cookies := req.CookiesNamed(c.accessTokenName(req))
+	switch len(cookies) {
+	case 0:
+		return "", nil
+	case 1:
+		return cookies[0].Value, nil
+	default:
+		// A prefixed cookie is unique per host, but some browsers could be
+		// tricked into sending a lookalike: a nameless cookie, set from a sibling
+		// subdomain, whose value begins "__Host-ims_access_token=".
+		return "", ErrMultipleTokenCookies
+	}
+}
+
+func (c TokenCookies) accessTokenName(req *http.Request) string {
+	if c.secure(req) {
+		return AccessTokenCookieName
+	}
+	return LoopbackAccessTokenCookieName
+}
+
+// secure reports whether cookies set in response to req should be Secure,
+// which is always, except for plain HTTP to a loopback host in a dev
+// deployment. WebKit won't store a Secure cookie sent over http://localhost, so
+// local development in Safari (and Playwright's WebKit) couldn't log in at all.
+//
+// Other deployments ignore the Host header, since a reverse proxy commonly
+// rewrites it to the loopback address IMS listens on (e.g. nginx's proxy_pass
+// without "proxy_set_header Host $host"), while browsers still reach the proxy
+// over HTTPS.
+func (c TokenCookies) secure(req *http.Request) bool {
+	if !c.Dev || req.TLS != nil {
 		return true
 	}
 	host, _, err := net.SplitHostPort(req.Host)

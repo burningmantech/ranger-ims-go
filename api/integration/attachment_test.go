@@ -235,6 +235,8 @@ func TestGetIncidentAttachmentHeaders(t *testing.T) {
 	require.Equal(t, originalName, params["filename"])
 	require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	require.Equal(t, "sandbox", resp.Header.Get("Content-Security-Policy"))
+	// It's authenticated by cookie, so no shared cache may keep it for someone else
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 
 	// Asking to download it makes the browser save it instead.
 	body, resp = apisAlice.imsGetBodyBytes(ctx, path.String()+"?download=true")

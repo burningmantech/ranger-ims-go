@@ -563,6 +563,60 @@ func TestDirectoryPersonPassword(t *testing.T) {
 	require.Equal(t, http.StatusOK, statusCode)
 }
 
+// A token can't be revoked, so authentication checks that its user is still in
+// the directory. Deactivating, deleting, or renaming someone cuts off their
+// existing token right away, rather than whenever it would have expired.
+func TestTokenStopsWorkingWhenUserLeavesDirectory(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newIMSDirectoryServer(t, ctx)
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
+	eventsURL := MethodURL{http.MethodGet, "/ims/api/events"}
+
+	newPersonToken := func(handle string) (int64, ApiHelper) {
+		personID, resp := apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{Handle: &handle})
+		require.Equal(t, http.StatusNoContent, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.NotNil(t, personID)
+		password := "pw-" + rand.NonCryptoText()
+		resp = apisAdmin.setDirectoryPersonPassword(ctx, *personID, password)
+		require.Equal(t, http.StatusNoContent, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		return *personID, srv.withJWT(srv.login(ctx, handle, password))
+	}
+
+	// Deactivation
+	deactivatedID, apisDeactivated := newPersonToken("Deactivated-" + rand.NonCryptoText())
+	require.Equal(t, http.StatusOK, apiCall(t, eventsURL, apisDeactivated))
+	_, resp := apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{ID: deactivatedID, Active: new(false)})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, apiCall(t, eventsURL, apisDeactivated))
+	authResp, resp := apisDeactivated.getAuth(ctx, "")
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.False(t, authResp.Authenticated)
+
+	// Deletion
+	deletedID, apisDeleted := newPersonToken("Deleted-" + rand.NonCryptoText())
+	require.Equal(t, http.StatusOK, apiCall(t, eventsURL, apisDeleted))
+	resp = apisAdmin.deleteDirectoryPerson(ctx, deletedID)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, apiCall(t, eventsURL, apisDeleted))
+
+	// Renaming, since access rules can name a person by handle
+	renamedID, apisRenamed := newPersonToken("Renamed-" + rand.NonCryptoText())
+	require.Equal(t, http.StatusOK, apiCall(t, eventsURL, apisRenamed))
+	_, resp = apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{ID: renamedID, Handle: new("NewName-" + rand.NonCryptoText())})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, apiCall(t, eventsURL, apisRenamed))
+
+	// Everyone else is unaffected
+	require.Equal(t, http.StatusOK, apiCall(t, eventsURL, apisAdmin))
+}
+
 func TestDirectoryGroupValidationAndUpdate(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

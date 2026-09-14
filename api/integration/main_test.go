@@ -265,7 +265,11 @@ func newCustomServer(
 		}),
 		api.RecordErrors(shared.errorLogger),
 		api.RecoverFromPanic(),
-		api.RequireAuthN(authz.JWTer{SecretKey: cfg.Core.JWTSecret}),
+		api.RequireAuthN(
+			authz.JWTer{SecretKey: cfg.Core.JWTSecret},
+			authz.TokenCookies{Dev: cfg.Core.Deployment == conf.DeploymentTypeDev},
+			userStore,
+		),
 		api.LogRequest(false, shared.actionLogger, userStore),
 	))
 	server := httptest.NewTestServer(t, mux)

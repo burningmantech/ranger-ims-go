@@ -277,13 +277,25 @@ The `store.DBQ` wraps a `*sql.DB` and sqlc-generated `Querier` interface, provid
 
 JWT-based authentication with a single access token, signed with `IMS_JWT_SECRET`, that lasts
 `IMS_TOKEN_LIFETIME` (default 8 hours) from login. There is no refresh; when it expires, the user logs in again.
-- **Web client**: `POST /ims/api/auth` sets the token in an `HttpOnly`, `SameSite=Strict` cookie scoped to
-  `/ims/api`. The browser's JavaScript never sees the token, and sends no `Authorization` header
+Tokens can't be revoked, so authentication (`authenticate` in `api/mux.go`) also requires the token's user to
+still be in the directory with the same handle: deactivating, deleting, or renaming someone cuts them off as
+soon as the directory cache refreshes.
+- **Web client**: `POST /ims/api/auth` sets the token in an `HttpOnly`, `SameSite=Strict` cookie named
+  `__Host-ims_access_token` (`lib/authz/cookie.go`), so a sibling subdomain can't plant one. Only in a dev
+  deployment, plain HTTP to a loopback host gets an unprefixed, non-`Secure` `ims_access_token` instead.
+  Other deployments ignore the Host header here, since a reverse proxy may rewrite it to loopback. The
+  browser's JavaScript never sees the token, and sends no `Authorization` header
 - **Other clients**: `POST /ims/api/auth` with `"token_in_body": true` returns the token in the response body
-  instead, to be sent as `Authorization: Bearer <token>`. If a request carries both, the header wins
+  instead, to be sent as `Authorization: Bearer <token>`. If a request carries both, the Bearer header wins;
+  any other `Authorization` scheme (e.g. a proxy's Basic auth) is ignored
 - Because browsers attach the cookie to requests another site initiates, every `/ims/api` route goes through
   `RejectCrossOrigin` (`http.CrossOriginProtection`, in `api/mux.go`), which refuses cross-origin
-  state-changing requests. Non-browser clients send none of the headers it checks, so they're unaffected
+  state-changing requests. Non-browser clients send none of the headers it checks, so they're unaffected.
+  That doesn't cover GETs, so the cookie itself is also refused when `Sec-Fetch-Site` says the request
+  came from another origin, including a same-site one
+- API responses are `Cache-Control: no-store` unless the handler sets its own (`NoStoreByDefault`), since a
+  cookie, unlike an `Authorization` header, doesn't keep shared caches from reusing a response. Web pages
+  send `frame-ancestors 'self'`
 
 ### Authorization
 

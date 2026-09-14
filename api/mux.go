@@ -59,21 +59,23 @@ func AddToMux(
 	}
 
 	jwter := authz.JWTer{SecretKey: cfg.Core.JWTSecret}
+	cookies := authz.TokenCookies{Dev: cfg.Core.Deployment == conf.DeploymentTypeDev}
 	attachmentsEnabled := cfg.AttachmentsStore.Type != conf.AttachmentsStoreNone
 
 	// authed registers a route wrapped in the standard middleware stack for an
 	// authenticated endpoint: error logging, panic recovery, cross-origin
-	// protection, JWT authentication, action logging, and a request-size limit. logAction
-	// controls whether the request is written to the action log. Using this for
-	// every authenticated route makes it impossible to silently forget
-	// RequireAuthN.
+	// protection, no caching by default, JWT authentication, action logging, and
+	// a request-size limit. logAction controls whether the request is written to
+	// the action log. Using this for every authenticated route makes it
+	// impossible to silently forget RequireAuthN.
 	authed := func(pattern string, handler http.Handler, logAction bool) {
 		mux.Handle(pattern, Adapt(
 			handler,
 			RecordErrors(errorLogger),
 			RecoverFromPanic(),
 			RejectCrossOrigin(),
-			RequireAuthN(jwter),
+			NoStoreByDefault(),
+			RequireAuthN(jwter, cookies, userStore),
 			LogRequest(logAction, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		))
@@ -83,7 +85,7 @@ func AddToMux(
 	// Zero or more auth adapters (e.g. OptionalAuthN) may still be supplied;
 	// pass none for endpoints that ignore the requestor's token entirely.
 	unauthed := func(pattern string, handler http.Handler, logAction bool, authN ...Adapter) {
-		adapters := append([]Adapter{RecordErrors(errorLogger), RecoverFromPanic(), RejectCrossOrigin()}, authN...)
+		adapters := append([]Adapter{RecordErrors(errorLogger), RecoverFromPanic(), RejectCrossOrigin(), NoStoreByDefault()}, authN...)
 		adapters = append(adapters,
 			LogRequest(logAction, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
@@ -105,6 +107,7 @@ func AddToMux(
 			userStore,
 			cfg.Core.JWTSecret,
 			cfg.Core.TokenLifetime,
+			cookies,
 		}, true)
 
 	// This endpoint does not require authentication or authorization, by design.
@@ -117,7 +120,7 @@ func AddToMux(
 			attachmentsEnabled,
 			cfg.Core.EventDeletionEnabled,
 			cfg.BurningManAPI.Enabled(),
-		}, true, OptionalAuthN(jwter))
+		}, true, OptionalAuthN(jwter, cookies, userStore))
 
 	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
 	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins}, true)
@@ -478,23 +481,77 @@ func RejectCrossOrigin() Adapter {
 
 var errCrossOrigin = errors.New("cross-origin request")
 
-// requestToken finds the requestor's access token. An Authorization header
-// takes precedence over the cookie, since a client only sends one on purpose.
-func requestToken(r *http.Request) string {
-	if header := r.Header.Get("Authorization"); header != "" {
-		return strings.TrimPrefix(header, "Bearer ")
-	}
-	cookie, err := r.Cookie(authz.AccessTokenCookieName)
-	if err != nil {
-		return ""
-	}
-	return cookie.Value
-}
-
-func OptionalAuthN(j authz.JWTer) Adapter {
+// NoStoreByDefault marks a response uncacheable, unless its handler says
+// otherwise. An API response depends on who's asking, and unlike an
+// Authorization header, a cookie doesn't stop a shared cache from handing one
+// Ranger's response to another.
+func NoStoreByDefault() Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, err := j.AuthenticateJWT(requestToken(r))
+			w.Header().Set("Cache-Control", "no-store")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// requestToken finds the requestor's access token. A Bearer token in the
+// Authorization header takes precedence over the cookie, since a client only
+// sends one on purpose. Any other Authorization header, like the Basic
+// credentials a browser sends to a password-protected proxy, isn't for IMS.
+func requestToken(r *http.Request, cookies authz.TokenCookies) (string, error) {
+	scheme, token, found := strings.Cut(r.Header.Get("Authorization"), " ")
+	if found && strings.EqualFold(scheme, "Bearer") {
+		return token, nil
+	}
+	token, err := cookies.AccessTokenFrom(r)
+	if err != nil || token == "" {
+		return "", err
+	}
+	// SameSite=Strict still lets a sibling subdomain send the cookie, and
+	// RejectCrossOrigin lets GETs through, so only IMS's own pages, or a
+	// Ranger typing in a URL ("none"), may use it. A request with no
+	// Sec-Fetch-Site is from an old browser, which SameSite has to cover.
+	switch site := r.Header.Get("Sec-Fetch-Site"); site {
+	case "", "same-origin", "none":
+		return token, nil
+	default:
+		return "", fmt.Errorf("%w: cookie sent with Sec-Fetch-Site %q", errCrossOrigin, site)
+	}
+}
+
+var (
+	errUserNotInDirectory = errors.New("user is not in the directory")
+	errDirectoryLookup    = errors.New("failed to fetch users")
+)
+
+// authenticate returns the claims of the requestor's valid access token. A
+// token can't be revoked, so this also requires that the user it names is
+// still in the directory, which is what cuts off someone who's been removed
+// or deactivated before their token expires.
+func authenticate(r *http.Request, j authz.JWTer, cookies authz.TokenCookies, userStore *directory.UserStore) (*authz.IMSClaims, error) {
+	token, err := requestToken(r, cookies)
+	if err != nil {
+		return nil, err
+	}
+	claims, err := j.AuthenticateJWT(token)
+	if err != nil {
+		return nil, err
+	}
+	users, err := userStore.GetAllUsers(r.Context())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errDirectoryLookup, err)
+	}
+	user, found := users[claims.DirectoryID()]
+	if !found || user.Handle != claims.RangerHandle() {
+		return nil, fmt.Errorf("%w: %v (ID %v)", errUserNotInDirectory, claims.RangerHandle(), claims.DirectoryID())
+	}
+	return claims, nil
+}
+
+func OptionalAuthN(j authz.JWTer, cookies authz.TokenCookies, userStore *directory.UserStore) Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, err := authenticate(r, j, cookies, userStore)
 			ctx := context.WithValue(r.Context(), JWTContextKey, JWTContext{
 				Claims: claims,
 				Error:  err,
@@ -504,19 +561,12 @@ func OptionalAuthN(j authz.JWTer) Adapter {
 	}
 }
 
-func RequireAuthN(j authz.JWTer) Adapter {
+func RequireAuthN(j authz.JWTer, cookies authz.TokenCookies, userStore *directory.UserStore) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, err := j.AuthenticateJWT(requestToken(r))
-			if err != nil || claims == nil {
-				msg := "Invalid authorization token"
-				if errors.Is(err, jwt.ErrTokenExpired) {
-					msg = "Please log in again. Authorization token is expired"
-				}
-				if errors.Is(err, authz.ErrNoJWTString) {
-					msg = "Please log in again. No authorization token"
-				}
-				herr.Unauthorized(msg, err).WriteResponse(w)
+			claims, err := authenticate(r, j, cookies, userStore)
+			if err != nil {
+				authNError(err).WriteResponse(w)
 				return
 			}
 			jwtCtx := context.WithValue(r.Context(), JWTContextKey, JWTContext{
@@ -525,6 +575,23 @@ func RequireAuthN(j authz.JWTer) Adapter {
 			})
 			next.ServeHTTP(w, r.WithContext(jwtCtx))
 		})
+	}
+}
+
+func authNError(err error) *herr.HTTPError {
+	switch {
+	case errors.Is(err, errCrossOrigin):
+		return herr.Forbidden("Cross-origin request rejected", err)
+	case errors.Is(err, errDirectoryLookup):
+		return herr.InternalServerError("Failed to fetch personnel", err)
+	case errors.Is(err, errUserNotInDirectory):
+		return herr.Unauthorized("Please log in again. User is no longer in the directory", err)
+	case errors.Is(err, jwt.ErrTokenExpired):
+		return herr.Unauthorized("Please log in again. Authorization token is expired", err)
+	case errors.Is(err, authz.ErrNoJWTString):
+		return herr.Unauthorized("Please log in again. No authorization token", err)
+	default:
+		return herr.Unauthorized("Invalid authorization token", err)
 	}
 }
 

@@ -397,7 +397,7 @@ func TestHandlelessTokenIsRejectedByAuthentication(t *testing.T) {
 	srv := newServer(t)
 
 	token, err := authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}.CreateAccessToken(
-		"", 0, nil, nil, false, nil, time.Now().Add(time.Hour),
+		"", 0, time.Now().Add(time.Hour),
 	)
 	require.NoError(t, err)
 	apis := srv.withJWT(token)

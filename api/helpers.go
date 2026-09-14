@@ -316,36 +316,32 @@ func permissionsByEvent(ctx context.Context, jwtCtx JWTContext, imsDBQ *store.DB
 		}
 	}
 
-	allPositions, allTeams, err := userStore.GetPositionsAndTeams(ctx)
+	userPosNames, err := userStore.PositionsForRanger(ctx, jwtCtx.Claims.DirectoryID())
 	if err != nil {
-		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[GetPositionsAndTeams]")
+		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[GetPositionsForRanger]")
 	}
-	userPosIDs := jwtCtx.Claims.RangerPositions()
-	userPosNames := make([]string, 0, len(userPosIDs))
-	for _, userPosID := range userPosIDs {
-		userPosNames = append(userPosNames, allPositions[userPosID])
+	userTeamNames, err := userStore.TeamsForRanger(ctx, jwtCtx.Claims.DirectoryID())
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[TeamsForRanger]")
 	}
-	userTeamIDs := jwtCtx.Claims.RangerTeams()
-	userTeamNames := make([]string, 0, len(userTeamIDs))
-	for _, userTeamID := range userTeamIDs {
-		userTeamNames = append(userTeamNames, allTeams[userTeamID])
+	_, onDutyPosition, err := userStore.OnDutyForRanger(ctx, jwtCtx.Claims.DirectoryID())
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[OnDutyForRanger]")
 	}
-	onDutyPosition := ""
-	onDutyPositionID := jwtCtx.Claims.RangerOnDutyPosition()
-	if onDutyPositionID != nil {
-		onDutyPosition = allPositions[*onDutyPositionID]
+	onSite, err := userStore.OnSiteForRanger(ctx, jwtCtx.Claims.DirectoryID())
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to fetch positions and teams", err).From("[OnSiteForRanger]")
 	}
-
-	permissionsByEvent, _ := authz.ManyEventPermissions(
+	permsByEvent, _ := authz.ManyEventPermissions(
 		accessRowByEventID,
 		imsAdmins,
 		jwtCtx.Claims.RangerHandle(),
-		jwtCtx.Claims.RangerOnSite(),
+		onSite,
 		userPosNames,
 		userTeamNames,
 		onDutyPosition,
 	)
-	return permissionsByEvent, nil
+	return permsByEvent, nil
 }
 
 func rollback(txn *sql.Tx) {

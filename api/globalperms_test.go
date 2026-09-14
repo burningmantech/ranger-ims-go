@@ -39,8 +39,6 @@ import (
 // them here pins the intended behaviour for that day.
 
 // emptyDirectorySource is a directory.Source with no users, positions or teams.
-// The global permission lookup only needs the positions and teams, and only to
-// map the caller's claimed IDs to names.
 type emptyDirectorySource struct{}
 
 func (emptyDirectorySource) FetchUsers(context.Context) (map[int64]*directory.User, error) {

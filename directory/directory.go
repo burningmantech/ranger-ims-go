@@ -134,3 +134,59 @@ func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions, te
 	}
 	return *posMap, *teamMap, nil
 }
+
+func (store *UserStore) PositionsForRanger(ctx context.Context, personID int64) ([]string, error) {
+	users, err := store.GetAllUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[GetAllUsers] %w", err)
+	}
+	user, ok := users[personID]
+	if !ok {
+		return nil, nil
+	}
+	return user.PositionNames, nil
+}
+
+func (store *UserStore) TeamsForRanger(ctx context.Context, personID int64) ([]string, error) {
+	users, err := store.GetAllUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[GetAllUsers] %w", err)
+	}
+	user, ok := users[personID]
+	if !ok {
+		return nil, nil
+	}
+	return user.TeamNames, nil
+}
+
+func (store *UserStore) OnSiteForRanger(ctx context.Context, personID int64) (bool, error) {
+	users, err := store.GetAllUsers(ctx)
+	if err != nil {
+		return false, fmt.Errorf("[GetAllUsers] %w", err)
+	}
+	user, ok := users[personID]
+	if !ok {
+		return false, nil
+	}
+	return user.Onsite, nil
+}
+
+func (store *UserStore) OnDutyForRanger(ctx context.Context, personID int64) (id int64, name string, err error) {
+	users, err := store.GetAllUsers(ctx)
+	if err != nil {
+		return 0, "", fmt.Errorf("[GetAllUsers] %w", err)
+	}
+	user, ok := users[personID]
+	if !ok {
+		return 0, "", nil
+	}
+	posID := int64(0)
+	posName := ""
+	if user.OnDutyPositionID != nil {
+		posID = *user.OnDutyPositionID
+	}
+	if user.OnDutyPositionName != nil {
+		posName = *user.OnDutyPositionName
+	}
+	return posID, posName, nil
+}

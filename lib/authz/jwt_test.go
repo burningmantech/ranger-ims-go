@@ -17,25 +17,18 @@
 package authz_test
 
 import (
-	"github.com/burningmantech/ranger-ims-go/lib/authz"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateAndGetValidJWT(t *testing.T) {
 	t.Parallel()
 
 	jwter := authz.JWTer{SecretKey: "some-secret"}
-	j, err := jwter.CreateAccessToken(
-		"Hardware",
-		12345,
-		[]int64{10, 20, 40, 150},
-		[]int64{15, 25, 45, 155},
-		true,
-		new(int64(20)),
-		time.Now().Add(1*time.Hour),
-	)
+	j, err := jwter.CreateAccessToken("Hardware", 12345, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	claims, err := jwter.AuthenticateJWT(j)
 	require.NoError(t, err)
@@ -43,24 +36,13 @@ func TestCreateAndGetValidJWT(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Hardware", claims.RangerHandle())
 	require.Equal(t, "12345", sub)
-	require.Equal(t, []int64{10, 20, 40, 150}, claims.RangerPositions())
-	require.Equal(t, []int64{15, 25, 45, 155}, claims.RangerTeams())
-	require.True(t, claims.RangerOnSite())
 }
 
 func TestCreateAndGetInvalidJWTs(t *testing.T) {
 	t.Parallel()
 	jwter := authz.JWTer{SecretKey: "some-secret"}
 	{
-		expiredJWT, err := jwter.CreateAccessToken(
-			"Hardware",
-			1,
-			nil,
-			nil,
-			true,
-			new(int64(20)),
-			time.Now().Add(-1*time.Hour),
-		)
+		expiredJWT, err := jwter.CreateAccessToken("Hardware", 1, time.Now().Add(-1*time.Hour))
 		require.NoError(t, err)
 		_, err = jwter.AuthenticateJWT(expiredJWT)
 		require.Error(t, err)
@@ -68,31 +50,14 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 	}
 	{
 		// #nosec G101 // Potential hardcoded credentials
-		signedWithDifferentKeyJWT, err := authz.JWTer{SecretKey: "some-other-secret"}.CreateAccessToken(
-			"Hardware",
-			1,
-			nil,
-			nil,
-			true,
-			new(int64(20)),
-			time.Now().Add(1*time.Hour),
-		)
+		signedWithDifferentKeyJWT, err := authz.JWTer{SecretKey: "some-other-secret"}.CreateAccessToken("Hardware", 1, time.Now().Add(1*time.Hour))
 		require.NoError(t, err)
 		_, err = jwter.AuthenticateJWT(signedWithDifferentKeyJWT)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "signature is invalid")
 	}
 	{
-		hasNoRangerHandleJWT, err := jwter.CreateAccessToken(
-			// empty RangerName
-			"",
-			12345,
-			nil,
-			nil,
-			true,
-			new(int64(20)),
-			time.Now().Add(1*time.Hour),
-		)
+		hasNoRangerHandleJWT, err := jwter.CreateAccessToken("", 12345, time.Now().Add(1*time.Hour))
 		require.NoError(t, err)
 		_, err = jwter.AuthenticateJWT(hasNoRangerHandleJWT)
 		require.Error(t, err)
@@ -104,15 +69,7 @@ func TestTokenTypesAreNotInterchangeable(t *testing.T) {
 	t.Parallel()
 	jwter := authz.JWTer{SecretKey: "some-secret"}
 
-	accessToken, err := jwter.CreateAccessToken(
-		"Hardware",
-		12345,
-		nil,
-		nil,
-		true,
-		new(int64(20)),
-		time.Now().Add(1*time.Hour),
-	)
+	accessToken, err := jwter.CreateAccessToken("Hardware", 12345, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	refreshToken, err := jwter.CreateRefreshToken("Hardware", 12345, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)

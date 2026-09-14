@@ -107,6 +107,14 @@ upgrade/deps/npm:
 	npx --yes npm-check-updates -u --cwd playwright
 	npm install --prefix playwright
 
+## upgrade/deps/actions: upgrade all GitHub Actions in .github/workflows to their
+## latest versions, keeping them pinned by commit SHA with a version comment.
+## Borrows the gh CLI's token when GITHUB_TOKEN isn't set, to avoid API rate limits.
+.PHONY: upgrade/deps/actions
+upgrade/deps/actions:
+	GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" \
+		go run github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@v4.1.1 run --update
+
 # This is kind of silly, but it's similar to what the Go website itself
 # does to check the latest version.
 LATEST_GO_VERSION = $(shell curl "https://go.dev/dl/?mode=json" | grep version | sort | tail -n 1 | grep -oG '[0-9.]\+')

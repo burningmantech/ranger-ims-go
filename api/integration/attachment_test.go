@@ -504,7 +504,7 @@ func TestAttachToLinkedFieldReportNotifiesParentIncident(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
-	events := subscribeToEventSource(ctx, t, srv)
+	events := subscribeToEventSource(ctx, t, srv, apisAlice.jwt)
 
 	_, resp = apisAlice.attachFileToFieldReport(ctx, eventName, frNum, []byte("some evidence"))
 	require.NoError(t, resp.Body.Close())
@@ -535,16 +535,17 @@ type sseWatcher struct {
 	seen chan api.IMSEventData
 }
 
-// subscribeToEventSource opens a streaming connection to the SSE endpoint and reads
-// pushes into a channel until the test ends. It uses the server's own client
+// subscribeToEventSource opens a streaming connection to the SSE endpoint as the
+// holder of jwt, and reads pushes into a channel until the test ends. It uses the server's own client
 // rather than the helpers', since that one has a request timeout that would cut
 // the stream off.
-func subscribeToEventSource(ctx context.Context, t *testing.T, srv testServer) *sseWatcher {
+func subscribeToEventSource(ctx context.Context, t *testing.T, srv testServer, jwt string) *sseWatcher {
 	t.Helper()
 
 	path := srv.url.JoinPath("ims/api/eventsource").String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+jwt)
 	// #nosec G704 // SSRF via taint analysis. We control the URLs.
 	resp, err := srv.server.Client().Do(req)
 	require.NoError(t, err)

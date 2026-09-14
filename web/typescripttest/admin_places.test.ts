@@ -278,7 +278,7 @@ test("a failed save marks only its own field and leaves the text as typed", asyn
 test("an event_id query param preselects that event and loads its places", async (): Promise<void> => {
     window.history.replaceState(null, "", `${adminPlacesPath}?event_id=2025`);
 
-    const mock = await initAdminPlacesPage(() => jsonResponse({
+    await initAdminPlacesPage(() => jsonResponse({
         art: [{ name: "Temple", location_string: "9:00", external_data: { name: "Temple", location_string: "9:00" } }],
         camp: [],
         mv: [],
@@ -286,10 +286,9 @@ test("an event_id query param preselects that event and loads its places", async
     }));
 
     await vi.waitFor((): void => {
-        expect(mock.mock.calls.some(([url]) => url === placesUrl)).toBe(true);
+        expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
     });
     expect((await eventSelect()).value).toBe("2025");
-    expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
     // The param that got us here survives the load.
     expect(window.location.search).toBe("?event_id=2025");
 });
@@ -405,7 +404,9 @@ test("importing camps posts the place type and year, then reloads just that fiel
     // The year the admin typed, not the event name.
     expect(params.get("year")).toBe("2019");
 
+    // The camps were already loaded once, so wait for the reload that follows the import.
     await vi.waitFor((): void => {
+        expect(mock.mock.calls.filter(([url]) => url === placesUrl)).toHaveLength(2);
         expect(JSON.parse(field("camp-data").value)).toHaveLength(2);
     });
     expect(document.getElementById("camp-data-label")!.textContent).toBe("Camp JSON Data (2)");

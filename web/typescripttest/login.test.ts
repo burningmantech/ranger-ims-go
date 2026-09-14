@@ -70,10 +70,10 @@ test("a failed login reveals the authentication-failed banner", async (): Promis
     });
 });
 
-test("a successful login stores the tokens and redirects to the app", async (): Promise<void> => {
+test("a successful login redirects to the app", async (): Promise<void> => {
     const mock = await initLoginPage((url, init) => {
         if (url === url_auth && init?.body != null) {
-            return jsonResponse({ token: "shinyNewToken", expires_unix_ms: 1700000000000 });
+            return jsonResponse({ expires_unix_ms: 1700000000000 });
         }
         return undefined;
     });
@@ -89,10 +89,8 @@ test("a successful login stores the tokens and redirects to the app", async (): 
     await vi.waitFor((): void => {
         expect(replace).toHaveBeenCalledWith(url_app);
     });
-    expect(localStorage.getItem("access_token")).toBe("shinyNewToken");
-    expect(localStorage.getItem("access_token_refresh_after")).toBe("1700000000000");
-
-    // The login POST carries the form's credentials.
+    // The login POST carries the form's credentials, and doesn't ask for the
+    // token in the body, so the server hands it over only as a cookie.
     const loginCall = mock.mock.calls.find(([, init]) => init?.body != null)!;
     expect(JSON.parse(loginCall[1]!.body as string)).toEqual({
         identification: "ranger@example.com",

@@ -36,18 +36,17 @@ const mib = 1 << 20
 func DefaultIMS() *IMSConfig {
 	return &IMSConfig{
 		Core: ConfigCore{
-			Host:                 "localhost",
-			Port:                 8080,
-			JWTSecret:            rand.Text(),
-			Deployment:           "dev",
-			LogLevel:             "INFO",
-			AccessTokenLifetime:  15 * time.Minute,
-			RefreshTokenLifetime: 8 * time.Hour,
-			CacheControlShort:    20 * time.Minute,
-			CacheControlLong:     2 * time.Hour,
-			MaxRequestBytes:      100 * mib,
-			ActionLogEnabled:     true,
-			ErrorLogEnabled:      true,
+			Host:              "localhost",
+			Port:              8080,
+			JWTSecret:         rand.Text(),
+			Deployment:        "dev",
+			LogLevel:          "INFO",
+			TokenLifetime:     8 * time.Hour,
+			CacheControlShort: 20 * time.Minute,
+			CacheControlLong:  2 * time.Hour,
+			MaxRequestBytes:   100 * mib,
+			ActionLogEnabled:  true,
+			ErrorLogEnabled:   true,
 		},
 		Store: DBStore{
 			Type: DBStoreTypeMaria,
@@ -127,8 +126,8 @@ func (c *IMSConfig) Validate() error {
 	}
 
 	// Assorted other validations
-	if c.Core.AccessTokenLifetime > c.Core.RefreshTokenLifetime {
-		errs = append(errs, errors.New("access token lifetime should not be greater than refresh token lifetime"))
+	if c.Core.TokenLifetime <= 0 {
+		errs = append(errs, errors.New("token lifetime must be positive"))
 	}
 	return errors.Join(errs...)
 }
@@ -209,11 +208,11 @@ func (d DeploymentType) Validate() error {
 }
 
 type ConfigCore struct {
-	Host                 string
-	Port                 int32
-	AccessTokenLifetime  time.Duration
-	RefreshTokenLifetime time.Duration
-	Admins               []string
+	Host string
+	Port int32
+	// TokenLifetime is how long a login lasts, from the moment of logging in.
+	TokenLifetime time.Duration
+	Admins        []string
 	// #nosec G117 // Exported secret struct field
 	JWTSecret  string `redact:"true"`
 	Deployment DeploymentType

@@ -50,15 +50,15 @@ test("fetchNoThrow defaults to POST and JSON content type when a body is provide
     expect(requestHeaders(init).get("Content-Type")).toBe("application/json");
 });
 
-test("fetchNoThrow sends a Bearer token from localStorage", async (): Promise<void> => {
-    ims.setAccessToken("token123");
-    ims.setRefreshTokenBy(Date.now() + 60_000);
+test("fetchNoThrow leaves authentication to the cookie, ignoring an old stored token", async (): Promise<void> => {
+    localStorage.setItem("access_token", "token123");
     const mock = mockFetch(() => jsonResponse({}));
 
     await ims.fetchNoThrow(url_ping, null);
 
+    expect(mock.mock.calls.length).toBe(1);
     const headers = requestHeaders(mock.mock.calls[0]![1]);
-    expect(headers.get("Authorization")).toBe("Bearer token123");
+    expect(headers.get("Authorization")).toBeNull();
 });
 
 test("fetchNoThrow extracts the detail from an application/problem+json error", async (): Promise<void> => {
@@ -78,61 +78,13 @@ test("fetchNoThrow reports a thrown fetch error rather than throwing", async ():
     expect(err).toContain("no mocked fetch route");
 });
 
-test("fetchNoThrow refreshes a stale access token before the real request", async (): Promise<void> => {
-    ims.setAccessToken("staleToken");
-    ims.setRefreshTokenBy(Date.now() - 1);
-    const mock = mockFetch((url, _init) => {
-        if (url === url_authRefresh) {
-            return jsonResponse({ token: "freshToken", expires_unix_ms: Date.now() + 60_000 });
-        }
-        if (url === url_ping) {
-            return jsonResponse({});
-        }
-        return undefined;
-    });
-
-    const { err } = await ims.fetchNoThrow(url_ping, null);
-    expect(err).toBeNull();
-
-    expect(mock.mock.calls[0]![0]).toBe(url_authRefresh);
-    expect(mock.mock.calls[1]![0]).toBe(url_ping);
-    expect(localStorage.getItem("access_token")).toBe("freshToken");
-    const headers = requestHeaders(mock.mock.calls[1]![1]);
-    expect(headers.get("Authorization")).toBe("Bearer freshToken");
-});
-
-test("fetchNoThrow clears stored credentials when the token refresh fails", async (): Promise<void> => {
-    ims.setAccessToken("staleToken");
-    ims.setRefreshTokenBy(Date.now() - 1);
-    const mock = mockFetch((url, _init) => {
-        if (url === url_authRefresh) {
-            return problemResponse("refresh token expired", 401);
-        }
-        if (url === url_ping) {
-            return jsonResponse({});
-        }
-        return undefined;
-    });
-
-    const { err } = await ims.fetchNoThrow(url_ping, null);
-    expect(err).toBeNull();
-
-    expect(localStorage.getItem("access_token")).toBeNull();
-    expect(localStorage.getItem("access_token_refresh_after")).toBeNull();
-    // The real request goes out unauthenticated.
-    const headers = requestHeaders(mock.mock.calls[1]![1]);
-    expect(headers.get("Authorization")).toBeNull();
-});
-
 test("fetchNoThrow refuses a FormData body rather than JSONifying it", async (): Promise<void> => {
     mockFetch(() => jsonResponse({}));
 
     await expect(ims.fetchNoThrow(url_ping, { body: new FormData() })).rejects.toThrow(/uploadNoThrow/);
 });
 
-test("uploadNoThrow posts the form data with a Bearer token and no Content-Type", async (): Promise<void> => {
-    ims.setAccessToken("token123");
-    ims.setRefreshTokenBy(Date.now() + 60_000);
+test("uploadNoThrow posts the form data with no Authorization or Content-Type header", async (): Promise<void> => {
     const uploads = mockXHR(() => new Response(null, { status: 204 }));
     const body = new FormData();
     body.append("imsAttachment", new Blob(["file contents"]), "photo.jpg");
@@ -145,7 +97,7 @@ test("uploadNoThrow posts the form data with a Bearer token and no Content-Type"
     expect(uploads[0]!.url).toBe(url_ping);
     expect(uploads[0]!.body).toBe(body);
     expect(uploads[0]!.headers["Accept"]).toBe("application/json");
-    expect(uploads[0]!.headers["Authorization"]).toBe("Bearer token123");
+    expect(uploads[0]!.headers["Authorization"]).toBeUndefined();
     // XHR sets the multipart Content-Type, with its boundary, itself.
     expect(uploads[0]!.headers["Content-Type"]).toBeUndefined();
 });
@@ -194,22 +146,4 @@ test("uploadNoThrow reports a failed request rather than throwing", async (): Pr
 
     const { err } = await ims.uploadNoThrow(url_ping, new FormData(), (): void => {});
     expect(err).toBe("Upload failed");
-});
-
-test("uploadNoThrow refreshes a stale access token before uploading", async (): Promise<void> => {
-    ims.setAccessToken("staleToken");
-    ims.setRefreshTokenBy(Date.now() - 1);
-    const mock = mockFetch((url, _init) => {
-        if (url === url_authRefresh) {
-            return jsonResponse({ token: "freshToken", expires_unix_ms: Date.now() + 60_000 });
-        }
-        return undefined;
-    });
-    const uploads = mockXHR(() => new Response(null, { status: 204 }));
-
-    const { err } = await ims.uploadNoThrow(url_ping, new FormData(), (): void => {});
-    expect(err).toBeNull();
-
-    expect(mock.mock.calls[0]![0]).toBe(url_authRefresh);
-    expect(uploads[0]!.headers["Authorization"]).toBe("Bearer freshToken");
 });

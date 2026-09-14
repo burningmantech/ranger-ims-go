@@ -23,12 +23,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// TokenType values for the "tok" claim. These distinguish access tokens from
-// refresh tokens, so that one can never be used in place of the other.
-const (
-	TokenTypeAccess  = "access"
-	TokenTypeRefresh = "refresh"
-)
+// TokenTypeAccess is the only value IMS now issues for the "tok" claim. IMS used
+// to also issue "refresh" tokens, signed with the same key, and those must never
+// pass as access tokens.
+const TokenTypeAccess = "access"
 
 type IMSClaims struct {
 	jwt.RegisteredClaims

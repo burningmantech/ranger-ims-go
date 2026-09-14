@@ -60,8 +60,7 @@ func TestValidateBase(t *testing.T) {
 	cfg := conf.DefaultIMS()
 	require.NoError(t, cfg.Validate())
 
-	// must have AccessTokenLifetime <= RefreshTokenLifetime
-	cfg.Core.AccessTokenLifetime = cfg.Core.RefreshTokenLifetime + 1
+	cfg.Core.TokenLifetime = 0
 	require.Error(t, cfg.Validate())
 }
 

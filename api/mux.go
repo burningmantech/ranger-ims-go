@@ -38,7 +38,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
 	"github.com/burningmantech/ranger-ims-go/store/errorlog"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func AddToMux(
@@ -62,8 +62,8 @@ func AddToMux(
 	attachmentsEnabled := cfg.AttachmentsStore.Type != conf.AttachmentsStoreNone
 
 	// authed registers a route wrapped in the standard middleware stack for an
-	// authenticated endpoint: error logging, panic recovery, JWT
-	// authentication, action logging, and a request-size limit. logAction
+	// authenticated endpoint: error logging, panic recovery, cross-origin
+	// protection, JWT authentication, action logging, and a request-size limit. logAction
 	// controls whether the request is written to the action log. Using this for
 	// every authenticated route makes it impossible to silently forget
 	// RequireAuthN.
@@ -72,6 +72,7 @@ func AddToMux(
 			handler,
 			RecordErrors(errorLogger),
 			RecoverFromPanic(),
+			RejectCrossOrigin(),
 			RequireAuthN(jwter),
 			LogRequest(logAction, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
@@ -80,9 +81,9 @@ func AddToMux(
 
 	// unauthed registers a route that deliberately skips JWT authentication.
 	// Zero or more auth adapters (e.g. OptionalAuthN) may still be supplied;
-	// pass none for endpoints that ignore the Authorization header entirely.
+	// pass none for endpoints that ignore the requestor's token entirely.
 	unauthed := func(pattern string, handler http.Handler, logAction bool, authN ...Adapter) {
-		adapters := append([]Adapter{RecordErrors(errorLogger), RecoverFromPanic()}, authN...)
+		adapters := append([]Adapter{RecordErrors(errorLogger), RecoverFromPanic(), RejectCrossOrigin()}, authN...)
 		adapters = append(adapters,
 			LogRequest(logAction, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
@@ -97,15 +98,13 @@ func AddToMux(
 	authed("GET /ims/api/errorlogs", GetErrorLogs{db, userStore, cfg.Core.Admins}, true)
 
 	// This endpoint does not require authentication, nor does it even consider
-	// the request's Authorization header, because the point of this is to make
-	// a new JWT.
+	// the requestor's token, because the point of this is to make a new JWT.
 	unauthed("POST /ims/api/auth",
 		PostAuth{
 			db,
 			userStore,
 			cfg.Core.JWTSecret,
-			cfg.Core.AccessTokenLifetime,
-			cfg.Core.RefreshTokenLifetime,
+			cfg.Core.TokenLifetime,
 		}, true)
 
 	// This endpoint does not require authentication or authorization, by design.
@@ -119,17 +118,6 @@ func AddToMux(
 			cfg.Core.EventDeletionEnabled,
 			cfg.BurningManAPI.Enabled(),
 		}, true, OptionalAuthN(jwter))
-
-	// This endpoint does not require authentication, nor does it even consider
-	// the request's Authorization header, because the point of this is to make
-	// a new access token.
-	unauthed("POST /ims/api/auth/refresh",
-		RefreshAccessToken{
-			db,
-			userStore,
-			cfg.Core.JWTSecret,
-			cfg.Core.AccessTokenLifetime,
-		}, false)
 
 	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
 	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins}, true)
@@ -192,8 +180,9 @@ func AddToMux(
 
 	// The SSE stream only carries notification metadata (event and record
 	// numbers), not record contents; clients fetch the actual data through the
-	// authenticated endpoints above.
-	unauthed("GET /ims/api/eventsource", es.Server.Handler(EventSourceChannel), false)
+	// endpoints above. The requestor's token is only checked on connecting, so
+	// a stream outlives the token that opened it.
+	authed("GET /ims/api/eventsource", es.Server.Handler(EventSourceChannel), false)
 
 	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins}, true)
 	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, true)
@@ -474,11 +463,38 @@ type JWTContext struct {
 	Error  error
 }
 
+// RejectCrossOrigin refuses state-changing requests that a browser sent from
+// another origin. IMS authenticates browsers by cookie, which the browser
+// attaches no matter which site initiated the request, so this is what stops
+// another site from acting on a signed-in Ranger's behalf. Non-browser clients
+// send none of the headers this checks, and are let through.
+func RejectCrossOrigin() Adapter {
+	cop := http.NewCrossOriginProtection()
+	cop.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		herr.Forbidden("Cross-origin request rejected", errCrossOrigin).WriteResponse(w)
+	}))
+	return cop.Handler
+}
+
+var errCrossOrigin = errors.New("cross-origin request")
+
+// requestToken finds the requestor's access token. An Authorization header
+// takes precedence over the cookie, since a client only sends one on purpose.
+func requestToken(r *http.Request) string {
+	if header := r.Header.Get("Authorization"); header != "" {
+		return strings.TrimPrefix(header, "Bearer ")
+	}
+	cookie, err := r.Cookie(authz.AccessTokenCookieName)
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
+}
+
 func OptionalAuthN(j authz.JWTer) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
-			claims, err := j.AuthenticateJWT(strings.TrimPrefix(header, "Bearer "))
+			claims, err := j.AuthenticateJWT(requestToken(r))
 			ctx := context.WithValue(r.Context(), JWTContextKey, JWTContext{
 				Claims: claims,
 				Error:  err,
@@ -491,11 +507,10 @@ func OptionalAuthN(j authz.JWTer) Adapter {
 func RequireAuthN(j authz.JWTer) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
-			claims, err := j.AuthenticateJWT(strings.TrimPrefix(header, "Bearer "))
+			claims, err := j.AuthenticateJWT(requestToken(r))
 			if err != nil || claims == nil {
-				msg := "Invalid Authorization token"
-				if errors.Is(err, jwt.ErrExpired) {
+				msg := "Invalid authorization token"
+				if errors.Is(err, jwt.ErrTokenExpired) {
 					msg = "Please log in again. Authorization token is expired"
 				}
 				if errors.Is(err, authz.ErrNoJWTString) {

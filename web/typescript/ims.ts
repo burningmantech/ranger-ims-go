@@ -36,9 +36,6 @@ export let pathIds: {
 
 export let eventAccess: AuthInfoEventAccess|null = null;
 
-const accessTokenKey = "access_token";
-const accessTokenRefreshAfterKey = "access_token_refresh_after";
-
 const incidentsPreferredStateKey = "preferred_incidents_state";
 const preferredTableRowsPerPageKey = "preferred_table_rows_per_page";
 const visitsPreferredStatusKey = "preferred_visits_status";
@@ -137,28 +134,9 @@ export function compareReportEntries(a: ReportEntry, b: ReportEntry): number {
 // Request making
 //
 
-async function maybeRefreshAuth(): Promise<void> {
-    if (getAccessToken()) {
-        if ((refreshTokenAfter()??0) < new Date().getTime()) {
-            const {json, err} = await fetchNoThrow<AuthRefreshResponse>(url_authRefresh, {body: JSON.stringify({})});
-            if (err != null || json == null) {
-                clearLocalStorage();
-                clearSessionStorage();
-            } else {
-                setAccessToken(json.token);
-                setRefreshTokenBy(json.expires_unix_ms);
-                console.log("Refreshed access token");
-            }
-        }
-    }
-    return
-}
-
+// Requests authenticate by the access token cookie, which the browser attaches
+// on its own. The page's JavaScript never sees the token.
 export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Promise<FetchRes<T>> {
-    if (url !== url_authRefresh) {
-        await maybeRefreshAuth();
-    }
-
     if (init == null) {
         init = {};
     }
@@ -166,10 +144,6 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
     // This is kind of a lie. Not all fetches in IMS expect to get JSON.
     // Can/should this just be removed?
     init.headers.set("Accept", "application/json");
-    const tok = getAccessToken();
-    if (tok) {
-        init.headers.set("Authorization", "Bearer " + tok);
-    }
     if (init.body != null) {
         init.method = init.method || "POST";
 
@@ -215,15 +189,10 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
 export async function uploadNoThrow(
     url: string, body: FormData, onProgress: (progress: string) => void,
 ): Promise<{err: string|null}> {
-    await maybeRefreshAuth();
     return new Promise((resolve): void => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", url);
         xhr.setRequestHeader("Accept", "application/json");
-        const tok = getAccessToken();
-        if (tok) {
-            xhr.setRequestHeader("Authorization", "Bearer " + tok);
-        }
         // Don't set a Content-Type: XHR derives it, with the multipart
         // boundary, from the FormData body, just as fetch does.
         xhr.upload.onprogress = (e: ProgressEvent): void => {
@@ -454,7 +423,7 @@ export function setupMapLink(mapLink: HTMLAnchorElement, events: EventData[]|nul
 }
 
 export async function redirectToLogin(): Promise<void> {
-    // This clears the refresh cookie
+    // This clears the access token cookie
     await fetch(url_logout);
     clearLocalStorage();
     console.log("Logged out. Redirecting to login page")
@@ -1269,9 +1238,9 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
             const previewKey: string = `preview ${url}`;
             const previewButt: HTMLButtonElement = createSvgTextButton("#preview", "Preview");
 
-            // We need to do a JavaScript fetch of the file, rather than simply
-            // opening a new browser tab that GETs it, because we have to send
-            // the Authorization header.
+            // We do a JavaScript fetch of the file, rather than simply opening
+            // a new browser tab that GETs it, so that the button can show the
+            // download's progress.
             previewButt.onclick = async (e: MouseEvent): Promise<void> => {
                 e.preventDefault();
 
@@ -1950,22 +1919,6 @@ export function windowFragmentParams(): URLSearchParams {
     return new URLSearchParams(fragment);
 }
 
-function getAccessToken(): string|null {
-    return localStorage.getItem(accessTokenKey);
-}
-
-export function setAccessToken(token: string): void {
-    localStorage.setItem(accessTokenKey, token);
-}
-
-export function setRefreshTokenBy(timeUnixMS: number): void {
-    localStorage.setItem(accessTokenRefreshAfterKey, timeUnixMS.toString());
-}
-
-export function refreshTokenAfter(): number|null {
-    return parseInt10(localStorage.getItem(accessTokenRefreshAfterKey));
-}
-
 export const incidentTableStates = ["all", "open", "active", "on_hold"] as const;
 export type IncidentsTableState = typeof incidentTableStates[number];
 export function isValidIncidentsTableState(value: string|null): value is IncidentsTableState {
@@ -2051,8 +2004,6 @@ export function coalesceRowsPerPage(...vals: (string|null)[]): TableRowsPerPage 
 }
 
 export function clearLocalStorage(): void {
-    localStorage.removeItem(accessTokenKey);
-    localStorage.removeItem(accessTokenRefreshAfterKey);
     localStorage.removeItem(incidentsPreferredStateKey);
     localStorage.removeItem(visitsPreferredStatusKey);
     localStorage.removeItem(preferredTableRowsPerPageKey);
@@ -2153,6 +2104,9 @@ function cleanupOldCaches(): void {
     localStorage.removeItem("ims.personnel");
     localStorage.removeItem("ims.personnel.deadline");
     localStorage.removeItem("incidents_preferred_state");
+    // Tokens from before IMS moved them into a cookie.
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("access_token_refresh_after");
 }
 cleanupOldCaches();
 
@@ -2188,11 +2142,6 @@ export function typedElement<T>(
 //
 // TypeScript declarations. These won't appear in the final JavaScript.
 //
-
-type AuthRefreshResponse = {
-    token: string;
-    expires_unix_ms: number;
-}
 
 export type PageInitResult = {
     authInfo: AuthInfo;

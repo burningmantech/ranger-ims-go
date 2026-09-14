@@ -27,7 +27,6 @@ const url_bag = "/ims/api/bag";
 const url_actionlogs = "/ims/api/actionlogs";
 const url_errorlogs = "/ims/api/errorlogs";
 const url_auth = "/ims/api/auth";
-const url_authRefresh = "/ims/api/auth/refresh";
 const url_acl = "/ims/api/access";
 const url_accessTargets = "/ims/api/access_targets";
 const url_personnel = "/ims/api/personnel";

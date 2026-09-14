@@ -275,10 +275,15 @@ The `store.DBQ` wraps a `*sql.DB` and sqlc-generated `Querier` interface, provid
 
 ### Authentication
 
-JWT-based authentication with separate access and refresh tokens:
-- Access tokens: Short-lived (default 15 min)
-- Refresh tokens: Long-lived (default 7 days)
-- Tokens signed with `IMS_JWT_SECRET`
+JWT-based authentication with a single access token, signed with `IMS_JWT_SECRET`, that lasts
+`IMS_TOKEN_LIFETIME` (default 8 hours) from login. There is no refresh; when it expires, the user logs in again.
+- **Web client**: `POST /ims/api/auth` sets the token in an `HttpOnly`, `SameSite=Strict` cookie scoped to
+  `/ims/api`. The browser's JavaScript never sees the token, and sends no `Authorization` header
+- **Other clients**: `POST /ims/api/auth` with `"token_in_body": true` returns the token in the response body
+  instead, to be sent as `Authorization: Bearer <token>`. If a request carries both, the header wins
+- Because browsers attach the cookie to requests another site initiates, every `/ims/api` route goes through
+  `RejectCrossOrigin` (`http.CrossOriginProtection`, in `api/mux.go`), which refuses cross-origin
+  state-changing requests. Non-browser clients send none of the headers it checks, so they're unaffected
 
 ### Authorization
 

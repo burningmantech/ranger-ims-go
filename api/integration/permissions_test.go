@@ -331,17 +331,29 @@ func TestPublicAPIs_RequireNoAuthn(t *testing.T) {
 	}
 }
 
-func TestEventSource_RequiresNoAuthn(t *testing.T) {
+func TestEventSource_RequiresAuthn(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	srv := newServer(t)
 
 	path := srv.url.JoinPath("ims/api/eventsource")
+
+	// Without a token, the stream is refused
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
 	require.NoError(t, err)
-
 	// #nosec G704 // SSRF via taint analysis.
 	resp, err := srv.client.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	// With the cookie a browser would send, the stream opens
+	token := srv.login(ctx, userAliceEmail, userAlicePassword)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, path.String(), nil)
+	require.NoError(t, err)
+	req.AddCookie(tokenCookie(token))
+	// #nosec G704 // SSRF via taint analysis.
+	resp, err = srv.server.Client().Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 

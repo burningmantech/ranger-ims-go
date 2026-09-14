@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { captureLinkClicks, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -181,9 +181,6 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
     }
     if (url.startsWith(`/ims/api/events/${eventName}/incidents/1/report_entries/`) && hasBody) {
         return new Response(null, { status: 204 });
-    }
-    if (/\/attachments\/\d+$/.test(url) && !hasBody) {
-        return new Response("file contents", { status: 200 });
     }
     if (url === `/ims/api/events/${eventName}/incidents/1/attachments` && hasBody) {
         return new Response(null, { status: 200 });
@@ -374,76 +371,47 @@ function attachFilesToEveryEntrySource(): void {
     serverVisits[0]!.report_entries![0]!.attachment = { name: "visit.jpg", previewable: true };
 }
 
-// Click the Preview or Download button on the report entry with the given text,
-// and return the URL its handler fetched the attachment from, along with the
-// temporary link it then clicked to hand the file to the browser.
-async function useAttachment(
-    mock: ReturnType<typeof mockFetch>,
-    links: HTMLAnchorElement[],
-    entryText: string,
-    label: string,
-): Promise<{ url: string, link: HTMLAnchorElement }> {
+// Find the Preview or Download link on the report entry with the given text.
+function attachmentLink(entryText: string, label: string): HTMLAnchorElement {
     const entry = [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry")]
         .find((e: HTMLDivElement): boolean => e.querySelector(".report_entry_text")!.textContent === entryText);
     if (entry == null) {
         throw new Error(`no report entry reading "${entryText}"`);
     }
-    const button = [...entry.querySelectorAll("button")]
-        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes(label));
-    if (button == null) {
-        throw new Error(`no ${label} button on the "${entryText}" entry`);
+    const link = [...entry.querySelectorAll("a")]
+        .find((a: HTMLAnchorElement): boolean => (a.textContent ?? "").includes(label));
+    if (link == null) {
+        throw new Error(`no ${label} link on the "${entryText}" entry`);
     }
-    mock.mockClear();
-    links.length = 0;
-    button.click();
-
-    let fetched = "";
-    await vi.waitFor((): void => {
-        const call = mock.mock.calls.find(([url]): boolean => url.includes("/attachments/"));
-        expect(call, `${label} fetched no attachment`).toBeDefined();
-        fetched = call![0];
-        expect(links.length, `${label} opened no link`).toBe(1);
-    });
-    // A URL naming the wrong record 404s in production; here the fake server has
-    // no route for it, which fetchNoThrow turns into an error banner.
-    expect(document.getElementById("error_text")!.textContent).toBe("");
-    return { url: fetched, link: links[0]! };
+    return link;
 }
 
 // Every entry on the incident page has its attachment stored under the record
 // it came from, which is not necessarily the incident being viewed.
-test("Download fetches each entry's attachment from the record that owns it", async (): Promise<void> => {
+test("Download links each entry's attachment to the record that owns it", async (): Promise<void> => {
     attachFilesToEveryEntrySource();
-    const mock = await initIncidentPage();
-    const links = captureLinkClicks();
+    await initIncidentPage();
 
-    const incidentEntry = await useAttachment(mock, links, "Dust storm at the Man", "Download");
-    expect(incidentEntry.url).toBe("/ims/api/events/2025/incidents/1/attachments/2");
-    expect(incidentEntry.link.download).toBe("incident.jpg");
-
-    const frEntry = await useAttachment(mock, links, "from the field", "Download");
-    expect(frEntry.url).toBe("/ims/api/events/2025/field_reports/7/attachments/21");
-    expect(frEntry.link.download).toBe("fr.jpg");
-
-    const visitEntry = await useAttachment(mock, links, "visit note", "Download");
-    expect(visitEntry.url).toBe("/ims/api/events/2025/visits/2/attachments/31");
-    expect(visitEntry.link.download).toBe("visit.jpg");
+    expect(attachmentLink("Dust storm at the Man", "Download").getAttribute("href"))
+        .toBe("/ims/api/events/2025/incidents/1/attachments/2?download=true");
+    expect(attachmentLink("from the field", "Download").getAttribute("href"))
+        .toBe("/ims/api/events/2025/field_reports/7/attachments/21?download=true");
+    expect(attachmentLink("visit note", "Download").getAttribute("href"))
+        .toBe("/ims/api/events/2025/visits/2/attachments/31?download=true");
 });
 
-test("Preview fetches each entry's attachment from the record that owns it", async (): Promise<void> => {
+test("Preview links each entry's attachment to the record that owns it", async (): Promise<void> => {
     attachFilesToEveryEntrySource();
-    const mock = await initIncidentPage();
-    const links = captureLinkClicks();
+    await initIncidentPage();
 
-    const incidentEntry = await useAttachment(mock, links, "Dust storm at the Man", "Preview");
-    expect(incidentEntry.url).toBe("/ims/api/events/2025/incidents/1/attachments/2");
-    // Preview opens the file rather than saving it.
-    expect(incidentEntry.link.target).toBe("_blank");
-    expect(incidentEntry.link.download).toBe("");
+    const incidentPreview = attachmentLink("Dust storm at the Man", "Preview");
+    expect(incidentPreview.getAttribute("href")).toBe("/ims/api/events/2025/incidents/1/attachments/2");
+    // Preview opens the file in a new tab rather than saving it.
+    expect(incidentPreview.target).toBe("_blank");
 
-    expect((await useAttachment(mock, links, "from the field", "Preview")).url)
+    expect(attachmentLink("from the field", "Preview").getAttribute("href"))
         .toBe("/ims/api/events/2025/field_reports/7/attachments/21");
-    expect((await useAttachment(mock, links, "visit note", "Preview")).url)
+    expect(attachmentLink("visit note", "Preview").getAttribute("href"))
         .toBe("/ims/api/events/2025/visits/2/attachments/31");
 });
 
@@ -454,18 +422,18 @@ test("a non-previewable attachment offers Download only", async (): Promise<void
 
     const visitEntry = [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry")]
         .find((e: HTMLDivElement): boolean => e.querySelector(".report_entry_text")!.textContent === "visit note")!;
-    const labels = [...visitEntry.querySelectorAll("button")]
-        .map((b: HTMLButtonElement): string => b.textContent ?? "");
+    const labels = [...visitEntry.querySelectorAll("a")]
+        .map((a: HTMLAnchorElement): string => a.textContent ?? "");
     expect(labels.some((t: string): boolean => t.includes("Download"))).toBe(true);
     expect(labels.some((t: string): boolean => t.includes("Preview"))).toBe(false);
 });
 
-test("an entry with no attachment gets no Preview or Download button", async (): Promise<void> => {
+test("an entry with no attachment gets no Preview or Download link", async (): Promise<void> => {
     await initIncidentPage();
 
-    const buttons = [...document.querySelectorAll<HTMLButtonElement>("#report_entries .report_entry button")]
-        .map((b: HTMLButtonElement): string => b.textContent ?? "");
-    expect(buttons.some((t: string): boolean => t.includes("Download") || t.includes("Preview"))).toBe(false);
+    const labels = [...document.querySelectorAll<HTMLElement>("#report_entries .report_entry :is(a, button)")]
+        .map((e: HTMLElement): string => e.textContent ?? "");
+    expect(labels.some((t: string): boolean => t.includes("Download") || t.includes("Preview"))).toBe(false);
 });
 
 test("linked incidents are drawn with links and metadata", async (): Promise<void> => {

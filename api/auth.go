@@ -17,7 +17,6 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -43,20 +42,26 @@ const (
 )
 
 type PostAuth struct {
-	imsDBQ               *store.DBQ
-	userStore            *directory.UserStore
-	jwtSecret            string
-	accessTokenDuration  time.Duration
-	refreshTokenDuration time.Duration
+	imsDBQ        *store.DBQ
+	userStore     *directory.UserStore
+	jwtSecret     string
+	tokenLifetime time.Duration
+	cookies       authz.TokenCookies
 }
 
 type PostAuthRequest struct {
 	Identification string `json:"identification"`
 	// #nosec G117 // Exported secret field
 	Password string `json:"password"`
+
+	// TokenInBody asks for the access token in the response body, for a client
+	// that will send it back in an Authorization header. Otherwise the token only
+	// goes out in an HttpOnly cookie, where the web client's JavaScript (and any
+	// script injected into it) can't read it.
+	TokenInBody bool `json:"token_in_body,omitzero"`
 }
 type PostAuthResponse struct {
-	Token         string `json:"token"`
+	Token         string `json:"token,omitzero"`
 	ExpiresUnixMs int64  `json:"expires_unix_ms"`
 }
 
@@ -66,12 +71,15 @@ func (action PostAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[postAuth]").WriteResponse(w)
 		return
 	}
-	http.SetCookie(w, cookie)
+	if cookie != nil {
+		http.SetCookie(w, cookie)
+	}
+	http.SetCookie(w, action.cookies.ExpiredLegacyRefreshToken(req))
 	mustWriteJSON(w, req, resp)
 }
 func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cookie, *herr.HTTPError) {
-	// This endpoint is unauthenticated (doesn't require an Authorization header)
-	// as the point of this is to take a username and password to create a new JWT.
+	// This endpoint is unauthenticated, as the point of this is to take a
+	// username and password to create a new JWT.
 	var empty PostAuthResponse
 
 	vals, errHTTP := readBodyAs[PostAuthRequest](req)
@@ -132,37 +140,19 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 	slog.Info("Successful login for Ranger", "identification", matchedPerson.Handle)
 
-	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
+	expiration := time.Now().Add(action.tokenLifetime)
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateAccessToken(matchedPerson.Handle, matchedPerson.ID, accessTokenExpiration)
+		CreateAccessToken(matchedPerson.Handle, matchedPerson.ID, expiration)
 	if err != nil {
 		return empty, nil, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
 
-	suggestedRefreshTime := accessTokenExpiration.Add(authz.SuggestedEarlyAccessTokenRefresh).UnixMilli()
-	resp := PostAuthResponse{Token: jwt, ExpiresUnixMs: suggestedRefreshTime}
-
-	// The refresh token should be valid much longer than the access token.
-	refreshTokenExpiration := time.Now().Add(action.refreshTokenDuration)
-	refreshToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateRefreshToken(matchedPerson.Handle, matchedPerson.ID, refreshTokenExpiration)
-	if err != nil {
-		return empty, nil, herr.InternalServerError("Failed to create refresh token", err).From("[CreateRefreshToken]")
+	resp := PostAuthResponse{ExpiresUnixMs: expiration.UnixMilli()}
+	if vals.TokenInBody {
+		resp.Token = jwt
+		return resp, nil, nil
 	}
-
-	refreshCookie := &http.Cookie{
-		Name:     authz.RefreshTokenCookieName,
-		Value:    refreshToken,
-		Path:     "/",
-		MaxAge:   int(action.refreshTokenDuration.Milliseconds() / 1000),
-		HttpOnly: true,
-		Secure:   true,
-		// We only ever read this cookie on POSTs to the refresh endpoint,
-		// so strict is fine.
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	return resp, refreshCookie, nil
+	return resp, action.cookies.AccessToken(req, jwt, action.tokenLifetime), nil
 }
 
 type GetAuth struct {
@@ -211,7 +201,7 @@ func (action GetAuth) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPError) {
 	var resp GetAuthResponse
 
-	// This endpoint is unauthenticated (doesn't require an Authorization header).
+	// This endpoint is unauthenticated, and reports whether the requestor is.
 	jwtCtx, found := req.Context().Value(JWTContextKey).(JWTContext)
 	if !found || jwtCtx.Error != nil || jwtCtx.Claims == nil {
 		resp = GetAuthResponse{
@@ -273,69 +263,6 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 				AttachFiles:       action.attachmentsEnabled,
 			},
 		}
-	}
-	return resp, nil
-}
-
-type RefreshAccessToken struct {
-	imsDBQ              *store.DBQ
-	userStore           *directory.UserStore
-	jwtSecret           string
-	accessTokenDuration time.Duration
-}
-
-type RefreshAccessTokenResponse struct {
-	Token         string `json:"token"`
-	ExpiresUnixMs int64  `json:"expires_unix_ms"`
-}
-
-func (action RefreshAccessToken) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	resp, errHTTP := action.refreshAccessToken(req)
-	if errHTTP != nil {
-		errHTTP.From("[refreshAccessToken]").WriteResponse(w)
-		return
-	}
-	mustWriteJSON(w, req, resp)
-}
-func (action RefreshAccessToken) refreshAccessToken(req *http.Request) (RefreshAccessTokenResponse, *herr.HTTPError) {
-	var empty RefreshAccessTokenResponse
-	refreshCookie, err := req.Cookie(authz.RefreshTokenCookieName)
-	if errors.Is(err, http.ErrNoCookie) {
-		return empty, herr.Unauthorized("No refresh token cookie found", err).SetExpectedError().From("[Cookie]")
-	}
-	if err != nil {
-		return empty, herr.Unauthorized("Bad refresh token cookie found", err).From("[Cookie]")
-	}
-	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.AuthenticateRefreshToken(refreshCookie.Value)
-	if err != nil {
-		return empty, herr.Unauthorized("Failed to authenticate refresh token", err).From("[AuthenticateRefreshToken]")
-	}
-
-	// #nosec G706 // log injection
-	slog.Info("Refreshing access token", "ranger", jwt.RangerHandle())
-	rangers, err := action.userStore.GetAllUsers(req.Context())
-	if err != nil {
-		return empty, herr.InternalServerError("Failed to fetch personnel", err).From("[GetRangers]")
-	}
-	var matchedPerson *directory.User
-	for _, ranger := range rangers {
-		if ranger.Handle == jwt.RangerHandle() && ranger.ID == jwt.DirectoryID() {
-			matchedPerson = ranger
-			break
-		}
-	}
-	if matchedPerson == nil {
-		return empty, herr.Unauthorized("User not found", nil)
-	}
-	accessTokenExpiration := time.Now().Add(action.accessTokenDuration)
-	accessToken, err := authz.JWTer{SecretKey: action.jwtSecret}.
-		CreateAccessToken(jwt.RangerHandle(), matchedPerson.ID, accessTokenExpiration)
-	if err != nil {
-		return empty, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
-	}
-	resp := RefreshAccessTokenResponse{
-		Token:         accessToken,
-		ExpiresUnixMs: accessTokenExpiration.Add(authz.SuggestedEarlyAccessTokenRefresh).UnixMilli(),
 	}
 	return resp, nil
 }

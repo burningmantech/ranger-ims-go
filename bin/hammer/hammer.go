@@ -274,6 +274,7 @@ func hammerAuthenticate(ctx context.Context, client *http.Client, base *url.URL,
 	body, err := json.Marshal(api.PostAuthRequest{
 		Identification: hammerIdentification,
 		Password:       password,
+		TokenInBody:    true,
 	})
 	if err != nil {
 		return "", fmt.Errorf("[json.Marshal]: %w", err)

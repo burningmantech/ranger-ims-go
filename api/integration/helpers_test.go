@@ -51,8 +51,11 @@ func (a ApiHelper) withReferrer(referrer string) ApiHelper {
 	return a
 }
 
+// postAuth logs in the way a non-browser client does, asking for the token in
+// the response body.
 func (a ApiHelper) postAuth(ctx context.Context, req api.PostAuthRequest) (statusCode int, body, validJWT string) {
 	a.t.Helper()
+	req.TokenInBody = true
 	response := &api.PostAuthResponse{}
 	resp := a.imsPost(ctx, req, a.serverURL.JoinPath("/ims/api/auth").String())
 	b, err := io.ReadAll(resp.Body)
@@ -64,32 +67,6 @@ func (a ApiHelper) postAuth(ctx context.Context, req api.PostAuthRequest) (statu
 	err = json.Unmarshal(b, &response)
 	require.NoError(a.t, err)
 	return resp.StatusCode, string(b), response.Token
-}
-
-func (a ApiHelper) refreshAccessToken(ctx context.Context, refreshCookie *http.Cookie) (statusCode int, result *api.RefreshAccessTokenResponse) {
-	a.t.Helper()
-	response := &api.RefreshAccessTokenResponse{}
-	postBody, err := json.Marshal(struct{}{})
-	require.NoError(a.t, err)
-	httpPost, err := http.NewRequestWithContext(ctx, http.MethodPost, a.serverURL.JoinPath("/ims/api/auth/refresh").String(), bytes.NewReader(postBody))
-	require.NoError(a.t, err)
-	if a.jwt != "" {
-		httpPost.Header.Set("Authorization", "Bearer "+a.jwt)
-	}
-	httpPost.AddCookie(refreshCookie)
-	// #nosec G704 // SSRF via taint analysis. We control the URLs.
-	resp, err := a.client.Do(httpPost)
-	require.NoError(a.t, err)
-
-	b, err := io.ReadAll(resp.Body)
-	require.NoError(a.t, err)
-	require.NoError(a.t, resp.Body.Close())
-	if resp.StatusCode != http.StatusOK {
-		return resp.StatusCode, nil
-	}
-	err = json.Unmarshal(b, &response)
-	require.NoError(a.t, err)
-	return resp.StatusCode, response
 }
 
 func (a ApiHelper) getAuth(ctx context.Context, eventName string) (api.GetAuthResponse, *http.Response) {

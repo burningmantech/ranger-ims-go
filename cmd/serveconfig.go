@@ -52,19 +52,10 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	if v, ok := lookupEnv("IMS_DEPLOYMENT"); ok {
 		baseCfg.Core.Deployment = conf.DeploymentType(strings.ToLower(v))
 	}
-	// This should really be called "IMS_REFRESH_TOKEN_LIFETIME". This name of
-	// "IMS_TOKEN_LIFETIME" predates our use of refresh tokens, and what it tried
-	// to convey, i.e. the maximum duration for a session, is now what we mean
-	// when we talk about a refresh token's lifetime.
 	if v, ok := lookupEnv("IMS_TOKEN_LIFETIME"); ok {
 		seconds, err := conv.ParseInt64(v)
 		must(err)
-		baseCfg.Core.RefreshTokenLifetime = time.Duration(seconds) * time.Second
-	}
-	if v, ok := lookupEnv("IMS_ACCESS_TOKEN_LIFETIME"); ok {
-		seconds, err := conv.ParseInt64(v)
-		must(err)
-		baseCfg.Core.AccessTokenLifetime = time.Duration(seconds) * time.Second
+		baseCfg.Core.TokenLifetime = time.Duration(seconds) * time.Second
 	}
 	if v, ok := lookupEnv("IMS_CACHE_CONTROL_SHORT"); ok {
 		dur, err := time.ParseDuration(v)
@@ -95,6 +86,9 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	}
 	if v, ok := lookupEnv("IMS_EVENT_DELETION_ENABLED"); ok {
 		baseCfg.Core.EventDeletionEnabled = strings.EqualFold(v, "true")
+	}
+	if v, ok := lookupEnv("IMS_INSECURE_COOKIES"); ok {
+		baseCfg.Core.InsecureCookies = strings.EqualFold(v, "true")
 	}
 	if v, ok := lookupEnv("IMS_BM_API_URL"); ok {
 		baseCfg.BurningManAPI.URL = strings.TrimSuffix(v, "/")

@@ -21,12 +21,6 @@ import (
 	"time"
 )
 
-// SuggestedEarlyAccessTokenRefresh is how long before an access token actually expires that web
-// clients should consider refreshing the token. This prevents annoying client-side errors,
-// when the client thinks its access token is still valid, makes a request, but by the time the server
-// is actually getting around to processing the request, the access token is already expired.
-const SuggestedEarlyAccessTokenRefresh time.Duration = -10 * time.Second
-
 func (j JWTer) CreateAccessToken(rangerName string, clubhouseID int64, expiration time.Time) (string, error) {
 	return j.createJWT(
 		IMSClaims{}.

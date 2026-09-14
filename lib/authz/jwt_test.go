@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,28 +66,23 @@ func TestCreateAndGetInvalidJWTs(t *testing.T) {
 	}
 }
 
-func TestTokenTypesAreNotInterchangeable(t *testing.T) {
+// IMS used to issue refresh tokens, signed by the same key. Any still out there
+// must not work as access tokens.
+func TestOldRefreshTokenIsNotAnAccessToken(t *testing.T) {
 	t.Parallel()
-	jwter := authz.JWTer{SecretKey: "some-secret"}
+	secret := "some-secret"
+	jwter := authz.JWTer{SecretKey: secret}
 
-	accessToken, err := jwter.CreateAccessToken("Hardware", 12345, time.Now().Add(1*time.Hour))
-	require.NoError(t, err)
-	refreshToken, err := jwter.CreateRefreshToken("Hardware", 12345, time.Now().Add(1*time.Hour))
-	require.NoError(t, err)
-
-	// Each token works for its intended purpose
-	_, err = jwter.AuthenticateJWT(accessToken)
-	require.NoError(t, err)
-	_, err = jwter.AuthenticateRefreshToken(refreshToken)
+	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, authz.IMSClaims{}.
+		WithExpiration(time.Now().Add(1*time.Hour)).
+		WithIssuer("ims").
+		WithTokenType("refresh").
+		WithRangerHandle("Hardware").
+		WithSubject("12345"),
+	).SignedString([]byte(secret))
 	require.NoError(t, err)
 
-	// A refresh token must not be usable as an access token
 	_, err = jwter.AuthenticateJWT(refreshToken)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "token type")
-
-	// An access token must not be usable as a refresh token
-	_, err = jwter.AuthenticateRefreshToken(accessToken)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "token type")
 }

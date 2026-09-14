@@ -85,15 +85,15 @@ templ Nav(eventName string) {
     </symbol>
   </svg>
 
-  <!-- These buttons (attachment Preview/Download) are read operations, so they
+  <!-- These links (attachment Preview/Download) are read operations, so they
        deliberately lack form-control-lite: disableEditing() must not disable them. -->
-  <template id="svg_butt_template">
-    <button class="btn btn-default btn-sm btn-block btn-secondary my-1 me-1 no-print">
+  <template id="svg_link_template">
+    <a class="btn btn-default btn-sm btn-block btn-secondary my-1 me-1 no-print">
       <svg class="bi" fill="currentColor" aria-hidden="true" focusable="false">
         <use href="#"></use>
       </svg>
       <span></span>
-    </button>
+    </a>
   </template>
 
   <div class="container-fluid">

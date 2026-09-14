@@ -69,23 +69,20 @@ function toggleShowPassword(): void {
 async function login(): Promise<void> {
     const username = el.usernameInput.value;
     const password = el.passwordInput.value;
-    const {json, err} = await ims.fetchNoThrow<AuthResponse>(url_auth, {
+    const {err} = await ims.fetchNoThrow<AuthResponse>(url_auth, {
         body: JSON.stringify({
             "identification": username,
             "password": password,
         }),
     });
-    if (err != null || json == null) {
+    if (err != null) {
         ims.unhide(".if-authentication-failed");
-        if (err != null) {
-            el.authFailMessage.textContent = err;
-        }
+        el.authFailMessage.textContent = err;
         return;
     }
+    // The server set the access token cookie.
     ims.clearLocalStorage();
     ims.clearSessionStorage();
-    ims.setAccessToken(json.token);
-    ims.setRefreshTokenBy(json.expires_unix_ms);
     const redirect = new URLSearchParams(window.location.search).get("o");
 
     // There are dangers with using redirects to destinations from unsafe strings.
@@ -104,6 +101,5 @@ async function login(): Promise<void> {
 }
 
 type AuthResponse = {
-    token: string;
     expires_unix_ms: number;
 }

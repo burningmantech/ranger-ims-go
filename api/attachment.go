@@ -99,61 +99,84 @@ type AttachToVisit struct {
 }
 
 func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	file, contentType, errHTTP := action.getIncidentAttachment(req)
+	file, contentType, name, errHTTP := action.getIncidentAttachment(req)
 	if errHTTP != nil {
 		errHTTP.From("[getIncidentAttachment]").WriteResponse(w)
 		return
 	}
-	w.Header().Set("Content-Type", contentType)
-	http.ServeContent(w, req, "Attached File", time.Now(), file)
+	serveAttachment(w, req, file, contentType, name)
 }
 
 func (action GetIncidentAttachment) getIncidentAttachment(
 	req *http.Request,
-) (fi io.ReadSeeker, contentType string, errHTTP *herr.HTTPError) {
+) (fi io.ReadSeeker, contentType, name string, errHTTP *herr.HTTPError) {
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[getEventPermissions]")
+		return nil, "", "", errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadIncidents == 0 {
-		return nil, "", herr.Forbidden("The requestor does not have EventReadIncidents permission on this Event", nil)
+		return nil, "", "", herr.Forbidden("The requestor does not have EventReadIncidents permission on this Event", nil)
 	}
 	ctx := req.Context()
 
 	incidentNumber, err := conv.ParseInt32(req.PathValue("incidentNumber"))
 	if err != nil {
-		return nil, "", herr.BadRequest("Failed to parse incident number", err).From("[ParseInt32]")
+		return nil, "", "", herr.BadRequest("Failed to parse incident number", err).From("[ParseInt32]")
 	}
 	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
 	if err != nil {
-		return nil, "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
+		return nil, "", "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
 	_, reportEntries, errHTTP := fetchIncident(ctx, action.imsDBQ, event.ID, incidentNumber)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[fetchIncident]")
+		return nil, "", "", errHTTP.From("[fetchIncident]")
 	}
 
 	var filename string
 	for _, reportEntry := range reportEntries {
 		if reportEntry.ID == attachmentNumber {
 			filename = reportEntry.AttachedFile.String
+			name = reportEntry.AttachedFileOriginalName.String
 			break
 		}
 	}
 
 	file, errHTTP := retrieveFile(ctx, action.attachmentsStore, action.s3Client, filename)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[retrieveFile]")
+		return nil, "", "", errHTTP.From("[retrieveFile]")
 	}
 
 	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[sniffFile]")
+		return nil, "", "", errHTTP.From("[sniffFile]")
 	}
 	contentType = safeToPreviewContentType(mtype.String())
 
-	return file, contentType, nil
+	return file, contentType, name, nil
+}
+
+// serveAttachment writes an attachment that the browser navigates to directly,
+// either opened in a tab (the default) or saved, when the "download" query
+// parameter is "true".
+func serveAttachment(w http.ResponseWriter, req *http.Request, file io.ReadSeeker, contentType, name string) {
+	disposition := "inline"
+	if req.URL.Query().Get("download") == "true" {
+		disposition = "attachment"
+	}
+	if name != "" {
+		// FormatMediaType returns "" when it can't encode the filename.
+		if withName := mime.FormatMediaType(disposition, map[string]string{"filename": name}); withName != "" {
+			disposition = withName
+		}
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", disposition)
+	// A previewed attachment is a page in IMS's own origin, so it mustn't be
+	// sniffed into something other than its allowlisted type, nor run scripts.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "sandbox")
+	http.ServeContent(w, req, "", time.Now(), file)
 }
 
 var safeToPreviewMediaTypes = []string{
@@ -240,24 +263,23 @@ func mustGetS3File(ctx context.Context, s3Client *attachment.S3Client, bucket, p
 }
 
 func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	file, contentType, errHTTP := action.getFieldReportAttachment(req)
+	file, contentType, name, errHTTP := action.getFieldReportAttachment(req)
 	if errHTTP != nil {
 		errHTTP.From("[getFieldReportAttachment]").WriteResponse(w)
 		return
 	}
-	w.Header().Set("Content-Type", contentType)
-	http.ServeContent(w, req, "Attached File", time.Now(), file)
+	serveAttachment(w, req, file, contentType, name)
 }
 
 func (action GetFieldReportAttachment) getFieldReportAttachment(
 	req *http.Request,
-) (fi io.ReadSeeker, contentType string, errHTTP *herr.HTTPError) {
+) (fi io.ReadSeeker, contentType, name string, errHTTP *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[getEventPermissions]")
+		return nil, "", "", errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&(authz.EventReadAllFieldReports|authz.EventReadOwnFieldReports) == 0 {
-		return nil, "", herr.Forbidden("The requestor does not have permission to read Field Reports on this Event", nil)
+		return nil, "", "", herr.Forbidden("The requestor does not have permission to read Field Reports on this Event", nil)
 	}
 	// i.e. the user has EventReadOwnFieldReports, but not EventReadAllFieldReports
 	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
@@ -266,21 +288,21 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(
 
 	fieldReportNumber, err := conv.ParseInt32(req.PathValue("fieldReportNumber"))
 	if err != nil {
-		return nil, "", herr.BadRequest("Failed to parse Field Report number", err).From("[ParseInt32]")
+		return nil, "", "", herr.BadRequest("Failed to parse Field Report number", err).From("[ParseInt32]")
 	}
 	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
 	if err != nil {
-		return nil, "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
+		return nil, "", "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
 	_, reportEntries, errHTTP := fetchFieldReport(ctx, action.imsDBQ, event.ID, fieldReportNumber)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[fetchFieldReport]")
+		return nil, "", "", errHTTP.From("[fetchFieldReport]")
 	}
 
 	if limitedAccess {
 		if !containsAuthor(reportEntries, jwtCtx.Claims.RangerHandle()) {
-			return nil, "", herr.Forbidden("The requestor does not have permission to read this particular Field Report", nil)
+			return nil, "", "", herr.Forbidden("The requestor does not have permission to read this particular Field Report", nil)
 		}
 	}
 
@@ -288,22 +310,23 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(
 	for _, reportEntry := range reportEntries {
 		if reportEntry.ID == attachmentNumber {
 			filename = reportEntry.AttachedFile.String
+			name = reportEntry.AttachedFileOriginalName.String
 			break
 		}
 	}
 
 	file, errHTTP := retrieveFile(ctx, action.attachmentsStore, action.s3Client, filename)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[retrieveFile]")
+		return nil, "", "", errHTTP.From("[retrieveFile]")
 	}
 
 	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[sniffFile]")
+		return nil, "", "", errHTTP.From("[sniffFile]")
 	}
 	contentType = safeToPreviewContentType(mtype.String())
 
-	return file, contentType, nil
+	return file, contentType, name, nil
 }
 
 func (action AttachToIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -503,61 +526,61 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 }
 
 func (action GetVisitAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	file, contentType, errHTTP := action.getVisitAttachment(req)
+	file, contentType, name, errHTTP := action.getVisitAttachment(req)
 	if errHTTP != nil {
 		errHTTP.From("[getVisitAttachment]").WriteResponse(w)
 		return
 	}
-	w.Header().Set("Content-Type", contentType)
-	http.ServeContent(w, req, "Attached File", time.Now(), file)
+	serveAttachment(w, req, file, contentType, name)
 }
 
 func (action GetVisitAttachment) getVisitAttachment(
 	req *http.Request,
-) (fi io.ReadSeeker, contentType string, errHTTP *herr.HTTPError) {
+) (fi io.ReadSeeker, contentType, name string, errHTTP *herr.HTTPError) {
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[getEventPermissions]")
+		return nil, "", "", errHTTP.From("[getEventPermissions]")
 	}
 	if eventPermissions&authz.EventReadVisits == 0 {
-		return nil, "", herr.Forbidden("The requestor does not have EventReadVisits permission on this Event", nil)
+		return nil, "", "", herr.Forbidden("The requestor does not have EventReadVisits permission on this Event", nil)
 	}
 	ctx := req.Context()
 
 	visitNumber, err := conv.ParseInt32(req.PathValue("visitNumber"))
 	if err != nil {
-		return nil, "", herr.BadRequest("Failed to parse visit number", err).From("[ParseInt32]")
+		return nil, "", "", herr.BadRequest("Failed to parse visit number", err).From("[ParseInt32]")
 	}
 	attachmentNumber, err := conv.ParseInt32(req.PathValue("attachmentNumber"))
 	if err != nil {
-		return nil, "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
+		return nil, "", "", herr.BadRequest("Failed to parse attachment number", err).From("[ParseInt32]")
 	}
 
 	_, reportEntries, errHTTP := fetchVisit(ctx, action.imsDBQ, event.ID, visitNumber)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[fetchVisit]")
+		return nil, "", "", errHTTP.From("[fetchVisit]")
 	}
 
 	var filename string
 	for _, reportEntry := range reportEntries {
 		if reportEntry.ID == attachmentNumber {
 			filename = reportEntry.AttachedFile.String
+			name = reportEntry.AttachedFileOriginalName.String
 			break
 		}
 	}
 
 	file, errHTTP := retrieveFile(ctx, action.attachmentsStore, action.s3Client, filename)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[retrieveFile]")
+		return nil, "", "", errHTTP.From("[retrieveFile]")
 	}
 
 	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
-		return nil, "", errHTTP.From("[sniffFile]")
+		return nil, "", "", errHTTP.From("[sniffFile]")
 	}
 	contentType = safeToPreviewContentType(mtype.String())
 
-	return file, contentType, nil
+	return file, contentType, name, nil
 }
 
 func (action AttachToVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {

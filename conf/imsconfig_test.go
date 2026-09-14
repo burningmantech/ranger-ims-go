@@ -60,9 +60,28 @@ func TestValidateBase(t *testing.T) {
 	cfg := conf.DefaultIMS()
 	require.NoError(t, cfg.Validate())
 
-	// must have AccessTokenLifetime <= RefreshTokenLifetime
-	cfg.Core.AccessTokenLifetime = cfg.Core.RefreshTokenLifetime + 1
+	cfg.Core.TokenLifetime = 0
 	require.Error(t, cfg.Validate())
+}
+
+func TestValidateInsecureCookies(t *testing.T) {
+	t.Parallel()
+
+	// A dev deployment may use insecure cookies
+	cfg := conf.DefaultIMS()
+	cfg.Core.Deployment = conf.DeploymentTypeDev
+	cfg.Core.InsecureCookies = true
+	require.NoError(t, cfg.Validate())
+
+	// Any other may not
+	cfg = conf.DefaultIMS()
+	cfg.Core.Deployment = conf.DeploymentTypeProduction
+	cfg.Directory.Directory = conf.DirectoryTypeIMS
+	cfg.Core.InsecureCookies = true
+	require.ErrorContains(t, cfg.Validate(), "insecure cookies")
+
+	cfg.Core.InsecureCookies = false
+	require.NoError(t, cfg.Validate())
 }
 
 func TestValidateDBStore(t *testing.T) {

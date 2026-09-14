@@ -61,9 +61,9 @@ test("an unauthenticated visitor gets focus on the login button", async (): Prom
     });
 });
 
-test("the ?logout flow clears stored tokens, hits the logout endpoint, and cleans the URL", async (): Promise<void> => {
+test("the ?logout flow clears browser storage, hits the logout endpoint, and cleans the URL", async (): Promise<void> => {
     window.history.replaceState(null, "", `${url_app}?logout=true`);
-    localStorage.setItem("access_token", "stale-token");
+    localStorage.setItem("preferred_incidents_state", "open");
     sessionStorage.setItem("something", "cached");
 
     const mock = await initRootPage(true, (url) => {
@@ -74,7 +74,7 @@ test("the ?logout flow clears stored tokens, hits the logout endpoint, and clean
     });
 
     expect(mock.mock.calls.some(([url]) => url === url_logout)).toBe(true);
-    expect(localStorage.getItem("access_token")).toBeNull();
+    expect(localStorage.getItem("preferred_incidents_state")).toBeNull();
     expect(sessionStorage.getItem("something")).toBeNull();
     // The logout query string is stripped so a refresh won't log out again.
     expect(window.location.search).toBe("");

@@ -178,14 +178,9 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		Adapt(
 			func(w http.ResponseWriter, req *http.Request) {
 				slog.Info("Redirecting from logout")
-				http.SetCookie(w, &http.Cookie{
-					Name:     authz.RefreshTokenCookieName,
-					MaxAge:   -1,
-					Path:     "/",
-					HttpOnly: true,
-					Secure:   true,
-					SameSite: http.SameSiteStrictMode,
-				})
+				cookies := authz.TokenCookies{Insecure: cfg.Core.InsecureCookies}
+				http.SetCookie(w, cookies.ExpiredAccessToken(req))
+				http.SetCookie(w, cookies.ExpiredLegacyRefreshToken(req))
 				http.Redirect(w, req, "/ims/app?logout", http.StatusSeeOther)
 			},
 		),
@@ -220,6 +215,19 @@ func CacheControl(maxAge time.Duration) Adapter {
 	}
 }
 
+// DenyCrossOriginFraming stops other origins from putting IMS pages in a
+// frame. The access token cookie is SameSite=Strict, but a sibling subdomain
+// counts as the same site, so a page framed there would be signed in, and
+// could be overlaid to trick a Ranger into clicking something.
+func DenyCrossOriginFraming() Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // CdnCacheControlOff prevents Cloudflare from caching a resource. An agent can still cache
 // the file locally based on Cache-Control. This setting just stops Cloudflare from doing
 // its additional level of caching.
@@ -248,7 +256,7 @@ func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
 }
 
 func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, adapters ...Adapter) http.Handler {
-	adapters = append(adapters, CacheControl(cacheControlLong))
+	adapters = append(adapters, CacheControl(cacheControlLong), DenyCrossOriginFraming())
 	return Adapt(
 		func(w http.ResponseWriter, req *http.Request) {
 			err := comp.Render(req.Context(), w)

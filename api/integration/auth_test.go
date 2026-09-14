@@ -198,53 +198,377 @@ func TestGetAuthWithBadEventNames(t *testing.T) {
 	assert.Empty(t, gar.EventAccess)
 }
 
-func TestPostAuthMakesRefreshCookie(t *testing.T) {
+// sendRaw sends a request built by the test itself, for when the request needs
+// a cookie or browser headers that the ApiHelper methods don't send.
+func sendRaw(t *testing.T, srv testServer, req *http.Request) *http.Response {
+	t.Helper()
+	// #nosec G704 // SSRF via taint analysis. We control the URLs.
+	resp, err := srv.client.Do(req)
+	require.NoError(t, err)
+	return resp
+}
+
+// tokenCookie is the cookie a browser would send back after logging in. Only the
+// name and value go out with a request, so the other attributes don't matter.
+func tokenCookie(token string) *http.Cookie {
+	// #nosec G124 // A request cookie has no Secure, HttpOnly, or SameSite
+	return &http.Cookie{Name: authz.AccessTokenCookieName, Value: token}
+}
+
+// authCookie finds the access token cookie among a response's Set-Cookies.
+func authCookie(resp *http.Response) *http.Cookie {
+	for _, c := range resp.Cookies() {
+		if c.Name == authz.AccessTokenCookieName {
+			return c
+		}
+	}
+	return nil
+}
+
+func TestPostAuthSetsCookie(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	srv := newServer(t)
 
-	apisNotAuthenticated := srv.unauthed()
-
-	// A user with the correct password can log in and get refresh and access tokens
-	req := api.PostAuthRequest{
+	// Log in the way the web client does, without asking for the token in the body
+	// #nosec G117 // Test credentials
+	loginBody, err := json.Marshal(api.PostAuthRequest{
 		Identification: userAliceEmail,
 		Password:       userAlicePassword,
-	}
-	response := &api.PostAuthResponse{}
-	resp := apisNotAuthenticated.imsPost(ctx, req, srv.url.JoinPath("/ims/api/auth").String())
+	})
+	require.NoError(t, err)
+	loginReq, err := http.NewRequestWithContext(ctx, http.MethodPost, srv.url.JoinPath("/ims/api/auth").String(), bytes.NewReader(loginBody))
+	require.NoError(t, err)
+	loginReq.Header.Set("Content-Type", "application/json")
+	resp := sendRaw(t, srv, loginReq)
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	err = json.Unmarshal(b, &response)
-	require.NoError(t, err)
 
-	// check that the returned access token looks good
+	// The body gives the expiration, but not the token itself
+	response := api.PostAuthResponse{}
+	require.NoError(t, json.Unmarshal(b, &response))
+	require.Empty(t, response.Token)
+	require.NotContains(t, string(b), `"token"`)
+	require.InDelta(t, time.Now().Add(shared.cfg.Core.TokenLifetime).UnixMilli(), response.ExpiresUnixMs, float64(time.Minute.Milliseconds()))
+
+	// The token comes in a locked-down cookie
+	cookie := authCookie(resp)
+	require.NotNil(t, cookie)
+	require.True(t, cookie.HttpOnly)
+	require.True(t, cookie.Secure)
+	require.Equal(t, http.SameSiteStrictMode, cookie.SameSite)
+	// The name's __Host- prefix is what forces browsers to enforce those last two
+	require.Equal(t, "__Host-ims_access_token", cookie.Name)
+	require.Equal(t, "/", cookie.Path)
+	require.Empty(t, cookie.Domain)
+	require.Equal(t, int(shared.cfg.Core.TokenLifetime/time.Second), cookie.MaxAge)
+	jwter := authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}
+	claims, err := jwter.AuthenticateJWT(cookie.Value)
+	require.NoError(t, err)
+	require.Equal(t, userAliceHandle, claims.RangerHandle())
+
+	// Any refresh token cookie left over from older versions of IMS gets expired
+	var legacy *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "refresh_token" {
+			legacy = c
+		}
+	}
+	require.NotNil(t, legacy)
+	require.Negative(t, legacy.MaxAge)
+
+	// The cookie alone authenticates API requests
+	getAuthReq, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.url.JoinPath("/ims/api/auth").String(), nil)
+	require.NoError(t, err)
+	getAuthReq.AddCookie(cookie)
+	resp = sendRaw(t, srv, getAuthReq)
+	b, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	authResp := api.GetAuthResponse{}
+	require.NoError(t, json.Unmarshal(b, &authResp))
+	require.True(t, authResp.Authenticated)
+	require.Equal(t, userAliceHandle, authResp.User)
+
+	eventsReq, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.url.JoinPath("/ims/api/events").String(), nil)
+	require.NoError(t, err)
+	eventsReq.AddCookie(cookie)
+	resp = sendRaw(t, srv, eventsReq)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestPostAuthTokenInBody(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	// #nosec G117 // Test credentials
+	loginBody, err := json.Marshal(api.PostAuthRequest{
+		Identification: userAliceEmail,
+		Password:       userAlicePassword,
+		TokenInBody:    true,
+	})
+	require.NoError(t, err)
+	loginReq, err := http.NewRequestWithContext(ctx, http.MethodPost, srv.url.JoinPath("/ims/api/auth").String(), bytes.NewReader(loginBody))
+	require.NoError(t, err)
+	loginReq.Header.Set("Content-Type", "application/json")
+	resp := sendRaw(t, srv, loginReq)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// The token is in the body, and no cookie carries it
+	response := api.PostAuthResponse{}
+	require.NoError(t, json.Unmarshal(b, &response))
 	jwter := authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}
 	claims, err := jwter.AuthenticateJWT(response.Token)
 	require.NoError(t, err)
 	require.Equal(t, userAliceHandle, claims.RangerHandle())
 	require.Greater(t, response.ExpiresUnixMs, time.Now().UnixMilli())
+	require.Nil(t, authCookie(resp))
 
-	// check that the refresh token was shipped over by cookie
-	cookie, err := http.ParseSetCookie(resp.Header.Get("Set-Cookie"))
-	require.NoError(t, err)
-	require.True(t, cookie.HttpOnly)
-	require.True(t, cookie.Secure)
-	// and that it's valid
-	claims, err = jwter.AuthenticateRefreshToken(cookie.Value)
-	require.NoError(t, err)
-	require.Equal(t, userAliceHandle, claims.RangerHandle())
-
-	// now use the refresh token to get a fresh access token
-	code, refreshResp := apisNotAuthenticated.refreshAccessToken(ctx, cookie)
+	// and that token works as a bearer token
+	code := apiCall(t, MethodURL{http.MethodGet, "/ims/api/events"}, srv.withJWT(response.Token))
 	require.Equal(t, http.StatusOK, code)
-	// and confirm the new access token's validity
-	claims, err = jwter.AuthenticateJWT(refreshResp.Token)
+}
+
+func TestAuthorizationHeaderTakesPrecedenceOverCookie(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	jwter := authz.JWTer{SecretKey: shared.cfg.Core.JWTSecret}
+	goodToken := srv.login(ctx, userAliceEmail, userAlicePassword)
+	expiredToken, err := jwter.CreateAccessToken(userAliceHandle, 1, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
-	require.Equal(t, userAliceHandle, claims.RangerHandle())
-	// this new token should expire no earlier than the old one
-	require.GreaterOrEqual(t, refreshResp.ExpiresUnixMs, response.ExpiresUnixMs)
+
+	// A bad header isn't rescued by a good cookie
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.url.JoinPath("/ims/api/events").String(), nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+expiredToken)
+	req.AddCookie(tokenCookie(goodToken))
+	resp := sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	// A good header works despite a bad cookie
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, srv.url.JoinPath("/ims/api/events").String(), nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+goodToken)
+	req.AddCookie(tokenCookie(expiredToken))
+	resp = sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+// TestCrossOriginRequestsAreRejected covers the CSRF defense that cookie auth
+// depends on: a browser attaches the cookie to a request no matter which site
+// initiated it, but it also says where the request came from.
+func TestCrossOriginRequestsAreRejected(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	cookie := tokenCookie(srv.login(ctx, userAdminEmail, userAdminPassword))
+	typesURL := srv.url.JoinPath("/ims/api/incident_types").String()
+	newType := func() *http.Request {
+		body, err := json.Marshal(imsjson.IncidentType{Name: new(rand.NonCryptoText())})
+		require.NoError(t, err)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, typesURL, bytes.NewReader(body))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		return req
+	}
+
+	// A modern browser marks a request from another site
+	req := newType()
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+	resp := sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	// That includes a sibling subdomain, which SameSite cookies don't guard against
+	req = newType()
+	req.Header.Set("Sec-Fetch-Site", "same-site")
+	resp = sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	// An older browser only sends an Origin, which must match the host
+	req = newType()
+	req.Header.Set("Origin", "https://evil.example.com")
+	resp = sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	// A request from IMS's own pages goes through
+	req = newType()
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	resp = sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	// So does one from a non-browser client, which sends neither header
+	resp = sendRaw(t, srv, newType())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	// Login is covered too, so another site can't swap in its own session
+	// #nosec G117 // Test credentials
+	loginBody, err := json.Marshal(api.PostAuthRequest{
+		Identification: userAliceEmail,
+		Password:       userAlicePassword,
+	})
+	require.NoError(t, err)
+	req, err = http.NewRequestWithContext(ctx, http.MethodPost, srv.url.JoinPath("/ims/api/auth").String(), bytes.NewReader(loginBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+	resp = sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.Nil(t, authCookie(resp))
+}
+
+// The cross-origin check above only covers state-changing requests. A cookie
+// still mustn't authenticate a read that another origin started, since a
+// sibling subdomain is the same site, and so gets sent SameSite=Strict cookies.
+func TestCookieIsOnlyAcceptedFromSameOrigin(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	token := srv.login(ctx, userAliceEmail, userAlicePassword)
+	eventsURL := srv.url.JoinPath("/ims/api/events").String()
+	getEvents := func(secFetchSite string, authorize func(*http.Request)) int {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, eventsURL, nil)
+		require.NoError(t, err)
+		if secFetchSite != "" {
+			req.Header.Set("Sec-Fetch-Site", secFetchSite)
+		}
+		authorize(req)
+		resp := sendRaw(t, srv, req)
+		require.NoError(t, resp.Body.Close())
+		return resp.StatusCode
+	}
+	withCookie := func(req *http.Request) { req.AddCookie(tokenCookie(token)) }
+	withHeader := func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+token) }
+
+	// A read from a sibling subdomain is refused
+	require.Equal(t, http.StatusForbidden, getEvents("same-site", withCookie))
+
+	// So is one from another site, for a browser that sent the cookie anyway
+	require.Equal(t, http.StatusForbidden, getEvents("cross-site", withCookie))
+
+	// IMS's own pages can read
+	require.Equal(t, http.StatusOK, getEvents("same-origin", withCookie))
+
+	// So can a Ranger who types in or bookmarks an API URL, like an attachment's
+	require.Equal(t, http.StatusOK, getEvents("none", withCookie))
+
+	// So can an old browser that doesn't send Sec-Fetch-Site
+	require.Equal(t, http.StatusOK, getEvents("", withCookie))
+
+	// Another site can't set an Authorization header on a Ranger's behalf, so
+	// a bearer token isn't subject to the check
+	require.Equal(t, http.StatusOK, getEvents("cross-site", withHeader))
+}
+
+// A browser sends Basic credentials to every page behind a password-protected
+// proxy. Those aren't meant for IMS, and mustn't shadow the access token cookie.
+func TestNonBearerAuthorizationHeaderDoesNotShadowCookie(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	token := srv.login(ctx, userAliceEmail, userAlicePassword)
+	eventsURL := srv.url.JoinPath("/ims/api/events").String()
+
+	// Basic credentials alongside the cookie
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, eventsURL, nil)
+	require.NoError(t, err)
+	req.SetBasicAuth("staging", "hunter2")
+	req.AddCookie(tokenCookie(token))
+	resp := sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// The scheme is case-insensitive
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, eventsURL, nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "bearer "+token)
+	resp = sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// A bare token, without a scheme, isn't accepted
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, eventsURL, nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", token)
+	resp = sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+// IMS never sets two access token cookies, so a request carrying two has had
+// one planted, and neither is trusted.
+func TestDuplicateTokenCookiesAreRejected(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	aliceToken := srv.login(ctx, userAliceEmail, userAlicePassword)
+	adminToken := srv.login(ctx, userAdminEmail, userAdminPassword)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.url.JoinPath("/ims/api/events").String(), nil)
+	require.NoError(t, err)
+	req.AddCookie(tokenCookie(adminToken))
+	req.AddCookie(tokenCookie(aliceToken))
+	resp := sendRaw(t, srv, req)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+// API responses depend on who's asking, so they aren't cacheable unless a
+// handler deliberately allows it, and then only privately.
+func TestAPIResponsesAreNotStoredByDefault(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	// An ordinary read
+	_, resp := apisAlice.imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/events", eventName, "incidents").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+
+	// An unauthenticated endpoint that still depends on the requestor
+	_, resp = apisAdmin.imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/auth").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+
+	// A rejected request
+	_, resp = srv.unauthed().imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/events").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+
+	// A handler that opts into caching keeps it private
+	_, resp = apisAdmin.imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/events").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, resp.Header.Get("Cache-Control"), "private")
+	require.NotContains(t, resp.Header.Get("Cache-Control"), "no-store")
 }
 
 // TestPostAuthRejectsCrossSiteFormPost guards against login CSRF. A page on another
@@ -278,7 +602,7 @@ func TestPostAuthRejectsCrossSiteFormPost(t *testing.T) {
 		return resp
 	}
 
-	// The text/plain form encoding is rejected, and hands out no refresh cookie.
+	// The text/plain form encoding is rejected, and hands out no cookie.
 	resp := formPost("text/plain;charset=UTF-8")
 	require.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
 	assert.Empty(t, resp.Header.Get("Set-Cookie"))
@@ -296,7 +620,7 @@ func TestPostAuthRejectsCrossSiteFormPost(t *testing.T) {
 	assert.Empty(t, resp.Header.Get("Set-Cookie"))
 	require.NoError(t, resp.Body.Close())
 
-	// The same credentials sent the way the IMS web app sends them still work.
+	// The same credentials sent as JSON still work.
 	statusCode, _, token := srv.unauthed().postAuth(ctx,
 		api.PostAuthRequest{
 			Identification: userAliceEmail,

@@ -59,7 +59,7 @@ func AddToMux(
 	}
 
 	jwter := authz.JWTer{SecretKey: cfg.Core.JWTSecret}
-	cookies := authz.TokenCookies{Dev: cfg.Core.Deployment == conf.DeploymentTypeDev}
+	cookies := authz.TokenCookies{Insecure: cfg.Core.InsecureCookies}
 	attachmentsEnabled := cfg.AttachmentsStore.Type != conf.AttachmentsStoreNone
 
 	// authed registers a route wrapped in the standard middleware stack for an

@@ -87,6 +87,9 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	if v, ok := lookupEnv("IMS_EVENT_DELETION_ENABLED"); ok {
 		baseCfg.Core.EventDeletionEnabled = strings.EqualFold(v, "true")
 	}
+	if v, ok := lookupEnv("IMS_INSECURE_COOKIES"); ok {
+		baseCfg.Core.InsecureCookies = strings.EqualFold(v, "true")
+	}
 	if v, ok := lookupEnv("IMS_BM_API_URL"); ok {
 		baseCfg.BurningManAPI.URL = strings.TrimSuffix(v, "/")
 	}

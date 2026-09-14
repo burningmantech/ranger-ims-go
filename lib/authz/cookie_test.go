@@ -26,87 +26,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDevCookiesAreSecureExceptForPlainHTTPToLoopback(t *testing.T) {
+func TestCookiesAreSecureByDefault(t *testing.T) {
 	t.Parallel()
-	dev := authz.TokenCookies{Dev: true}
-
-	// A real host, over plain HTTP (e.g. behind a TLS-terminating load
-	// balancer), still gets a Secure, prefixed cookie
-	req := httptest.NewRequest(http.MethodPost, "http://ims.example.org/ims/api/auth", nil)
-	c := dev.AccessToken(req, "tok", time.Hour)
-	require.True(t, c.Secure)
-	require.Equal(t, "__Host-ims_access_token", c.Name)
-	require.True(t, dev.ExpiredAccessToken(req).Secure)
-	require.True(t, dev.ExpiredLegacyRefreshToken(req).Secure)
-
-	// So does a real host with a port
-	req = httptest.NewRequest(http.MethodPost, "http://ims.example.org:8080/ims/api/auth", nil)
-	require.True(t, dev.AccessToken(req, "tok", time.Hour).Secure)
-
-	// So does a host that merely starts with "localhost"
-	req = httptest.NewRequest(http.MethodPost, "http://localhost.example.org/ims/api/auth", nil)
-	require.True(t, dev.AccessToken(req, "tok", time.Hour).Secure)
-
-	// Plain HTTP to loopback doesn't, since WebKit would drop the cookie, and
-	// so it can't have the prefix either
-	req = httptest.NewRequest(http.MethodPost, "http://localhost:8080/ims/api/auth", nil)
-	c = dev.AccessToken(req, "tok", time.Hour)
-	require.False(t, c.Secure)
-	require.Equal(t, "ims_access_token", c.Name)
-	require.Equal(t, "/", c.Path)
-	expired := dev.ExpiredAccessToken(req)
-	require.False(t, expired.Secure)
-	require.Equal(t, "ims_access_token", expired.Name)
-	require.False(t, dev.ExpiredLegacyRefreshToken(req).Secure)
-
-	req = httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/ims/api/auth", nil)
-	require.False(t, dev.AccessToken(req, "tok", time.Hour).Secure)
-
-	req = httptest.NewRequest(http.MethodPost, "http://[::1]:8080/ims/api/auth", nil)
-	require.False(t, dev.AccessToken(req, "tok", time.Hour).Secure)
-
-	// Loopback over TLS gets a Secure cookie after all
-	req = httptest.NewRequest(http.MethodPost, "https://localhost:8443/ims/api/auth", nil)
-	require.NotNil(t, req.TLS)
-	require.True(t, dev.AccessToken(req, "tok", time.Hour).Secure)
-}
-
-func TestNonDevCookiesAreAlwaysSecure(t *testing.T) {
-	t.Parallel()
-	prod := authz.TokenCookies{Dev: false}
+	cookies := authz.TokenCookies{}
 
 	// The prefix forces Path=/ and no Domain
 	req := httptest.NewRequest(http.MethodPost, "http://ims.example.org/ims/api/auth", nil)
-	c := prod.AccessToken(req, "tok", time.Hour)
+	c := cookies.AccessToken(req, "tok", time.Hour)
 	require.True(t, c.Secure)
 	require.Equal(t, "__Host-ims_access_token", c.Name)
 	require.Equal(t, "/", c.Path)
 	require.Empty(t, c.Domain)
-	expired := prod.ExpiredAccessToken(req)
+	expired := cookies.ExpiredAccessToken(req)
 	require.True(t, expired.Secure)
 	require.Equal(t, "__Host-ims_access_token", expired.Name)
 	require.Equal(t, "/", expired.Path)
-	require.True(t, prod.ExpiredLegacyRefreshToken(req).Secure)
+	require.True(t, cookies.ExpiredLegacyRefreshToken(req).Secure)
 
-	// A reverse proxy that passes along its upstream's loopback address as the
-	// Host, as nginx does by default, doesn't make the cookie any weaker
-	req = httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/ims/api/auth", nil)
-	c = prod.AccessToken(req, "tok", time.Hour)
+	// Plain HTTP to loopback, whether from a local browser or a reverse proxy
+	// that passes along its upstream's address as the Host, changes nothing
+	req = httptest.NewRequest(http.MethodPost, "http://localhost:8080/ims/api/auth", nil)
+	c = cookies.AccessToken(req, "tok", time.Hour)
 	require.True(t, c.Secure)
 	require.Equal(t, "__Host-ims_access_token", c.Name)
-	require.True(t, prod.ExpiredLegacyRefreshToken(req).Secure)
+	require.True(t, cookies.ExpiredLegacyRefreshToken(req).Secure)
+}
 
-	req = httptest.NewRequest(http.MethodPost, "http://localhost:8080/ims/api/auth", nil)
-	require.True(t, prod.AccessToken(req, "tok", time.Hour).Secure)
+func TestInsecureCookiesOverPlainHTTP(t *testing.T) {
+	t.Parallel()
+	cookies := authz.TokenCookies{Insecure: true}
 
-	req = httptest.NewRequest(http.MethodPost, "http://[::1]:8080/ims/api/auth", nil)
-	require.True(t, prod.AccessToken(req, "tok", time.Hour).Secure)
+	// Plain HTTP gets a cookie that isn't Secure, and so can't have the prefix
+	req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/ims/api/auth", nil)
+	c := cookies.AccessToken(req, "tok", time.Hour)
+	require.False(t, c.Secure)
+	require.Equal(t, "ims_access_token", c.Name)
+	require.Equal(t, "/", c.Path)
+	expired := cookies.ExpiredAccessToken(req)
+	require.False(t, expired.Secure)
+	require.Equal(t, "ims_access_token", expired.Name)
+	require.False(t, cookies.ExpiredLegacyRefreshToken(req).Secure)
+
+	// TLS still gets a Secure, prefixed cookie
+	req = httptest.NewRequest(http.MethodPost, "https://localhost:8443/ims/api/auth", nil)
+	require.NotNil(t, req.TLS)
+	c = cookies.AccessToken(req, "tok", time.Hour)
+	require.True(t, c.Secure)
+	require.Equal(t, "__Host-ims_access_token", c.Name)
+	require.True(t, cookies.ExpiredLegacyRefreshToken(req).Secure)
 }
 
 func TestAccessTokenFromCookie(t *testing.T) {
 	t.Parallel()
-	dev := authz.TokenCookies{Dev: true}
-	prod := authz.TokenCookies{Dev: false}
+	insecure := authz.TokenCookies{Insecure: true}
+	prod := authz.TokenCookies{}
 
 	// No cookie, no token
 	req := httptest.NewRequest(http.MethodGet, "http://ims.example.org/ims/api/events", nil)
@@ -128,13 +101,6 @@ func TestAccessTokenFromCookie(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, token)
 
-	// That includes when a proxy has made the Host look like loopback
-	req = httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080/ims/api/events", nil)
-	req.AddCookie(requestCookie("ims_access_token", "planted"))
-	token, err = prod.AccessTokenFrom(req)
-	require.NoError(t, err)
-	require.Empty(t, token)
-
 	// Two cookies by that name mean one is a lookalike, and neither is trusted
 	req = httptest.NewRequest(http.MethodGet, "http://ims.example.org/ims/api/events", nil)
 	req.AddCookie(requestCookie("__Host-ims_access_token", "planted"))
@@ -143,10 +109,10 @@ func TestAccessTokenFromCookie(t *testing.T) {
 	require.ErrorIs(t, err, authz.ErrMultipleTokenCookies)
 	require.Empty(t, token)
 
-	// A dev deployment on plain HTTP to loopback uses the unprefixed cookie
+	// With insecure cookies, plain HTTP uses the unprefixed cookie
 	req = httptest.NewRequest(http.MethodGet, "http://localhost:8080/ims/api/events", nil)
 	req.AddCookie(requestCookie("ims_access_token", "tok"))
-	token, err = dev.AccessTokenFrom(req)
+	token, err = insecure.AccessTokenFrom(req)
 	require.NoError(t, err)
 	require.Equal(t, "tok", token)
 }

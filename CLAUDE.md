@@ -281,10 +281,10 @@ Tokens can't be revoked, so authentication (`authenticate` in `api/mux.go`) also
 still be in the directory with the same handle: deactivating, deleting, or renaming someone cuts them off as
 soon as the directory cache refreshes.
 - **Web client**: `POST /ims/api/auth` sets the token in an `HttpOnly`, `SameSite=Strict` cookie named
-  `__Host-ims_access_token` (`lib/authz/cookie.go`), so a sibling subdomain can't plant one. Only in a dev
-  deployment, plain HTTP to a loopback host gets an unprefixed, non-`Secure` `ims_access_token` instead.
-  Other deployments ignore the Host header here, since a reverse proxy may rewrite it to loopback. The
-  browser's JavaScript never sees the token, and sends no `Authorization` header
+  `__Host-ims_access_token` (`lib/authz/cookie.go`), so a sibling subdomain can't plant one. Only with
+  `IMS_INSECURE_COOKIES=true`, which only a dev deployment accepts, does plain HTTP get an unprefixed,
+  non-`Secure` `ims_access_token` instead. The compose stacks set it, since WebKit drops `Secure` cookies
+  on `http://localhost`. The browser's JavaScript never sees the token, and sends no `Authorization` header
 - **Other clients**: `POST /ims/api/auth` with `"token_in_body": true` returns the token in the response body
   instead, to be sent as `Authorization: Bearer <token>`. If a request carries both, the Bearer header wins;
   any other `Authorization` scheme (e.g. a proxy's Basic auth) is ignored

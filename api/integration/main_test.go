@@ -267,7 +267,7 @@ func newCustomServer(
 		api.RecoverFromPanic(),
 		api.RequireAuthN(
 			authz.JWTer{SecretKey: cfg.Core.JWTSecret},
-			authz.TokenCookies{Dev: cfg.Core.Deployment == conf.DeploymentTypeDev},
+			authz.TokenCookies{Insecure: cfg.Core.InsecureCookies},
 			userStore,
 		),
 		api.LogRequest(false, shared.actionLogger, userStore),

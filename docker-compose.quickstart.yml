@@ -38,7 +38,8 @@
 #   in the environment block below to keep sessions across restarts.
 # * The server is only reachable from localhost. Change the "ports" mapping
 #   below to expose it more widely, and if you do, put proper secrets on the
-#   database and IMS_JWT_SECRET first.
+#   database and IMS_JWT_SECRET first, serve it over HTTPS, and set
+#   IMS_INSECURE_COOKIES to false.
 # * Configuration overrides for this stack go in .env.quickstart (copied from
 #   .env.quickstart.example on first run and pointed at by --env-file above),
 #   NOT in ./.env. Keeping them separate means a ./.env set up for running `ims
@@ -63,6 +64,9 @@ services:
       IMS_DB_USER_NAME: "${IMS_DB_USER_NAME:-ims}"
       IMS_DB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
       # IMS_JWT_SECRET: "some long random string"
+      # Browsers reach this stack at http://localhost, where WebKit drops Secure
+      # cookies. Set this to false if you put it behind HTTPS.
+      IMS_INSECURE_COOKIES: "${IMS_INSECURE_COOKIES:-true}"
     ports:
       # Override IMS_HOST_PORT to set the port mapping on the host.
       - "127.0.0.1:${IMS_HOST_PORT:-8080}:80"

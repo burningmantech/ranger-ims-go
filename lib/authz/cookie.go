@@ -18,10 +18,7 @@ package authz
 
 import (
 	"errors"
-	"net"
 	"net/http"
-	"net/netip"
-	"strings"
 	"time"
 )
 
@@ -37,12 +34,10 @@ import (
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies#cookie_prefixes
 const AccessTokenCookieName = "__Host-ims_access_token" // #nosec G101 // A name, not a credential
 
-// LoopbackAccessTokenCookieName is the access token cookie's name for plain
-// HTTP to a loopback host in a dev deployment. That cookie can't be Secure (see
-// TokenCookies.secure), so browsers wouldn't accept the prefix.
-//
-// https://issues.chromium.org/issues/40202941
-const LoopbackAccessTokenCookieName = "ims_access_token"
+// InsecureAccessTokenCookieName is the access token cookie's name when
+// TokenCookies.Insecure is on and the request came over plain HTTP. That cookie
+// isn't Secure, so browsers wouldn't accept the prefix.
+const InsecureAccessTokenCookieName = "ims_access_token"
 
 // ErrMultipleTokenCookies means a request carried more than one access token
 // cookie. IMS never sets more than one, so something else set the others.
@@ -54,15 +49,17 @@ const legacyRefreshTokenCookieName = "refresh_token"
 
 // TokenCookies makes and reads the cookies that carry a web client's access token.
 type TokenCookies struct {
-	// Dev is whether this is a dev deployment, the only kind that may use a
-	// cookie that isn't Secure.
-	Dev bool
+	// Insecure allows a cookie that isn't Secure for requests over plain HTTP.
+	// It's for local development only: WebKit reports http://localhost as a
+	// secure context, yet still drops Secure cookies sent over it, so Safari
+	// (and Playwright's WebKit) couldn't log in at all.
+	Insecure bool
 }
 
 // AccessToken makes the cookie that carries a web client's access token, in
 // response to req.
 func (c TokenCookies) AccessToken(req *http.Request, token string, lifetime time.Duration) *http.Cookie {
-	// #nosec G124 // Secure is only off for dev loopback; see secure
+	// #nosec G124 // Secure is only off when TokenCookies.Insecure is on
 	return &http.Cookie{
 		Name:     c.accessTokenName(req),
 		Value:    token,
@@ -78,7 +75,7 @@ func (c TokenCookies) AccessToken(req *http.Request, token string, lifetime time
 
 // ExpiredAccessToken makes a cookie that removes the access token cookie.
 func (c TokenCookies) ExpiredAccessToken(req *http.Request) *http.Cookie {
-	cookie := c.AccessToken(req, "", 0) // #nosec G124 // See secure
+	cookie := c.AccessToken(req, "", 0) // #nosec G124 // See TokenCookies.Insecure
 	cookie.MaxAge = -1
 	return cookie
 }
@@ -87,7 +84,7 @@ func (c TokenCookies) ExpiredAccessToken(req *http.Request) *http.Cookie {
 // set by older versions of IMS, which browsers would otherwise keep sending
 // until it expired on its own.
 func (c TokenCookies) ExpiredLegacyRefreshToken(req *http.Request) *http.Cookie {
-	// #nosec G124 // Secure is only off for dev loopback; see secure
+	// #nosec G124 // Secure is only off when TokenCookies.Insecure is on
 	return &http.Cookie{
 		Name:     legacyRefreshTokenCookieName,
 		MaxAge:   -1,
@@ -119,30 +116,9 @@ func (c TokenCookies) accessTokenName(req *http.Request) string {
 	if c.secure(req) {
 		return AccessTokenCookieName
 	}
-	return LoopbackAccessTokenCookieName
+	return InsecureAccessTokenCookieName
 }
 
-// secure reports whether cookies set in response to req should be Secure,
-// which is always, except for plain HTTP to a loopback host in a dev
-// deployment. WebKit won't store a Secure cookie sent over http://localhost, so
-// local development in Safari (and Playwright's WebKit) couldn't log in at all.
-//
-// Other deployments ignore the Host header, since a reverse proxy commonly
-// rewrites it to the loopback address IMS listens on (e.g. nginx's proxy_pass
-// without "proxy_set_header Host $host"), while browsers still reach the proxy
-// over HTTPS.
 func (c TokenCookies) secure(req *http.Request) bool {
-	if !c.Dev || req.TLS != nil {
-		return true
-	}
-	host, _, err := net.SplitHostPort(req.Host)
-	if err != nil {
-		host = req.Host
-	}
-	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
-	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
-		return false
-	}
-	addr, err := netip.ParseAddr(host)
-	return err != nil || !addr.IsLoopback()
+	return !c.Insecure || req.TLS != nil
 }

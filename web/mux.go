@@ -178,7 +178,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		Adapt(
 			func(w http.ResponseWriter, req *http.Request) {
 				slog.Info("Redirecting from logout")
-				cookies := authz.TokenCookies{Dev: cfg.Core.Deployment == conf.DeploymentTypeDev}
+				cookies := authz.TokenCookies{Insecure: cfg.Core.InsecureCookies}
 				http.SetCookie(w, cookies.ExpiredAccessToken(req))
 				http.SetCookie(w, cookies.ExpiredLegacyRefreshToken(req))
 				http.Redirect(w, req, "/ims/app?logout", http.StatusSeeOther)

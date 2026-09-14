@@ -95,6 +95,9 @@ func (c *IMSConfig) Validate() error {
 	// Deployment
 	errs = append(errs, c.Core.Deployment.Validate())
 	if c.Core.Deployment != DeploymentTypeDev {
+		if c.Core.InsecureCookies {
+			errs = append(errs, errors.New("non-dev environments must not use insecure cookies"))
+		}
 		if c.Directory.Directory != DirectoryTypeClubhouseDB && c.Directory.Directory != DirectoryTypeIMS {
 			errs = append(errs, errors.New("non-dev environments must use a ClubhouseDB or IMS directory"))
 		}
@@ -245,6 +248,11 @@ type ConfigCore struct {
 	// test events. It should stay false in production, where such a destructive operation
 	// shouldn't be needed.
 	EventDeletionEnabled bool
+
+	// InsecureCookies lets a web client's access token go in a cookie that isn't
+	// Secure, over plain HTTP. Only a dev deployment may turn this on, and only a
+	// local stack that browsers reach at http://localhost should.
+	InsecureCookies bool
 }
 
 // BurningManAPI configures IMS's access to the public Burning Man API, which

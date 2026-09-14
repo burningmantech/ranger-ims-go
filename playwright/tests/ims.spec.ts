@@ -577,17 +577,17 @@ test("attachments", async ({ page }) => {
     buffer: Buffer.from(contents),
   });
 
-  // The upload lands as a report entry offering the file back, and the button
-  // returns to its resting label rather than sticking on a progress percentage.
-  const downloadButt = page.getByRole("button", {name: "Download"});
-  await expect(downloadButt).toBeVisible();
+  // The upload lands as a report entry offering the file back, and the attach
+  // button returns to its resting label rather than sticking on a progress percentage.
+  const downloadLink = page.getByRole("link", {name: "Download"});
+  await expect(downloadLink).toBeVisible();
   await expect(attachButt).toHaveValue("Attach file");
 
   // Downloading gives back the bytes that went up, so the multipart body the
   // XHR sent really did arrive intact.
   const download = await Promise.all([
     page.waitForEvent("download"),
-    downloadButt.click(),
+    downloadLink.click(),
   ]).then(([d]) => d);
   expect(download.suggestedFilename()).toBe("note.txt");
   const stream = await download.createReadStream();

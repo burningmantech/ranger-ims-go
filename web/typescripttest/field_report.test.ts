@@ -17,9 +17,9 @@
 // Tests for field_report.ts against the real templ-rendered field report page
 // (field_report.templ).
 
-import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { captureLinkClicks, jsonResponse, loadFixture, mockFetch, mockXHR } from "./helpers.ts";
+import { jsonResponse, loadFixture, mockFetch, mockXHR } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -78,9 +78,6 @@ function frRoutes(url: string, init?: RequestInit): Response | undefined {
     }
     if (url === `${frUrl}/7` && !hasBody) {
         return jsonResponse(serverFieldReport, 200);
-    }
-    if (/\/attachments\/\d+$/.test(url) && !hasBody) {
-        return new Response("file contents", { status: 200 });
     }
     if (url.startsWith(`${frUrl}/7`) && hasBody) {
         // Edits and attach/detach.
@@ -178,235 +175,42 @@ test("a viewer without field-report read access sees an authorization error", as
     expect(document.getElementById("error_text")!.textContent).toContain("not currently authorized");
 });
 
-test("an entry's attachment is fetched from the field report's own endpoint", async (): Promise<void> => {
-    serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
-    const mock = await initFieldReportPage();
-    const links = captureLinkClicks();
-
+// Find the Preview or Download link on the first report entry.
+function attachmentLink(label: string): HTMLAnchorElement | undefined {
     const entry = document.querySelector<HTMLDivElement>("#report_entries .report_entry")!;
-    const download = [...entry.querySelectorAll("button")]
-        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Download"))!;
-    mock.mockClear();
-    download.click();
+    return [...entry.querySelectorAll("a")]
+        .find((a: HTMLAnchorElement): boolean => (a.textContent ?? "").includes(label));
+}
 
-    await vi.waitFor((): void => {
-        expect(mock.mock.calls.map(([url]): string => url)).toContain(`${frUrl}/7/attachments/1`);
-        expect(links.length).toBe(1);
-    });
-    expect(links[0]!.download).toBe("found.jpg");
-    expect(document.getElementById("error_text")!.textContent).toBe("");
+test("an entry's attachment links to the field report's own endpoint", async (): Promise<void> => {
+    serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
+    await initFieldReportPage();
+
+    const preview = attachmentLink("Preview")!;
+    expect(preview.getAttribute("href")).toBe(`${frUrl}/7/attachments/1`);
+    expect(preview.target).toBe("_blank");
+
+    const download = attachmentLink("Download")!;
+    expect(download.getAttribute("href")).toBe(`${frUrl}/7/attachments/1?download=true`);
+    expect(download.target).toBe("");
 });
 
-test("attachment buttons stay usable for a reader who can't write the field report", async (): Promise<void> => {
+test("attachment links stay usable for a reader who can't write the field report", async (): Promise<void> => {
     serverEventAccess.writeFieldReports = false;
     serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
-    const mock = await initFieldReportPage();
-    const links = captureLinkClicks();
+    await initFieldReportPage();
 
     // Editing is off for this user.
     expect((document.getElementById("field_report_summary") as HTMLInputElement).disabled).toBe(true);
 
-    const entry = document.querySelector<HTMLDivElement>("#report_entries .report_entry")!;
-    const download = [...entry.querySelectorAll("button")]
-        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Download"))!;
-    const preview = [...entry.querySelectorAll("button")]
-        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Preview"))!;
-    expect(download.disabled).toBe(false);
-    expect(preview.disabled).toBe(false);
-
-    mock.mockClear();
-    download.click();
-
-    await vi.waitFor((): void => {
-        expect(mock.mock.calls.map(([url]): string => url)).toContain(`${frUrl}/7/attachments/1`);
-        expect(links.length).toBe(1);
-    });
-});
-
-test("downloading an attachment shows progress on the button, then restores it", async (): Promise<void> => {
-    serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
-
-    // A body the test feeds by hand, so the button can be inspected mid-download.
-    let push: (chunk: Uint8Array) => void = (): void => {};
-    let finish: () => void = (): void => {};
-    const body = new ReadableStream<Uint8Array>({
-        start(controller): void {
-            push = (chunk: Uint8Array): void => controller.enqueue(chunk);
-            finish = (): void => controller.close();
-        },
-    });
-    await initFieldReportPage((url, init) => {
-        if (/\/attachments\/\d+$/.test(url) && init?.body == null) {
-            return new Response(body, { status: 200, headers: { "Content-Length": "10" } });
-        }
-        return frRoutes(url, init);
-    });
-    const links = captureLinkClicks();
-    const blobs: Blob[] = [];
-    vi.spyOn(window.URL, "createObjectURL").mockImplementation((blob: Blob|MediaSource): string => {
-        blobs.push(blob as Blob);
-        return "blob:fake";
-    });
-
-    const entry = document.querySelector<HTMLDivElement>("#report_entries .report_entry")!;
-    const download = [...entry.querySelectorAll("button")]
-        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Download"))!;
-    download.click();
-
-    // Halfway through, the button is unusable and reports how far along it is.
-    push(new Uint8Array([1, 2, 3, 4, 5]));
-    await vi.waitFor((): void => {
-        expect(download.textContent).toContain("50%");
-    });
-    expect(download.disabled).toBe(true);
-
-    push(new Uint8Array([6, 7, 8, 9, 10]));
-    finish();
-
-    await vi.waitFor((): void => {
-        expect(links.length).toBe(1);
-    });
-    // The whole file made it through the streamed read.
-    expect(await blobs[0]!.arrayBuffer()).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).buffer);
-    // The button goes back to being a Download button.
-    expect(download.disabled).toBe(false);
-    expect(download.textContent).toContain("Download");
-    expect(download.textContent).not.toContain("%");
-});
-
-// A slow preview download outlives the click that started it, and the browser
-// would block the new tab as a popup, so the file waits for a second click.
-test("a preview whose download outlives its click waits to be opened", async (): Promise<void> => {
-    serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
-    // The click no longer counts as user activation, as after a long download.
-    Object.defineProperty(navigator, "userActivation", {
-        configurable: true,
-        value: { isActive: false, hasBeenActive: true },
-    });
-    onTestFinished((): void => {
-        Reflect.deleteProperty(navigator, "userActivation");
-    });
-
-    await initFieldReportPage();
-    const links = captureLinkClicks();
-    vi.spyOn(window.URL, "createObjectURL").mockReturnValue("blob:fake");
-
-    const entry = document.querySelector<HTMLDivElement>("#report_entries .report_entry")!;
-    const preview = [...entry.querySelectorAll("button")]
-        .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Preview"))!;
-    preview.click();
-
-    // The file arrived, but opening it now would be blocked, so the button says
-    // it's holding one rather than opening a tab.
-    await vi.waitFor((): void => {
-        expect(preview.textContent).toContain("Preview Ready");
-    });
-    expect(links.length).toBe(0);
-    expect(preview.disabled).toBe(false);
-
-    // The second click opens the file it already has, without re-fetching.
-    preview.click();
-    expect(links.length).toBe(1);
-    expect(links[0]!.target).toBe("_blank");
-    expect(links[0]!.href).toContain("blob:fake");
-    expect(preview.textContent).toContain("Preview");
-    expect(preview.textContent).not.toContain("Ready");
-});
-
-// The report entries are rebuilt from scratch on every update, including ones
-// that arrive from other users, which replaces the button a transfer is running
-// on. The replacement has to pick up where its predecessor left off.
-test("a redraw mid-download hands the progress to the newly drawn button", async (): Promise<void> => {
-    serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
-
-    let push: (chunk: Uint8Array) => void = (): void => {};
-    let finish: () => void = (): void => {};
-    const body = new ReadableStream<Uint8Array>({
-        start(controller): void {
-            push = (chunk: Uint8Array): void => controller.enqueue(chunk);
-            finish = (): void => controller.close();
-        },
-    });
-    await initFieldReportPage((url, init) => {
-        if (/\/attachments\/\d+$/.test(url) && init?.body == null) {
-            return new Response(body, { status: 200, headers: { "Content-Length": "10" } });
-        }
-        return frRoutes(url, init);
-    });
-    const links = captureLinkClicks();
-    vi.spyOn(window.URL, "createObjectURL").mockReturnValue("blob:fake");
-    const ims = await import("../typescript/ims.ts");
-
-    const downloadButton = (): HTMLButtonElement =>
-        [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry")[0]!.querySelectorAll("button")]
-            .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Download"))!;
-
-    const firstButt = downloadButton();
-    firstButt.click();
-    push(new Uint8Array([1, 2, 3, 4, 5]));
-    await vi.waitFor((): void => {
-        expect(firstButt.textContent).toContain("50%");
-    });
-
-    // Someone else's update redraws every entry, discarding the button that was
-    // showing the progress.
-    ims.drawReportEntries(serverFieldReport.report_entries!);
-    const redrawnButt = downloadButton();
-    expect(redrawnButt).not.toBe(firstButt);
-    expect(redrawnButt.textContent).toContain("50%");
-    expect(redrawnButt.disabled).toBe(true);
-
-    push(new Uint8Array([6, 7, 8, 9, 10]));
-    finish();
-
-    // The download still completes, and it's the new button that gets cleaned up.
-    await vi.waitFor((): void => {
-        expect(links.length).toBe(1);
-    });
-    expect(redrawnButt.disabled).toBe(false);
-    expect(redrawnButt.textContent).toContain("Download");
-    expect(redrawnButt.textContent).not.toContain("%");
-});
-
-// A file parked for a second click has to survive a redraw too, or the only
-// reference to it is lost and the user has to download it all over again.
-test("a redraw keeps a preview that's waiting to be opened", async (): Promise<void> => {
-    serverFieldReport.report_entries![0]!.attachment = { name: "found.jpg", previewable: true };
-    Object.defineProperty(navigator, "userActivation", {
-        configurable: true,
-        value: { isActive: false, hasBeenActive: true },
-    });
-    onTestFinished((): void => {
-        Reflect.deleteProperty(navigator, "userActivation");
-    });
-
-    const mock = await initFieldReportPage();
-    const links = captureLinkClicks();
-    vi.spyOn(window.URL, "createObjectURL").mockReturnValue("blob:fake");
-    const ims = await import("../typescript/ims.ts");
-
-    const previewButton = (): HTMLButtonElement =>
-        [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry")[0]!.querySelectorAll("button")]
-            .find((b: HTMLButtonElement): boolean => (b.textContent ?? "").includes("Preview"))!;
-
-    previewButton().click();
-    await vi.waitFor((): void => {
-        expect(previewButton().textContent).toContain("Preview Ready");
-    });
-
-    ims.drawReportEntries(serverFieldReport.report_entries!);
-    const redrawnButt = previewButton();
-    expect(redrawnButt.textContent).toContain("Preview Ready");
-
-    // The redrawn button opens the file its predecessor fetched, without going
-    // back to the server for it.
-    mock.mockClear();
-    redrawnButt.click();
-    expect(links.length).toBe(1);
-    expect(links[0]!.href).toContain("blob:fake");
-    expect(mock.mock.calls.some(([url]): boolean => url.includes("/attachments/"))).toBe(false);
-    expect(redrawnButt.textContent).toContain("Preview");
-    expect(redrawnButt.textContent).not.toContain("Ready");
+    // disableEditing() works through the form-control-lite class, which these
+    // links must not carry.
+    const preview = attachmentLink("Preview")!;
+    const download = attachmentLink("Download")!;
+    expect(preview.classList.contains("form-control-lite")).toBe(false);
+    expect(download.classList.contains("form-control-lite")).toBe(false);
+    expect(preview.getAttribute("href")).toBe(`${frUrl}/7/attachments/1`);
+    expect(download.getAttribute("href")).toBe(`${frUrl}/7/attachments/1?download=true`);
 });
 
 test("attachFile shows an uploading state, posts the file, then confirms and reverts", async (): Promise<void> => {

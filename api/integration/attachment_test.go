@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"mime"
 	"net/http"
 	"strings"
 	"testing"
@@ -191,6 +192,59 @@ func TestGetFieldReportAttachmentAllowedForAuthoringReporter(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, fileBytes, body)
+}
+
+// The web client links straight to attachments rather than fetching them, so the
+// response itself has to name the file, say whether to open or save it, and keep
+// the browser from treating a previewed file as an active IMS page.
+func TestGetIncidentAttachmentHeaders(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
+	reID, resp := apisAlice.attachFileToIncident(ctx, eventName, num, []byte("some notes"))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	incident, resp := apisAlice.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var originalName string
+	for _, re := range incident.ReportEntries {
+		if re.ID == reID {
+			originalName = re.Attachment.Name
+		}
+	}
+	require.NotEmpty(t, originalName)
+
+	path := apisAlice.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt(num), "attachments", conv.FormatInt(reID))
+
+	// By default, the file opens in the browser.
+	body, resp := apisAlice.imsGetBodyBytes(ctx, path.String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, []byte("some notes"), body)
+	disposition, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+	require.NoError(t, err)
+	require.Equal(t, "inline", disposition)
+	require.Equal(t, originalName, params["filename"])
+	require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	require.Equal(t, "sandbox", resp.Header.Get("Content-Security-Policy"))
+
+	// Asking to download it makes the browser save it instead.
+	body, resp = apisAlice.imsGetBodyBytes(ctx, path.String()+"?download=true")
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, []byte("some notes"), body)
+	disposition, params, err = mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+	require.NoError(t, err)
+	require.Equal(t, "attachment", disposition)
+	require.Equal(t, originalName, params["filename"])
 }
 
 // Asking for an attachment by the ID of a report entry that carries no file is a

@@ -339,13 +339,13 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 			if jwtCtx.Claims != nil {
 				username = conv.StringToSql(new(jwtCtx.Claims.RangerHandle()), 128)
 				userID = sql.NullInt64{Int64: jwtCtx.Claims.DirectoryID(), Valid: true}
-				if posID := jwtCtx.Claims.RangerOnDutyPosition(); posID != nil {
-					positionID = sql.NullInt64{Int64: *posID, Valid: true}
-					positions, _, _ := userStore.GetPositionsAndTeams(r.Context())
-					if positions != nil {
-						posName := positions[*posID]
-						positionName = conv.StringToSql(conv.EmptyToNil(posName), 128)
-					}
+
+				posID, posName, _ := userStore.OnDutyForRanger(r.Context(), jwtCtx.Claims.DirectoryID())
+				if posID != 0 {
+					positionID = sql.NullInt64{Int64: posID, Valid: true}
+				}
+				if posName != "" {
+					positionName = conv.StringToSql(conv.EmptyToNil(posName), 128)
 				}
 			}
 			writ.setUser(userID, positionID, username, positionName)

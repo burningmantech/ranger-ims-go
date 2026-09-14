@@ -130,32 +130,28 @@ func EventPermissions(
 			accessByEvent[*eventID] = append(accessByEvent[*eventID], ea.EventAccess)
 		}
 	}
-	allPositions, allTeams, err := userStore.GetPositionsAndTeams(ctx)
+	userPosNames, err := userStore.PositionsForRanger(ctx, claims.DirectoryID())
 	if err != nil {
-		return nil, GlobalNoPermissions, fmt.Errorf("[GetPositionsAndTeams]: %w", err)
+		return nil, GlobalNoPermissions, fmt.Errorf("[PositionsForRanger]: %w", err)
 	}
-
-	userPosIDs := claims.RangerPositions()
-	userPosNames := make([]string, 0, len(userPosIDs))
-	for _, userPosID := range userPosIDs {
-		userPosNames = append(userPosNames, allPositions[userPosID])
+	userTeamNames, err := userStore.TeamsForRanger(ctx, claims.DirectoryID())
+	if err != nil {
+		return nil, GlobalNoPermissions, fmt.Errorf("[TeamsForRanger]: %w", err)
 	}
-	userTeamIDs := claims.RangerTeams()
-	userTeamNames := make([]string, 0, len(userTeamIDs))
-	for _, userTeamID := range userTeamIDs {
-		userTeamNames = append(userTeamNames, allTeams[userTeamID])
+	_, onDutyPosition, err := userStore.OnDutyForRanger(ctx, claims.DirectoryID())
+	if err != nil {
+		return nil, GlobalNoPermissions, fmt.Errorf("[OnDutyForRanger]: %w", err)
 	}
-	onDutyPosition := ""
-	onDutyPositionID := claims.RangerOnDutyPosition()
-	if onDutyPositionID != nil {
-		onDutyPosition = allPositions[*onDutyPositionID]
+	onSite, err := userStore.OnSiteForRanger(ctx, claims.DirectoryID())
+	if err != nil {
+		return nil, GlobalNoPermissions, fmt.Errorf("[OnSiteForRanger]: %w", err)
 	}
 
 	eventPermissions, globalPermissions = ManyEventPermissions(
 		accessByEvent,
 		imsAdmins,
 		claims.RangerHandle(),
-		claims.RangerOnSite(),
+		onSite,
 		userPosNames,
 		userTeamNames,
 		onDutyPosition,

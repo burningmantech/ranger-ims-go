@@ -27,15 +27,7 @@ import (
 // is actually getting around to processing the request, the access token is already expired.
 const SuggestedEarlyAccessTokenRefresh time.Duration = -10 * time.Second
 
-func (j JWTer) CreateAccessToken(
-	rangerName string,
-	clubhouseID int64,
-	positionIDs []int64,
-	teamIDs []int64,
-	onsite bool,
-	onDutyPositionID *int64,
-	expiration time.Time,
-) (string, error) {
+func (j JWTer) CreateAccessToken(rangerName string, clubhouseID int64, expiration time.Time) (string, error) {
 	return j.createJWT(
 		IMSClaims{}.
 			WithIssuedAt(time.Now()).
@@ -43,10 +35,6 @@ func (j JWTer) CreateAccessToken(
 			WithIssuer("ims").
 			WithTokenType(TokenTypeAccess).
 			WithRangerHandle(rangerName).
-			WithRangerOnSite(onsite).
-			WithRangerOnDutyPosition(onDutyPositionID).
-			WithRangerPositions(positionIDs...).
-			WithRangerTeams(teamIDs...).
 			WithSubject(strconv.FormatInt(clubhouseID, 10)),
 	)
 }

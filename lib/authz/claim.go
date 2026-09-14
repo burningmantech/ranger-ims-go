@@ -17,13 +17,11 @@
 package authz
 
 import (
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/golang-jwt/jwt/v5"
-	"math/big"
-	"time"
 )
-
-const compactIntBase = 62
 
 // TokenType values for the "tok" claim. These distinguish access tokens from
 // refresh tokens, so that one can never be used in place of the other.
@@ -35,49 +33,8 @@ const (
 type IMSClaims struct {
 	jwt.RegisteredClaims
 
-	Handle         string `json:"han"`
-	Positions      string `json:"pos"`
-	Teams          string `json:"tea"`
-	Onsite         bool   `json:"ons"`
-	OnDutyPosition *int64 `json:"dut,omitempty"`
-	TokenType      string `json:"tok,omitempty"`
-}
-
-func unmarshalBigInt(s string) *big.Int {
-	if s == "" {
-		return big.NewInt(0)
-	}
-	var z big.Int
-	_, ok := z.SetString(s, compactIntBase)
-	if !ok {
-		return big.NewInt(0)
-	}
-	return &z
-}
-
-func bitSetToInts(bigint *big.Int) []int64 {
-	if bigint.Cmp(big.NewInt(0)) == -1 {
-		panic("got bigint less than zero")
-	}
-	var ints []int64
-	for i := range bigint.BitLen() {
-		if bigint.Bit(i) != 0 {
-			ints = append(ints, int64(i))
-		}
-	}
-	return ints
-}
-
-func intsToBitSet(ints []int64) *big.Int {
-	bitset := big.NewInt(0)
-	for _, t := range ints {
-		bitset.SetBit(bitset, int(t), 1)
-	}
-	return bitset
-}
-
-func marshalBigInt(b *big.Int) string {
-	return b.Text(compactIntBase)
+	Handle    string `json:"han"`
+	TokenType string `json:"tok,omitempty"`
 }
 
 func (c IMSClaims) WithExpiration(t time.Time) IMSClaims {
@@ -105,26 +62,6 @@ func (c IMSClaims) WithRangerHandle(s string) IMSClaims {
 	return c
 }
 
-func (c IMSClaims) WithRangerOnSite(onsite bool) IMSClaims {
-	c.Onsite = onsite
-	return c
-}
-
-func (c IMSClaims) WithRangerPositions(pos ...int64) IMSClaims {
-	c.Positions = marshalBigInt(intsToBitSet(pos))
-	return c
-}
-
-func (c IMSClaims) WithRangerTeams(teams ...int64) IMSClaims {
-	c.Teams = marshalBigInt(intsToBitSet(teams))
-	return c
-}
-
-func (c IMSClaims) WithRangerOnDutyPosition(pos *int64) IMSClaims {
-	c.OnDutyPosition = pos
-	return c
-}
-
 func (c IMSClaims) WithTokenType(tokenType string) IMSClaims {
 	c.TokenType = tokenType
 	return c
@@ -132,18 +69,6 @@ func (c IMSClaims) WithTokenType(tokenType string) IMSClaims {
 
 func (c IMSClaims) RangerHandle() string {
 	return c.Handle
-}
-
-func (c IMSClaims) RangerOnSite() bool {
-	return c.Onsite
-}
-
-func (c IMSClaims) RangerPositions() []int64 {
-	return bitSetToInts(unmarshalBigInt(c.Positions))
-}
-
-func (c IMSClaims) RangerTeams() []int64 {
-	return bitSetToInts(unmarshalBigInt(c.Teams))
 }
 
 // DirectoryID returns the Clubhouse ID for a Ranger.
@@ -158,8 +83,4 @@ func (c IMSClaims) DirectoryID() int64 {
 		return -1
 	}
 	return subN
-}
-
-func (c IMSClaims) RangerOnDutyPosition() *int64 {
-	return c.OnDutyPosition
 }

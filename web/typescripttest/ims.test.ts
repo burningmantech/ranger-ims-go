@@ -347,11 +347,11 @@ test("blockKeyboardShortcutFieldActive blocks everything when shortcuts are off"
     localStorage.clear();
 });
 
-// This is the shape DataTables 2.x leaves behind: the table sits inside a
+// This is the shape DataTables leaves behind: the table sits inside a
 // .dt-container, and the header the user sees is a *clone* in a separate table
 // (.dt-scroll-head), while the real table's own header is hidden. Sort controls
-// are role="button" spans with an accessible name but no tabindex, so a
-// keyboard user can neither reach them nor sort by them.
+// carry role="button" and an accessible name. This markup leaves off the
+// tabindex that newer DataTables adds itself, so the test covers both.
 function dataTablesMarkup(): void {
     document.body.innerHTML = `
         <div id="queue_table_wrapper" class="dt-container">

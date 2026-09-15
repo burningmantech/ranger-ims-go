@@ -33,7 +33,6 @@ import "embed"
 //go:embed static
 //go:embed static/ext/bootstrap/bootstrap.min.css
 //go:embed static/ext/bootstrap/bootstrap.bundle.min.js
-//go:embed static/ext/jquery.min.js
 //go:embed static/ext/datatables/dataTables.min.js
 //go:embed static/ext/datatables/dataTables.bootstrap5.min.js
 //go:embed static/ext/datatables/dataTables.bootstrap5.min.css

@@ -352,7 +352,8 @@ function initDataTables(tablePrereqs: Promise<void>): void {
         "lengthChange": false,
         "searching": true,
         "processing": true,
-        "scrollX": false, "scrollY": false,
+        // No scrollX/scrollY here: DataTables reads `false` as "scrolling on",
+        // and its split-header scroll markup fails accessibility checks.
         "layout": {
             "topStart": null,
             "topEnd": null,

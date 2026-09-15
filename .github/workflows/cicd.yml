@@ -50,7 +50,6 @@ jobs:
             *.golang.org:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
-            code.jquery.com:443
             dl.google.com:443
             files.pythonhosted.org:443
             github.com:443
@@ -106,7 +105,6 @@ jobs:
             *.sentry.io:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
-            code.jquery.com:443
             dl.google.com:443
             github.com:443
             go.dev:443
@@ -167,7 +165,6 @@ jobs:
             *.sentry.io:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
-            code.jquery.com:443
             dl.google.com:443
             github.com:443
             go.dev:443
@@ -246,7 +243,6 @@ jobs:
             *.golang.org:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
-            code.jquery.com:443
             dl-cdn.alpinelinux.org:443
             github.com:443
             storage.googleapis.com:443
@@ -306,7 +302,6 @@ jobs:
             *.golang.org:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
-            code.jquery.com:443
             dl-cdn.alpinelinux.org:443
             github.com:443
             storage.googleapis.com:443

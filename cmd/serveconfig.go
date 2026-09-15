@@ -18,13 +18,14 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/conf"
-	"github.com/burningmantech/ranger-ims-go/lib/conv"
-	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/joho/godotenv"
 )
 
 // mustApplyEnvConfig reads in the .env file and ENV variables and applies those to baseCfg.
@@ -53,9 +54,9 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 		baseCfg.Core.Deployment = conf.DeploymentType(strings.ToLower(v))
 	}
 	if v, ok := lookupEnv("IMS_TOKEN_LIFETIME"); ok {
-		seconds, err := conv.ParseInt64(v)
+		dur, err := time.ParseDuration(v)
 		must(err)
-		baseCfg.Core.TokenLifetime = time.Duration(seconds) * time.Second
+		baseCfg.Core.TokenLifetime = dur
 	}
 	if v, ok := lookupEnv("IMS_CACHE_CONTROL_SHORT"); ok {
 		dur, err := time.ParseDuration(v)

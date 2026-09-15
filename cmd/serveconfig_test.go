@@ -17,10 +17,11 @@
 package cmd
 
 import (
-	"github.com/burningmantech/ranger-ims-go/conf"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestMustApplyEnvConfig should be the only test in the whole repo that
@@ -36,7 +37,7 @@ func TestMustApplyEnvConfig(t *testing.T) {
 	t.Setenv("IMS_PORT", "1234")
 	t.Setenv("IMS_PASSWORD", "password")
 	t.Setenv("IMS_DEPLOYMENT", "dev")
-	t.Setenv("IMS_TOKEN_LIFETIME", "1000")
+	t.Setenv("IMS_TOKEN_LIFETIME", "1000s")
 	t.Setenv("IMS_CACHE_CONTROL_SHORT", "3m")
 	t.Setenv("IMS_CACHE_CONTROL_LONG", "7m")
 	t.Setenv("IMS_DIRECTORY_CACHE_TTL", "15m")

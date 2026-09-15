@@ -89,7 +89,7 @@ require (
 	github.com/magiconair/properties v1.18.11 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/microsoft/typescript-go v0.0.0-20260820064610-89d5d5b2849a // indirect
+	github.com/microsoft/TypeScript/tsc v0.0.0-20260914231805-57d9528db25b // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.3.3 // indirect
 	github.com/moby/moby/api v1.56.0 // indirect
@@ -152,7 +152,7 @@ require (
 tool (
 	github.com/a-h/templ/cmd/templ
 	github.com/air-verse/air
-	github.com/microsoft/typescript-go/cmd/tsgo
+	github.com/microsoft/TypeScript/tsc/cmd/tsc
 	github.com/sqlc-dev/sqlc/cmd/sqlc
 	golang.org/x/vuln/cmd/govulncheck
 )

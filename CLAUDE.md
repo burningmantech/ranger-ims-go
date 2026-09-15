@@ -21,7 +21,7 @@ go run bin/build/build.go -generate-only
 
 ### Building
 
-Build the server (runs sqlc, templ, and tsgo code generation, then compiles):
+Build the server (runs sqlc, templ, and tsc code generation, then compiles):
 ```bash
 go run bin/build/build.go
 # or
@@ -30,7 +30,7 @@ make build
 
 The build outputs a `ranger-ims-go` binary in the project root.
 
-**Always use the build script for code generation.** Do not run individual generators (templ, tsgo, sqlc) separately — use `go run bin/build/build.go` or `make build` instead, as the script runs all generators in the correct order.
+**Always use the build script for code generation.** Do not run individual generators (templ, tsc, sqlc) separately — use `go run bin/build/build.go` or `make build` instead, as the script runs all generators in the correct order.
 
 ### Running the Server
 
@@ -110,7 +110,7 @@ go tool sqlc generate
 go tool templ generate
 
 # Generate JavaScript from TypeScript
-go tool tsgo
+go tool tsc
 ```
 
 ### Linting
@@ -232,7 +232,7 @@ The API (`api/` package) uses a custom middleware adapter pattern:
 
 The web UI uses:
 - **templ** - Type-safe Go templates (`.templ` files generate `.go` files)
-- **TypeScript** - Compiled to JavaScript via tsgo (in `web/typescript/`, output to `web/static/`)
+- **TypeScript** - Compiled to JavaScript via tsc (in `web/typescript/`, output to `web/static/`)
 - Custom mux pattern similar to the API
 
 ### Testing Strategy
@@ -248,7 +248,7 @@ The project uses several code generators (all invoked by the build script):
 
 1. **sqlc** - Generates type-safe Go code from SQL
 2. **templ** - Compiles `.templ` templates to Go code
-3. **tsgo** - TypeScript compiler wrapper that transpiles to JavaScript
+3. **tsc** - TypeScript compiler that transpiles to JavaScript
 
 **Generated code is not checked in.** These paths are all gitignored and produced by the generators:
 
@@ -259,7 +259,7 @@ The project uses several code generators (all invoked by the build script):
 
 Never hand-edit them; edit the source (`.templ`, `.sql`, `.ts`) and regenerate. A fresh clone won't compile until you do — `go test ./...`, `go vet`, and gopls all need the generated code to exist. Run `make generate` (generators only) or `make build` (generators + `go build`) first. CI, the Dockerfile, and `make run/live` all run the generators themselves, so there is never anything to commit.
 
-Because `tsgo` is the TypeScript type checker, a type error in `web/typescript/` fails `make generate` and fails CI.
+Because `tsc` is the TypeScript type checker, a type error in `web/typescript/` fails `make generate` and fails CI.
 
 ## Development Patterns
 

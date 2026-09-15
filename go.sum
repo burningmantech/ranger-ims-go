@@ -266,8 +266,8 @@ github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byF
 github.com/mattn/go-runewidth v0.0.19/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
 github.com/microcosm-cc/bluemonday v1.0.27 h1:MpEUotklkwCSLeH+Qdx1VJgNqLlpY2KXwXFM08ygZfk=
 github.com/microcosm-cc/bluemonday v1.0.27/go.mod h1:jFi9vgW+H7c3V0lb6nR74Ib/DIB5OBs92Dimizgw2cA=
-github.com/microsoft/typescript-go v0.0.0-20260820064610-89d5d5b2849a h1:RUixEavFxfzraKDEkoR9akAUCBrYipnGZt6VAae2mus=
-github.com/microsoft/typescript-go v0.0.0-20260820064610-89d5d5b2849a/go.mod h1:uy4uI11nU5dKpoOZFLuss02qWcAXNlDe57R5bxonbK8=
+github.com/microsoft/TypeScript/tsc v0.0.0-20260914231805-57d9528db25b h1:Xj1B5LJIJJMxCPiH5UjZGuuyl60gad0TkTToB6yllOI=
+github.com/microsoft/TypeScript/tsc v0.0.0-20260914231805-57d9528db25b/go.mod h1:6f+klDc2PnmxR35Fqsn05T+T87JubDJH6WCVDiu3BE4=
 github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c h1:cqn374mizHuIWj+OSJCajGr/phAmuMug9qIX3l9CflE=
 github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=

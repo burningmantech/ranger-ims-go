@@ -24,7 +24,7 @@ import "embed"
 // Please run `make generate`, as you need to have these files
 // loaded in your filesystem in order to compile. None of them is
 // checked in: the ext/ ones are fetched by bin/fetchbuilddeps, and
-// the JavaScript in static/ is generated from web/typescript by tsgo.
+// the JavaScript in static/ is generated from web/typescript by tsc.
 //
 // Note that a missing .js file won't fail the build the way a missing
 // ext/ file does — `go:embed static` on a directory doesn't complain

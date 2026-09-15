@@ -13,7 +13,7 @@ that occur in Black Rock City.
    ```shell
    make generate
    ```
-   None of the generated code (sqlc, templ, tsgo) is checked in, so a fresh clone
+   None of the generated code (sqlc, templ, tsc) is checked in, so a fresh clone
    won't compile until you've run this. Rerun it whenever you change a `.templ`,
    `.ts`, or `.sql` file — or just use `make build` / `make run/live`, which run the
    generators for you.

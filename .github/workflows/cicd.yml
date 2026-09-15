@@ -122,7 +122,7 @@ jobs:
 
       # Generated code isn't checked in, so it has to exist before anything can
       # compile. This also fetches the external client deps that static.go embeds.
-      # tsgo is the TypeScript type checker, so this step is what makes a type
+      # tsc is the TypeScript type checker, so this step is what makes a type
       # error in web/typescript/ fail the build.
       - name: Generate code and fetch external build dependencies
         run: go run bin/build/build.go -generate-only
@@ -196,7 +196,7 @@ jobs:
         run: npm ci
 
       # Vitest transpiles the TypeScript without type-checking it, so this is a
-      # separate step. The web/typescript sources are covered by the tsgo run in
+      # separate step. The web/typescript sources are covered by the tsc run in
       # the generate step above; this covers the test sources.
       - name: Type-check TypeScript tests
         run: npm run typecheck
@@ -253,7 +253,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
-      # The image now compiles sqlc/templ/tsgo and runs them, because none of
+      # The image now compiles sqlc/templ/tsc and runs them, because none of
       # their output is checked in. `mode=max` on the cache export is what keeps
       # that affordable: the default `mode=min` only caches the last layer of the
       # final stage, which caches nothing useful in a multi-stage build. The

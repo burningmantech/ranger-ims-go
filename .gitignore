@@ -50,7 +50,7 @@ ims-attachments
 air_tmp
 
 # generated code, produced by `make generate` (or `make build`). The generators
-# are sqlc, templ and tsgo; see bin/build/build.go. CI and the Dockerfile run
+# are sqlc, templ and tsc; see bin/build/build.go. CI and the Dockerfile run
 # them too, so none of this needs to be checked in.
 #
 # The doc.go in each generated package is hand-written and stays checked in, so

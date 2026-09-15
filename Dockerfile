@@ -27,7 +27,7 @@ RUN go mod download
 RUN CGO_ENABLED=0 go build -o /tmp/tools/ \
       github.com/sqlc-dev/sqlc/cmd/sqlc \
       github.com/a-h/templ/cmd/templ \
-      github.com/microsoft/typescript-go/cmd/tsgo
+      github.com/microsoft/TypeScript/tsc/cmd/tsc
 
 # Fetch client deps that we need to embed in the binary
 COPY ./bin/fetchbuilddeps/ ./bin/fetchbuilddeps/
@@ -38,7 +38,7 @@ RUN go run ./bin/fetchbuilddeps/fetchbuilddeps.go
 # See https://pkg.go.dev/debug/buildinfo#BuildInfo
 COPY ./ ./
 
-# None of the sqlc/templ/tsgo output is checked in, so generate it here. This
+# None of the sqlc/templ/tsc output is checked in, so generate it here. This
 # re-runs fetchbuilddeps too, but that's a no-op: it hash-checks the files the
 # layer above already fetched and skips the download.
 RUN CGO_ENABLED=0 go run bin/build/build.go -generate-only

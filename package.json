@@ -10,7 +10,7 @@
     "test:watch": "vitest",
     "pretest:coverage": "npm run fixtures",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "go tool tsgo -p web/typescripttest --noEmit"
+    "typecheck": "go tool tsc -p web/typescripttest --noEmit"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

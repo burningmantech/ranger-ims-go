@@ -31,7 +31,7 @@ jobs:
         include:
           - language: actions
             build-mode: none
-          # Not autobuild: the generated code (sqlc/templ/tsgo) isn't checked in,
+          # Not autobuild: the generated code (sqlc/templ/tsc) isn't checked in,
           # and neither are the client deps that static.go embeds, so a bare
           # `go build` can't work. The manual steps below produce both first.
           - language: go

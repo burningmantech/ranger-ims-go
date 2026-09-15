@@ -1650,19 +1650,19 @@ export function clearErrorMessage(): void {
     }
 }
 
-// DataTables renders each column's sort control as a <span role="button"> that
-// has an aria-label but no tabindex, so a keyboard-only user can't reach it and
-// can't sort any table at all (WCAG 2.1.1). Make those controls focusable, and
-// activatable with Enter and Space like the buttons they claim to be.
+// DataTables renders each column's sort control as a focusable element with
+// role="button", but binds only a click handler, so a keyboard-only user can
+// reach the control and still not sort any table (WCAG 2.1.1). Make those
+// controls activatable with Enter and Space like the buttons they claim to be
+// (and focusable, for the DataTables versions that don't do that part).
 //
 // Call this from the table's "init" handler, once the headers exist.
 export function enableKeyboardSorting(tableId: string): void {
     const table: HTMLElement|null = document.getElementById(tableId);
-    // DataTables renders the header the user actually sees as a *clone*, in a
-    // separate table alongside the original, whose own header is then hidden.
-    // Both live inside the DataTables container, so work on that: pinning the
-    // original's header alone would put the tabindex on invisible elements and
-    // the key handler somewhere the events never reach.
+    // Work on the DataTables container rather than the table itself: it only
+    // exists once DataTables has wrapped the table, so it doubles as an "is
+    // this initialized?" guard, and it sits above everything DataTables
+    // rebuilds beneath it, which is what the delegated handler below needs.
     const container: HTMLElement|null|undefined = table?.closest(".dt-container");
     if (!container) {
         return;
@@ -1678,9 +1678,10 @@ export function enableKeyboardSorting(tableId: string): void {
     makeSortControlsFocusable();
 
     // DataTables rebuilds the header cells after init (when it works out the
-    // column types) and again on redraws, discarding the tabindex each time.
-    // Watch for that and put it back. Only childList mutations are observed, so
-    // the tabIndex writes above don't retrigger this.
+    // column types) and again on redraws. A version that doesn't set the
+    // tabindex itself loses it each time, so watch for that and put it back.
+    // Only childList mutations are observed, so the tabIndex writes above
+    // don't retrigger this.
     new MutationObserver(makeSortControlsFocusable).observe(container, {
         childList: true,
         subtree: true,
@@ -2288,7 +2289,7 @@ interface DTAjax {
 type DTData = Record<number, object>;
 
 export interface DataTablesTable {
-    on(event: string, callback: (jqueryEvent: object, dtSettings: object, json: object) => void): unknown;
+    on(event: string, callback: (event: object, dtSettings: object, json: object) => void): unknown;
     // The delegated form, for events on elements within the table's rows.
     on(event: string, selector: string, callback: (this: HTMLElement) => void): unknown;
     row: any;

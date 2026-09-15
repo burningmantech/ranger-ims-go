@@ -293,11 +293,10 @@ test.describe("keyboard", (): void => {
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents`);
     await expect(page.locator("#queue_table tbody tr").first()).toBeVisible();
 
-    // DataTables renders its sort controls as role="button" spans with no
-    // tabindex, which are useless to a keyboard user. Note that the header the
-    // user sees is a clone (.dt-scroll-head); #queue_table's own header is
-    // hidden, so putting the tabindex only there would fix nothing.
-    const header = page.locator(".dt-scroll-head thead th").first();
+    // DataTables renders its sort controls as role="button" elements that it
+    // never wires up to the keyboard, so a keyboard user can focus one and
+    // still have no way to sort by it.
+    const header = page.locator("#queue_table thead th").first();
     const sortControl = header.locator(".dt-column-order");
     await sortControl.focus();
     await expect(sortControl).toBeFocused();

@@ -58,15 +58,6 @@ func main() {
 	g := errgroup.Group{}
 	groupCtx := ctx
 
-	// https://jquery.com/download/
-	jqueryVersion := "4.0.0"
-	{
-		g.Go(existOrFetch(groupCtx, staticExtRoot,
-			"jquery.min.js",
-			"https://code.jquery.com/jquery-"+jqueryVersion+".min.js",
-			"sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=",
-		))
-	}
 	// https://getbootstrap.com/docs/5.3/getting-started/download/#cdn-via-jsdelivr
 	bootstrapVersion := "5.3.8"
 	{
@@ -84,24 +75,24 @@ func main() {
 		))
 	}
 	// https://cdn.datatables.net/#Release
-	datatablesVersion := "2.3.8"
+	datatablesVersion := "3.0.4"
 	{
 		datatablesDir := mustMakeSubRoot(staticExtRoot, "datatables")
 		defer logClose(datatablesDir)
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.min.js",
 			"https://cdn.datatables.net/"+datatablesVersion+"/js/dataTables.min.js",
-			"sha384-vKSHfmUIK/B5LfOmzrP+424efQhNcgZm+sqxgq/DNCicqQRp/V6pVc4HCaRzeQZw",
+			"sha384-i3qKUispup6yO0B16Bvnk2AmVi8O60Qww2omjtD9NHi1ns1H4jiz2EhYBjLew/9C",
 		))
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.js",
 			"https://cdn.datatables.net/"+datatablesVersion+"/js/dataTables.bootstrap5.min.js",
-			"sha384-3BApNGXgbm9rg2kjIbaEVprAGb2B0n9QyLjBrH090WdkzZ3IiUv8RZoTh5uP8oWH",
+			"sha384-4d8X9sr6Gnv9AgIQn6bv3lmQxj5fD+9bVAun0/XMmdy7oPRvT0adfiUUiiYpi4Ck",
 		))
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.css",
 			"https://cdn.datatables.net/"+datatablesVersion+"/css/dataTables.bootstrap5.min.css",
-			"sha384-q6bAgUAsga3oT16XWJ1toXdKcHmBp45jM5roe3RCQ6dET9xGL89Qmpx4tJAI2pm2",
+			"sha384-OZKa6QSlaaq/LGR1sBFkYhC0c/nacIFh1chsblhDUxggC9Zb0XLEEMs95i1Kydnt",
 		))
 	}
 	// https://cdn.jsdelivr.net/npm/flatpickr/dist/

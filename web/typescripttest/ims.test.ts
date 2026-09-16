@@ -452,3 +452,68 @@ test("clearLocalStorage drops the browser-local settings, including the theme", 
     expect(localStorage.getItem("keyboard_shortcuts_enabled")).toBeNull();
     expect(localStorage.getItem("theme")).toBeNull();
 });
+
+function linkifiedHTML(text: string): string {
+    const p = document.createElement("p");
+    p.append(...ims.linkify(text));
+    return p.innerHTML;
+}
+
+test("linkify leaves text without URLs alone", (): void => {
+    expect(ims.linkify("no links here")).toEqual(["no links here"]);
+    expect(ims.linkify("")).toEqual([]);
+});
+
+test("linkify turns a URL mid-text into a new-tab link without a referrer", (): void => {
+    const nodes = ims.linkify("see https://example.com/a?b=c#d for more");
+    expect(nodes).toHaveLength(3);
+    expect(nodes[0]).toBe("see ");
+    expect(nodes[2]).toBe(" for more");
+    const link = nodes[1] as HTMLAnchorElement;
+    expect(link.href).toBe("https://example.com/a?b=c#d");
+    expect(link.textContent).toBe("https://example.com/a?b=c#d");
+    expect(link.target).toBe("_blank");
+    expect(link.rel).toBe("noopener noreferrer");
+});
+
+test("linkify handles several URLs, including plain http", (): void => {
+    const nodes = ims.linkify("http://a.example and https://b.example");
+    expect(nodes).toHaveLength(3);
+    expect((nodes[0] as HTMLAnchorElement).href).toBe("http://a.example/");
+    expect(nodes[1]).toBe(" and ");
+    expect((nodes[2] as HTMLAnchorElement).href).toBe("https://b.example/");
+});
+
+test("linkify trims trailing punctuation", (): void => {
+    const nodes = ims.linkify("Go to https://example.com/x.");
+    expect((nodes[1] as HTMLAnchorElement).textContent).toBe("https://example.com/x");
+    expect(nodes[2]).toBe(".");
+
+    const quoted = ims.linkify(`"https://example.com/y", she said`);
+    expect((quoted[1] as HTMLAnchorElement).textContent).toBe("https://example.com/y");
+    expect(quoted[2]).toBe(`", she said`);
+});
+
+test("linkify drops an unmatched closing paren but keeps a matched one", (): void => {
+    const nodes = ims.linkify("(see https://example.com/a).");
+    expect((nodes[1] as HTMLAnchorElement).textContent).toBe("https://example.com/a");
+    expect(nodes[2]).toBe(").");
+
+    const wiki = ims.linkify("https://en.wikipedia.org/wiki/Burning_Man_(festival)");
+    expect(wiki).toHaveLength(1);
+    expect((wiki[0] as HTMLAnchorElement).textContent).toBe("https://en.wikipedia.org/wiki/Burning_Man_(festival)");
+});
+
+test("linkify ignores other schemes and scheme-like text inside words", (): void => {
+    expect(ims.linkify("javascript:alert(1)")).toEqual(["javascript:alert(1)"]);
+    expect(ims.linkify("data:text/html,<b>hi</b>")).toEqual(["data:text/html,<b>hi</b>"]);
+    expect(ims.linkify("xhttps://example.com")).toEqual(["xhttps://example.com"]);
+    expect(ims.linkify("www.example.com")).toEqual(["www.example.com"]);
+    expect(ims.linkify("https://")).toEqual(["https://"]);
+});
+
+test("linkify never interprets markup", (): void => {
+    expect(linkifiedHTML(`<img src=x onerror=alert(1)> https://example.com/"><script>`)).toBe(
+        `&lt;img src=x onerror=alert(1)&gt; <a href="https://example.com/" target="_blank" rel="noopener noreferrer">https://example.com/</a>"&gt;&lt;script&gt;`,
+    );
+});

@@ -228,6 +228,18 @@ func DenyCrossOriginFraming() Adapter {
 	}
 }
 
+// SameOriginReferrer keeps IMS paths and hostnames from leaking to other
+// sites through links in report entries, while still sending the referrer to
+// the IMS API, which records it in the action log.
+func SameOriginReferrer() Adapter {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Referrer-Policy", "same-origin")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // CdnCacheControlOff prevents Cloudflare from caching a resource. An agent can still cache
 // the file locally based on Cache-Control. This setting just stops Cloudflare from doing
 // its additional level of caching.
@@ -256,7 +268,7 @@ func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
 }
 
 func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, adapters ...Adapter) http.Handler {
-	adapters = append(adapters, CacheControl(cacheControlLong), DenyCrossOriginFraming())
+	adapters = append(adapters, CacheControl(cacheControlLong), DenyCrossOriginFraming(), SameOriginReferrer())
 	return Adapt(
 		func(w http.ResponseWriter, req *http.Request) {
 			err := comp.Render(req.Context(), w)

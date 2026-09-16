@@ -132,6 +132,10 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0 0 0 0.5rem;
 }
 
+.report_entry_text a {
+  overflow-wrap: anywhere;
+}
+
 .report_entry_metadata {
   font-size: var(--font-size-smallest);
   font-weight: bold;

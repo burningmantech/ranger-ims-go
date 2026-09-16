@@ -1061,6 +1061,61 @@ export function renderRangerHandles(data: IncidentRanger[]|null, type: RenderTyp
 // Populate report entry text
 //
 
+const urlPattern = /\bhttps?:\/\/[^\s<>"]+/gi;
+
+// Trim characters that usually end the sentence around a URL rather than the
+// URL itself, e.g. "(see https://example.com/a)." Closing brackets are kept
+// when the URL has a matching opener, as in Wikipedia links.
+function trimUrlEnd(url: string): string {
+    const pairs: Record<string, string> = {")": "(", "]": "[", "}": "{"};
+    for (;;) {
+        const last = url.slice(-1);
+        if (".,;:!?'\"".includes(last)) {
+            url = url.slice(0, -1);
+            continue;
+        }
+        const opener = pairs[last];
+        if (opener != null && url.split(opener).length < url.split(last).length) {
+            url = url.slice(0, -1);
+            continue;
+        }
+        return url;
+    }
+}
+
+// Split text into text nodes and links for any http(s) URLs in it. Everything
+// is built as DOM nodes, never HTML, so user text can't inject markup.
+export function linkify(text: string): (string|HTMLAnchorElement)[] {
+    const nodes: (string|HTMLAnchorElement)[] = [];
+    let last = 0;
+    for (const match of text.matchAll(urlPattern)) {
+        const raw = trimUrlEnd(match[0]);
+        let url: URL;
+        try {
+            url = new URL(raw);
+        } catch {
+            continue;
+        }
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+            continue;
+        }
+        if (match.index > last) {
+            nodes.push(text.slice(last, match.index));
+        }
+        const link = document.createElement("a");
+        link.href = url.href;
+        link.textContent = raw;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        nodes.push(link);
+        last = match.index + raw.length;
+    }
+    if (last < text.length) {
+        nodes.push(text.slice(last));
+    }
+    return nodes;
+}
+
 function reportEntryElement(entry: ReportEntry): HTMLDivElement {
     // Build a container for the entry
 
@@ -1172,7 +1227,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
         // Don't collapse whitespace; leave it how the user entered it.
         textContainer.style.whiteSpace = "pre-wrap";
         textContainer.classList.add("report_entry_text");
-        textContainer.textContent = paragraph;
+        textContainer.append(...linkify(paragraph));
         entryContainer.append(textContainer);
     }
     if (entry.attachment?.name && (pathIds.incidentNumber || pathIds.fieldReportNumber || pathIds.visitNumber)) {

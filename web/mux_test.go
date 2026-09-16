@@ -75,6 +75,8 @@ func TestTemplEndpoints(t *testing.T) {
 			"Wrong content type for templ endpoint %v", endpoint)
 		require.Equalf(t, "frame-ancestors 'self'", resp.Header.Get("Content-Security-Policy"),
 			"Templ endpoint %v may be framed by another origin", endpoint)
+		require.Equalf(t, "same-origin", resp.Header.Get("Referrer-Policy"),
+			"Templ endpoint %v may leak its referrer to other origins", endpoint)
 		bod, err := io.ReadAll(resp.Body)
 		require.NoError(t, resp.Body.Close())
 		require.NoError(t, err)

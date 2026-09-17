@@ -39,8 +39,6 @@ when you run `ims serve` directly — the two configs can't collide. Edit `.env.
 
 ## Run IMS locally with MariaDB
 
-**This documentation is slightly wrong, because the TestUsers part is no longer a thing. Just use the docker compose way for now.**
-
 1. Have a local MariaDB server running. An empty database is fine, as the IMS program will
    migrate your DB automatically on startup from nothing. e.g.
    ```shell
@@ -53,8 +51,8 @@ when you run `ims serve` directly — the two configs can't collide. Edit `.env.
 	 -e MARIADB_PASSWORD=${password} \
      -p 3306:3306 mariadb:10.5.29
    ```
-2. Copy `.env.example` as `.env`, and set the various flags. Especially read the part in
-   `.env.example` about `IMS_DIRECTORY` if you want to use TestUsers rather than a Clubhouse DB.
+2. Copy `.env.example` as `.env`, and set the various flags. Without a Clubhouse DB to point
+   `IMS_DMS_*` at, set `IMS_DIRECTORY=ims` and follow the IMS-native directory steps below.
 3. Run the following to build and launch the server. These *should* work on Windows as well as OSX
    and Linux, but Windows is so far untested.
    ```shell
@@ -124,7 +122,7 @@ docker build --tag ranger-ims-go .
 docker run --env-file .env -it -p 80:8080 ranger-ims-go:latest
 ```
 
-or use `docker compose up`
+or use one of the compose stacks above (`make compose/live` or `make compose/quickstart`).
 
 ## Upgrade Go dependencies
 
@@ -190,22 +188,16 @@ read-merge-write safe:
 3. `UPDATE ... WHERE VERSION = <the value just read>`.
 
 If a competing writer committed in between, that `UPDATE` matches zero rows and the whole
-attempt is retried against fresh state. The guarded `UPDATE` is also the *first* lock the
-transaction takes, which makes the record's own row the single place competing writers
-queue.
+attempt is retried against fresh state. Once it succeeds, the row lock it takes serializes
+any competing writers until commit.
 
-Two related rules:
-
-* **Lock ordering.** Anything touching two records (linking Incidents) takes their row
-  locks in a fixed global order — ascending by event, then number — regardless of which
-  end the request arrived on. See `bumpIncidentPairVersions` in `api/incidentrelation.go`.
-  Otherwise two requests from opposite ends of the same pair each hold the row the other
-  is waiting for.
-* **Bump before writing membership.** Writing to a child table (an Incident's types, its
-  roster) takes a *shared* FK lock on the parent row, and the version bump needs that same
-  row *exclusively*. Doing the child write first means two writers each hold a shared lock
-  the other must upgrade past — which MariaDB resolves by killing one with a deadlock
-  error, i.e. a 500 on an endpoint that promises to be safely concurrent.
+The version guards only the record's own columns. Writes to child tables (an Incident's
+types, links, and roster) don't move it, and they deliberately don't touch the parent row
+at all. A child write takes a *shared* FK lock on the parent row; an earlier design also
+bumped the parent's version, which needed that same row *exclusively*, so two concurrent
+writers each held a shared lock the other had to upgrade past. MariaDB resolved that by
+killing one with a deadlock error, i.e. a 500 on an endpoint that promises to be safely
+concurrent.
 
 Deadlocks are still possible under load, so transactions that can hit one are wrapped in
 `retryOnDeadlock` (`maxDeadlockAttempts`, jittered exponential backoff). **Nothing may
@@ -228,8 +220,8 @@ mutated by naming the single member being changed. Types, links, and the Ranger 
 each have a per-item sub-resource endpoint:
 
 ```
-POST   /ims/api/events/{event}/incidents/{number}/incident_types/{typeId}
-DELETE /ims/api/events/{event}/incidents/{number}/incident_types/{typeId}
+POST   /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}
+DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}
 ```
 
 Attached Field Reports and Visits reach the same end from the other side: attachment is a
@@ -240,8 +232,8 @@ replacement list and diff it against stored state; a client whose list was built
 stale read would silently *remove* another Ranger's addition while adding its own. A
 per-item request says "attach this type" rather than "the set is now exactly this," so two
 Rangers adding different types both win. They're idempotent too, which makes retries safe:
-a request for membership the record already has is a true no-op that doesn't even move the
-version.
+a request for membership the record already has is a true no-op that writes no report
+entry.
 
 Those list fields are now **response-only**. Sending one on an edit is a `400` naming the
 endpoint to use instead (`rejectSetReplacement` in `api/incident.go`) — deliberately loud,
@@ -267,8 +259,8 @@ page. Note this only serializes *within one process*; it is not a distributed lo
 After a transaction commits — never before — the handler publishes an event through
 `EventSourcerer` (`api/eventsource.go`), and browsers viewing the affected record refetch
 and redraw. When a change alters how a *different* record reads (linking two Incidents,
-reassigning a Visit), that record's version is bumped and its own event published, so
-every open page converges.
+reassigning a Visit), that record gets its own event published too, so every open page
+converges.
 
 This is a large part of why loud conflict detection turned out to be unnecessary: the
 losing side of a last-writer-wins race sees the winning value appear on their screen as
@@ -307,11 +299,11 @@ thing as a change nobody can see: the losing value is still in the record, visib
 
 1. Can two Rangers plausibly do this at the same time? If so, make the operation
    commutative — express one gesture, not a replacement of a whole set.
-2. Route every write through a version-guarded `UPDATE` or a version bump, so racing
-   edits retry instead of clobbering. Skip it only if the operation genuinely cannot lose
-   data (appends, strikes).
-3. Take multi-record locks in a globally fixed order, and take the parent row before its
-   children.
+2. Route every write to a record's own columns through a version-guarded `UPDATE`, so
+   racing edits retry instead of clobbering. Writes that can't lose data (appends,
+   strikes, per-member child-table changes) skip it.
+3. Don't bump a parent's version from a child-table write; the shared-to-exclusive lock
+   upgrade deadlocks.
 4. Wrap anything that can deadlock in `retryOnDeadlock`, and let nothing escape the
    database before the commit.
 5. Publish an SSE notification after the commit.
@@ -328,5 +320,6 @@ thing as a change nobody can see: the losing value is still in the record, visib
 2. We use a `.env` file rather than `conf/imsd.conf` for local configuration. This ends up just being a
    lot simpler, since prod only uses env variables anyway, and this means each config setting just has
    one name.
-3. We kept the "File" Directory type in spirit, but changed it to "TestUsers" and made it a compiled
-   source file, `testusers.go`.
+3. There's no "File" Directory type. Local development uses a Clubhouse DB seeded from
+   `directory/fakeclubhousedb/seed.sql` (via docker compose), and deployments without a Clubhouse
+   can use the IMS-native directory (`IMS_DIRECTORY=ims`).

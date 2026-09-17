@@ -25,11 +25,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestConcurrentIncidentRangerRosterWrites is the regression test for the lock
-// ordering in bumpRosterVersion. Concurrent roster writes against one Incident
-// all take its row exclusively before touching INCIDENT__RANGER; with the two
-// writes in the other order they deadlocked in MariaDB and some of these
-// requests came back 500.
+// TestConcurrentIncidentRangerRosterWrites is the regression test for roster
+// writes under concurrency. Roster writes once also bumped the Incident's
+// version, and unless that bump came first, the lock upgrade on the Incident
+// row deadlocked in MariaDB and some of these requests came back 500. They no
+// longer touch the Incident row at all.
 func TestConcurrentIncidentRangerRosterWrites(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

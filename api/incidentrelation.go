@@ -148,7 +148,7 @@ func setIncidentType(
 
 	// Resolve the name for the change-log line. This also rejects an unknown
 	// type id with a 400, rather than letting the foreign key fail as a 500.
-	// Hidden types are allowed, matching the whole-list path.
+	// Hidden types are allowed, so they can still be taken off an Incident.
 	allIncidentTypes, err := imsDBQ.IncidentTypes(ctx, imsDBQ)
 	if err != nil {
 		return herr.InternalServerError("Failed to get Incident Types", err).From("[IncidentTypes]")
@@ -221,9 +221,8 @@ func setIncidentType(
 
 // setIncidentLink links or unlinks one other Incident, per link.
 //
-// Links are symmetric, so both Incidents' rows and change logs are updated. Only
-// the path Event is permission-checked, matching what the whole-list path does
-// today.
+// Links are symmetric, so both Incidents' link rows and change logs are updated.
+// Only the path Event is permission-checked.
 func setIncidentLink(
 	req *http.Request, link bool,
 	imsDBQ *store.DBQ, userStore *directory.UserStore, es *EventSourcerer, imsAdmins []string,

@@ -197,7 +197,7 @@ To modify the IMS database schema:
    ```
 3. Apply the same changes to `store/schema/current.sql` (update version there too)
 4. Run the migration test: `go test ./store/integration`
-5. Regenerate sqlc code: `go tool sqlc generate`
+5. Regenerate sqlc code: `make generate`
 6. Update `store/queries.sql` if you modified existing tables/columns
 7. Fix any broken Go code and run `go test ./...`
 
@@ -265,9 +265,11 @@ Because `tsc` is the TypeScript type checker, a type error in `web/typescript/` 
 
 ### Directory/User Store Pattern
 
-The `directory.UserStore` provides user lookups with caching. It abstracts over either:
-- Real ClubhouseDB (production personnel database)
-- Fake ClubhouseDB (seeded test data for local dev)
+The `directory.UserStore` provides user lookups with caching. It abstracts over a `directory.Source`, either:
+- `ClubhouseSource` (a Clubhouse MariaDB; the real one in production, or one seeded from `directory/fakeclubhousedb/seed.sql` in local dev)
+- `IMSSource` (the IMS-native `DIRECTORY_*` tables)
+
+The user's positions, teams, and on-site/on-duty status come from this cache, not the JWT, so directory changes take effect on the next cache refresh.
 
 ### Store Pattern
 
@@ -312,5 +314,5 @@ All authenticated API requests are logged to an action log (`store/actionlog/`) 
 
 - No SQLite support (MariaDB only for persistent storage)
 - Uses `.env` file instead of `conf/imsd.conf`
-- "File" directory type renamed to "TestUsers" and implemented as compiled Go code
+- No "File" directory type; local dev uses a seeded Clubhouse DB, and Clubhouse-less deployments use the IMS-native directory
 - Heavy use of sqlc code generation instead of ORM

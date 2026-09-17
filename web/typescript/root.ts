@@ -27,7 +27,7 @@ initRootPage();
 async function initRootPage(): Promise<void> {
     const params = new URLSearchParams(window.location.search);
     if (params.get("logout") != null) {
-        // this clears the refresh cookie
+        // this clears the access token cookie
         await fetch(url_logout);
         ims.clearLocalStorage();
         ims.clearSessionStorage();

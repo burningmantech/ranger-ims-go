@@ -22,7 +22,7 @@ find the `SCHEMA_INFO` update line near the top and change the schema version.
 Once you've made your changes to your migration file and `current.sql`, make sure the migration test in
 `store/integration` passes, via `go test ./store/integration`.
 
-After that, you'll want to regenerate the `sqlc` code, either via `./bin/build.sh`, or `go tool sqlc generate`,
+After that, you'll want to regenerate the `sqlc` code, via `make generate`,
 and make sure all the Go code still compiles, by running `go test ./...`. If your migration affected preexisting
 tables and columns, then you'll need to update the `sqlc` input file, `store/queries.sql`, and any Go code that
 interacts with those tables or columns.

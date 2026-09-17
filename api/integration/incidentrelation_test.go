@@ -203,8 +203,7 @@ func TestIncidentRelationEndpointsOnMissingIncident(t *testing.T) {
 	require.Len(t, after.ReportEntries, len(before.ReportEntries))
 }
 
-// A hidden Incident Type can still be attached and detached one at a time, which
-// is what the whole-list field on the Incident API allows too. Hiding a type
+// A hidden Incident Type can still be attached and detached. Hiding a type
 // keeps it out of the picker for new use; it doesn't freeze the Incidents that
 // already carry it, or stop someone from taking it off one.
 func TestAttachHiddenIncidentType(t *testing.T) {
@@ -386,8 +385,7 @@ func TestConcurrentIncidentLinkAndUnlink(t *testing.T) {
 	require.Empty(t, *incident2.LinkedIncidents)
 }
 
-// Only the Event in the path is permission-checked, which matches what the
-// whole-list field on the Incident API does. So a writer on one Event can link
+// Only the Event in the path is permission-checked. So a writer on one Event can link
 // an Incident there to an Incident in an Event they can't even read, and the
 // change lands in that other Incident's change log under their handle.
 func TestLinkIncidentChecksOnlyThePathEventPermissions(t *testing.T) {

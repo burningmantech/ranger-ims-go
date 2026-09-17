@@ -17,8 +17,32 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
+https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
 -->
+
+## 2026-09
+
+### Changed
+
+- Switched the web client's authentication from an `Authorization` header to an `HttpOnly`, `SameSite=Strict` cookie, so the browser's JavaScript never sees the access token. Cross-origin requests that would carry the cookie are refused, and a token is also rejected once its user has been deactivated, deleted, or renamed in the directory. Non-browser clients can still request the token in the response body and send it as a Bearer token. https://github.com/burningmantech/ranger-ims-go/pull/812
+- Started serving attachment previews and downloads as plain URLs that the browser handles itself, rather than fetching each file into a JavaScript Blob first. https://github.com/burningmantech/ranger-ims-go/pull/812
+- Started reading a user's positions, teams, and on-site/on-duty status from the server's cached directory data rather than from their JWT. Tokens are smaller, and a change to someone's position or team membership now takes effect in IMS without them logging in again. https://github.com/burningmantech/ranger-ims-go/commit/5d59a7c
+- Changed `IMS_TOKEN_LIFETIME` from a number of seconds to a duration string (e.g. `"8h"` or `"604800s"`), consistent with the other duration settings. A bare number is no longer accepted. https://github.com/burningmantech/ranger-ims-go/commit/2a1ee13
+
+### Added
+
+- Added an "On Hold" filter option to the Incidents page, which can also be picked as the default on the Settings page. https://github.com/burningmantech/ranger-ims-go/commit/fe6206b
+- Made URLs in report entries clickable. IMS pages now send `Referrer-Policy: same-origin`, so following such a link doesn't leak IMS paths to the other site. https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
+
+### Removed
+
+- Removed refresh tokens. The web client now gets a single token that lasts `IMS_TOKEN_LIFETIME` (8 hours by default) from login, after which the user logs in again. `IMS_ACCESS_TOKEN_LIFETIME` is gone. https://github.com/burningmantech/ranger-ims-go/pull/812
+- Removed jQuery, by upgrading to DataTables 3. https://github.com/burningmantech/ranger-ims-go/commit/13c184c
+
+### Fixed
+
+- Improved the error message for a user whose stored password still uses the old SHA-1 format. https://github.com/burningmantech/ranger-ims-go/commit/6dc9e89
+- Improved the error message shown when a user's session has ended. https://github.com/burningmantech/ranger-ims-go/commit/c7467c5
 
 ## 2026-08
 
@@ -26,20 +50,44 @@ https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
 
 - Dropped the ETag/If-Match handshake that clients used to guard their edits. The server now does the concurrency check itself: it re-reads the record, merges the change, and retries if someone else got there first, so a client no longer has to track a version or handle a "your copy is stale" rejection. Report entries, Ranger rosters, Incident Types, links, and Field Report/Visit assignment live in their own tables, so none of them can clobber (or be clobbered by) an edit to the record's own fields. https://github.com/burningmantech/ranger-ims-go/pull/732
 - Made the IMS logo in the navbar link to the current event's Incidents table, rather than to the home page. The user dropdown also gained a "Home" link (and some emoji). https://github.com/burningmantech/ranger-ims-go/commit/f5409ac
-- Moved Places out of the user dropdown and up into the navbar, alongside Incidents, Field Reports, and Sanctuary Visits, and gave it the same highlight the others get when you're on that page. "Visits" is now labelled "Sanctuary Visits", and on a narrow screen the two longest labels shorten to "FRs" and "Sanc" so the bar still fits.
-- Started opening a Sanctuary Visit's collapsed sections that already have something recorded in them, so an existing Visit's details are visible on arrival rather than behind a click each. A section you close stays closed.
+- Moved Places out of the user dropdown and up into the navbar, alongside Incidents, Field Reports, and Sanctuary Visits, and gave it the same highlight the others get when you're on that page. "Visits" is now labelled "Sanctuary Visits", and on a narrow screen the two longest labels shorten to "FRs" and "Sanc" so the bar still fits. https://github.com/burningmantech/ranger-ims-go/commit/3c7950d
+- Started opening a Sanctuary Visit's collapsed sections that already have something recorded in them, so an existing Visit's details are visible on arrival rather than behind a click each. A section you close stays closed. https://github.com/burningmantech/ranger-ims-go/commit/3c7950d
 - Started saying "Set role for X" in the change log when a Ranger's role within an Incident or Sanctuary Visit changes, rather than describing it as a removal and re-addition. https://github.com/burningmantech/ranger-ims-go/commit/9ae0919
+- Made the Error Logs admin page show the last 7 days of errors by default. https://github.com/burningmantech/ranger-ims-go/commit/bf10896
+- Made the Admin Places page save one section at a time, which is faster and less error-prone than saving everything at once. https://github.com/burningmantech/ranger-ims-go/commit/d710614
+- Made the search page run a search only when the user clicks "Search", rather than on every keypress, since each search is fairly demanding on the server. https://github.com/burningmantech/ranger-ims-go/commit/fb83904
+- Started matching Field Reports on their author in search. https://github.com/burningmantech/ranger-ims-go/commit/6420d76
+- Extended the time allowed for an attachment upload from 1 minute to 5, for Rangers on poor playa connections. https://github.com/burningmantech/ranger-ims-go/commit/7a32e7f
+- Made the event card sticky on the Admin Events page, so it's easier to tell which event you're editing. https://github.com/burningmantech/ranger-ims-go/pull/769
+- Clarified the Field Report page's IMS # placeholder for users who lack permission to change it. https://github.com/burningmantech/ranger-ims-go/commit/bb7e592
+- Dropped the tech cadre email address from the Incident access error message. https://github.com/burningmantech/ranger-ims-go/commit/08404e0
 
 ### Added
 
 - Added server-side error logging, surfaced on a new Error Logs admin page. This makes it much easier to spot problems during the event. https://github.com/burningmantech/ranger-ims-go/pull/737
-- Added "Set from API" buttons to the Admin Places page for camps, art, and mutant vehicles, so that an admin can have the server pull that data from the Burning Man API for a given year rather than pasting the response in by hand. This needs a Burning Man API key in the server's config (`IMS_BM_API_KEY`); without one, the buttons stay disabled.
+- Added "Set from API" buttons to the Admin Places page for camps, art, and mutant vehicles, so that an admin can have the server pull that data from the Burning Man API for a given year rather than pasting the response in by hand. This needs a Burning Man API key in the server's config (`IMS_BM_API_KEY`); without one, the buttons stay disabled. https://github.com/burningmantech/ranger-ims-go/commit/caa020e
 - Added normalization of Black Rock City addresses, so that an Incident location or a Sanctuary Visit guest camp address typed as "7+e" is saved as "7:00 & E". It's opt-in per event, toggled from the Admin Events page, so it can be turned on or off without a server restart. https://github.com/burningmantech/ranger-ims-go/pull/736
-- Made a Place's detail popup on the Places page linkable: opening one adds a short code for that Place to the page's URL, and following such a link opens the same Place's popup straight away. The code is derived from the Place's Burning Man ID (or from its name and type, for a Place that has no such ID), so a link keeps working across the wholesale deletion and reimport of an event's places.
+- Made a Place's detail popup on the Places page linkable: opening one adds a short code for that Place to the page's URL, and following such a link opens the same Place's popup straight away. The code is derived from the Place's Burning Man ID (or from its name and type, for a Place that has no such ID), so a link keeps working across the wholesale deletion and reimport of an event's places. https://github.com/burningmantech/ranger-ims-go/commit/bceac0d
+- Added a color scheme control to the Settings page, alongside the existing one in the navbar dropdown. https://github.com/burningmantech/ranger-ims-go/commit/1c81fb4
+- Added embargoes on camp and art Place locations and on an event's map link, which stay hidden from non-admins until release times set on the event. https://github.com/burningmantech/ranger-ims-go/commit/01dd4f3
+- Added an Author column to the Field Reports page. https://github.com/burningmantech/ranger-ims-go/commit/c921356
+- Added "Now" and clear buttons for a Sanctuary Visit's arrival and departure times. https://github.com/burningmantech/ranger-ims-go/commit/b1cf2a5
+- Added upload progress bars for attachments, and download progress percentages on the Preview and Download buttons. https://github.com/burningmantech/ranger-ims-go/commit/7a32e7f https://github.com/burningmantech/ranger-ims-go/commit/cd032f6
+- Added the server's config, with secrets redacted, to the admin Debug page. https://github.com/burningmantech/ranger-ims-go/commit/1b5748a
 
 ### Fixed
 
 - Stopped the Incident location autocomplete from putting the whole "Name (address)" string into the name field. Picking a place now fills in just the name, and the address goes in the address field, where it belongs. https://github.com/burningmantech/ranger-ims-go/commit/70bc5d7
+- Fixed attachment Preview on slow connections, where browsers would block the new window because too much time had passed since the click. The user can now click again once the file has loaded. https://github.com/burningmantech/ranger-ims-go/commit/cd032f6
+- Fixed Preview and Download for a Sanctuary Visit's report entry shown on the Incident page, which fetched the attachment from the wrong record. https://github.com/burningmantech/ranger-ims-go/commit/27f7406
+- Fixed Preview and Download being disabled on a Field Report the user can read but not write. https://github.com/burningmantech/ranger-ims-go/commit/535fc67
+- Fixed Field Report attachment uploads being gated on read rather than write permission, and added the missing authorship check on striking a Field Report's report entries. https://github.com/burningmantech/ranger-ims-go/commit/1048e0f
+- Stopped a slow database from hanging the server by blocking requests on full action and error log queues; those queues now drop rows and report how many. Also kept more idle database connections open and retired them before anything upstream can drop them. https://github.com/burningmantech/ranger-ims-go/commit/1048e0f
+- Fixed a Sanctuary Visit edit that moves both arrival and departure being wrongly rejected, and made clearing either time say so in the change log rather than logging a zero time. https://github.com/burningmantech/ranger-ims-go/commit/1048e0f
+- Fixed descriptions not showing for Places of type "other" on the Places page. https://github.com/burningmantech/ranger-ims-go/commit/be516d7
+- Made search anywhere much more efficient, and lengthened its timeout, after it was timing out in prod. The timeout error now suggests trying again. https://github.com/burningmantech/ranger-ims-go/commit/38abe0c https://github.com/burningmantech/ranger-ims-go/commit/7974d43
+- Made search match more Place data, such as a Place's Salesforce ID. https://github.com/burningmantech/ranger-ims-go/commit/7e8080e
+- Added logging for when a user's stored password is invalid. https://github.com/burningmantech/ranger-ims-go/commit/c5362c6
 
 ## 2026-07
 

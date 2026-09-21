@@ -214,6 +214,9 @@ test("a rule with an unknown target is flagged and its event auto-expands", asyn
 });
 
 test("adding a who to a grant posts the grant's whos plus the new one", async (): Promise<void> => {
+    serverACL["2025"]!["readers"] = [
+        { expression: "person:Tool", validity: "always", expired: false, pending: false, debug_info: { known_target: true } },
+    ];
     const mock = await initAdminEventsPage();
 
     const reader = grantBlocks(eventCards()[0]!)[0]!;
@@ -224,6 +227,13 @@ test("adding a who to a grant posts the grant's whos plus the new one", async ()
     const body = await vi.waitFor(() => lastACLPost(mock));
     const expressions = body["2025"]!["readers"]!.map(a => a.expression);
     expect(expressions).toEqual(["person:Tool", "team:Council"]);
+    // The existing rule came back from the server with response-only fields,
+    // which aren't sent back.
+    for (const rule of body["2025"]!["readers"]!) {
+        expect(rule).not.toHaveProperty("debug_info");
+        expect(rule).not.toHaveProperty("expired");
+        expect(rule).not.toHaveProperty("pending");
+    }
     // The new rule inherits the grant's terms (Read all, Always, no dates).
     const added = body["2025"]!["readers"]!.find(a => a.expression === "team:Council")!;
     expect(added.validity).toBe("always");

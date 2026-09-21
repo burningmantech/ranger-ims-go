@@ -1146,8 +1146,21 @@ function focusDraftAdd(event: string, draftId: number): void {
 }
 
 async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {
+    // Entries copied from the loaded ACL carry response-only fields, which the
+    // server doesn't need back.
+    const body: EventsAccess = {};
+    for (const [event, eventAccess] of Object.entries(edits)) {
+        const stripped: EventAccess = {};
+        for (const mode of allAccessModes) {
+            const rules = eventAccess?.[mode];
+            if (rules != null) {
+                stripped[mode] = rules.map(({debug_info: _d, expired: _e, pending: _p, ...rule}): Access => rule);
+            }
+        }
+        body[event] = stripped;
+    }
     const {err} = await ims.fetchNoThrow(url_acl, {
-        body: JSON.stringify(edits),
+        body: JSON.stringify(body),
     });
     if (err == null) {
         return {err: null};

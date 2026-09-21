@@ -100,6 +100,7 @@ func (action GetActionLogs) getActionLogs(req *http.Request) (imsjson.ActionLogs
 			Method:        al.Method.String,
 			Path:          al.Path.String,
 			Referrer:      al.Referrer.String,
+			RequestBody:   al.RequestBody.String,
 			UserID:        al.UserID.Int64,
 			UserName:      al.UserName.String,
 			PositionID:    al.PositionID.Int64,

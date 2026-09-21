@@ -67,3 +67,50 @@ func TestGetActionLog(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, response.StatusCode)
 	require.NoError(t, response.Body.Close())
 }
+
+func TestActionLogRecordsMutation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	num := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
+
+	summary := "The summary this test is looking for"
+	resp := apis.updateIncident(ctx, eventName, num, imsjson.Incident{
+		Event:   eventName,
+		Number:  num,
+		Summary: &summary,
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	longAgo := time.Now().Add(-500 * time.Hour).UnixMilli()
+	longFromNow := time.Now().Add(500 * time.Hour).UnixMilli()
+	logs, response := apisAdmin.getActionLogs(ctx, conv.FormatInt(longAgo), conv.FormatInt(longFromNow))
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	require.NoError(t, response.Body.Close())
+
+	editPath := "/ims/api/events/" + eventName + "/incidents/" + conv.FormatInt(int64(num))
+	var editLog imsjson.ActionLog
+	for _, al := range logs {
+		if al.Path == editPath && al.Method == http.MethodPost {
+			editLog = al
+		}
+	}
+	require.NotZero(t, editLog, "no action log row for the incident edit")
+	assert.Contains(t, editLog.RequestBody, summary)
+
+	// A login is logged, but its body (which holds a password) is not.
+	var authLog imsjson.ActionLog
+	for _, al := range logs {
+		if al.Path == "/ims/api/auth" && al.Method == http.MethodPost {
+			authLog = al
+		}
+	}
+	require.NotZero(t, authLog, "no action log row for the login")
+	assert.Empty(t, authLog.RequestBody)
+}

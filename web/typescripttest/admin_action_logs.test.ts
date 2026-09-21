@@ -16,7 +16,8 @@
 
 // Tests for admin_action_logs.ts against the real templ-rendered action logs
 // page (adminactionlogs.templ). The page drives a DataTables grid whose ajax
-// source builds query params from the filter inputs. DataTables itself is a
+// source builds query params from the filter inputs, and expands a child row
+// holding the mutation a logged request performed. DataTables itself is a
 // classic-script dependency, so a small stand-in captures the options the page
 // passes and runs the ajax source on draw/reload.
 
@@ -29,12 +30,40 @@ interface DataTableOptions {
     columns: { name: string; render?: (value: any, type: string, row: any) => unknown }[];
 }
 
-// A minimal DataTables stand-in: it records the options the page constructs and
-// runs the ajax source whenever the table is drawn or reloaded.
+// A child row, as DataTables models it: callable to set its content, and
+// hidden until the control cell is clicked.
+interface MockChild {
+    (content: unknown): MockChild;
+    content: unknown;
+    show(): void;
+    hide(): void;
+    isShown(): boolean;
+}
+
+function newMockChild(): MockChild {
+    let shown = false;
+    const child = ((content: unknown): MockChild => {
+        child.content = content;
+        return child;
+    }) as MockChild;
+    child.content = null;
+    child.show = (): void => void (shown = true);
+    child.hide = (): void => void (shown = false);
+    child.isShown = (): boolean => shown;
+    return child;
+}
+
+// A minimal DataTables stand-in: it records the options the page constructs,
+// runs the ajax source whenever the table is drawn or reloaded, and hands out
+// one row object with a child, which is enough for the expansion handler.
 class MockDataTable {
     static lastInstance: MockDataTable | null = null;
     options: DataTableOptions;
     lastData: unknown[] = [];
+    // The (event, selector, handler) listeners the page delegated to the table.
+    delegated: Record<string, (this: HTMLElement) => void> = {};
+    // The row that row() hands back, standing in for whichever one was clicked.
+    clickedRow: { data: () => unknown; child: MockChild };
 
     static render = {
         number: () => ({ display: (s: unknown): unknown => s }),
@@ -43,15 +72,30 @@ class MockDataTable {
 
     ajax = { reload: (): void => this.runAjax() };
     private initHandlers: (() => void)[] = [];
+    private rowData: unknown = {};
 
     constructor(_selector: string, options: DataTableOptions) {
         this.options = options;
         MockDataTable.lastInstance = this;
+        this.clickedRow = {
+            data: (): unknown => this.rowData,
+            child: newMockChild(),
+        };
     }
 
-    on(event: string, cb: () => void): MockDataTable {
+    setRowData(data: unknown): void {
+        this.rowData = data;
+    }
+
+    row(_tr: unknown) {
+        return this.clickedRow;
+    }
+
+    on(event: string, selectorOrCb: any, cb?: any): MockDataTable {
         if (event === "init") {
-            this.initHandlers.push(cb);
+            this.initHandlers.push(selectorOrCb);
+        } else if (cb != null) {
+            this.delegated[`${event} ${selectorOrCb}`] = cb;
         }
         return this;
     }
@@ -143,4 +187,60 @@ test("the page column renders a referrer path as a new-tab link", async (): Prom
 
     // An empty path renders nothing rather than an empty link.
     expect(pageColumn.render!("", "display", {})).toBe("");
+});
+
+test("clicking the control cell expands a child row with the logged mutation", async (): Promise<void> => {
+    await initActionLogsPage();
+
+    const table = MockDataTable.lastInstance!;
+    table.setRowData({
+        id: 1,
+        method: "POST",
+        path: "/ims/api/events/2026/incidents/1",
+        request_body: '{"summary":"<script>alert(1)</script>"}',
+    });
+
+    const handler = table.delegated["click td.dt-control"]!;
+    const cell = document.createElement("td");
+    document.body.append(cell);
+    handler.call(cell);
+
+    const detail = table.clickedRow.child.content as HTMLElement;
+    // The stored body is compact; the page indents it for reading.
+    expect(detail.textContent).toContain('"summary"');
+    expect(detail.textContent).toContain("\n");
+    // The body is whatever the requestor sent, so it's set as text, never markup.
+    expect(detail.querySelector("script")).toBeNull();
+    expect(detail.innerHTML).toContain("&lt;script&gt;");
+    expect(table.clickedRow.child.isShown()).toBe(true);
+
+    // A second click collapses it again.
+    handler.call(cell);
+    expect(table.clickedRow.child.isShown()).toBe(false);
+});
+
+test("a truncated body is shown as the stored text rather than dropped", async (): Promise<void> => {
+    await initActionLogsPage();
+
+    const table = MockDataTable.lastInstance!;
+    table.setRowData({ id: 2, request_body: '{"summary":"abc…[truncated]' });
+
+    const handler = table.delegated["click td.dt-control"]!;
+    handler.call(document.createElement("td"));
+
+    const detail = table.clickedRow.child.content as HTMLElement;
+    expect(detail.textContent).toContain("…[truncated]");
+});
+
+test("a row with no logged body still expands to something readable", async (): Promise<void> => {
+    await initActionLogsPage();
+
+    const table = MockDataTable.lastInstance!;
+    table.setRowData({ id: 3, method: "GET", path: "/ims/api/personnel" });
+
+    const handler = table.delegated["click td.dt-control"]!;
+    handler.call(document.createElement("td"));
+
+    const detail = table.clickedRow.child.content as HTMLElement;
+    expect(detail.textContent).toContain("No request body");
 });

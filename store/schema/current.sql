@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (40);
+insert into SCHEMA_INFO (VERSION) values (41);
 
 
 create table `EVENT` (
@@ -220,6 +220,10 @@ create table `ACTION_LOG` (
     `METHOD`            varchar(128),
     `PATH`              varchar(128),
     `REFERRER`          varchar(128),
+    -- The request's JSON body, i.e. the mutation being performed. Null for
+    -- routes that carry no body worth keeping: reads, logins, and attachment
+    -- uploads. Passwords are redacted and oversized bodies are truncated.
+    `REQUEST_BODY`      text,
 
     -- requestor metadata
     `USER_ID`           bigint,

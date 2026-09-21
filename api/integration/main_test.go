@@ -270,7 +270,7 @@ func newCustomServer(
 			authz.TokenCookies{Insecure: cfg.Core.InsecureCookies},
 			userStore,
 		),
-		api.LogRequest(false, shared.actionLogger, userStore),
+		api.LogRequest(api.LogNothing, shared.actionLogger, userStore),
 	))
 	server := httptest.NewTestServer(t, mux)
 	client := *server.Client()

@@ -497,9 +497,9 @@ where ID = ?;
 
 -- name: AddActionLog :execlastid
 insert into ACTION_LOG
-    (CREATED_AT, ACTION_TYPE, METHOD, PATH, REFERRER, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, HTTP_STATUS, DURATION_MICROS)
+    (CREATED_AT, ACTION_TYPE, METHOD, PATH, REFERRER, REQUEST_BODY, USER_ID, USER_NAME, POSITION_ID, POSITION_NAME, CLIENT_ADDRESS, HTTP_STATUS, DURATION_MICROS)
 values
-    (?,?,?,?,?,?,?,?,?,?,?,?)
+    (?,?,?,?,?,?,?,?,?,?,?,?,?)
 ;
 
 -- name: ActionLogs :many

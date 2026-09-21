@@ -112,6 +112,13 @@ async function initAdminActionLogsPage(): Promise<void> {
         },
         "columns": [
             {   // 0
+                "name": "log_control",
+                "className": "dt-control",
+                "data": null,
+                "defaultContent": "",
+                "orderable": false,
+            },
+            {   // 1
                 "name": "log_id",
                 "className": "text-right",
                 "data": "id",
@@ -119,56 +126,56 @@ async function initAdminActionLogsPage(): Promise<void> {
                 "render": DataTable.render.number(),
                 "cellType": "th",
             },
-            {   // 1
+            {   // 2
                 "name": "log_time",
                 "className": "text-center",
                 "data": "created_at",
                 "defaultContent": null,
                 "render": renderDate,
             },
-            {   // 2
+            {   // 3
                 "name": "log_user_name",
                 "className": "text-center",
                 "data": "user_name",
                 "defaultContent": null,
                 "render": DataTable.render.text(),
             },
-            {   // 3
+            {   // 4
                 "name": "log_page",
                 "className": "text-center",
                 "data": "referrer",
                 "defaultContent": null,
                 "render": renderPage,
             },
-            {   // 4
+            {   // 5
                 "name": "log_method",
                 "className": "text-center",
                 "data": "method",
                 "defaultContent": null,
                 "render": DataTable.render.text(),
             },
-            {   // 5
+            {   // 6
                 "name": "log_path",
                 "className": "text-center",
                 "data": "path",
                 "defaultContent": null,
                 "render": DataTable.render.text(),
             },
-            {   // 6
+            {   // 7
                 "name": "log_position_name",
                 "className": "text-center",
                 "data": "position_name",
                 "defaultContent": null,
                 "render": DataTable.render.text(),
             },
-            {   // 7
+            {   // 8
                 "name": "log_client_address",
                 "className": "text-center",
                 "data": "client_address",
                 "defaultContent": null,
                 "render": DataTable.render.text(),
             },
-            {   // 8
+            {   // 9
                 "name": "log_duration",
                 "className": "text-center",
                 "data": "duration",
@@ -178,7 +185,7 @@ async function initAdminActionLogsPage(): Promise<void> {
         ],
         "order": [
             // time descending
-            [1, "dsc"],
+            [2, "dsc"],
         ],
     });
 
@@ -186,7 +193,55 @@ async function initAdminActionLogsPage(): Promise<void> {
         ims.enableKeyboardSorting("action_logs_table");
     });
 
+    // The mutation a request performed is JSON, which is too much for a table
+    // cell, so it lives in a child row that the leading control column toggles
+    // open.
+    actionLogsTable!.on("click", "td.dt-control", function (this: HTMLElement): void {
+        const row = actionLogsTable!.row(this.closest("tr"));
+        if (row.child.isShown()) {
+            row.child.hide();
+        } else {
+            row.child(renderDetail(row.data())).show();
+        }
+    });
+
     actionLogsTable!.draw();
+}
+
+// Build the expanded detail for one action row. This is assembled as DOM nodes
+// with textContent, never as an HTML string, since the body is whatever the
+// requestor sent.
+function renderDetail(actionLog: ActionLog): HTMLElement {
+    const container = document.createElement("div");
+    container.className = "p-2";
+
+    const body = actionLog.request_body;
+    if (!body) {
+        container.textContent = "No request body was recorded for this action.";
+        return container;
+    }
+
+    const heading = document.createElement("div");
+    heading.className = "fw-bold";
+    heading.textContent = "Request body";
+    container.append(heading);
+
+    const pre = document.createElement("pre");
+    pre.className = "text-wrap text-break small";
+    pre.textContent = prettyJSON(body);
+    container.append(pre);
+
+    return container;
+}
+
+// prettyJSON indents a stored request body for reading, falling back to the
+// stored text for a body that was truncated or wasn't JSON to begin with.
+function prettyJSON(body: string): string {
+    try {
+        return JSON.stringify(JSON.parse(body), null, 2);
+    } catch {
+        return body;
+    }
 }
 
 function renderPage(pagePath: string|null, type: string, _data: any): string|undefined {
@@ -268,6 +323,7 @@ export interface ActionLog {
     method?: string|null;
     path?: string|null;
     referrer?: string|null;
+    request_body?: string|null;
     user_id?: number|null;
     user_name?: string|null;
     position_id?: number|null,

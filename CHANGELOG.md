@@ -17,7 +17,7 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
+https://github.com/burningmantech/ranger-ims-go/commit/ccb55b8
 -->
 
 ## 2026-09
@@ -33,7 +33,7 @@ https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
 
 - Added an "On Hold" filter option to the Incidents page, which can also be picked as the default on the Settings page. https://github.com/burningmantech/ranger-ims-go/commit/fe6206b
 - Made URLs in report entries clickable. IMS pages now send `Referrer-Policy: same-origin`, so following such a link doesn't leak IMS paths to the other site. https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
-- Started recording the mutation itself in the Action Log, as the API JSON the requestor sent, and showing it in an expandable row on the Action Logs admin page. Logins and attachment uploads are recorded without their bodies, as are bulk Places updates; passwords are redacted and an oversized body is truncated.
+- Started recording the mutation itself in the Action Log, as the API JSON the requestor sent, and showing it in an expandable row on the Action Logs admin page. Logins and attachment uploads are recorded without their bodies, as are bulk Places updates; passwords are redacted and an oversized body is truncated. The page also gained a filter on the page the request came from. https://github.com/burningmantech/ranger-ims-go/pull/826
 
 ### Removed
 
@@ -44,6 +44,7 @@ https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
 
 - Improved the error message for a user whose stored password still uses the old SHA-1 format. https://github.com/burningmantech/ranger-ims-go/commit/6dc9e89
 - Improved the error message shown when a user's session has ended. https://github.com/burningmantech/ranger-ims-go/commit/c7467c5
+- Fixed seeding the docker-compose dev stack on macOS, where MariaDB's case-insensitive table name handling left the `INCIDENT__RANGER` table unreachable after its index was created. https://github.com/burningmantech/ranger-ims-go/commit/6f163fe
 
 ## 2026-08
 

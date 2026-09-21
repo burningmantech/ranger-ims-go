@@ -112,7 +112,7 @@ async function initFieldReportPage(): Promise<void> {
         const eventId = e.data.event_id;
         const updateAll = e.data.update_all;
 
-        if (updateAll || (eventId === ims.pathIds.eventName && number === ims.pathIds.fieldReportNumber)) {
+        if (updateAll || (eventId === ims.pathIds.eventId && number === ims.pathIds.fieldReportNumber)) {
             console.log(`Got field report update. number = ${number}, update_all = ${updateAll}`);
             await loadAndDisplayFieldReport();
             remoteUpdates.announceUpdate();

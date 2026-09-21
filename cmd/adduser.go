@@ -22,7 +22,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"syscall"
 
@@ -81,17 +81,12 @@ func runAddUser(cmd *cobra.Command, args []string) error {
 	}
 
 	imsCfg := mustApplyEnvConfig(conf.DefaultIMS(), addUserEnvFilename)
-	if imsCfg.Directory.Directory != conf.DirectoryTypeIMS {
-		return fmt.Errorf("add-user manages the IMS-native directory, but this deployment's "+
-			"IMS_DIRECTORY is %q. Set IMS_DIRECTORY=ims to use the IMS-native directory",
-			imsCfg.Directory.Directory)
-	}
-	if imsCfg.Store.Type != conf.DBStoreTypeMaria {
-		return fmt.Errorf("add-user requires a MariaDB IMS datastore, but this deployment's "+
-			"store type is %q", imsCfg.Store.Type)
+	err := checkAddUserConfig(imsCfg)
+	if err != nil {
+		return err
 	}
 
-	password, err := readPassword(addUserPasswordStdin)
+	password, err := readPassword(addUserPasswordStdin, cmd.InOrStdin())
 	if err != nil {
 		return fmt.Errorf("[readPassword]: %w", err)
 	}
@@ -104,58 +99,92 @@ func runAddUser(cmd *cobra.Command, args []string) error {
 	defer func() { _ = imsDB.Close() }()
 	imsDBQ := store.NewDBQ(imsDB, imsdb.New())
 
-	existing, err := imsDBQ.DirectoryPersonByHandle(ctx, imsDBQ, addUserHandle)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		email := addUserEmail
-		_, err = imsDBQ.DirectoryCreatePerson(ctx, imsDBQ, imsdb.DirectoryCreatePersonParams{
-			Handle:   addUserHandle,
-			Email:    sql.NullString{String: email, Valid: email != ""},
-			Password: hashed,
-			Active:   true,
-			Onsite:   addUserOnsite,
-		})
-		if err != nil {
-			return fmt.Errorf("[DirectoryCreatePerson]: %w", err)
-		}
+	var onsite *bool
+	if cmd.Flags().Changed("onsite") {
+		onsite = &addUserOnsite
+	}
+	created, err := upsertDirectoryUser(ctx, imsDBQ, addUserHandle, addUserEmail, onsite, hashed)
+	if err != nil {
+		return err
+	}
+	if created {
 		cmd.Printf("Created user %v\n", addUserHandle)
-	case err != nil:
-		return fmt.Errorf("[DirectoryPersonByHandle]: %w", err)
-	default:
-		email := existing.Email
-		if addUserEmail != "" {
-			email = sql.NullString{String: addUserEmail, Valid: true}
-		}
-		onsite := existing.Onsite
-		if cmd.Flags().Changed("onsite") {
-			onsite = addUserOnsite
-		}
-		err = imsDBQ.DirectoryUpdatePerson(ctx, imsDBQ, imsdb.DirectoryUpdatePersonParams{
-			Handle: existing.Handle,
-			Email:  email,
-			Active: true,
-			Onsite: onsite,
-			ID:     existing.ID,
-		})
-		if err != nil {
-			return fmt.Errorf("[DirectoryUpdatePerson]: %w", err)
-		}
-		err = imsDBQ.DirectorySetPersonPassword(ctx, imsDBQ, imsdb.DirectorySetPersonPasswordParams{
-			Password: hashed,
-			ID:       existing.ID,
-		})
-		if err != nil {
-			return fmt.Errorf("[DirectorySetPersonPassword]: %w", err)
-		}
+	} else {
 		cmd.Printf("Updated existing user %v\n", addUserHandle)
 	}
 	cmd.Printf("To make this user an IMS administrator, add %q to IMS_ADMINS\n", addUserHandle)
 	return nil
 }
 
-func readPassword(fromStdin bool) (string, error) {
+func checkAddUserConfig(imsCfg *conf.IMSConfig) error {
+	if imsCfg.Directory.Directory != conf.DirectoryTypeIMS {
+		return fmt.Errorf("add-user manages the IMS-native directory, but this deployment's "+
+			"IMS_DIRECTORY is %q. Set IMS_DIRECTORY=ims to use the IMS-native directory",
+			imsCfg.Directory.Directory)
+	}
+	if imsCfg.Store.Type != conf.DBStoreTypeMaria {
+		return fmt.Errorf("add-user requires a MariaDB IMS datastore, but this deployment's "+
+			"store type is %q", imsCfg.Store.Type)
+	}
+	return nil
+}
+
+// upsertDirectoryUser creates the user with the given handle, or, if one already
+// exists, reactivates them and resets their password. An empty email or a nil
+// onsite leaves an existing user's value alone.
+func upsertDirectoryUser(
+	ctx context.Context, imsDBQ *store.DBQ,
+	handle, email string, onsite *bool, hashedPassword string,
+) (created bool, err error) {
+	existing, err := imsDBQ.DirectoryPersonByHandle(ctx, imsDBQ, handle)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		_, err = imsDBQ.DirectoryCreatePerson(ctx, imsDBQ, imsdb.DirectoryCreatePersonParams{
+			Handle:   handle,
+			Email:    sql.NullString{String: email, Valid: email != ""},
+			Password: hashedPassword,
+			Active:   true,
+			Onsite:   onsite != nil && *onsite,
+		})
+		if err != nil {
+			return false, fmt.Errorf("[DirectoryCreatePerson]: %w", err)
+		}
+		return true, nil
+	case err != nil:
+		return false, fmt.Errorf("[DirectoryPersonByHandle]: %w", err)
+	}
+
+	newEmail := existing.Email
+	if email != "" {
+		newEmail = sql.NullString{String: email, Valid: true}
+	}
+	newOnsite := existing.Onsite
+	if onsite != nil {
+		newOnsite = *onsite
+	}
+	err = imsDBQ.DirectoryUpdatePerson(ctx, imsDBQ, imsdb.DirectoryUpdatePersonParams{
+		Handle: existing.Handle,
+		Email:  newEmail,
+		Active: true,
+		Onsite: newOnsite,
+		ID:     existing.ID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("[DirectoryUpdatePerson]: %w", err)
+	}
+	err = imsDBQ.DirectorySetPersonPassword(ctx, imsDBQ, imsdb.DirectorySetPersonPasswordParams{
+		Password: hashedPassword,
+		ID:       existing.ID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("[DirectorySetPersonPassword]: %w", err)
+	}
+	return false, nil
+}
+
+func readPassword(fromStdin bool, stdin io.Reader) (string, error) {
 	if fromStdin {
-		password, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		password, err := bufio.NewReader(stdin).ReadString('\n')
 		if err != nil && password == "" {
 			return "", fmt.Errorf("failed to read password from stdin: %w", err)
 		}

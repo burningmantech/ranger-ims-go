@@ -41,5 +41,5 @@ func init() {
 }
 
 func runHashPassword(cmd *cobra.Command, args []string) {
-	fmt.Println(argon2id.CreateHash(password, argon2id.ClubhouseParams)) //nolint:forbidigo
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), argon2id.CreateHash(password, argon2id.ClubhouseParams))
 }

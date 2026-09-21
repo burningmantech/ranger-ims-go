@@ -6,7 +6,7 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.1
-	github.com/aws/smithy-go v1.28.1
+	github.com/aws/smithy-go v1.28.2
 	github.com/gabriel-vasile/mimetype v1.4.15
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -25,7 +25,7 @@ require (
 	cel.dev/expr v0.25.3 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20260917205352-e937bb47801a // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
 	github.com/air-verse/air v1.67.4 // indirect
@@ -68,7 +68,6 @@ require (
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
-	github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -86,10 +85,10 @@ require (
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260802145828-341c2f0c90b5 // indirect
 	github.com/mackerelio/go-osstat v0.2.8 // indirect
-	github.com/magiconair/properties v1.18.11 // indirect
+	github.com/magiconair/properties v1.18.12 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/microsoft/TypeScript/tsc v0.0.0-20260914231805-57d9528db25b // indirect
+	github.com/microsoft/TypeScript/tsc v0.0.0-20260919141346-f29aeb9f825d // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.3.3 // indirect
 	github.com/moby/moby/api v1.56.0 // indirect
@@ -100,14 +99,14 @@ require (
 	github.com/moby/sys/userns v0.2.1 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
-	github.com/ncruces/go-sqlite3 v0.35.4 // indirect
-	github.com/ncruces/go-sqlite3-wasm/v5 v5.0.35304 // indirect
+	github.com/ncruces/go-sqlite3 v0.35.5 // indirect
+	github.com/ncruces/go-sqlite3-wasm/v6 v6.2.35304 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
-	github.com/power-devops/perfstat v0.0.0-20260805114148-88456608a4f6 // indirect
+	github.com/power-devops/perfstat v0.0.0-20260916203055-22a1a467d9f0 // indirect
 	github.com/riza-io/grpc-go v0.2.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.8 // indirect
 	github.com/sirupsen/logrus v1.10.2 // indirect
@@ -142,9 +141,9 @@ require (
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/tools v0.50.0 // indirect
 	golang.org/x/vuln v1.8.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260911204522-f61a6ca850bd // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd // indirect
-	google.golang.org/grpc v1.83.2 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260918162117-cecb64721679 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260918162117-cecb64721679 // indirect
+	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

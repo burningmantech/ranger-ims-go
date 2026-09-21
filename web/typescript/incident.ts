@@ -438,12 +438,15 @@ async function loadOneFieldReport(fieldReportNumber: number): Promise<{err: stri
     const {resp, json, err} = await ims.fetchNoThrow<ims.FieldReport>(
         ims.urlReplace(url_fieldReport).replace("<field_report_number>", fieldReportNumber.toString()), null);
     if (err != null) {
-        if (resp == null || resp.status !== 403) {
-            const message = `Failed to load field report ${fieldReportNumber} ${err}`;
-            console.error(message);
-            ims.setErrorMessage(message);
-            return {err: message};
+        if (resp != null && resp.status === 403) {
+            // We're not allowed to see this one, so leave the list as it is.
+            console.error(`Got a 403 looking up field report ${fieldReportNumber}`);
+            return {err: null};
         }
+        const message = `Failed to load field report ${fieldReportNumber} ${err}`;
+        console.error(message);
+        ims.setErrorMessage(message);
+        return {err: message};
     }
 
     let found = false;
@@ -479,7 +482,7 @@ async function loadAllVisits(): Promise<{err: string|null}> {
     if (err != null) {
         if (resp != null && resp.status === 403) {
             // We're not allowed to look these up.
-            allFieldReports = undefined;
+            allVisits = undefined;
             console.error("Got a 403 looking up visits");
             return {err: null};
         } else {
@@ -510,12 +513,15 @@ async function loadOneVisit(visitNumber: number): Promise<{err: string|null}> {
     const {resp, json, err} = await ims.fetchNoThrow<ims.Visit>(
         ims.urlReplace(url_visitNumber).replace("<visit_number>", visitNumber.toString()), null);
     if (err != null) {
-        if (resp == null || resp.status !== 403) {
-            const message = `Failed to load visit ${visitNumber} ${err}`;
-            console.error(message);
-            ims.setErrorMessage(message);
-            return {err: message};
+        if (resp != null && resp.status === 403) {
+            // We're not allowed to see this one, so leave the list as it is.
+            console.error(`Got a 403 looking up visit ${visitNumber}`);
+            return {err: null};
         }
+        const message = `Failed to load visit ${visitNumber} ${err}`;
+        console.error(message);
+        ims.setErrorMessage(message);
+        return {err: message};
     }
 
     let found = false;

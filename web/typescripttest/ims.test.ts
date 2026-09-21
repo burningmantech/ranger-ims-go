@@ -16,6 +16,7 @@
 
 import { expect, test, vi } from "vitest";
 import * as ims from "../typescript/ims.ts";
+import { MockEventSource } from "./helpers.ts";
 
 test("parseInt10 parses base-10 integers and rejects garbage", (): void => {
     expect(ims.parseInt10("0")).toBe(0);
@@ -516,4 +517,264 @@ test("linkify never interprets markup", (): void => {
     expect(linkifiedHTML(`<img src=x onerror=alert(1)> https://example.com/"><script>`)).toBe(
         `&lt;img src=x onerror=alert(1)&gt; <a href="https://example.com/" target="_blank" rel="noopener noreferrer">https://example.com/</a>"&gt;&lt;script&gt;`,
     );
+});
+
+// The number renderers link using the page's event, which comes from the URL.
+function withEventName(eventName: string, fn: () => void): void {
+    const previous = ims.pathIds.eventName;
+    ims.pathIds.eventName = eventName;
+    try {
+        fn();
+    } finally {
+        ims.pathIds.eventName = previous;
+    }
+}
+
+test("renderIncidentNumber links the number for display and returns it raw otherwise", (): void => {
+    withEventName("2025", (): void => {
+        const link = ims.renderIncidentNumber(5, "display", {}) as HTMLAnchorElement;
+        expect(link.getAttribute("href")).toBe("/ims/app/events/2025/incidents/5");
+        expect(link.textContent).toBe("5");
+    });
+    expect(ims.renderIncidentNumber(null, "display", {})).toBeNull();
+    expect(ims.renderIncidentNumber(5, "sort", {})).toBe(5);
+    expect(ims.renderIncidentNumber(5, "filter", {})).toBe(5);
+    expect(ims.renderIncidentNumber(5, "bogus", {})).toBeUndefined();
+});
+
+test("renderFieldReportNumber links the number for display and returns it raw otherwise", (): void => {
+    withEventName("2025", (): void => {
+        const link = ims.renderFieldReportNumber(7, "display", {}) as HTMLAnchorElement;
+        expect(link.getAttribute("href")).toBe("/ims/app/events/2025/field_reports/7");
+        expect(link.textContent).toBe("7");
+    });
+    expect(ims.renderFieldReportNumber(null, "display", {})).toBeNull();
+    expect(ims.renderFieldReportNumber(7, "sort", {})).toBe(7);
+    expect(ims.renderFieldReportNumber(7, "type", {})).toBe(7);
+    expect(ims.renderFieldReportNumber(7, "bogus", {})).toBeUndefined();
+});
+
+test("renderVisitNumber links the number for display and returns it raw otherwise", (): void => {
+    withEventName("2025", (): void => {
+        const link = ims.renderVisitNumber(3, "display", {}) as HTMLAnchorElement;
+        expect(link.getAttribute("href")).toBe("/ims/app/events/2025/visits/3");
+        expect(link.textContent).toBe("3");
+    });
+    expect(ims.renderVisitNumber(null, "display", {})).toBeNull();
+    expect(ims.renderVisitNumber(3, "sort", {})).toBe(3);
+    expect(ims.renderVisitNumber(3, undefined as unknown as string, {})).toBe(3);
+    expect(ims.renderVisitNumber(3, "bogus", {})).toBeUndefined();
+});
+
+test("renderDate shows a short date and time, with the full date on hover", (): void => {
+    const iso = "2025-08-25T10:05:00Z";
+    const millis = Date.parse(iso);
+
+    const span = ims.renderDate(iso, "display", {}) as HTMLSpanElement;
+    expect(span.title).toBe(ims.longFormatDate(millis));
+    expect(span.textContent).toBe(ims.shortDate.format(millis) + ims.shortTime.format(millis));
+    expect(span.querySelector("br")).not.toBeNull();
+
+    expect(ims.renderDate(iso, "filter", {})).toBe(`${ims.shortDate.format(millis)} ${ims.shortTime.format(millis)}`);
+    expect(ims.renderDate(iso, "sort", {})).toBe(millis);
+    expect(ims.renderDate(iso, "bogus", {})).toBeUndefined();
+    expect(ims.renderDate(undefined, "display", {})).toBeUndefined();
+});
+
+test("renderState shows the state's name and sorts in workflow order", (): void => {
+    expect(ims.renderState("new", "display", {})).toBe("New");
+    expect(ims.renderState("on_hold", "filter", {})).toBe("On Hold");
+    expect(ims.renderState("dispatched", "type", {})).toBe("Dispatched");
+    expect(ims.renderState("on_scene", "display", {})).toBe("On Scene");
+    expect(ims.renderState("closed", "display", {})).toBe("Closed");
+
+    expect(ims.renderState("new", "sort", {})).toBe(1);
+    expect(ims.renderState("on_hold", "sort", {})).toBe(2);
+    expect(ims.renderState("dispatched", "sort", {})).toBe(3);
+    expect(ims.renderState("on_scene", "sort", {})).toBe(4);
+    expect(ims.renderState("closed", "sort", {})).toBe(5);
+
+    expect(ims.renderState("closed", "bogus", {})).toBeUndefined();
+});
+
+test("renderState falls back to the incident's state, and to Unknown", (): void => {
+    const warn = vi.spyOn(console, "warn").mockImplementation((): void => {});
+
+    expect(ims.renderState(null as unknown as ims.IncidentState, "display", { state: "on_scene" })).toBe("On Scene");
+
+    expect(ims.renderState("null", "display", {})).toBe("Unknown");
+    expect(ims.renderState("null", "sort", {})).toBeUndefined();
+    expect(ims.renderState(null as unknown as ims.IncidentState, "display", {})).toBe("Unknown");
+    expect(warn).toHaveBeenCalled();
+});
+
+test("renderLocation shows the name and address", (): void => {
+    const location: NonNullable<ims.Incident["location"]> = { name: "The Man", address: "12:00 & A" };
+
+    const span = ims.renderLocation(location, "display", {}) as HTMLSpanElement;
+    expect(span.textContent).toBe("The Man (12:00 & A)");
+    // The address may wrap onto its own line.
+    expect(span.querySelector("wbr")).not.toBeNull();
+
+    expect(ims.renderLocation(location, "filter", {})).toBe("The Man (12:00 & A)");
+    expect(ims.renderLocation(location, "sort", {})).toBe("The Man (12:00 & A)");
+    expect(ims.renderLocation(location, "bogus" as ims.RenderType, {})).toBeUndefined();
+    expect(ims.renderLocation(null, "display", {})).toBeUndefined();
+});
+
+test("renderLocation leaves out a missing address", (): void => {
+    const location: NonNullable<ims.Incident["location"]> = { name: "The Man" };
+
+    const span = ims.renderLocation(location, "display", {}) as HTMLSpanElement;
+    expect(span.textContent).toBe("The Man");
+    expect(span.querySelector("wbr")).toBeNull();
+});
+
+test("renderRangerHandles lists the handles sorted, skipping missing ones", (): void => {
+    const rangers: ims.IncidentRanger[] = [{ handle: "Tool" }, { handle: null }, { handle: "Hot Slots", role: "lead" }];
+
+    const span = ims.renderRangerHandles(rangers, "display", {}) as HTMLSpanElement;
+    expect(span.textContent).toBe("Hot Slots, Tool");
+    expect(span.querySelectorAll("wbr")).toHaveLength(1);
+
+    expect(ims.renderRangerHandles(rangers, "filter", {})).toBe("Hot Slots, Tool");
+    expect(ims.renderRangerHandles(rangers, "sort", {})).toBe("Hot Slots, Tool");
+    expect(ims.renderRangerHandles(rangers, "bogus" as ims.RenderType, {})).toBeUndefined();
+    expect(ims.renderRangerHandles(null, "display", {})).toBeUndefined();
+});
+
+test("localTzOffset gives the browser's UTC offset", (): void => {
+    // Empty in UTC itself, which formats as a bare "GMT".
+    expect(ims.localTzOffset(new Date())).toMatch(/^([+-]\d{2}:\d{2})?$/);
+});
+
+test("requestEventSourceLock refuses to run in an insecure context", (): void => {
+    document.body.innerHTML = `
+        <div id="error_info" class="hidden text-danger-emphasis" role="alert">
+            <p id="error_text"></p>
+        </div>
+    `;
+    vi.stubGlobal("isSecureContext", false);
+    const request = vi.fn();
+    Object.defineProperty(navigator, "locks", { configurable: true, value: { request: request } });
+
+    ims.requestEventSourceLock();
+
+    expect(document.getElementById("error_text")!.textContent).toContain("insecure browsing context");
+    expect(request).not.toHaveBeenCalled();
+    expect(MockEventSource.instances).toHaveLength(0);
+});
+
+// Take the EventSource lock the way a page does, with a Web Locks stand-in
+// that grants the lock once and then parks any later request. Resolves with
+// the EventSource the leader opened, and a promise that settles when the
+// leader gives the lock back up.
+async function takeEventSourceLock(): Promise<{ source: MockEventSource, released: Promise<void> }> {
+    vi.stubGlobal("isSecureContext", true);
+    const released = Promise.withResolvers<void>();
+    let granted = false;
+    Object.defineProperty(navigator, "locks", {
+        configurable: true,
+        value: {
+            request: (_name: string, callback: () => Promise<void>): Promise<void> => {
+                if (granted) {
+                    return new Promise<void>((): void => {});
+                }
+                granted = true;
+                return callback().then(released.resolve);
+            },
+        },
+    });
+
+    ims.requestEventSourceLock();
+
+    await vi.waitFor((): void => {
+        expect(MockEventSource.instances).toHaveLength(1);
+    });
+    return { source: MockEventSource.instances[0]!, released: released.promise };
+}
+
+// Collect what arrives on a BroadcastChannel.
+function listen(channelName: string): { messages: unknown[], channel: BroadcastChannel } {
+    const messages: unknown[] = [];
+    const channel = new BroadcastChannel(channelName);
+    channel.onmessage = (e: MessageEvent): void => void messages.push(e.data);
+    return { messages: messages, channel: channel };
+}
+
+test("the EventSource leader relays each update to its BroadcastChannel", async (): Promise<void> => {
+    const { source } = await takeEventSourceLock();
+    expect(source.url).toBe("/ims/api/eventsource");
+    expect(source.withCredentials).toBe(true);
+
+    const incidents = listen("incident_update");
+    const fieldReports = listen("field_report_update");
+    const visits = listen("visit_update");
+
+    source.dispatchEvent(new MessageEvent("Incident", {
+        data: JSON.stringify({ event_id: 1, incident_number: 4 }), lastEventId: "10",
+    }));
+    source.dispatchEvent(new MessageEvent("FieldReport", {
+        data: JSON.stringify({ event_id: 1, field_report_number: 7 }), lastEventId: "11",
+    }));
+    source.dispatchEvent(new MessageEvent("Visit", {
+        data: JSON.stringify({ event_id: 1, visit_number: 2 }), lastEventId: "12",
+    }));
+
+    await vi.waitFor((): void => {
+        expect(incidents.messages).toEqual([{ event_id: 1, incident_number: 4 }]);
+        expect(fieldReports.messages).toEqual([{ event_id: 1, field_report_number: 7 }]);
+        expect(visits.messages).toEqual([{ event_id: 1, visit_number: 2 }]);
+    });
+    // The last event seen is remembered, so a reconnect can tell whether it missed any.
+    expect(localStorage.getItem("last_sse_id")).toBe("12");
+
+    incidents.channel.close();
+    fieldReports.channel.close();
+    visits.channel.close();
+});
+
+test("an InitialEvent asks every page to reload, unless nothing was missed", async (): Promise<void> => {
+    const { source } = await takeEventSourceLock();
+    const incidents = listen("incident_update");
+    const fieldReports = listen("field_report_update");
+
+    // A fresh connection, with no record of what came before.
+    source.dispatchEvent(new MessageEvent("InitialEvent", { lastEventId: "20" }));
+    await vi.waitFor((): void => {
+        expect(incidents.messages).toEqual([{ update_all: true }]);
+        expect(fieldReports.messages).toEqual([{ update_all: true }]);
+    });
+    expect(localStorage.getItem("last_sse_id")).toBe("20");
+
+    // A reconnect that picks up where the last connection left off needs no reload.
+    // A later Incident event marks when the InitialEvent has been handled.
+    source.dispatchEvent(new MessageEvent("InitialEvent", { lastEventId: "20" }));
+    source.dispatchEvent(new MessageEvent("Incident", {
+        data: JSON.stringify({ event_id: 1, incident_number: 4 }), lastEventId: "21",
+    }));
+    await vi.waitFor((): void => {
+        expect(incidents.messages).toEqual([{ update_all: true }, { event_id: 1, incident_number: 4 }]);
+    });
+    expect(fieldReports.messages).toEqual([{ update_all: true }]);
+
+    incidents.channel.close();
+    fieldReports.channel.close();
+});
+
+test("the EventSource leader gives up the lock only once the connection is closed", async (): Promise<void> => {
+    const { source, released } = await takeEventSourceLock();
+    let isReleased = false;
+    void released.then((): void => { isReleased = true; });
+
+    // A transient error, which EventSource reconnects from by itself.
+    source.readyState = MockEventSource.OPEN;
+    source.dispatchEvent(new Event("error"));
+    await Promise.resolve();
+    expect(isReleased).toBe(false);
+
+    source.readyState = MockEventSource.CLOSED;
+    source.dispatchEvent(new Event("error"));
+    await released;
+    expect(isReleased).toBe(true);
 });

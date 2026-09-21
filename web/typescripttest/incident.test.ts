@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -889,6 +889,240 @@ test("a field report broadcast refreshes that one field report", async (): Promi
         expect(document.querySelector('#attached_field_reports li[data-fr-number="8"]')).not.toBeNull();
     });
     channel.close();
+});
+
+test("a visit broadcast refreshes that one visit", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/visits/3` && init?.body == null) {
+            return jsonResponse(serverVisits[1]);
+        }
+        return incidentRoutes(url, init);
+    });
+    expect(document.querySelector('#attached_field_reports li[data-visit-number="3"]')).toBeNull();
+
+    // VS#3 got attached to this incident elsewhere.
+    serverVisits[1] = { number: 3, incident: 1, guest_preferred_name: "Wanderer", report_entries: [] };
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 3 });
+
+    await vi.waitFor((): void => {
+        expect(document.querySelector('#attached_field_reports li[data-visit-number="3"]')).not.toBeNull();
+    });
+    channel.close();
+});
+
+test("update_all broadcasts reload every field report and visit", async (): Promise<void> => {
+    await initIncidentPage();
+
+    serverFieldReports[1] = { number: 8, incident: 1, summary: "Now attached", report_entries: [] };
+    serverVisits[1] = { number: 3, incident: 1, guest_preferred_name: "Wanderer", report_entries: [] };
+    const frChannel = new BroadcastChannel("field_report_update");
+    const visitChannel = new BroadcastChannel("visit_update");
+    frChannel.postMessage({ update_all: true });
+    visitChannel.postMessage({ update_all: true });
+
+    await vi.waitFor((): void => {
+        expect(document.querySelector('#attached_field_reports li[data-fr-number="8"]')).not.toBeNull();
+        expect(document.querySelector('#attached_field_reports li[data-visit-number="3"]')).not.toBeNull();
+    });
+    frChannel.close();
+    visitChannel.close();
+});
+
+test("a reader who can't see visits still sees the attached field reports", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/visits` && init?.body == null) {
+            return problemResponse("Forbidden", 403);
+        }
+        return incidentRoutes(url, init);
+    });
+
+    expect(document.querySelector('#attached_field_reports li[data-fr-number="7"]')).not.toBeNull();
+    expect(document.querySelector('#attached_field_reports li[data-visit-number="2"]')).toBeNull();
+    expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
+});
+
+test("a reader who can't see field reports still sees the attached visits", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/field_reports` && init?.body == null) {
+            return problemResponse("Forbidden", 403);
+        }
+        return incidentRoutes(url, init);
+    });
+
+    expect(document.querySelector('#attached_field_reports li[data-visit-number="2"]')).not.toBeNull();
+    expect(document.querySelector('#attached_field_reports li[data-fr-number="7"]')).toBeNull();
+    expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
+});
+
+test("a broadcast for a field report the reader can't see leaves the list alone", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/field_reports/9` && init?.body == null) {
+            return problemResponse("Forbidden", 403);
+        }
+        return incidentRoutes(url, init);
+    });
+    const consoleError = vi.spyOn(console, "error");
+
+    const channel = new BroadcastChannel("field_report_update");
+    channel.postMessage({ event_id: eventId, field_report_number: 9 });
+
+    await vi.waitFor((): void => {
+        expect(consoleError).toHaveBeenCalledWith("Got a 403 looking up field report 9");
+    });
+    expect(document.querySelector('#attached_field_reports li[data-fr-number="7"]')).not.toBeNull();
+    expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
+    channel.close();
+});
+
+test("a broadcast for a visit the reader can't see leaves the list alone", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/visits/9` && init?.body == null) {
+            return problemResponse("Forbidden", 403);
+        }
+        return incidentRoutes(url, init);
+    });
+    const consoleError = vi.spyOn(console, "error");
+
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 9 });
+
+    await vi.waitFor((): void => {
+        expect(consoleError).toHaveBeenCalledWith("Got a 403 looking up visit 9");
+    });
+    expect(document.querySelector('#attached_field_reports li[data-visit-number="2"]')).not.toBeNull();
+    expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
+    channel.close();
+});
+
+test("a broadcast for a field report that fails to load shows an error", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/field_reports/9` && init?.body == null) {
+            return problemResponse("database on fire", 500);
+        }
+        return incidentRoutes(url, init);
+    });
+
+    const channel = new BroadcastChannel("field_report_update");
+    channel.postMessage({ event_id: eventId, field_report_number: 9 });
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Failed to load field report 9");
+    });
+    channel.close();
+});
+
+test("a broadcast for a visit that fails to load shows an error", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/visits/9` && init?.body == null) {
+            return problemResponse("database on fire", 500);
+        }
+        return incidentRoutes(url, init);
+    });
+
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 9 });
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Failed to load visit 9");
+    });
+    channel.close();
+});
+
+test("a failed edit reloads the incident and shows the error", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/incidents/1` && init?.body != null) {
+            return problemResponse("database on fire", 500);
+        }
+        return incidentRoutes(url, init);
+    });
+
+    const summary = document.getElementById("incident_summary") as HTMLInputElement;
+    summary.value = "Not a dust storm";
+    await window.editIncidentSummary();
+
+    expect(document.getElementById("error_text")!.textContent).toContain("Failed to apply edit");
+    expect(summary.value).toBe("Dust storm");
+    expect(summary.classList.contains("is-invalid")).toBe(true);
+});
+
+test("creating an incident without a number in the response shows an error", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/incidents` && init?.body != null) {
+            return new Response(null, { status: 201 });
+        }
+        return incidentRoutes(url, init);
+    });
+
+    const summary = document.getElementById("incident_summary") as HTMLInputElement;
+    summary.value = "Fresh incident";
+    await window.editIncidentSummary();
+
+    expect(document.getElementById("error_text")!.textContent).toContain("No IMS-Incident-Number header provided");
+    expect(inputValue("incident_number")).toBe("(new)");
+});
+
+test("creating an incident with a non-integer number in the response shows an error", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/incidents` && init?.body != null) {
+            return new Response(null, { status: 201, headers: { "IMS-Incident-Number": "forty-two" } });
+        }
+        return incidentRoutes(url, init);
+    });
+
+    const summary = document.getElementById("incident_summary") as HTMLInputElement;
+    summary.value = "Fresh incident";
+    await window.editIncidentSummary();
+
+    expect(document.getElementById("error_text")!.textContent).toContain("Non-integer IMS-Incident-Number header provided");
+    expect(inputValue("incident_number")).toBe("(new)");
+});
+
+test("the strike button on a field report's entry strikes it through the field report", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    const entry = [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry_merged")]
+        .find((e: HTMLDivElement): boolean => (e.textContent ?? "").includes("from the field"))!;
+    entry.querySelector("button")!.click();
+
+    await vi.waitFor((): void => {
+        expect(postedBodies(mock, "/ims/api/events/2025/field_reports/7/report_entries/21")).toEqual([
+            { stricken: true },
+        ]);
+    });
+});
+
+test("the strike button on a visit's entry strikes it through the visit", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    const entry = [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry_merged")]
+        .find((e: HTMLDivElement): boolean => (e.textContent ?? "").includes("visit note"))!;
+    entry.querySelector("button")!.click();
+
+    await vi.waitFor((): void => {
+        expect(postedBodies(mock, "/ims/api/events/2025/visits/2/report_entries/31")).toEqual([
+            { stricken: true },
+        ]);
+    });
+});
+
+test("a failed strike on a visit's entry shows an error", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === "/ims/api/events/2025/visits/2/report_entries/31") {
+            return problemResponse("strike refused", 500);
+        }
+        return incidentRoutes(url, init);
+    });
+
+    const entry = [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry_merged")]
+        .find((e: HTMLDivElement): boolean => (e.textContent ?? "").includes("visit note"))!;
+    entry.querySelector("button")!.click();
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Failed to set report entry strike status");
+    });
 });
 
 test("keyboard shortcuts toggle history and jump to the entry box", async (): Promise<void> => {

@@ -16,6 +16,14 @@
 # 3. If you ever want to delete one of those databases and start fresh, then you just
 #    need to delete ./.docker/mysql/data-clubhouse/ or ./.docker/mysql/data-ims/, and
 #    the stack will re-create and re-seed the databases when you next `docker compose up`.
+# 4. If a DB container exits during that first bring-up ("dependency failed to start"),
+#    the failing statement is in that container's own log, above the exit: look for a
+#    line like `ERROR 1146 (42S02) at line 265: ...`, naming the line of the schema or
+#    seed file. Note that the half-initialized data dir is left behind, and the
+#    entrypoint only seeds an empty one, so delete it per (3) before trying again.
+#    Also note that macOS bind-mounts these data dirs off a case-insensitive
+#    filesystem, which makes MariaDB set lower_case_table_names=2; DDL that is fine
+#    in production can misbehave there (see INCIDENT__RANGER in store/schema/current.sql).
 
 services:
 

@@ -108,11 +108,15 @@ create table INCIDENT__RANGER (
     -- FIXME: RANGER_HANDLE is an external non-primary key.
     -- Primary key is DMS Person ID.
 
-    primary key (ID)
-) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    primary key (ID),
 
-create index `INCIDENT__RANGER_EVENT_INCIDENT_NUMBER_index`
-    on `INCIDENT__RANGER` (`EVENT`, INCIDENT_NUMBER);
+    -- Declared inline rather than as a standalone "create index". On a
+    -- case-insensitive filesystem (a macOS bind mount, as in docker-compose.dev.yml)
+    -- MariaDB forces lower_case_table_names=2, and there a "create index" against a
+    -- mixed-case table name leaves that table unreachable ("table doesn't exist")
+    -- for the rest of the server's life, which broke seeding the dev stack.
+    key `INCIDENT__RANGER_EVENT_INCIDENT_NUMBER_index` (`EVENT`, INCIDENT_NUMBER)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table INCIDENT__LINKED_INCIDENT (
     EVENT_1             integer not null,

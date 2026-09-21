@@ -14,6 +14,6 @@ already in the repo, so just do the following, then tweak the resultant
 file to meet your needs.
 
 ```shell
-cd "${git rev-parse --show-toplevel}"
-cp .env-example .env
+cd "$(git rev-parse --show-toplevel)"
+cp .env.example .env
 ```

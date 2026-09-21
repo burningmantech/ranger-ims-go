@@ -174,9 +174,9 @@ async function initSanctuaryVisitPage(): Promise<void> {
 
     // load everything from the APIs concurrently
     await Promise.all([
-        await loadVisit(),
-        await loadPersonnel(),
-    ])
+        loadVisit(),
+        loadPersonnel(),
+    ]);
 
     // const onChange = function(selectedDates: Date[], _dateStr: string, instance: ims.Flatpickr): void {
     //     instance.input!.title = ims.longFormatDate(selectedDates[0]!);
@@ -743,7 +743,7 @@ async function addRanger(): Promise<void> {
         return;
     }
 
-    if (handles.indexOf(handle) !== -1) {
+    if (handles.includes(handle)) {
         // Already in the list, so… move along.
         el.addRanger.value = "";
         return;

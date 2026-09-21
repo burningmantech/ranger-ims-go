@@ -66,7 +66,7 @@ async function fetchBuildInfo(): Promise<void> {
     el.buildInfo.textContent = buildInfoText;
 
     const ref = substringBetween(buildInfoText, "build\tvcs.revision=", "\n")
-    const dirty = buildInfoText.indexOf("vcs.modified=true") >= 0;
+    const dirty = buildInfoText.includes("vcs.modified=true");
     const link = document.createElement("a");
     link.text = `The server was built at revision ${ref.substring(0,12)} ${dirty ? " (dirty)" : ""}`;
     link.href = `https://github.com/burningmantech/ranger-ims-go/tree/${ref}`;

@@ -91,7 +91,7 @@ async function initIncidentsPage(): Promise<void> {
         // The idea is that if the user is coming from the IMS home page and they don't have incidents
         // access, we should try to send them to FRs instead. If they're already within the scope of
         // the event, we should send them to the viewIncidents page and let them see the auth error.
-        if (ims.eventAccess!.writeFieldReports && document.referrer.indexOf(ims.urlReplace(url_viewEvent)) < 0) {
+        if (ims.eventAccess!.writeFieldReports && !document.referrer.includes(ims.urlReplace(url_viewEvent))) {
             console.log("redirecting to Field Reports");
             window.location.replace(ims.urlReplace(url_viewFieldReports));
             return;
@@ -574,7 +574,7 @@ function initTableButtons(): void {
         let includeOthers = false;
         for (const t of types) {
             const typeId = ims.parseInt10(t);
-            if (typeId && visibleIncidentTypeIds.indexOf(typeId) !== -1) {
+            if (typeId && visibleIncidentTypeIds.includes(typeId)) {
                 validTypes.push(typeId);
             } else if (t === _blankPlaceholder) {
                 includeBlanks = true;

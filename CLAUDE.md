@@ -308,7 +308,12 @@ Event-based access control defined in `lib/authz/`:
 
 ### Action Logging
 
-All authenticated API requests are logged to an action log (`store/actionlog/`) for audit purposes.
+Most API requests are logged to an action log (`store/actionlog/`) for audit purposes. Each route
+declares an `ActionLogMode` in `api/mux.go`: `LogNothing` for the chatty reads, `LogMetadata` for
+who-did-what, and `LogMutation`, which additionally stores the request's JSON body (the mutation
+itself) in `ACTION_LOG.REQUEST_BODY`. Logins, attachment uploads, and bulk Places updates stay at
+`LogMetadata`, since their bodies are secret or enormous; captured bodies have passwords redacted
+and are truncated past 16KiB (`api/actionlogbody.go`).
 
 ## Key Differences from Python Version
 

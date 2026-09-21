@@ -33,6 +33,7 @@ https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
 
 - Added an "On Hold" filter option to the Incidents page, which can also be picked as the default on the Settings page. https://github.com/burningmantech/ranger-ims-go/commit/fe6206b
 - Made URLs in report entries clickable. IMS pages now send `Referrer-Policy: same-origin`, so following such a link doesn't leak IMS paths to the other site. https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
+- Started recording the mutation itself in the Action Log, as the API JSON the requestor sent, and showing it in an expandable row on the Action Logs admin page. Logins and attachment uploads are recorded without their bodies, as are bulk Places updates; passwords are redacted and an oversized body is truncated.
 
 ### Removed
 

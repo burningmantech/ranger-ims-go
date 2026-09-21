@@ -41,6 +41,23 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// ActionLogMode says how much of a request a route writes to the action log.
+type ActionLogMode int
+
+const (
+	// LogNothing keeps a route out of the action log entirely. This is for the
+	// chatty read endpoints, which would otherwise bury everything else.
+	LogNothing ActionLogMode = iota
+	// LogMetadata records who made the request and how it went, but not what
+	// they sent. This is for routes whose body is either secret (the login) or
+	// enormous (attachment uploads, bulk place updates), plus the reads that
+	// are worth a row.
+	LogMetadata
+	// LogMutation additionally records the request's JSON body, which for a
+	// mutating endpoint is the mutation itself.
+	LogMutation
+)
+
 func AddToMux(
 	mux *http.ServeMux,
 	es *EventSourcerer,
@@ -65,10 +82,10 @@ func AddToMux(
 	// authed registers a route wrapped in the standard middleware stack for an
 	// authenticated endpoint: error logging, panic recovery, cross-origin
 	// protection, no caching by default, JWT authentication, action logging, and
-	// a request-size limit. logAction controls whether the request is written to
-	// the action log. Using this for every authenticated route makes it
-	// impossible to silently forget RequireAuthN.
-	authed := func(pattern string, handler http.Handler, logAction bool) {
+	// a request-size limit. logMode says what the action log keeps of the
+	// request. Using this for every authenticated route makes it impossible to
+	// silently forget RequireAuthN.
+	authed := func(pattern string, handler http.Handler, logMode ActionLogMode) {
 		mux.Handle(pattern, Adapt(
 			handler,
 			RecordErrors(errorLogger),
@@ -76,7 +93,7 @@ func AddToMux(
 			RejectCrossOrigin(),
 			NoStoreByDefault(),
 			RequireAuthN(jwter, cookies, userStore),
-			LogRequest(logAction, actionLogger, userStore),
+			LogRequest(logMode, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		))
 	}
@@ -84,23 +101,25 @@ func AddToMux(
 	// unauthed registers a route that deliberately skips JWT authentication.
 	// Zero or more auth adapters (e.g. OptionalAuthN) may still be supplied;
 	// pass none for endpoints that ignore the requestor's token entirely.
-	unauthed := func(pattern string, handler http.Handler, logAction bool, authN ...Adapter) {
+	unauthed := func(pattern string, handler http.Handler, logMode ActionLogMode, authN ...Adapter) {
 		adapters := append([]Adapter{RecordErrors(errorLogger), RecoverFromPanic(), RejectCrossOrigin(), NoStoreByDefault()}, authN...)
 		adapters = append(adapters,
-			LogRequest(logAction, actionLogger, userStore),
+			LogRequest(logMode, actionLogger, userStore),
 			LimitRequestBytes(cfg.Core.MaxRequestBytes),
 		)
 		mux.Handle(pattern, Adapt(handler, adapters...))
 	}
 
-	authed("GET /ims/api/access", GetEventAccesses{db, userStore, cfg.Core.Admins}, true)
-	authed("GET /ims/api/access_targets", GetAccessTargets{db, userStore, cfg.Core.Admins}, true)
-	authed("POST /ims/api/access", PostEventAccess{db, userStore, cfg.Core.Admins}, true)
-	authed("GET /ims/api/actionlogs", GetActionLogs{db, userStore, cfg.Core.Admins}, true)
-	authed("GET /ims/api/errorlogs", GetErrorLogs{db, userStore, cfg.Core.Admins}, true)
+	authed("GET /ims/api/access", GetEventAccesses{db, userStore, cfg.Core.Admins}, LogMetadata)
+	authed("GET /ims/api/access_targets", GetAccessTargets{db, userStore, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/access", PostEventAccess{db, userStore, cfg.Core.Admins}, LogMutation)
+	authed("GET /ims/api/actionlogs", GetActionLogs{db, userStore, cfg.Core.Admins}, LogMetadata)
+	authed("GET /ims/api/errorlogs", GetErrorLogs{db, userStore, cfg.Core.Admins}, LogMetadata)
 
 	// This endpoint does not require authentication, nor does it even consider
 	// the requestor's token, because the point of this is to make a new JWT.
+	// It's logged as metadata only: a login isn't a mutation, and its body is
+	// the requestor's password.
 	unauthed("POST /ims/api/auth",
 		PostAuth{
 			db,
@@ -108,7 +127,7 @@ func AddToMux(
 			cfg.Core.JWTSecret,
 			cfg.Core.TokenLifetime,
 			cookies,
-		}, true)
+		}, LogMetadata)
 
 	// This endpoint does not require authentication or authorization, by design.
 	unauthed("GET /ims/api/auth",
@@ -120,77 +139,79 @@ func AddToMux(
 			attachmentsEnabled,
 			cfg.Core.EventDeletionEnabled,
 			cfg.BurningManAPI.Enabled(),
-		}, true, OptionalAuthN(jwter, cookies, userStore))
+		}, LogMetadata, OptionalAuthN(jwter, cookies, userStore))
 
-	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
-	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins}, true)
-	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}", GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
-	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}", EditIncident{db, userStore, es, cfg.Core.Admins}, true)
-	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}", GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments", AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", AttachRangerToIncident{db, userStore, es, cfg.Core.Admins}, true)
-	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", DetachRangerFromIncident{db, userStore, es, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}", EditIncidentReportEntry{db, userStore, es, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}", AttachTypeToIncident{db, userStore, es, cfg.Core.Admins}, true)
-	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}", DetachTypeFromIncident{db, userStore, es, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", LinkIncident{db, userStore, es, cfg.Core.Admins}, true)
-	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", UnlinkIncident{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}", GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}", EditIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}", GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments", AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", AttachRangerToIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", DetachRangerFromIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/report_entries/{reportEntryId}", EditIncidentReportEntry{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}", AttachTypeToIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/incident_types/{incidentTypeId}", DetachTypeFromIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", LinkIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", UnlinkIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
 
-	authed("GET /ims/api/events/{eventName}/field_reports", GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
-	authed("POST /ims/api/events/{eventName}/field_reports", NewFieldReport{db, userStore, es, cfg.Core.Admins}, true)
-	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
-	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", EditFieldReport{db, userStore, es, cfg.Core.Admins}, true)
-	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}", GetFieldReportAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments", AttachToFieldReport{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}", EditFieldReportReportEntry{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/field_reports", GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("POST /ims/api/events/{eventName}/field_reports", NewFieldReport{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", EditFieldReport{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}", GetFieldReportAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments", AttachToFieldReport{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}", EditFieldReportReportEntry{db, userStore, es, cfg.Core.Admins}, LogMutation)
 
-	authed("GET /ims/api/events/{eventName}/visits", GetVisits{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
-	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}", GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled}, false)
-	authed("POST /ims/api/events/{eventName}/visits", NewVisit{db, userStore, es, cfg.Core.Admins}, false)
-	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}", EditVisit{db, userStore, es, cfg.Core.Admins}, false)
-	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", AttachRangerToVisit{db, userStore, es, cfg.Core.Admins}, true)
-	authed("DELETE /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", DetachRangerFromVisit{db, userStore, es, cfg.Core.Admins}, true)
-	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}/attachments/{attachmentNumber}", GetVisitAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/attachments", AttachToVisit{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, true)
-	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/report_entries/{reportEntryId}", EditVisitReportEntry{db, userStore, es, cfg.Core.Admins}, true)
+	authed("GET /ims/api/events/{eventName}/visits", GetVisits{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}", GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("POST /ims/api/events/{eventName}/visits", NewVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}", EditVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", AttachRangerToVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("DELETE /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", DetachRangerFromVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}/attachments/{attachmentNumber}", GetVisitAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/attachments", AttachToVisit{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/report_entries/{reportEntryId}", EditVisitReportEntry{db, userStore, es, cfg.Core.Admins}, LogMutation)
 
-	authed("GET /ims/api/events/{eventName}/places", GetPlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
-	authed("POST /ims/api/events/{eventName}/places", UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, true)
-	authed("POST /ims/api/events/{eventName}/places/import", ImportPlaces{db, userStore, cfg.Core.Admins, cfg.BurningManAPI, bmAPIHTTPClient}, true)
+	// UpdatePlaces is logged as metadata only, because its body is the event's
+	// entire place list. ImportPlaces just names a year and a place type.
+	authed("GET /ims/api/events/{eventName}/places", GetPlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/places", UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogMetadata)
+	authed("POST /ims/api/events/{eventName}/places/import", ImportPlaces{db, userStore, cfg.Core.Admins, cfg.BurningManAPI, bmAPIHTTPClient}, LogMutation)
 
-	authed("GET /ims/api/events", GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
-	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, true)
-	authed("DELETE /ims/api/events/{eventName}", DeleteEvent{db, userStore, cfg.Core.Admins, cfg.Core.EventDeletionEnabled}, true)
+	authed("GET /ims/api/events", GetEvents{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogNothing)
+	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, LogMutation)
+	authed("DELETE /ims/api/events/{eventName}", DeleteEvent{db, userStore, cfg.Core.Admins, cfg.Core.EventDeletionEnabled}, LogMutation)
 
-	authed("GET /ims/api/search", GetSearch{db, userStore, cfg.Core.Admins}, false)
+	authed("GET /ims/api/search", GetSearch{db, userStore, cfg.Core.Admins}, LogNothing)
 
-	authed("GET /ims/api/incident_types", GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
-	authed("POST /ims/api/incident_types", EditIncidentTypes{db, userStore, cfg.Core.Admins}, true)
+	authed("GET /ims/api/incident_types", GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogNothing)
+	authed("POST /ims/api/incident_types", EditIncidentTypes{db, userStore, cfg.Core.Admins}, LogMutation)
 
-	authed("GET /ims/api/personnel", GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, false)
+	authed("GET /ims/api/personnel", GetPersonnel{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogNothing)
 
 	// Admin management of the IMS-native user directory. These endpoints
 	// reject all requests unless the deployment uses IMS_DIRECTORY=ims.
 	directoryIsIMS := cfg.Directory.Directory == conf.DirectoryTypeIMS
-	authed("GET /ims/api/directory", GetDirectory{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
-	authed("POST /ims/api/directory/persons", EditDirectoryPerson{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
-	authed("POST /ims/api/directory/persons/{personId}/password", SetDirectoryPersonPassword{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
-	authed("DELETE /ims/api/directory/persons/{personId}", DeleteDirectoryPerson{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
-	authed("POST /ims/api/directory/teams", EditDirectoryTeam{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
-	authed("DELETE /ims/api/directory/teams/{teamId}", DeleteDirectoryTeam{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
-	authed("POST /ims/api/directory/positions", EditDirectoryPosition{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
-	authed("DELETE /ims/api/directory/positions/{positionId}", DeleteDirectoryPosition{db, userStore, cfg.Core.Admins, directoryIsIMS}, true)
+	authed("GET /ims/api/directory", GetDirectory{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMetadata)
+	authed("POST /ims/api/directory/persons", EditDirectoryPerson{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMutation)
+	authed("POST /ims/api/directory/persons/{personId}/password", SetDirectoryPersonPassword{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMutation)
+	authed("DELETE /ims/api/directory/persons/{personId}", DeleteDirectoryPerson{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMutation)
+	authed("POST /ims/api/directory/teams", EditDirectoryTeam{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMutation)
+	authed("DELETE /ims/api/directory/teams/{teamId}", DeleteDirectoryTeam{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMutation)
+	authed("POST /ims/api/directory/positions", EditDirectoryPosition{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMutation)
+	authed("DELETE /ims/api/directory/positions/{positionId}", DeleteDirectoryPosition{db, userStore, cfg.Core.Admins, directoryIsIMS}, LogMutation)
 
 	// The SSE stream only carries notification metadata (event and record
 	// numbers), not record contents; clients fetch the actual data through the
 	// endpoints above. The requestor's token is only checked on connecting, so
 	// a stream outlives the token that opened it.
-	authed("GET /ims/api/eventsource", es.Server.Handler(EventSourceChannel), false)
+	authed("GET /ims/api/eventsource", es.Server.Handler(EventSourceChannel), LogNothing)
 
-	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins}, true)
-	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, true)
-	authed("POST /ims/api/debug/gc", PerformGC{db, userStore, cfg.Core.Admins}, true)
-	authed("GET /ims/api/debug/config", GetConfig{db, userStore, cfg.Core.Admins, cfg}, true)
+	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins}, LogMetadata)
+	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, LogMetadata)
+	authed("POST /ims/api/debug/gc", PerformGC{db, userStore, cfg.Core.Admins}, LogMetadata)
+	authed("GET /ims/api/debug/config", GetConfig{db, userStore, cfg.Core.Admins, cfg}, LogMetadata)
 
 	// Uncomment these to add pprof into the program. Note that we'd probably want
 	// these endpoints to be restricted to admins only, were this going to run in
@@ -310,10 +331,26 @@ func requestReferrer(r *http.Request) *string {
 	return conv.EmptyToNil(referrerHeader)
 }
 
-func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *directory.UserStore) Adapter {
+// ActionLogger writes rows to the action log. *actionlog.Logger implements it;
+// the indirection is what lets LogRequest be tested without a database.
+type ActionLogger interface {
+	Log(ctx context.Context, record imsdb.AddActionLogParams)
+}
+
+func LogRequest(mode ActionLogMode, actionLogger ActionLogger, userStore *directory.UserStore) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
+
+			// The body has to be wrapped before the handler consumes it. The
+			// size limiter sits further in, so it still gets to reject an
+			// oversized body before much of it has been read, and hence
+			// captured.
+			var body *bodyCapture
+			if mode == LogMutation && isJSONContentType(r) {
+				body = &bodyCapture{ReadCloser: r.Body}
+				r.Body = body
+			}
 			// RecordErrors, when it's in play, already made the wrapper.
 			writ, ok := w.(*responseWriter)
 			if !ok {
@@ -344,9 +381,15 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 
 			next.ServeHTTP(writ, r)
 
-			if enable {
+			if mode != LogNothing {
 				referrer := requestReferrer(r)
 				remoteAddr := clientAddress(r)
+				var requestBody sql.NullString
+				if body != nil {
+					// No length limit: bodyCapture already caps what it keeps,
+					// and cutting bytes here could split a UTF-8 rune.
+					requestBody = conv.StringToSql(body.logged(), 0)
+				}
 				actionLogger.Log(
 					r.Context(),
 					imsdb.AddActionLogParams{
@@ -355,6 +398,7 @@ func LogRequest(enable bool, actionLogger *actionlog.Logger, userStore *director
 						Method:         conv.StringToSql(&r.Method, 128),
 						Path:           conv.StringToSql(&r.URL.Path, 128),
 						Referrer:       conv.StringToSql(referrer, 128),
+						RequestBody:    requestBody,
 						UserID:         userID,
 						UserName:       username,
 						PositionID:     positionID,

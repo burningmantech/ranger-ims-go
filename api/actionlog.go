@@ -59,6 +59,7 @@ func (action GetActionLogs) getActionLogs(req *http.Request) (imsjson.ActionLogs
 
 	userName := req.FormValue("userName")
 	path := req.FormValue("path")
+	page := req.FormValue("page")
 
 	var err error
 	if req.FormValue("minTimeUnixMs") != "" {
@@ -93,6 +94,9 @@ func (action GetActionLogs) getActionLogs(req *http.Request) (imsjson.ActionLogs
 		if path != "" && al.Path.String != path {
 			continue
 		}
+		if page != "" && al.Referrer.String != page {
+			continue
+		}
 		resp = append(resp, imsjson.ActionLog{
 			ID:            al.ID,
 			CreatedAt:     conv.FloatToTime(al.CreatedAt),
@@ -100,6 +104,7 @@ func (action GetActionLogs) getActionLogs(req *http.Request) (imsjson.ActionLogs
 			Method:        al.Method.String,
 			Path:          al.Path.String,
 			Referrer:      al.Referrer.String,
+			RequestBody:   al.RequestBody.String,
 			UserID:        al.UserID.Int64,
 			UserName:      al.UserName.String,
 			PositionID:    al.PositionID.Int64,

@@ -7,8 +7,11 @@ that occur in Black Rock City.
 
 1. Clone the repo
 2. Install Go and have `go` on your PATH. https://go.dev/dl
-3. (Optional: if you want to run the integration tests) install Docker Desktop or Docker Engine. https://www.docker.com/
-4. (Optional: if you want to run the Playwright tests) install Playwright: https://playwright.dev/docs/intro
+3. Install Docker Desktop or Docker Engine (https://www.docker.com/). Strictly optional for
+   writing code, but the integration tests, the compose stacks, and the Playwright tests
+   all need it.
+4. (Optional: if you want to run the TypeScript or Playwright tests) install Node.js and npm.
+   https://nodejs.org/. `make test/e2e` installs Playwright and its browsers for you.
 5. Generate code and fetch external build dependencies into your repo, by running
    ```shell
    make generate
@@ -46,9 +49,9 @@ when you run `ims serve` directly — the two configs can't collide. Edit `.env.
    echo "Password is ${password}"
    docker run -it \
      -e MARIADB_RANDOM_ROOT_PASSWORD=true \
-	 -e MARIADB_DATABASE=ims \
-	 -e MARIADB_USER=rangers \
-	 -e MARIADB_PASSWORD=${password} \
+     -e MARIADB_DATABASE=ims \
+     -e MARIADB_USER=rangers \
+     -e MARIADB_PASSWORD=${password} \
      -p 3306:3306 mariadb:10.5.29
    ```
 2. Copy `.env.example` as `.env`, and set the various flags. Without a Clubhouse DB to point
@@ -103,16 +106,33 @@ Notes:
 
 ## Run tests
 
-To run all the tests (excluding Playwright), just do:
+Run all the Go tests with:
 
 ```shell
-go test ./...
+go test ./...   # or: make test
 ```
 
-or to run all those tests and see a coverage report, do:
+That includes the integration tests in `store/integration` and `api/integration`, which
+spin up a real MariaDB with testcontainers, so Docker must be running or they'll fail.
+To see a coverage report as well:
 
 ```shell
-go test -coverprofile=coverage.out --coverpkg ./... ./... && go tool cover -html=coverage.out
+make cover
+```
+
+The TypeScript tests (Vitest, in `web/typescripttest/`) run the real frontend code against
+templ-rendered HTML fixtures, which are regenerated automatically before each run:
+
+```shell
+make test/ts   # or: npm install && npm test
+```
+
+The Playwright browser tests (`playwright/tests/`) reuse an IMS stack already serving on
+:8080 (e.g. from `make compose/live`), or start the dev compose stack themselves and tear
+it down afterward:
+
+```shell
+make test/e2e
 ```
 
 ## Build and run with Docker
@@ -124,20 +144,25 @@ docker run --env-file .env -it -p 80:8080 ranger-ims-go:latest
 
 or use one of the compose stacks above (`make compose/live` or `make compose/quickstart`).
 
-## Upgrade Go dependencies
+## Upgrade dependencies
 
 Upgrade the Go toolchain simply by increasing the Go value in `go.mod`, e.g. https://github.com/burningmantech/ranger-ims-go/pull/64. Even Go major version upgrades (e.g. 1.23 to 1.24) are very unlikely to break anything, thanks to the Go 1.0 backward compatibility guarantee. If all the tests pass, you're all good.
 
 This line in go.mod should be left as the only line in the repo that specifies the Go version. For example, the Dockerfile depends on Go, but it inherits the value in go.mod.
 
-Upgrade all Go dependencies by running:
+Upgrade all Go dependencies, including the tools declared in `go.mod` (sqlc, templ, tsc,
+air, etc.), by running:
 
 ```shell
-# Upgrade all normal and test dependencies
-go get -t -u ./...
+make upgrade/deps/go
+```
 
-# Tidy up go.mod and go.sum
-go mod tidy
+The npm dependencies (root and `playwright/`) and the pinned GitHub Actions have their own
+targets:
+
+```shell
+make upgrade/deps/npm
+make upgrade/deps/actions
 ```
 
 ## How IMS handles concurrent access

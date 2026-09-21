@@ -937,10 +937,7 @@ export function longFormatDate(date: Date|number): string {
     const formatter = new Intl.DateTimeFormat('en-US', options);
     const parts = formatter.formatToParts(date);
 
-    const partMap: Record<string, string> = {};
-    parts.forEach(part => {
-        partMap[part.type] = part.value;
-    });
+    const partMap: Record<string, string> = Object.fromEntries(parts.map(part => [part.type, part.value]));
 
     return `${partMap['weekday']}, ${partMap['year']}-${partMap['month']}-${partMap['day']} at ${partMap['hour']}:${partMap['minute']}:${partMap['second']} ${partMap['timeZoneName']}`;
 }
@@ -1520,7 +1517,7 @@ export function requestEventSourceLock(): void  {
     // This addresses the following issue for when IMS lives on AWS, and ensures the
     // browsing context will always try to reestablish the EventSource connection.
     // https://github.com/burningmantech/ranger-ims-server/issues/1364
-    new Promise<unknown>(async function(): Promise<void> {
+    void (async (): Promise<void> => {
         while (true) {
             const reattempt = new Promise(res => setTimeout(res, reattemptMinTimeMillis));
             // Acquire the lock, set up the EventSource, and start
@@ -1528,7 +1525,7 @@ export function requestEventSourceLock(): void  {
             await navigator.locks.request("ims_eventsource_lock", tryAcquireLock);
             await reattempt;
         }
-    });
+    })();
     return;
 }
 

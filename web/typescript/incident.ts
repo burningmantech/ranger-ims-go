@@ -141,16 +141,16 @@ async function initIncidentPage(): Promise<void> {
 
     // load everything from the APIs concurrently
     await Promise.all([
-        await loadIncident(),
-        await loadPersonnel(),
-        await ims.loadIncidentTypes().then(
+        loadIncident(),
+        loadPersonnel(),
+        ims.loadIncidentTypes().then(
             value=> {
                 allIncidentTypes = value.types;
             },
         ),
-        await loadPlaces(),
-        await loadAllVisits(),
-        await loadAllFieldReports(),
+        loadPlaces(),
+        loadAllVisits(),
+        loadAllFieldReports(),
     ]);
 
     allEvents = await initResult.eventDatas;
@@ -417,16 +417,9 @@ async function loadAllFieldReports(): Promise<{err: string|null}> {
             return {err: message};
         }
     }
-    const _allFieldReports: ims.FieldReport[] = [];
-    for (const d of json!) {
-        _allFieldReports.push(d);
-    }
     // apply a descending sort based on the field report number,
     // being cautious about field report number being null
-    _allFieldReports.sort(function (a, b) {
-        return (b.number ?? -1) - (a.number ?? -1);
-    });
-    allFieldReports = _allFieldReports;
+    allFieldReports = json!.toSorted((a, b) => (b.number ?? -1) - (a.number ?? -1));
     return {err: null};
 }
 
@@ -463,9 +456,7 @@ async function loadOneFieldReport(fieldReportNumber: number): Promise<{err: stri
         allFieldReports.push(json!);
         // apply a descending sort based on the field report number,
         // being cautious about field report number being null
-        allFieldReports.sort(function (a, b) {
-            return (b.number ?? -1) - (a.number ?? -1);
-        });
+        allFieldReports.sort((a, b) => (b.number ?? -1) - (a.number ?? -1));
     }
 
     return {err: null};
@@ -492,16 +483,9 @@ async function loadAllVisits(): Promise<{err: string|null}> {
             return {err: message};
         }
     }
-    const visits: ims.Visit[] = [];
-    for (const d of json!) {
-        visits.push(d);
-    }
     // apply a descending sort based on the visit number,
     // being cautious about visit number being null
-    visits.sort(function (a, b) {
-        return (b.number ?? -1) - (a.number ?? -1);
-    });
-    allVisits = visits;
+    allVisits = json!.toSorted((a, b) => (b.number ?? -1) - (a.number ?? -1));
     return {err: null};
 }
 
@@ -538,9 +522,7 @@ async function loadOneVisit(visitNumber: number): Promise<{err: string|null}> {
         allVisits.push(json!);
         // apply a descending sort based on the visit number,
         // being cautious about visit number being null
-        allVisits.sort(function (a, b) {
-            return (b.number ?? -1) - (a.number ?? -1);
-        });
+        allVisits.sort((a, b) => (b.number ?? -1) - (a.number ?? -1));
     }
 
     return {err: null};
@@ -1411,7 +1393,7 @@ async function addRanger(): Promise<void> {
         return;
     }
 
-    if (handles.indexOf(handle) !== -1) {
+    if (handles.includes(handle)) {
         // Already in the list, so… move along.
         el.rangerAdd.value = "";
         return;
@@ -1480,7 +1462,7 @@ async function addIncidentType(): Promise<void> {
         return;
     }
 
-    if (currentIncidentTypes.indexOf(validTypeInputId) !== -1) {
+    if (currentIncidentTypes.includes(validTypeInputId)) {
         // Already in the list, so… move along.
         el.incidentTypeAdd.value = "";
         return;
@@ -1678,11 +1660,11 @@ async function linkIncident(input: HTMLInputElement): Promise<void> {
 
         eventAndIncident = eventAndIncident.trim();
         // Remove any "#" prefix, since "#123" means the same as "123" (current event, IMS #123).
-        if (eventAndIncident.indexOf("#") === 0) {
+        if (eventAndIncident.startsWith("#")) {
             eventAndIncident = eventAndIncident.substring(1);
         }
 
-        if (eventAndIncident.indexOf("#") === -1) {
+        if (!eventAndIncident.includes("#")) {
             incidentNumber = ims.parseInt10(eventAndIncident.trim());
         }
         if (eventAndIncident.indexOf("#") > 0) {

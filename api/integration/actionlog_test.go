@@ -57,6 +57,16 @@ func TestGetActionLog(t *testing.T) {
 	assert.Equal(t, "/ims/api/auth", foundLog.Path)
 	assert.Equal(t, "GET", foundLog.Method)
 
+	// Filtering by page returns only the rows logged from that page
+	pageLogs, response := apisAdmin.getActionLogsForPage(ctx, conv.FormatInt(longAgo), conv.FormatInt(longFromNow), referrer)
+	require.NotNil(t, response)
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	require.NoError(t, response.Body.Close())
+	require.NotEmpty(t, pageLogs)
+	for _, al := range pageLogs {
+		assert.Equal(t, referrer, al.Referrer)
+	}
+
 	// Now test error cases
 	_, response = apisAdmin.getActionLogs(ctx, "not a valid time", "")
 	require.NotNil(t, response)

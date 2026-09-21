@@ -61,6 +61,14 @@ templ AdminActionLogs(deployment, versionName, versionRef string) {
   </div>
   <div class="col-md mb-2">
     <div class="form-floating">
+      <input id="filter_page" type="text" inputmode="latin-name"
+             class="form-control fs-6"
+             onchange="updateTable()"/>
+      <label for="filter_page">Page</label>
+    </div>
+  </div>
+  <div class="col-md mb-2">
+    <div class="form-floating">
       <input id="filter_path" type="text" inputmode="latin-name"
              class="form-control fs-6"
              onchange="updateTable()"

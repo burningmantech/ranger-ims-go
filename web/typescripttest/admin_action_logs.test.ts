@@ -161,6 +161,7 @@ test("updateTable folds the filter inputs into the query params and reloads", as
 
     (document.getElementById("filter_user_name") as HTMLInputElement).value = "Hubcap";
     (document.getElementById("filter_path") as HTMLInputElement).value = "/ims/api/events";
+    (document.getElementById("filter_page") as HTMLInputElement).value = "/ims/app/events/2026/incidents";
     (document.getElementById("filter_min_time") as HTMLInputElement).value = "";
 
     await window.updateTable(document.body);
@@ -173,6 +174,7 @@ test("updateTable folds the filter inputs into the query params and reloads", as
     const params = new URL(last[0] as string, "https://localhost").searchParams;
     expect(params.get("userName")).toBe("Hubcap");
     expect(params.get("path")).toBe("/ims/api/events");
+    expect(params.get("page")).toBe("/ims/app/events/2026/incidents");
     // Clearing the min-time input drops that bound.
     expect(params.get("minTimeUnixMs")).toBeNull();
 });

@@ -624,10 +624,18 @@ func (a ApiHelper) imsDoNoReqBody[V any](ctx context.Context, method, path strin
 
 func (a ApiHelper) getActionLogs(ctx context.Context, minTime, maxTime string) (imsjson.ActionLogs, *http.Response) {
 	a.t.Helper()
+	return a.getActionLogsForPage(ctx, minTime, maxTime, "")
+}
+
+func (a ApiHelper) getActionLogsForPage(ctx context.Context, minTime, maxTime, page string) (imsjson.ActionLogs, *http.Response) {
+	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/actionlogs")
 	q := path.Query()
 	q.Set("minTimeUnixMs", minTime)
 	q.Set("maxTimeUnixMs", maxTime)
+	if page != "" {
+		q.Set("page", page)
+	}
 	path.RawQuery = q.Encode()
 
 	return a.imsGet[imsjson.ActionLogs](ctx, path.String())

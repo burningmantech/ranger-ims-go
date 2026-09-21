@@ -32,6 +32,7 @@ let filterMinTime: Date|null = null;
 let filterMaxTime: Date|null = null;
 let filterUserName: string|null = null;
 let filterPath: string|null = null;
+let filterPage: string|null = null;
 
 
 //
@@ -43,6 +44,7 @@ const el = {
     filterMaxTime: ims.typedElement("filter_max_time", HTMLInputElement),
     filterUserName: ims.typedElement("filter_user_name", HTMLInputElement),
     filterPath: ims.typedElement("filter_path", HTMLInputElement),
+    filterPage: ims.typedElement("filter_page", HTMLInputElement),
 };
 
 initAdminActionLogsPage();
@@ -96,6 +98,9 @@ async function initAdminActionLogsPage(): Promise<void> {
                 }
                 if (filterPath) {
                     params.set("path", filterPath);
+                }
+                if (filterPage) {
+                    params.set("page", filterPage);
                 }
 
                 const {json, err} = await ims.fetchNoThrow<ActionLog[]>(
@@ -283,6 +288,7 @@ function updateFilters(): void {
     }
     filterUserName = el.filterUserName.value ? el.filterUserName.value : null;
     filterPath = el.filterPath.value ? el.filterPath.value : null;
+    filterPage = el.filterPage.value ? el.filterPage.value : null;
 }
 
 const nerdDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat("sv-SE", {

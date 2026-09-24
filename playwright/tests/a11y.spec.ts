@@ -261,10 +261,6 @@ for (const theme of ["light", "dark"] as const) {
       await scan(page, "incidents help modal");
       await page.locator("#helpModal").press("Escape");
       await expect(page.locator("#helpModal")).toBeHidden();
-
-      await page.locator("body").press("m");
-      await expect(page.locator("#multisearchModal")).toBeVisible();
-      await scan(page, "multisearch modal");
     });
   });
 }

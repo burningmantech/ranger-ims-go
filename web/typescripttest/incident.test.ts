@@ -1141,6 +1141,148 @@ test("keyboard shortcuts toggle history and jump to the entry box", async (): Pr
     expect(document.activeElement!.id).toBe("report_entry_add");
 });
 
+// Routes for the Go to Incident modal's lookups: #5 exists, #99 doesn't.
+function jumpRoutes(url: string, init?: RequestInit): Response | undefined {
+    if (url === `/ims/api/events/${eventName}/incidents/5`) {
+        return jsonResponse({ number: 5, event: eventName, state: "on_hold", summary: "Lost bike" });
+    }
+    if (url === `/ims/api/events/${eventName}/incidents/99`) {
+        return problemResponse("Incident not found", 404);
+    }
+    return incidentRoutes(url, init);
+}
+
+// setup.ts installs a stub bootstrap.Modal as a global, the way head.templ loads the real one.
+function modalPrototype(): { show(): void, hide(): void } {
+    return (globalThis as unknown as { bootstrap: { Modal: { prototype: { show(): void, hide(): void } } } })
+        .bootstrap.Modal.prototype;
+}
+
+// The help modal's Ctrl+K hint and the Go to Incident modal's Ctrl+Enter one.
+function modifierKeyTexts(): string[] {
+    return [...document.querySelectorAll(".modifier-key")].map((el: Element): string => el.textContent ?? "");
+}
+
+function typeJumpNumber(value: string): HTMLInputElement {
+    const input = document.getElementById("jump-to-incident-number") as HTMLInputElement;
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    return input;
+}
+
+test("Ctrl+K and Cmd+K open Go to Incident even while typing in a field", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const show = vi.spyOn(modalPrototype(), "show");
+
+    const entryBox = document.getElementById("report_entry_add") as HTMLTextAreaElement;
+    entryBox.focus();
+    const ctrlK = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true });
+    entryBox.dispatchEvent(ctrlK);
+    expect(ctrlK.defaultPrevented).toBe(true);
+    expect(show).toHaveBeenCalledTimes(1);
+
+    const cmdK = new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true, cancelable: true });
+    entryBox.dispatchEvent(cmdK);
+    expect(cmdK.defaultPrevented).toBe(true);
+    expect(show).toHaveBeenCalledTimes(2);
+
+    // A bare k, or one with another modifier, is left alone.
+    const bareK = new KeyboardEvent("keydown", { key: "k", bubbles: true, cancelable: true });
+    entryBox.dispatchEvent(bareK);
+    expect(bareK.defaultPrevented).toBe(false);
+    const ctrlShiftK = new KeyboardEvent("keydown", { key: "K", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true });
+    entryBox.dispatchEvent(ctrlShiftK);
+    expect(ctrlShiftK.defaultPrevented).toBe(false);
+    expect(show).toHaveBeenCalledTimes(2);
+});
+
+test("Go to Incident previews the typed number, or says it doesn't exist", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const preview = document.getElementById("jump-to-incident-preview")!;
+
+    typeJumpNumber("5");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("#5 Lost bike (On Hold)");
+    });
+    expect(preview.classList.contains("text-danger")).toBe(false);
+
+    typeJumpNumber("99");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("No Incident #99");
+    });
+    expect(preview.classList.contains("text-danger")).toBe(true);
+
+    typeJumpNumber("abc");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("Enter an Incident number");
+    });
+});
+
+test("Go to Incident's Enter navigates, and Ctrl+Enter opens a new tab", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+    const open = vi.spyOn(window, "open").mockImplementation((): null => null);
+
+    const input = typeJumpNumber("5");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/incidents/5`);
+    });
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(open).toHaveBeenCalledWith(`/ims/app/events/${eventName}/incidents/5`, "_blank");
+    });
+});
+
+test("Go to Incident's Enter on a missing number stays put and says so", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+
+    const input = typeJumpNumber("99");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(document.getElementById("jump-to-incident-preview")!.textContent).toBe("No Incident #99");
+    });
+    expect(assign).not.toHaveBeenCalled();
+});
+
+test("Go to Incident's Enter on the current Incident just closes the modal", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+    const hide = vi.spyOn(modalPrototype(), "hide");
+
+    const input = typeJumpNumber("1");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(hide).toHaveBeenCalled();
+    });
+    expect(assign).not.toHaveBeenCalled();
+});
+
+test("shortcut hints name Cmd on a Mac", async (): Promise<void> => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    await initIncidentPage(jumpRoutes);
+
+    expect(modifierKeyTexts()).toEqual(["⌘", "⌘"]);
+});
+
+test("shortcut hints name Ctrl off a Mac", async (): Promise<void> => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+    await initIncidentPage(jumpRoutes);
+
+    expect(modifierKeyTexts()).toEqual(["Ctrl+", "Ctrl+"]);
+});
+
+test("Go to Incident is left off for someone who can't read Incidents", async (): Promise<void> => {
+    serverEventAccess.readIncidents = false;
+    const show = vi.spyOn(modalPrototype(), "show");
+    await initIncidentPage(jumpRoutes);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(show).not.toHaveBeenCalled();
+});
+
 test("printing swaps in a filesystem-safe document title", async (): Promise<void> => {
     await initIncidentPage();
 

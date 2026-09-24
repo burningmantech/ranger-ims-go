@@ -24,7 +24,6 @@ declare global {
         showDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
         showRows: (rowsToShow: string, replaceState: boolean)=>void;
         toggleCheckAllTypes: ()=>void;
-        toggleMultisearchModal: (e?: MouseEvent)=>void;
     }
 }
 
@@ -74,8 +73,6 @@ const el = {
     showTypeTemplate: ims.typedElement("show_type_template", HTMLTemplateElement),
 
     helpModal: ims.typedElement("helpModal", HTMLElement),
-    multisearchModal: ims.typedElement("multisearchModal", HTMLElement),
-    multisearchEventsList: ims.typedElement("multisearch-events-list", HTMLUListElement),
 };
 
 initIncidentsPage();
@@ -114,29 +111,6 @@ async function initIncidentsPage(): Promise<void> {
 
     const helpModal = ims.bsModal(el.helpModal);
 
-    const multisearchModal = ims.bsModal(el.multisearchModal);
-
-    const eventDatas = ((await initResult.eventDatas)??[]).toReversed();
-
-    window.toggleMultisearchModal = function (e?: MouseEvent): void {
-        // Don't follow a href
-        e?.preventDefault();
-
-        multisearchModal.toggle();
-
-        el.multisearchEventsList.querySelectorAll("li").forEach((li) => {li.remove()});
-
-        const hashParams = ims.windowFragmentParams();
-        const liTemplate = el.multisearchEventsList.querySelector("template")!;
-        for (const eventData of eventDatas.toSorted((a,b)=>b.name.localeCompare(a.name))) {
-            const liFrag = liTemplate.content.cloneNode(true) as DocumentFragment;
-            const eventLink = liFrag.querySelector("a")!;
-            eventLink.textContent = eventData.name;
-            eventLink.href = `${url_viewIncidents.replace("<event_id>", eventData.name)}#${new URLSearchParams(hashParams).toString()}`;
-            el.multisearchEventsList.append(liFrag);
-        }
-    }
-
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -160,10 +134,6 @@ async function initIncidentsPage(): Promise<void> {
         // n --> new incident
         if (e.key.toLowerCase() === "n") {
             el.newIncident.click();
-        }
-        // m -> multi-search
-        if (e.key.toLowerCase() === "m") {
-            window.toggleMultisearchModal();
         }
     });
 

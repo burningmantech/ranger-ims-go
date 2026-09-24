@@ -16,29 +16,22 @@
 
 package template
 
-templ MultisearchModal() {
-<div class="modal no-print" id="multisearchModal" tabindex="-1" aria-labelledby="multisearchModalLabel" aria-hidden="true">
+templ JumpToIncidentModal() {
+<div class="modal no-print" id="jumpToIncidentModal" tabindex="-1" aria-labelledby="jumpToIncidentModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <p class="modal-title fs-5" id="multisearchModalLabel">Multi-search (alpha)</p>
+        <p class="modal-title fs-5" id="jumpToIncidentModalLabel">Go to Incident</p>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
       </div>
       <div class="modal-body">
-        <p class="mt-2 mb-2">
-            Try the new <a href="/ims/app/search">Search page</a>, which queries
-            all your Events at once and shows the results in a single table.</p>
-        <p class="mt-2 mb-2">
-            Multi-search helps you query items from several Events at once.
-            The below links include any filters or search query you've applied to the current page.<br />
-            Open these in new tabs by middle-clicking or control/command-clicking on them.</p>
-        <ul id="multisearch-events-list">
-          <template>
-            <li>
-              <a href="#"></a>
-            </li>
-          </template>
-        </ul>
+        <input id="jump-to-incident-number" type="text" inputmode="numeric" autocomplete="off"
+               class="form-control" placeholder="Incident number" aria-label="Incident number"
+               aria-describedby="jump-to-incident-preview" />
+        <div id="jump-to-incident-preview" class="form-text text-truncate" aria-live="polite"></div>
+        <p class="mt-2 mb-0 small text-body-secondary">
+          <code>⏎</code> to go there, <code><span class="modifier-key">Ctrl+</span>⏎</code> to open it in a new tab
+        </p>
       </div>
     </div>
   </div>

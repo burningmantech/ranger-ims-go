@@ -32,9 +32,6 @@ let serverEvents: ims.EventData[];
 
 beforeEach((): void => {
     vi.resetModules();
-    // window globals persist across tests; clear the one the page assigns only
-    // once init fully settles, so waitFor tracks this test's init, not a prior one.
-    (window as unknown as Record<string, unknown>)["toggleMultisearchModal"] = undefined;
     loadFixture("sanctuary_visits.html");
     window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits`);
 
@@ -270,30 +267,16 @@ test("a visit broadcast for a different event is ignored", async (): Promise<voi
     channel.close();
 });
 
-test("toggling the multisearch modal lists the available events", async (): Promise<void> => {
-    await initVisitsPage();
-    // The modal toggle and keyboard listeners are wired only after the events
-    // list resolves, which happens after the table is constructed.
-    await vi.waitFor((): void => {
-        expect(window.toggleMultisearchModal).toBeTypeOf("function");
-    });
-    window.toggleMultisearchModal();
-
-    const links = document.querySelectorAll("#multisearch-events-list a");
-    expect(links.length).toBe(1);
-    expect(links[0]!.textContent).toBe(eventName);
-});
-
 test("keyboard shortcuts trigger new-visit and focus the search box", async (): Promise<void> => {
     await initVisitsPage();
-    await vi.waitFor((): void => {
-        expect(window.toggleMultisearchModal).toBeTypeOf("function");
-    });
-
     const newClicked = vi.fn();
     document.getElementById("new_visit")!.addEventListener("click", newClicked);
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "n" }));
-    expect(newClicked).toHaveBeenCalled();
+    // The keyboard listener is wired only once init settles, so keep pressing
+    // until it responds.
+    await vi.waitFor((): void => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "n" }));
+        expect(newClicked).toHaveBeenCalled();
+    });
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "/" }));
     expect(document.activeElement).toBe(document.getElementById("search_input"));

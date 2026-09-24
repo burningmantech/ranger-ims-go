@@ -790,6 +790,7 @@ function drawIncidentTypes() {
             const fragment = el.incidentTypesLiTemplate.content.cloneNode(true) as DocumentFragment;
             const item = fragment.querySelector("li")!;
             item.classList.remove("hidden");
+            item.title = validType.description??"";
             const typeSpan = document.createElement("span");
             typeSpan.textContent = validType.name??"";
             item.append(typeSpan);

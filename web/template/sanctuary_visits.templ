@@ -46,7 +46,6 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
             <ul>
               <li><code>n</code>: create (n)ew Visit <br /></li>
               <li><code>/</code>: jump to search field <br /></li>
-              <li><code>m</code>: (m)ulti-search <br /></li>
             </ul>
             <p class="mt-2 mb-0">In the search field</p>
             <ul>
@@ -59,8 +58,6 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
         </div>
       </div>
     </div>
-
-    @MultisearchModal()
 
     <div class="row">
       <div class="col-sm-7">
@@ -121,13 +118,12 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
       <div class="col-sm">
         <div id="search_container" class="form-group ms-auto">
           <div class="flex-input-container no-print">
-            <button type="button" id="search-icon" class="btn btn-link p-0 me-1 align-content-center link-body-emphasis"
-                title="Click here for multi-search" aria-label="Multi-search"
-                onclick="toggleMultisearchModal();">
+            <a id="search-icon" href="/ims/app/search" class="btn btn-link p-0 me-1 align-content-center link-body-emphasis"
+                title="Search all Events" aria-label="Search all Events">
               <svg fill="currentColor" class="bi" aria-hidden="true" focusable="false">
                 <use href="#search" />
               </svg>
-            </button>
+            </a>
             <label for="search_input" class="control-label visually-hidden">
               Search
             </label>

@@ -391,7 +391,10 @@ export async function commonPageInit(): Promise<PageInitResult> {
     if (authInfo.authenticated) {
         eventAccess = authInfo.event_access?.[pathIds.eventName!]??null;
         pathIds.eventId = eventAccess?.event_id??null;
-        eds = fetchNoThrow<EventData[]>(url_events, null).then(
+        if (eventAccess?.readIncidents) {
+            setupJumpToIncident();
+        }
+        eds =fetchNoThrow<EventData[]>(url_events, null).then(
             result => {
                 if (result.err != null || result.json == null) {
                     console.log(`Failed to fetch events: ${result.err}`);
@@ -403,6 +406,7 @@ export async function commonPageInit(): Promise<PageInitResult> {
         );
     }
     renderCommonPageItems(authInfo);
+    renderModifierKeys();
     return {authInfo: authInfo, eventDatas: eds};
 }
 
@@ -1929,6 +1933,166 @@ export function blockKeyboardShortcutFieldActive(): boolean {
         return true;
     }
     return true;
+}
+
+// Ctrl/Cmd+K opens a modal for going to another of this event's Incidents by
+// number. Unlike the single-key shortcuts, it works while typing in a field, and
+// it ignores the Settings switch, since WCAG 2.1.4 doesn't cover modified keys.
+function setupJumpToIncident(): void {
+    const modalEl = document.getElementById("jumpToIncidentModal");
+    if (modalEl == null) {
+        return;
+    }
+    const input = typedElement("jump-to-incident-number", HTMLInputElement);
+    const preview = typedElement("jump-to-incident-preview", HTMLElement);
+    const modal = bsModal(modalEl);
+
+    let returnFocus: HTMLElement|null = null;
+    let lookup: {number: number, result: Promise<Incident|string>}|null = null;
+    let debounce: number|undefined;
+
+    function enteredNumber(): number|null {
+        const value = input.value.trim().replace(/^#/, "");
+        return integerRegExp.test(value) ? parseInt10(value) : null;
+    }
+
+    function showPreview(text: string, isError: boolean): void {
+        preview.textContent = text;
+        preview.classList.toggle("text-danger", isError);
+    }
+
+    // Resolves to the Incident, or to a message saying why there isn't one.
+    function lookUp(number: number): Promise<Incident|string> {
+        if (lookup?.number !== number) {
+            const url = urlReplace(url_incidentNumber).replace("<incident_number>", number.toString());
+            const result = fetchNoThrow<Incident>(url, null).then(({resp, json, err}) => {
+                if (resp?.status === 404) {
+                    return `No Incident #${number}`;
+                }
+                if (err != null || json == null) {
+                    // Don't hold on to a failure that retrying might fix.
+                    if (lookup?.result === result) {
+                        lookup = null;
+                    }
+                    return `Couldn't look up Incident #${number}: ${err}`;
+                }
+                return json;
+            });
+            lookup = {number, result};
+        }
+        return lookup.result;
+    }
+
+    async function updatePreview(): Promise<void> {
+        const number = enteredNumber();
+        if (number == null) {
+            showPreview(input.value.trim() === "" ? "" : "Enter an Incident number", input.value.trim() !== "");
+            return;
+        }
+        const result = await lookUp(number);
+        // A slow response for an earlier number mustn't replace the current one's preview.
+        if (enteredNumber() !== number) {
+            return;
+        }
+        if (typeof result === "string") {
+            showPreview(result, true);
+        } else {
+            showPreview(`${incidentAsString(result)} (${stateNameFromID(stateForIncident(result))})`, false);
+        }
+    }
+
+    async function go(newTab: boolean): Promise<void> {
+        clearTimeout(debounce);
+        const number = enteredNumber();
+        if (number == null) {
+            await updatePreview();
+            return;
+        }
+        if (number === pathIds.incidentNumber && !newTab) {
+            modal.hide();
+            return;
+        }
+        const result = await lookUp(number);
+        if (typeof result === "string") {
+            showPreview(result, true);
+            return;
+        }
+        const url = urlReplace(url_viewIncidentNumber).replace("<number>", number.toString());
+        if (newTab) {
+            // A window.open() made while the browser is still handling a Cmd/Ctrl
+            // keypress opens a background tab, as a Cmd-click would. Opening from
+            // a fresh task, while the keypress still counts as user activation,
+            // gets a foreground tab instead.
+            setTimeout((): void => {
+                window.open(url, "_blank")?.focus();
+            });
+            modal.hide();
+            return;
+        }
+        // The modal stays up, so that it's still there if the user backs out of
+        // the incident page's warning about unsent report text.
+        window.location.assign(url);
+    }
+
+    function open(): void {
+        returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        lookup = null;
+        input.value = "";
+        showPreview("", false);
+        modal.show();
+    }
+
+    modalEl.addEventListener("shown.bs.modal", () => input.focus());
+    modalEl.addEventListener("hidden.bs.modal", () => {
+        returnFocus?.focus();
+        returnFocus = null;
+    });
+    input.addEventListener("input", () => {
+        clearTimeout(debounce);
+        debounce = window.setTimeout(updatePreview, 250);
+    });
+    input.addEventListener("keydown", (e: KeyboardEvent): void => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            void go(e.ctrlKey || e.metaKey);
+        }
+    });
+
+    // Capture, so that no field's own key handling can swallow it first.
+    document.addEventListener("keydown", (e: KeyboardEvent): void => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "k") {
+            return;
+        }
+        e.preventDefault();
+        if (e.repeat) {
+            return;
+        }
+        if (modalEl.classList.contains("show")) {
+            modal.hide();
+            return;
+        }
+        // Bootstrap can't stack modals.
+        if (document.querySelector(".modal.show") != null) {
+            return;
+        }
+        open();
+    }, {capture: true});
+}
+
+// Shortcut hints are written as "Ctrl+"; on Apple platforms, make them "⌘".
+function renderModifierKeys(): void {
+    if (!isApplePlatform()) {
+        return;
+    }
+    for (const el of document.querySelectorAll(".modifier-key")) {
+        el.textContent = "⌘";
+    }
+}
+
+// Whether the browser runs on macOS or iOS, where shortcuts use Cmd rather than Ctrl.
+// iPadOS reports itself as "MacIntel".
+function isApplePlatform(): boolean {
+    return /^(Mac|iPhone|iPad|iPod)/.test(navigator.platform);
 }
 
 // Single-key shortcuts are on unless the user has turned them off in Settings.

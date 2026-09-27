@@ -720,3 +720,12 @@ test("opening a picker that already has a time leaves it alone", async (): Promi
     expect(mock.mock.calls.some(([u, init]) =>
         u === `${visitsUrl}/2` && init?.body != null)).toBe(false);
 });
+
+test("the Go to… modal opens on this page's Visit type", async (): Promise<void> => {
+    await initVisitPage();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+
+    expect((document.getElementById("jump-kind-visit") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("jump-to-number") as HTMLInputElement).placeholder).toBe("VS#");
+});

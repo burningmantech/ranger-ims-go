@@ -573,3 +573,12 @@ test("a failed strike shows an error", async (): Promise<void> => {
     });
     expect(errorText()).toContain("strike refused");
 });
+
+test("the Go to… modal opens on this page's Field Report type", async (): Promise<void> => {
+    await initFieldReportPage();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+
+    expect((document.getElementById("jump-kind-field-report") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("jump-to-number") as HTMLInputElement).placeholder).toBe("FR#");
+});

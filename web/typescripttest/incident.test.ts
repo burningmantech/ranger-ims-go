@@ -1141,13 +1141,26 @@ test("keyboard shortcuts toggle history and jump to the entry box", async (): Pr
     expect(document.activeElement!.id).toBe("report_entry_add");
 });
 
-// Routes for the Go to Incident modal's lookups: #5 exists, #99 doesn't.
+// Routes for the Go to… modal's lookups: #5 exists, #99 doesn't.
 function jumpRoutes(url: string, init?: RequestInit): Response | undefined {
-    if (url === `/ims/api/events/${eventName}/incidents/5`) {
-        return jsonResponse({ number: 5, event: eventName, state: "on_hold", summary: "Lost bike" });
-    }
-    if (url === `/ims/api/events/${eventName}/incidents/99`) {
-        return problemResponse("Incident not found", 404);
+    switch (url) {
+        case `/ims/api/events/${eventName}/incidents/5`:
+            return jsonResponse({ number: 5, event: eventName, state: "on_hold", summary: "Lost bike" });
+        case `/ims/api/events/${eventName}/incidents/99`:
+            return problemResponse("Incident not found", 404);
+        case `/ims/api/events/${eventName}/field_reports/5`:
+            return jsonResponse({
+                number: 5, event: eventName, summary: "A field report",
+                report_entries: [{ id: 1, author: "Tool", text: "field note", system_entry: false }],
+            });
+        case `/ims/api/events/${eventName}/field_reports/99`:
+            return problemResponse("Field report not found", 404);
+        case `/ims/api/events/${eventName}/field_reports/7`:
+            return problemResponse("The requestor does not have permission to access this particular Field Report", 403);
+        case `/ims/api/events/${eventName}/visits/5`:
+            return jsonResponse({ number: 5, event: eventName, guest_preferred_name: "Stardust" });
+        case `/ims/api/events/${eventName}/visits/99`:
+            return problemResponse("Visit not found", 404);
     }
     return incidentRoutes(url, init);
 }
@@ -1158,19 +1171,26 @@ function modalPrototype(): { show(): void, hide(): void } {
         .bootstrap.Modal.prototype;
 }
 
-// The help modal's Ctrl+K hint and the Go to Incident modal's Ctrl+Enter one.
+// The help modal's Ctrl+K hint and the Go to… modal's Ctrl+Enter one.
 function modifierKeyTexts(): string[] {
     return [...document.querySelectorAll(".modifier-key")].map((el: Element): string => el.textContent ?? "");
 }
 
 function typeJumpNumber(value: string): HTMLInputElement {
-    const input = document.getElementById("jump-to-incident-number") as HTMLInputElement;
+    const input = document.getElementById("jump-to-number") as HTMLInputElement;
     input.value = value;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     return input;
 }
 
-test("Ctrl+K and Cmd+K open Go to Incident even while typing in a field", async (): Promise<void> => {
+function selectJumpKind(kind: string): HTMLInputElement {
+    const radio = document.getElementById(`jump-kind-${kind.replaceAll("_", "-")}`) as HTMLInputElement;
+    radio.checked = true;
+    radio.dispatchEvent(new Event("change", { bubbles: true }));
+    return radio;
+}
+
+test("Ctrl+K and Cmd+K open Go to… even while typing in a field", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const show = vi.spyOn(modalPrototype(), "show");
 
@@ -1196,9 +1216,9 @@ test("Ctrl+K and Cmd+K open Go to Incident even while typing in a field", async 
     expect(show).toHaveBeenCalledTimes(2);
 });
 
-test("Go to Incident previews the typed number, or says it doesn't exist", async (): Promise<void> => {
+test("Go to… previews the typed Incident number, or says it doesn't exist", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
-    const preview = document.getElementById("jump-to-incident-preview")!;
+    const preview = document.getElementById("jump-to-preview")!;
 
     typeJumpNumber("5");
     await vi.waitFor((): void => {
@@ -1208,17 +1228,52 @@ test("Go to Incident previews the typed number, or says it doesn't exist", async
 
     typeJumpNumber("99");
     await vi.waitFor((): void => {
-        expect(preview.textContent).toBe("No Incident #99");
+        expect(preview.textContent).toBe("No IMS #99");
     });
     expect(preview.classList.contains("text-danger")).toBe(true);
 
     typeJumpNumber("abc");
     await vi.waitFor((): void => {
-        expect(preview.textContent).toBe("Enter an Incident number");
+        expect(preview.textContent).toBe("Enter an IMS number");
     });
 });
 
-test("Go to Incident's Enter navigates, and Ctrl+Enter opens a new tab", async (): Promise<void> => {
+test("Go to… previews a Field Report and a Visit", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const preview = document.getElementById("jump-to-preview")!;
+
+    selectJumpKind("field_report");
+    typeJumpNumber("5");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("FR #5 (Tool): A field report");
+    });
+
+    selectJumpKind("visit");
+    typeJumpNumber("5");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("VS #5: Stardust");
+    });
+
+    typeJumpNumber("99");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("No VS #99");
+    });
+    expect(preview.classList.contains("text-danger")).toBe(true);
+});
+
+test("Go to… says so when the user can't access the typed record", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const preview = document.getElementById("jump-to-preview")!;
+
+    selectJumpKind("field_report");
+    typeJumpNumber("7");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("You don't have access to FR #7");
+    });
+    expect(preview.classList.contains("text-danger")).toBe(true);
+});
+
+test("Go to…'s Enter navigates, and Ctrl+Enter opens a new tab", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     const open = vi.spyOn(window, "open").mockImplementation((): null => null);
@@ -1235,19 +1290,37 @@ test("Go to Incident's Enter navigates, and Ctrl+Enter opens a new tab", async (
     });
 });
 
-test("Go to Incident's Enter on a missing number stays put and says so", async (): Promise<void> => {
+test("Go to…'s Enter opens a Field Report or Visit at its own URL", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+
+    selectJumpKind("field_report");
+    const input = typeJumpNumber("5");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/field_reports/5`);
+    });
+
+    selectJumpKind("visit");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/visits/5`);
+    });
+});
+
+test("Go to…'s Enter on a missing number stays put and says so", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
 
     const input = typeJumpNumber("99");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await vi.waitFor((): void => {
-        expect(document.getElementById("jump-to-incident-preview")!.textContent).toBe("No Incident #99");
+        expect(document.getElementById("jump-to-preview")!.textContent).toBe("No IMS #99");
     });
     expect(assign).not.toHaveBeenCalled();
 });
 
-test("Go to Incident's Enter on the current Incident just closes the modal", async (): Promise<void> => {
+test("Go to…'s Enter on the current Incident just closes the modal", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     const hide = vi.spyOn(modalPrototype(), "hide");
@@ -1258,6 +1331,38 @@ test("Go to Incident's Enter on the current Incident just closes the modal", asy
         expect(hide).toHaveBeenCalled();
     });
     expect(assign).not.toHaveBeenCalled();
+});
+
+test("Go to… defaults to the page's kind and relabels the input on change", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const input = document.getElementById("jump-to-number") as HTMLInputElement;
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+    // This page is an Incident, so that kind is selected and named.
+    expect((document.getElementById("jump-kind-incident") as HTMLInputElement).checked).toBe(true);
+    expect(input.placeholder).toBe("IMS#");
+
+    selectJumpKind("field_report");
+    expect(input.placeholder).toBe("FR#");
+    selectJumpKind("visit");
+    expect(input.placeholder).toBe("VS#");
+});
+
+test("Go to… hides the types a user can't read", async (): Promise<void> => {
+    serverEventAccess.readIncidents = false;
+    serverEventAccess.readVisits = false;
+    const show = vi.spyOn(modalPrototype(), "show");
+    await initIncidentPage(jumpRoutes);
+
+    // With only writeFieldReports, the Field Report type remains.
+    expect(document.getElementById("jump-kind-field-report")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("jump-kind-incident")!.classList.contains("d-none")).toBe(true);
+    expect(document.getElementById("jump-kind-visit")!.classList.contains("d-none")).toBe(true);
+
+    // The modal still opens, defaulting to the one readable kind.
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(show).toHaveBeenCalledTimes(1);
+    expect((document.getElementById("jump-kind-field-report") as HTMLInputElement).checked).toBe(true);
 });
 
 test("shortcut hints name Cmd on a Mac", async (): Promise<void> => {
@@ -1274,8 +1379,10 @@ test("shortcut hints name Ctrl off a Mac", async (): Promise<void> => {
     expect(modifierKeyTexts()).toEqual(["Ctrl+", "Ctrl+"]);
 });
 
-test("Go to Incident is left off for someone who can't read Incidents", async (): Promise<void> => {
+test("Go to… is left off for someone who can't read any of the record types", async (): Promise<void> => {
     serverEventAccess.readIncidents = false;
+    serverEventAccess.writeFieldReports = false;
+    serverEventAccess.readVisits = false;
     const show = vi.spyOn(modalPrototype(), "show");
     await initIncidentPage(jumpRoutes);
 

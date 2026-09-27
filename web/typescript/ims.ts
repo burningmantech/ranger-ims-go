@@ -304,6 +304,9 @@ export function disableEditing() {
     // disable(document.querySelectorAll("#entries-form input,select,textarea,button"));
     // disable(document.querySelectorAll("#attach-file-form input,select,textarea,button"));
     enable(document.querySelectorAll("input[type=search]"));  // Don't disable search fields
+    // The Go to… box is navigation, not editing, so it stays usable on
+    // read-only pages like Places.
+    enable(document.querySelectorAll("#jump-to-number"));
     document.documentElement.classList.add("no-edit");
 }
 
@@ -1974,6 +1977,7 @@ function setupJumpTo(): void {
     }
     const input = typedElement("jump-to-number", HTMLInputElement);
     const preview = typedElement("jump-to-preview", HTMLElement);
+    const goButton = typedElement("jump-to-go", HTMLButtonElement);
     const modal = bsModal(modalEl);
 
     const kindRadios: Record<JumpKind, HTMLInputElement> = {
@@ -2013,6 +2017,11 @@ function setupJumpTo(): void {
         }
         if (path.startsWith(urlReplace(url_viewVisits)) && readableKinds.includes("visit")) {
             return "visit";
+        }
+        // Places isn't tied to one record type, so default to Incident, the
+        // number a Ranger is most likely to have in hand there.
+        if (path.startsWith(urlReplace(url_viewPlaces)) && readableKinds.includes("incident")) {
+            return "incident";
         }
         return readableKinds[0]!;
     }
@@ -2079,6 +2088,12 @@ function setupJumpTo(): void {
     function showPreview(text: string, isError: boolean): void {
         preview.textContent = text;
         preview.classList.toggle("text-danger", isError);
+    }
+
+    // The Go button does the same thing as Enter, so it's only live once
+    // there's a number to go to.
+    function updateGoButton(): void {
+        goButton.disabled = input.value.trim() === "";
     }
 
     // Point the input at the given kind, adjusting its label.
@@ -2178,6 +2193,7 @@ function setupJumpTo(): void {
         lookup = null;
         input.value = "";
         updateKindUI(defaultKind());
+        updateGoButton();
         showPreview("", false);
         modal.show();
     }
@@ -2198,6 +2214,7 @@ function setupJumpTo(): void {
         });
     }
     input.addEventListener("input", () => {
+        updateGoButton();
         clearTimeout(debounce);
         debounce = window.setTimeout(updatePreview, 250);
     });
@@ -2206,6 +2223,10 @@ function setupJumpTo(): void {
             e.preventDefault();
             void go(e.ctrlKey || e.metaKey);
         }
+    });
+    // A Ctrl/Cmd-click on Go opens the record in a new tab, like Ctrl/Cmd+Enter.
+    goButton.addEventListener("click", (e: MouseEvent): void => {
+        void go(e.ctrlKey || e.metaKey);
     });
 
     // Capture, so that no field's own key handling can swallow it first.

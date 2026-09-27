@@ -222,7 +222,7 @@ h1 {
    is disabled. */
 .no-edit .remove-badge,
 .no-edit :is(.list-group-item, .report_entry):hover .remove-badge,
-.no-edit :is(.new_incident, .new_field_report) {
+.no-edit :is(.new_incident, .new_field_report, .new_visit) {
   display: none;
 }
 

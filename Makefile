@@ -113,7 +113,7 @@ upgrade/deps/npm:
 .PHONY: upgrade/deps/actions
 upgrade/deps/actions:
 	GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" \
-		go run github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@v4.1.1 run --update
+		go tool github.com/suzuki-shunsuke/pinact/v5/cmd/pinact run --update
 
 # This is kind of silly, but it's similar to what the Go website itself
 # does to check the latest version.

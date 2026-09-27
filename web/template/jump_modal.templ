@@ -36,9 +36,12 @@ templ JumpToModal() {
                  value="visit" autocomplete="off" />
           <label class="btn btn-outline-secondary" for="jump-kind-visit">Visit</label>
         </div>
-        <input id="jump-to-number" type="text" inputmode="numeric" autocomplete="off"
-               class="form-control" placeholder="Number" aria-label="Number"
-               aria-describedby="jump-to-preview" />
+        <div class="input-group">
+          <input id="jump-to-number" type="text" inputmode="numeric" autocomplete="off"
+                 class="form-control" placeholder="Number" aria-label="Number"
+                 aria-describedby="jump-to-preview" />
+          <button id="jump-to-go" type="button" class="btn btn-primary" disabled>Go</button>
+        </div>
         <div id="jump-to-preview" class="form-text text-truncate" aria-live="polite"></div>
         <p class="mt-2 mb-0 small text-body-secondary">
           <code>⏎</code> to go there, <code><span class="modifier-key">Ctrl+</span>⏎</code> to open it in a new tab

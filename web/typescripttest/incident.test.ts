@@ -1290,6 +1290,37 @@ test("Go to…'s Enter navigates, and Ctrl+Enter opens a new tab", async (): Pro
     });
 });
 
+test("Go to…'s Go button is disabled until a number is typed", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const button = document.getElementById("jump-to-go") as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    typeJumpNumber("5");
+    expect(button.disabled).toBe(false);
+
+    typeJumpNumber("");
+    expect(button.disabled).toBe(true);
+});
+
+test("Go to…'s Go button does what Enter does, and Ctrl/Cmd-click opens a new tab", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+    const open = vi.spyOn(window, "open").mockImplementation((): null => null);
+    const button = document.getElementById("jump-to-go") as HTMLButtonElement;
+
+    typeJumpNumber("5");
+    button.click();
+    await vi.waitFor((): void => {
+        expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/incidents/5`);
+    });
+
+    typeJumpNumber("5");
+    button.dispatchEvent(new MouseEvent("click", { ctrlKey: true, bubbles: true }));
+    await vi.waitFor((): void => {
+        expect(open).toHaveBeenCalledWith(`/ims/app/events/${eventName}/incidents/5`, "_blank");
+    });
+});
+
 test("Go to…'s Enter opens a Field Report or Visit at its own URL", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});

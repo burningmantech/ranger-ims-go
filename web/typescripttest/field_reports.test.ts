@@ -329,3 +329,12 @@ test("keyboard shortcuts trigger new-field-report and focus the search box", asy
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "/" }));
     expect(document.activeElement).toBe(document.getElementById("search_input"));
 });
+
+test("the Go to… modal opens on the Field Reports list page's type", async (): Promise<void> => {
+    await initFieldReportsPage();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+
+    expect((document.getElementById("jump-kind-field-report") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("jump-to-number") as HTMLInputElement).placeholder).toBe("FR#");
+});

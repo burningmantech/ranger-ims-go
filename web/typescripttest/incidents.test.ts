@@ -416,3 +416,12 @@ test("keyboard shortcuts trigger new-incident and focus the search box", async (
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "/" }));
     expect(document.activeElement).toBe(document.getElementById("search_input"));
 });
+
+test("the Go to… modal opens on the Incidents list page's type", async (): Promise<void> => {
+    await initIncidentsPage();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+
+    expect((document.getElementById("jump-kind-incident") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("jump-to-number") as HTMLInputElement).placeholder).toBe("IMS#");
+});

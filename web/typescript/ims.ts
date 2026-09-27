@@ -391,8 +391,8 @@ export async function commonPageInit(): Promise<PageInitResult> {
     if (authInfo.authenticated) {
         eventAccess = authInfo.event_access?.[pathIds.eventName!]??null;
         pathIds.eventId = eventAccess?.event_id??null;
-        if (eventAccess?.readIncidents) {
-            setupJumpToIncident();
+        if (jumpKinds.some(canReadJumpKind)) {
+            setupJumpTo();
         }
         eds =fetchNoThrow<EventData[]>(url_events, null).then(
             result => {
@@ -1935,21 +1935,141 @@ export function blockKeyboardShortcutFieldActive(): boolean {
     return true;
 }
 
-// Ctrl/Cmd+K opens a modal for going to another of this event's Incidents by
-// number. Unlike the single-key shortcuts, it works while typing in a field, and
-// it ignores the Settings switch, since WCAG 2.1.4 doesn't cover modified keys.
-function setupJumpToIncident(): void {
-    const modalEl = document.getElementById("jumpToIncidentModal");
+// The kinds of records the Go to… modal can jump to. Each kind numbers its
+// records independently, so the number alone is ambiguous and the modal has a
+// type selector to go with it.
+type JumpKind = "incident"|"field_report"|"visit";
+
+const jumpKinds: JumpKind[] = ["incident", "field_report", "visit"];
+
+const jumpKindLabels: Record<JumpKind, string> = {
+    incident: "IMS",
+    field_report: "FR",
+    visit: "VS",
+};
+
+// Whether this event's access grants reading the given kind of record. Field
+// Reports are readable alongside Incidents during the overlap period, and with
+// writeFieldReports even without readIncidents, mirroring how the Field Reports
+// pages gate themselves.
+function canReadJumpKind(kind: JumpKind): boolean {
+    switch (kind) {
+        case "incident":
+            return eventAccess?.readIncidents ?? false;
+        case "field_report":
+            return (eventAccess?.readIncidents ?? false) || (eventAccess?.writeFieldReports ?? false);
+        case "visit":
+            return eventAccess?.readVisits ?? false;
+    }
+}
+
+// Ctrl/Cmd+K opens a modal for going to another of this event's Incidents,
+// Field Reports, or Visits by number. Unlike the single-key shortcuts, it works
+// while typing in a field, and it ignores the Settings switch, since WCAG 2.1.4
+// doesn't cover modified keys.
+function setupJumpTo(): void {
+    const modalEl = document.getElementById("jumpToModal");
     if (modalEl == null) {
         return;
     }
-    const input = typedElement("jump-to-incident-number", HTMLInputElement);
-    const preview = typedElement("jump-to-incident-preview", HTMLElement);
+    const input = typedElement("jump-to-number", HTMLInputElement);
+    const preview = typedElement("jump-to-preview", HTMLElement);
     const modal = bsModal(modalEl);
 
+    const kindRadios: Record<JumpKind, HTMLInputElement> = {
+        incident: typedElement("jump-kind-incident", HTMLInputElement),
+        field_report: typedElement("jump-kind-field-report", HTMLInputElement),
+        visit: typedElement("jump-kind-visit", HTMLInputElement),
+    };
+
+    // The types this user can read, remembering document order so that a
+    // fallback default lands on Incident before the others.
+    const readableKinds = jumpKinds.filter(canReadJumpKind);
+
+    // Hide the type buttons this user can't read, so the selector only offers
+    // records they can actually open.
+    for (const kind of jumpKinds) {
+        if (readableKinds.includes(kind)) {
+            continue;
+        }
+        kindRadios[kind].classList.add("d-none");
+        (kindRadios[kind].nextElementSibling)?.classList.add("d-none");
+    }
+
     let returnFocus: HTMLElement|null = null;
-    let lookup: {number: number, result: Promise<Incident|string>}|null = null;
+    let lookup: {key: string, result: Promise<Incident|FieldReport|Visit|string>}|null = null;
     let debounce: number|undefined;
+
+    // The kind to select when the modal opens: the kind for the page you're on
+    // (a record page or its list page), if it's readable, else the first
+    // readable kind.
+    function defaultKind(): JumpKind {
+        const path = window.location.pathname;
+        if (path.startsWith(urlReplace(url_viewIncidents)) && readableKinds.includes("incident")) {
+            return "incident";
+        }
+        if (path.startsWith(urlReplace(url_viewFieldReports)) && readableKinds.includes("field_report")) {
+            return "field_report";
+        }
+        if (path.startsWith(urlReplace(url_viewVisits)) && readableKinds.includes("visit")) {
+            return "visit";
+        }
+        return readableKinds[0]!;
+    }
+
+    function selectedKind(): JumpKind {
+        return jumpKinds.find((kind: JumpKind): boolean => kindRadios[kind].checked) ?? defaultKind();
+    }
+
+    // The number of the record the page is currently showing, for the given kind.
+    function currentNumber(kind: JumpKind): number|null {
+        switch (kind) {
+            case "field_report":
+                return pathIds.fieldReportNumber;
+            case "visit":
+                return pathIds.visitNumber;
+            case "incident":
+                return pathIds.incidentNumber;
+        }
+    }
+
+    // The API URL that resolves a kind and number to a record.
+    function apiURL(kind: JumpKind, number: number): string {
+        switch (kind) {
+            case "field_report":
+                return urlReplace(url_fieldReport).replace("<field_report_number>", number.toString());
+            case "visit":
+                return urlReplace(url_visitNumber).replace("<visit_number>", number.toString());
+            case "incident":
+                return urlReplace(url_incidentNumber).replace("<incident_number>", number.toString());
+        }
+    }
+
+    // The app URL for viewing a kind and number.
+    function viewURL(kind: JumpKind, number: number): string {
+        switch (kind) {
+            case "field_report":
+                return urlReplace(url_viewFieldReportNumber).replace("<number>", number.toString());
+            case "visit":
+                return urlReplace(url_viewVisitNumber).replace("<number>", number.toString());
+            case "incident":
+                return urlReplace(url_viewIncidentNumber).replace("<number>", number.toString());
+        }
+    }
+
+    // A one-line description of a looked-up record.
+    function describe(kind: JumpKind, record: Incident|FieldReport|Visit): string {
+        switch (kind) {
+            case "field_report":
+                return fieldReportAsString(record as FieldReport);
+            case "visit":
+                return visitAsString(record as Visit);
+            case "incident": {
+                const incident = record as Incident;
+                return `${incidentAsString(incident)} (${stateNameFromID(stateForIncident(incident))})`;
+            }
+        }
+    }
 
     function enteredNumber(): number|null {
         const value = input.value.trim().replace(/^#/, "");
@@ -1961,63 +2081,82 @@ function setupJumpToIncident(): void {
         preview.classList.toggle("text-danger", isError);
     }
 
-    // Resolves to the Incident, or to a message saying why there isn't one.
-    function lookUp(number: number): Promise<Incident|string> {
-        if (lookup?.number !== number) {
-            const url = urlReplace(url_incidentNumber).replace("<incident_number>", number.toString());
-            const result = fetchNoThrow<Incident>(url, null).then(({resp, json, err}) => {
+    // Point the input at the given kind, adjusting its label.
+    function updateKindUI(kind: JumpKind): void {
+        kindRadios[kind].checked = true;
+        const label = `${jumpKindLabels[kind]}#`;
+        input.placeholder = label;
+        input.setAttribute("aria-label", label);
+    }
+
+    // Resolves to the record, or to a message saying why there isn't one.
+    function lookUp(kind: JumpKind, number: number): Promise<Incident|FieldReport|Visit|string> {
+        const key = `${kind}:${number}`;
+        if (lookup?.key !== key) {
+            const result = fetchNoThrow<Incident|FieldReport|Visit>(apiURL(kind, number), null).then(({resp, json, err}) => {
                 if (resp?.status === 404) {
-                    return `No Incident #${number}`;
+                    return `No ${jumpKindLabels[kind]} #${number}`;
+                }
+                // E.g. someone who may only read their own Field Reports asking
+                // for someone else's.
+                if (resp?.status === 403) {
+                    return `You don't have access to ${jumpKindLabels[kind]} #${number}`;
                 }
                 if (err != null || json == null) {
                     // Don't hold on to a failure that retrying might fix.
                     if (lookup?.result === result) {
                         lookup = null;
                     }
-                    return `Couldn't look up Incident #${number}: ${err}`;
+                    return `Couldn't look up ${jumpKindLabels[kind]} #${number}: ${err}`;
                 }
                 return json;
             });
-            lookup = {number, result};
+            lookup = {key, result};
         }
         return lookup.result;
     }
 
     async function updatePreview(): Promise<void> {
+        const kind = selectedKind();
         const number = enteredNumber();
         if (number == null) {
-            showPreview(input.value.trim() === "" ? "" : "Enter an Incident number", input.value.trim() !== "");
+            const typed = input.value.trim() !== "";
+            const label = jumpKindLabels[kind];
+            const article = /^[AEIOU]/.test(label) ? "an" : "a";
+            showPreview(typed ? `Enter ${article} ${label} number` : "", typed);
             return;
         }
-        const result = await lookUp(number);
-        // A slow response for an earlier number mustn't replace the current one's preview.
-        if (enteredNumber() !== number) {
+        const result = await lookUp(kind, number);
+        // A slow response for an earlier selection mustn't replace the current
+        // one's preview.
+        if (selectedKind() !== kind || enteredNumber() !== number) {
             return;
         }
         if (typeof result === "string") {
             showPreview(result, true);
         } else {
-            showPreview(`${incidentAsString(result)} (${stateNameFromID(stateForIncident(result))})`, false);
+            showPreview(describe(kind, result), false);
         }
     }
 
     async function go(newTab: boolean): Promise<void> {
         clearTimeout(debounce);
+        const kind = selectedKind();
         const number = enteredNumber();
         if (number == null) {
             await updatePreview();
             return;
         }
-        if (number === pathIds.incidentNumber && !newTab) {
+        if (number === currentNumber(kind) && !newTab) {
             modal.hide();
             return;
         }
-        const result = await lookUp(number);
+        const result = await lookUp(kind, number);
         if (typeof result === "string") {
             showPreview(result, true);
             return;
         }
-        const url = urlReplace(url_viewIncidentNumber).replace("<number>", number.toString());
+        const url = viewURL(kind, number);
         if (newTab) {
             // A window.open() made while the browser is still handling a Cmd/Ctrl
             // keypress opens a background tab, as a Cmd-click would. Opening from
@@ -2038,6 +2177,7 @@ function setupJumpToIncident(): void {
         returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         lookup = null;
         input.value = "";
+        updateKindUI(defaultKind());
         showPreview("", false);
         modal.show();
     }
@@ -2047,6 +2187,16 @@ function setupJumpToIncident(): void {
         returnFocus?.focus();
         returnFocus = null;
     });
+    for (const kind of jumpKinds) {
+        kindRadios[kind].addEventListener("change", (): void => {
+            if (!kindRadios[kind].checked) {
+                return;
+            }
+            updateKindUI(kind);
+            clearTimeout(debounce);
+            void updatePreview();
+        });
+    }
     input.addEventListener("input", () => {
         clearTimeout(debounce);
         debounce = window.setTimeout(updatePreview, 250);

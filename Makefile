@@ -124,5 +124,6 @@ LATEST_GO_VERSION = $(shell curl "https://go.dev/dl/?mode=json" | grep version |
 upgrade/go:
 	go mod edit -go=$(LATEST_GO_VERSION)
 
-# upgrade/all: upgrade Go toolchain and code dependencies
-upgrade/all: upgrade/go upgrade/deps/go
+# upgrade/all: upgrade the Go version, Go and npm deps, and GitHub Actions
+.PHONY: upgrade/all
+upgrade/all: upgrade/go upgrade/deps/go upgrade/deps/npm upgrade/deps/actions

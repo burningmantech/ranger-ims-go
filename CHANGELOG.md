@@ -17,7 +17,7 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/commit/ccb55b8
+https://github.com/burningmantech/ranger-ims-go/commit/ea01f62
 -->
 
 ## 2026-09
@@ -28,23 +28,30 @@ https://github.com/burningmantech/ranger-ims-go/commit/ccb55b8
 - Started serving attachment previews and downloads as plain URLs that the browser handles itself, rather than fetching each file into a JavaScript Blob first. https://github.com/burningmantech/ranger-ims-go/pull/812
 - Started reading a user's positions, teams, and on-site/on-duty status from the server's cached directory data rather than from their JWT. Tokens are smaller, and a change to someone's position or team membership now takes effect in IMS without them logging in again. https://github.com/burningmantech/ranger-ims-go/commit/5d59a7c
 - Changed `IMS_TOKEN_LIFETIME` from a number of seconds to a duration string (e.g. `"8h"` or `"604800s"`), consistent with the other duration settings. A bare number is no longer accepted. https://github.com/burningmantech/ranger-ims-go/commit/2a1ee13
+- Replaced the browser's built-in alert and confirm popups, and the Bootstrap modals, with native `<dialog>` elements styled to match the rest of IMS. https://github.com/burningmantech/ranger-ims-go/commit/2d6eb00 https://github.com/burningmantech/ranger-ims-go/commit/11db12f
+- Started showing keyboard shortcuts as keycaps, on the Help page and in each page's shortcut list. On a Mac, `⌘`+`Enter` now adds an entry, as `Ctrl`+`Enter` does elsewhere. https://github.com/burningmantech/ranger-ims-go/commit/a8cf59d
+- Made the Incident page load its data concurrently, as it was always meant to, rather than one request after another. https://github.com/burningmantech/ranger-ims-go/commit/e441841
 
 ### Added
 
 - Added an "On Hold" filter option to the Incidents page, which can also be picked as the default on the Settings page. https://github.com/burningmantech/ranger-ims-go/commit/fe6206b
 - Made URLs in report entries clickable. IMS pages now send `Referrer-Policy: same-origin`, so following such a link doesn't leak IMS paths to the other site. https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
 - Started recording the mutation itself in the Action Log, as the API JSON the requestor sent, and showing it in an expandable row on the Action Logs admin page. Logins and attachment uploads are recorded without their bodies, as are bulk Places updates; passwords are redacted and an oversized body is truncated. The page also gained a filter on the page the request came from. https://github.com/burningmantech/ranger-ims-go/pull/826
+- Added a "Go to…" box, opened with `Ctrl`+`K` (`⌘`+`K` on a Mac) from any event page, even while typing in a field, for going straight to an Incident, Field Report, or Sanctuary Visit by number. It previews the record's summary before you go, and `Ctrl`+`Enter` or a `Ctrl`-click on "Go" opens it in a new tab. https://github.com/burningmantech/ranger-ims-go/commit/ea344d0 https://github.com/burningmantech/ranger-ims-go/commit/f9a4bf3 https://github.com/burningmantech/ranger-ims-go/commit/d44764f
 
 ### Removed
 
 - Removed refresh tokens. The web client now gets a single token that lasts `IMS_TOKEN_LIFETIME` (8 hours by default) from login, after which the user logs in again. `IMS_ACCESS_TOKEN_LIFETIME` is gone. https://github.com/burningmantech/ranger-ims-go/pull/812
 - Removed jQuery, by upgrading to DataTables 3. https://github.com/burningmantech/ranger-ims-go/commit/13c184c
+- Removed the multi-search popup (the `m` shortcut) from the list pages. The magnifying glass beside their search boxes now links to the Search page, which searches across every event. https://github.com/burningmantech/ranger-ims-go/commit/ea344d0
 
 ### Fixed
 
 - Improved the error message for a user whose stored password still uses the old SHA-1 format. https://github.com/burningmantech/ranger-ims-go/commit/6dc9e89
 - Improved the error message shown when a user's session has ended. https://github.com/burningmantech/ranger-ims-go/commit/c7467c5
 - Fixed seeding the docker-compose dev stack on macOS, where MariaDB's case-insensitive table name handling left the `INCIDENT__RANGER` table unreachable after its index was created. https://github.com/burningmantech/ranger-ims-go/commit/6f163fe
+- Fixed the Field Report page not refreshing when someone else edited the Field Report. https://github.com/burningmantech/ranger-ims-go/commit/1681118
+- Fixed the Incident page showing an error when an attached Field Report or Visit was one the user isn't allowed to read, and a lack of access to Visits clearing the Incident page's Field Report list instead. https://github.com/burningmantech/ranger-ims-go/commit/1681118
 
 ## 2026-08
 

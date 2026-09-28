@@ -599,12 +599,12 @@ test("the Go to… modal defaults to Incident on the Places page, with a usable 
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
-    expect((document.getElementById("jump-kind-incident") as HTMLInputElement).checked).toBe(true);
-    expect((document.getElementById("jump-to-number") as HTMLInputElement).placeholder).toBe("IMS#");
+    expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("IMS#");
     // Places is read-only, but the Go to… box is navigation, not editing, so
     // disableEditing() must leave it enabled.
-    expect((document.getElementById("jump-to-number") as HTMLInputElement).disabled).toBe(false);
+    expect((document.getElementById("goto-number") as HTMLInputElement).disabled).toBe(false);
     // The other record types stay selectable.
-    expect(document.getElementById("jump-kind-field-report")!.classList.contains("d-none")).toBe(false);
-    expect(document.getElementById("jump-kind-visit")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-kind-field-report")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-kind-visit")!.classList.contains("d-none")).toBe(false);
 });

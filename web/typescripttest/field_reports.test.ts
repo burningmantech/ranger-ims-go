@@ -335,6 +335,6 @@ test("the Go to… modal opens on the Field Reports list page's type", async ():
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
-    expect((document.getElementById("jump-kind-field-report") as HTMLInputElement).checked).toBe(true);
-    expect((document.getElementById("jump-to-number") as HTMLInputElement).placeholder).toBe("FR#");
+    expect((document.getElementById("goto-kind-field-report") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("FR#");
 });

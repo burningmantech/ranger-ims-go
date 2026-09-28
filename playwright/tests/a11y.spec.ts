@@ -360,12 +360,12 @@ test.describe("keyboard", (): void => {
     await entryBox.focus();
 
     await page.keyboard.press("ControlOrMeta+k");
-    const jump = page.getByRole("dialog", {name: "Go to…"});
-    await expect(jump).toBeVisible();
-    await expect(jump.getByRole("textbox")).toBeFocused();
+    const goTo = page.getByRole("dialog", {name: "Go to…"});
+    await expect(goTo).toBeVisible();
+    await expect(goTo.getByRole("textbox")).toBeFocused();
 
     await page.keyboard.press("Escape");
-    await expect(jump).toBeHidden();
+    await expect(goTo).toBeHidden();
     await expect(entryBox).toBeFocused();
   });
 

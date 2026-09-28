@@ -270,7 +270,7 @@ async function initSanctuaryVisitPage(): Promise<void> {
     });
     el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
         const submitEnabled = !document.getElementById("report_entry_submit")!.classList.contains("disabled");
-        if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
+        if (submitEnabled && (ims.shortcutModifierHeld(e) || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
         }
     });

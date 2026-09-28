@@ -285,7 +285,7 @@ async function initIncidentPage(): Promise<void> {
     });
     el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
         const submitEnabled = !el.reportEntrySubmit.classList.contains("disabled");
-        if (submitEnabled && (e.ctrlKey || e.altKey) && e.key === "Enter") {
+        if (submitEnabled && (ims.shortcutModifierHeld(e) || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
         }
     });

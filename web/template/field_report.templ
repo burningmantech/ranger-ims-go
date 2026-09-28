@@ -41,10 +41,10 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
         </div>
         <div class="modal-body">
-          <code>n</code>: create (n)ew Field Report <br/>
-          <code>a</code>: jump to (a)dd new report text<br/>
-          <code>h</code>: toggle showing system-generated (h)istory <br/>
-          <code><span class="modifier-key">Ctrl+</span>k</code>: go to a record by number, even while typing<br/>
+          <kbd>n</kbd>: create (n)ew Field Report <br/>
+          <kbd>a</kbd>: jump to (a)dd new report text<br/>
+          <kbd>h</kbd>: toggle showing system-generated (h)istory <br/>
+          <kbd><kbd class="modifier-key">Ctrl</kbd> + <kbd>K</kbd></kbd>: go to a record by number, even while typing<br/>
           <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
         </div>
       </div>
@@ -191,7 +191,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
                       class="btn btn-default btn-sm my-1 btn-block disabled no-print"
                       onclick="submitReportEntry()"
               >
-                Add Entry (Control ⏎)
+                Add Entry <kbd><kbd class="modifier-key">Ctrl</kbd> + <kbd>Enter</kbd></kbd>
               </button>
               <!-- File attachment -->
               <label class="input-group-text hidden" for="attach_file_input">Attach file</label>

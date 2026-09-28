@@ -133,7 +133,7 @@ templ Help(deployment, versionName, versionRef string) {
 <p>
   The <strong>Incidents</strong> page lists the Incidents in the current event, one per row.
   Click a row to open that Incident. To create a new Incident, click <strong>New</strong>
-  (or press <code>n</code>).
+  (or press <kbd>n</kbd>).
 </p>
 <p>You can narrow down the list with the controls above the table:</p>
 <ul>
@@ -141,7 +141,7 @@ templ Help(deployment, versionName, versionRef string) {
   <li><strong>Days filter</strong>: show only Incidents modified recently.</li>
   <li><strong>Types filter</strong>: show only Incidents with particular Incident Types.</li>
   <li><strong>Rows</strong>: how many rows to show per page.</li>
-  <li><strong>Search box</strong>: filters the list as you type. Typing an Incident number and pressing <code>Enter</code> jumps straight to that Incident.</li>
+  <li><strong>Search box</strong>: filters the list as you type. Typing an Incident number and pressing <kbd>Enter</kbd> jumps straight to that Incident.</li>
 </ul>
 <p>
   The list updates by itself as other people make changes, so there's no need to refresh the page.
@@ -158,7 +158,7 @@ templ Help(deployment, versionName, versionRef string) {
   <li><strong>Location</strong>: where it happened, with separate <strong>Name</strong>, <strong>Address</strong>, and <strong>Details</strong> fields. Start typing a camp or art name in <strong>Name</strong> and IMS suggests matches from <a href="#places">Places</a> and fills in the address automatically; you can also type an address by hand. Put anything extra (a landmark, a specific tent) in <strong>Details</strong>. An address you type by hand may get tidied up on save; see <a href="#addresses">How addresses are tidied up</a>. The card header has a <strong>Places</strong> link to the Places reference and, where a map is configured for the event, a <strong>Map</strong> link.</li>
   <li><strong>Attached Field Reports/Visits</strong>: Field Reports and Sanctuary Visits related to this Incident. Attaching them makes their contents visible from the Incident. See <a href="#incident-attachments">Attaching Field Reports, Visits, and files</a>.</li>
   <li><strong>Linked Incidents</strong>: related Incidents, even from other years, so you can hop between them. See <a href="#incident-linking">Linking related Incidents</a>.</li>
-  <li><strong>Entries</strong>: the running narrative. Type in the box at the bottom and click <strong>Add Entry</strong> (or press <code>Control</code>+<code>Enter</code>) to add a timestamped entry. This is where the story of the Incident lives: what was reported, what Rangers did, how it resolved. Where file attachments are enabled, you can also attach a photo or file to an entry with the <strong>Attach file</strong> button.</li>
+  <li><strong>Entries</strong>: the running narrative. Type in the box at the bottom and click <strong>Add Entry</strong> (or press <kbd><kbd>Ctrl</kbd> + <kbd>Enter</kbd></kbd>, or <kbd><kbd>⌘</kbd> + <kbd>Enter</kbd></kbd> on a Mac) to add a timestamped entry. This is where the story of the Incident lives: what was reported, what Rangers did, how it resolved. Where file attachments are enabled, you can also attach a photo or file to an entry with the <strong>Attach file</strong> button.</li>
 </ul>
 <p>
   Check <strong>Show history and stricken</strong> above the entries to also see system-generated
@@ -211,7 +211,7 @@ templ Help(deployment, versionName, versionRef string) {
   <li><strong>Several at once</strong>: separate them with commas, like <code>4,5,6</code> or <code>4, 2015#2, 6</code>. You can mix same-event and other-event references in one go.</li>
 </ul>
 <p>
-  Press <code>Enter</code> to make the links. Linking is mutual: the other Incident gets a link
+  Press <kbd>Enter</kbd> to make the links. Linking is mutual: the other Incident gets a link
   back to this one, and a note is added to its entries recording the link, so people reading
   either Incident can see the connection. To remove a link, click the <strong>X</strong> next
   to it. You can only link to events you're allowed to read; if you don't have read access to
@@ -228,7 +228,7 @@ templ Help(deployment, versionName, versionRef string) {
 </p>
 <p>
   The <strong>Field Reports</strong> page lists reports in the current event; click one to open
-  it, or click <strong>New</strong> (or press <code>n</code>) to write one. Like Incidents, a
+  it, or click <strong>New</strong> (or press <kbd>n</kbd>) to write one. Like Incidents, a
   Field Report has a one-line summary and a series of timestamped entries. Write your account
   as one or more entries.
 </p>
@@ -264,7 +264,7 @@ templ Help(deployment, versionName, versionRef string) {
 </p>
 <p>
   Open the <strong>Sanctuary Visits</strong> page from the top bar and click a row to open a
-  Visit, or click <strong>New</strong> (or press <code>n</code>) to start one. A Visit is
+  Visit, or click <strong>New</strong> (or press <kbd>n</kbd>) to start one. A Visit is
   organized into collapsible sections. Basics and Visit Notes &amp; Report Entries start open,
   as does any other section that already has something recorded in it, so you can read an
   existing Visit without clicking through it; expand the rest as you need them and fill in what
@@ -326,11 +326,11 @@ templ Help(deployment, versionName, versionRef string) {
     filters the table as you type. It reaches beyond the columns on screen: for Incidents and
     Field Reports it also searches the text of entries, and for Places it matches a place's
     recorded details such as its landmark and contacts. For Visits it searches the columns
-    shown. Press <code>/</code> to jump to the search box.
+    shown. Press <kbd>/</kbd> to jump to the search box.
   </li>
   <li>
     <strong>Jump by number</strong>: in the Incidents, Field Reports, or Visits search box,
-    type a record's number and press <code>Enter</code> to go straight to it.
+    type a record's number and press <kbd>Enter</kbd> to go straight to it.
   </li>
   <li>
     <strong>The Search page</strong>: <a href="/ims/app/search">a dedicated page</a> that
@@ -377,7 +377,7 @@ templ Help(deployment, versionName, versionRef string) {
 <h2 id="printing" class="h4 mt-4">Printing</h2>
 <p>
   Incidents, Field Reports, and Visits are designed to print cleanly: use your browser's print
-  command (usually <code>Control</code>+<code>P</code>, or <code>Command</code>+<code>P</code>
+  command (usually <kbd><kbd>Ctrl</kbd> + <kbd>P</kbd></kbd>, or <kbd><kbd>⌘</kbd> + <kbd>P</kbd></kbd>
   on a Mac) and the editing controls and buttons are left off the printout, so you
   get a readable paper copy of the record. If you want the history and stricken entries to
   appear on the printout, turn on <strong>Show history and stricken</strong> before printing.
@@ -403,16 +403,16 @@ templ Help(deployment, versionName, versionRef string) {
 <h2 id="shortcuts" class="h4 mt-4">Keyboard shortcuts</h2>
 <p>
   Most record pages have single-key shortcuts that work when you're not typing in a field.
-  Press <code>?</code> to pop up the full, authoritative list of shortcuts for that
-  page (press <code>?</code> again, or <code>Escape</code>, to close it). The common ones:
+  Press <kbd>?</kbd> to pop up the full, authoritative list of shortcuts for that
+  page (press <kbd>?</kbd> again, or <kbd>Esc</kbd>, to close it). The common ones:
 </p>
 <ul>
-  <li><code>n</code>: create a new Incident / Field Report / Visit (on a record's own page, this opens a new one in a new tab)</li>
-  <li><code>/</code>: jump to the search box</li>
-  <li><code>a</code>: jump to the box for adding a new entry</li>
-  <li><code>h</code>: toggle showing history and stricken entries</li>
-  <li><code>Control</code>+<code>Enter</code>: submit the entry you're writing</li>
-  <li><code>Control</code>+<code>K</code> (or <code>Command</code>+<code>K</code> on a Mac): open the <strong>Go to…</strong> box to jump to an Incident, Field Report, or Visit by number</li>
+  <li><kbd>n</kbd>: create a new Incident / Field Report / Visit (on a record's own page, this opens a new one in a new tab)</li>
+  <li><kbd>/</kbd>: jump to the search box</li>
+  <li><kbd>a</kbd>: jump to the box for adding a new entry</li>
+  <li><kbd>h</kbd>: toggle showing history and stricken entries</li>
+  <li><kbd><kbd>Ctrl</kbd> + <kbd>Enter</kbd></kbd> (or <kbd><kbd>⌘</kbd> + <kbd>Enter</kbd></kbd> on a Mac): submit the entry you're writing</li>
+  <li><kbd><kbd>Ctrl</kbd> + <kbd>K</kbd></kbd> (or <kbd><kbd>⌘</kbd> + <kbd>K</kbd></kbd> on a Mac): open the <strong>Go to…</strong> box to jump to an Incident, Field Report, or Visit by number</li>
 </ul>
 <p>
   If the single-key shortcuts get in your way (such as when using speech input), you can

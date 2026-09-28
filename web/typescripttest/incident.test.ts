@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
+import { answerDialog, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
 
 const eventName = "2025";
 const eventId = 1;
@@ -473,16 +473,13 @@ test("editing the summary sends the edit and reloads the incident", async (): Pr
 test("editState warns when closing an incident that has no incident types", async (): Promise<void> => {
     serverIncident.incident_type_ids = [];
     const mock = await initIncidentPage();
-    // happy-dom doesn't implement window.alert.
-    const alertSpy = vi.fn();
-    vi.stubGlobal("alert", alertSpy);
 
     const state = document.getElementById("incident_state") as HTMLSelectElement;
     state.value = "closed";
-    await window.editState();
+    const done = window.editState();
 
-    expect(alertSpy).toHaveBeenCalledOnce();
-    expect(alertSpy.mock.calls[0]![0]).toContain("Please add an incident type");
+    expect(await answerDialog("ok")).toContain("Please add an incident type");
+    await done;
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { state: "closed", number: 1 },
     ]);

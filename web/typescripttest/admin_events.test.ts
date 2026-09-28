@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { answerDialog, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
 
 interface AccessLike {
     expression: string;
@@ -664,17 +664,14 @@ test("the delete button DELETEs the event after confirmation", async (): Promise
         url === url_event.replace("<event_id>", "2025") && init?.method === "DELETE";
 
     // Declining the confirmation sends nothing.
-    const confirmMock = vi.fn().mockReturnValueOnce(false);
-    vi.stubGlobal("confirm", confirmMock);
     deleteButton.click();
-    await vi.waitFor((): void => {
-        expect(confirmMock).toHaveBeenCalledTimes(1);
-    });
+    expect(await answerDialog("cancel")).toContain('Delete the event "2025"');
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(mock.mock.calls.find(deleteCall)).toBeUndefined();
 
     // Accepting it deletes the event.
-    confirmMock.mockReturnValueOnce(true);
     deleteButton.click();
+    await answerDialog("ok");
     await vi.waitFor((): void => {
         expect(mock.mock.calls.find(deleteCall)).toBeDefined();
     });

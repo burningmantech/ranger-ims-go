@@ -1773,6 +1773,114 @@ export function bsModal(el: HTMLElement) {
     return modal;
 }
 
+interface DialogOptions {
+    message: string;
+    okLabel?: string;
+    // Whether to offer a Cancel button, i.e. whether this is a question.
+    cancellable?: boolean;
+    danger?: boolean;
+    // If set, the dialog asks for a line of text, prefilled with this.
+    inputValue?: string;
+}
+
+// showDialog is the in-page replacement for window.alert/confirm/prompt. It
+// resolves with the input's value (or "" if there's no input) when the user
+// clicks OK, or null if they back out.
+//
+// This uses a native <dialog> rather than a Bootstrap modal, because many of
+// these come up over an already-open Bootstrap modal, and Bootstrap can't
+// stack modals. A <dialog> lives in the browser's top layer instead.
+function showDialog(opts: DialogOptions): Promise<string|null> {
+    const dialog = document.createElement("dialog");
+    dialog.className = "ims-dialog";
+
+    const message = document.createElement("p");
+    message.className = "ims-dialog-message";
+    message.id = `ims-dialog-message-${Date.now()}`;
+    message.textContent = opts.message;
+    dialog.setAttribute("aria-labelledby", message.id);
+    dialog.append(message);
+
+    let input: HTMLInputElement|null = null;
+    if (opts.inputValue != null) {
+        input = document.createElement("input");
+        input.type = "text";
+        input.className = "form-control mb-3";
+        input.value = opts.inputValue;
+        input.setAttribute("aria-labelledby", message.id);
+        dialog.append(input);
+    }
+
+    const buttons = document.createElement("div");
+    buttons.className = "d-flex justify-content-end gap-2";
+    if (opts.cancellable) {
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "btn btn-secondary ims-dialog-cancel";
+        cancel.textContent = "Cancel";
+        cancel.addEventListener("click", (): void => dialog.close());
+        buttons.append(cancel);
+    }
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = `btn ${opts.danger ? "btn-danger" : "btn-primary"} ims-dialog-ok`;
+    ok.textContent = opts.okLabel ?? "OK";
+    ok.addEventListener("click", (): void => dialog.close("ok"));
+    buttons.append(ok);
+    dialog.append(buttons);
+
+    dialog.addEventListener("keydown", (e: KeyboardEvent): void => {
+        if (e.key === "Enter" && e.target === input) {
+            e.preventDefault();
+            dialog.close("ok");
+        }
+        // Keep Escape from also closing a Bootstrap modal underneath.
+        if (e.key === "Escape") {
+            e.stopPropagation();
+        }
+    });
+
+    // Inside an open Bootstrap modal, since that modal's focus trap would
+    // otherwise pull focus back out of the dialog.
+    const parent: Element = document.querySelector(".modal.show") ?? document.body;
+    parent.append(dialog);
+
+    return new Promise((resolve): void => {
+        dialog.addEventListener("close", (): void => {
+            const confirmed = dialog.returnValue === "ok";
+            const value = input?.value ?? "";
+            dialog.remove();
+            resolve(confirmed ? value : null);
+        }, {once: true});
+        dialog.showModal();
+        if (input != null) {
+            input.select();
+        } else {
+            ok.focus();
+        }
+    });
+}
+
+export function isDialogOpen(): boolean {
+    return document.querySelector("dialog.ims-dialog[open]") != null;
+}
+
+export async function alertDialog(message: string): Promise<void> {
+    await showDialog({message: message});
+}
+
+export async function confirmDialog(
+    message: string, opts?: {okLabel?: string; danger?: boolean},
+): Promise<boolean> {
+    return await showDialog({message: message, cancellable: true, ...opts}) != null;
+}
+
+export async function promptDialog(
+    message: string, defaultValue: string, opts?: {okLabel?: string},
+): Promise<string|null> {
+    return await showDialog({message: message, cancellable: true, inputValue: defaultValue, ...opts});
+}
+
 export function windowFragmentParams(): URLSearchParams {
     const fragment = window.location.hash.startsWith("#")
         ? window.location.hash.substring(1)
@@ -1915,6 +2023,9 @@ export function blockKeyboardShortcutFieldActive(): boolean {
     // users trigger by accident just by talking. WCAG 2.1.4 therefore requires
     // that they be switchable; the Settings page offers the switch.
     if (!keyboardShortcutsEnabled()) {
+        return true;
+    }
+    if (isDialogOpen()) {
         return true;
     }
     if (document.activeElement === document.body) {
@@ -2243,7 +2354,7 @@ function setupJumpTo(): void {
             return;
         }
         // Bootstrap can't stack modals.
-        if (document.querySelector(".modal.show") != null) {
+        if (document.querySelector(".modal.show") != null || isDialogOpen()) {
             return;
         }
         open();

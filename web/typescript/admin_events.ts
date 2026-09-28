@@ -179,7 +179,7 @@ async function loadAccessControlList() : Promise<{err: string|null}> {
     if (eventsErr != null) {
         const message = `Failed to load events: ${eventsErr}`;
         console.error(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         return {err: message};
     }
     const events = eventsJson??[];
@@ -187,7 +187,7 @@ async function loadAccessControlList() : Promise<{err: string|null}> {
     if (err != null) {
         const message = `Failed to load access control list: ${err}`;
         console.error(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         return {err: message};
     }
     accessControlList = json;
@@ -841,7 +841,7 @@ async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Pr
     if (err != null) {
         const message = `Failed to add event: ${err}`;
         console.log(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         await loadAccessControlList();
         drawAccess();
         ims.controlHasError(sender);
@@ -856,9 +856,9 @@ async function addEvent(sender: HTMLInputElement, type: "group"|"not-group"): Pr
 
 // confirmExpression warns about suspicious-looking expressions, returning
 // false if the user decided not to proceed with one.
-function confirmExpression(expression: string): boolean {
+async function confirmExpression(expression: string): Promise<boolean> {
     if (expression === "**") {
-        return confirm(
+        return await ims.confirmDialog(
             "Double-wildcard '**' ACLs are no longer supported, so this ACL will have " +
             "no effect.\n\n" +
             "Proceed with doing something pointless?"
@@ -869,7 +869,7 @@ function confirmExpression(expression: string): boolean {
         expression.startsWith("person:") || expression.startsWith("position:") ||
         expression.startsWith("team:") || expression.startsWith("onduty:");
     if (!validPrefix) {
-        return confirm(
+        return await ims.confirmDialog(
             "WARNING: '" + expression + "' does not look like a valid ACL " +
             "expression. Example expressions include 'person:Hubcap' for an individual, " +
             "'position:007' for a role, 'onduty:007' for people currently on duty for a position, " +
@@ -880,7 +880,7 @@ function confirmExpression(expression: string): boolean {
     }
 
     if (validExpressions != null && !validExpressions.has(expression)) {
-        return confirm(
+        return await ims.confirmDialog(
             "'" + expression + "' does not match any known person, position, or team, " +
             "so this rule won't grant access to anyone. It will be flagged as an " +
             "issue on this page.\n\n" +
@@ -914,7 +914,7 @@ async function addWho(grantEl: HTMLElement): Promise<void> {
     if (newExpression === "") {
         return;
     }
-    if (!confirmExpression(newExpression)) {
+    if (!await confirmExpression(newExpression)) {
         addInput.value = "";
         return;
     }
@@ -978,7 +978,7 @@ async function fixWho(grantEl: HTMLElement, oldExpression: string, sender: HTMLI
         drawAccess();
         return;
     }
-    if (!confirmExpression(newExpression)) {
+    if (!await confirmExpression(newExpression)) {
         drawAccess();
         return;
     }
@@ -1167,7 +1167,7 @@ async function sendACL(edits: EventsAccess): Promise<{err:string|null}> {
     }
     const message = `Failed to edit ACL:\n${JSON.stringify(err)}`;
     console.log(message);
-    window.alert(message);
+    await ims.alertDialog(message);
     return {err: err};
 }
 
@@ -1189,7 +1189,7 @@ async function setParentGroup(sender: HTMLInputElement): Promise<void> {
         if (!newParent) {
             const message = `No group by that name`;
             console.log(message);
-            window.alert(message);
+            await ims.alertDialog(message);
             await loadAccessControlList();
             drawAccess();
             ims.controlHasError(sender);
@@ -1203,7 +1203,7 @@ async function setParentGroup(sender: HTMLInputElement): Promise<void> {
     if (err != null) {
         const message = `Failed to edit event: ${err}`;
         console.log(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         await loadAccessControlList();
         drawAccess();
         ims.controlHasError(sender);
@@ -1222,10 +1222,11 @@ async function deleteEvent(): Promise<void> {
     if (!eventName || !eventDeletionAllowed) {
         return;
     }
-    if (!confirm(
+    if (!await ims.confirmDialog(
         `Delete the event "${eventName}"?\n\n` +
         "This will permanently delete all of its data, including incidents, " +
-        "field reports, and visits. This cannot be undone.")) {
+        "field reports, and visits. This cannot be undone.",
+        {okLabel: "Delete", danger: true})) {
         return;
     }
     const {err} = await ims.fetchNoThrow(url_event.replace("<event_id>", eventName), {
@@ -1234,7 +1235,7 @@ async function deleteEvent(): Promise<void> {
     if (err != null) {
         const message = `Failed to delete event: ${err}`;
         console.log(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         return;
     }
     editEventModal?.hide();
@@ -1257,7 +1258,7 @@ async function setNormalizeAddresses(sender: HTMLInputElement): Promise<void> {
     if (err != null) {
         const message = `Failed to edit event: ${err}`;
         console.log(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         await loadAccessControlList();
         drawAccess();
         ims.controlHasError(sender);
@@ -1307,7 +1308,7 @@ async function setReleaseTime(sender: HTMLInputElement, field: ReleaseTimeField)
     if (err != null) {
         const message = `Failed to edit event: ${err}`;
         console.log(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         await loadAccessControlList();
         drawAccess();
         ims.controlHasError(sender);
@@ -1336,7 +1337,7 @@ async function setMapURL(sender: HTMLInputElement): Promise<void> {
     if (err != null) {
         const message = `Failed to edit event: ${err}`;
         console.log(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         await loadAccessControlList();
         drawAccess();
         ims.controlHasError(sender);

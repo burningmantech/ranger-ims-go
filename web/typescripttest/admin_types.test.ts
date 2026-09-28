@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
+import { answerDialog, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
 
 let serverTypes: ims.IncidentType[];
 
@@ -274,10 +274,6 @@ test("modal edits send nothing before a type has been loaded into it", async ():
 });
 
 test("a rejected rename marks the field invalid and leaves the list alone", async (): Promise<void> => {
-    const alertSpy = vi.fn();
-    // happy-dom doesn't implement window.alert.
-    vi.stubGlobal("alert", alertSpy);
-
     await initAdminTypesPage((url, init) => {
         if (url === url_incidentTypes && init?.body != null) {
             return problemResponse("That name is already taken", 400);
@@ -288,11 +284,12 @@ test("a rejected rename marks the field invalid and leaves the list alone", asyn
     typeList()[0]!.querySelector<HTMLButtonElement>(".show-edit-modal")!.click();
     const nameField = document.getElementById("edit_incident_type_name") as HTMLInputElement;
     nameField.value = "Junk";
-    await window.setIncidentTypeName(nameField);
+    const done = window.setIncidentTypeName(nameField);
 
+    expect(await answerDialog("ok")).toContain("That name is already taken");
+    await done;
     expect(nameField.classList.contains("is-invalid")).toBe(true);
     expect(nameField.getAttribute("aria-invalid")).toBe("true");
-    expect(alertSpy).toHaveBeenCalledOnce();
     // The list still shows the original name.
     expect(typeList()[0]!.querySelector(".type-name")!.textContent).toBe("Junk");
 });
@@ -310,14 +307,12 @@ test("creating a type from a blank input sends nothing", async (): Promise<void>
 
 // Deletion isn't built yet; the button says so rather than silently doing nothing.
 test("deleting a type reports that it is unimplemented", async (): Promise<void> => {
-    const alertSpy = vi.fn();
-    vi.stubGlobal("alert", alertSpy);
     const mock = await initAdminTypesPage();
 
     mock.mockClear();
-    window.deleteIncidentType(typeList()[0]!);
+    const done = window.deleteIncidentType(typeList()[0]!);
 
-    expect(alertSpy).toHaveBeenCalledOnce();
-    expect(alertSpy.mock.calls[0]![0]).toContain("unimplemented");
+    expect(await answerDialog("ok")).toContain("unimplemented");
+    await done;
     expect(editsSent(mock)).toEqual([]);
 });

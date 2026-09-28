@@ -21,7 +21,7 @@ import * as ims from "./ims.ts";
 declare global {
     interface Window {
         createIncidentType: (el: HTMLInputElement)=>Promise<void>;
-        deleteIncidentType: (el: HTMLElement)=>void;
+        deleteIncidentType: (el: HTMLElement)=>Promise<void>;
         showIncidentType: (el: HTMLElement)=>Promise<void>;
         hideIncidentType: (el: HTMLElement)=>Promise<void>;
         setIncidentTypeName: (el: HTMLInputElement)=>Promise<void>;
@@ -78,7 +78,7 @@ async function loadAllIncidentTypes(): Promise<{err:string|null}> {
     if (err != null || json == null) {
         const message = "Failed to load incident types:\n" + err;
         console.error(message);
-        window.alert(message);
+        await ims.alertDialog(message);
         return {err: message};
     }
     json.sort((a: ims.IncidentType, b: ims.IncidentType): number => (a.name??"").localeCompare(b.name??""));
@@ -144,8 +144,8 @@ async function createIncidentType(sender: HTMLInputElement): Promise<void> {
 }
 
 
-function deleteIncidentType(_sender: HTMLElement) {
-    alert("Remove unimplemented");
+async function deleteIncidentType(_sender: HTMLElement): Promise<void> {
+    await ims.alertDialog("Remove unimplemented");
 }
 
 
@@ -217,6 +217,6 @@ async function sendIncidentTypes(edits: ims.IncidentType): Promise<{err:string|n
     }
     const message = `Failed to edit incident types:\n${JSON.stringify(err)}`;
     console.log(message);
-    window.alert(message);
+    await ims.alertDialog(message);
     return {err: err};
 }

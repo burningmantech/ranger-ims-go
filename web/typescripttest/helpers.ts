@@ -63,6 +63,25 @@ export function problemResponse(detail: string, status: number): Response {
     });
 }
 
+// Wait for the in-page dialog that replaces window.alert/confirm/prompt to
+// open, then answer it, after typing `input` into its field if one is given.
+// Returns the dialog's message.
+export async function answerDialog(answer: "ok" | "cancel", input?: string): Promise<string> {
+    const dialog = await vi.waitFor((): HTMLDialogElement => {
+        const d = document.querySelector<HTMLDialogElement>("dialog.ims-dialog[open]");
+        if (d == null) {
+            throw new Error("no dialog open");
+        }
+        return d;
+    });
+    const message = dialog.querySelector(".ims-dialog-message")!.textContent ?? "";
+    if (input != null) {
+        dialog.querySelector("input")!.value = input;
+    }
+    dialog.querySelector<HTMLButtonElement>(`.ims-dialog-${answer}`)!.click();
+    return message;
+}
+
 export type FetchHandler = (url: string, init?: RequestInit) => Response | undefined;
 
 // Replace global fetch with a route handler, returning the mock function so

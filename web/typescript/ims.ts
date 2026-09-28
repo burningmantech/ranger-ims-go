@@ -2250,7 +2250,7 @@ function setupJumpTo(): void {
     }, {capture: true});
 }
 
-// Shortcut hints are written as "Ctrl+"; on Apple platforms, make them "⌘".
+// Shortcut hints name the modifier key "Ctrl"; on Apple platforms, make it "⌘".
 function renderModifierKeys(): void {
     if (!isApplePlatform()) {
         return;
@@ -2258,6 +2258,11 @@ function renderModifierKeys(): void {
     for (const el of document.querySelectorAll(".modifier-key")) {
         el.textContent = "⌘";
     }
+}
+
+// Whether the platform's shortcut modifier is held: Cmd on Apple platforms, Ctrl elsewhere.
+export function shortcutModifierHeld(e: KeyboardEvent): boolean {
+    return isApplePlatform() ? e.metaKey : e.ctrlKey;
 }
 
 // Whether the browser runs on macOS or iOS, where shortcuts use Cmd rather than Ctrl.

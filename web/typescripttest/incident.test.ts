@@ -679,6 +679,53 @@ test("submitReportEntry posts the new entry and clears the textarea", async (): 
     expect(submit.classList.contains("disabled")).toBe(true);
 });
 
+function pressEnterInEntryBox(modifiers: KeyboardEventInit): void {
+    const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
+    textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...modifiers }));
+}
+
+test("Cmd+Enter submits the entry on a Mac, and Ctrl+Enter doesn't", async (): Promise<void> => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    const mock = await initIncidentPage();
+    (document.getElementById("report_entry_add") as HTMLTextAreaElement).value = "saw a thing";
+    window.reportEntryEdited();
+
+    const submit = document.getElementById("report_entry_submit")!;
+
+    // Submitting disables the button straight away, before anything posts.
+    pressEnterInEntryBox({ ctrlKey: true });
+    expect(submit.classList.contains("disabled")).toBe(false);
+
+    pressEnterInEntryBox({ metaKey: true });
+    expect(submit.classList.contains("disabled")).toBe(true);
+    await vi.waitFor((): void => {
+        expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+            { report_entries: [{ text: "saw a thing", id: -1 }], number: 1 },
+        ]);
+    });
+});
+
+test("Ctrl+Enter submits the entry off a Mac, and Cmd+Enter doesn't", async (): Promise<void> => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+    const mock = await initIncidentPage();
+    (document.getElementById("report_entry_add") as HTMLTextAreaElement).value = "saw a thing";
+    window.reportEntryEdited();
+
+    const submit = document.getElementById("report_entry_submit")!;
+
+    // Submitting disables the button straight away, before anything posts.
+    pressEnterInEntryBox({ metaKey: true });
+    expect(submit.classList.contains("disabled")).toBe(false);
+
+    pressEnterInEntryBox({ ctrlKey: true });
+    expect(submit.classList.contains("disabled")).toBe(true);
+    await vi.waitFor((): void => {
+        expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+            { report_entries: [{ text: "saw a thing", id: -1 }], number: 1 },
+        ]);
+    });
+});
+
 test("the strike button strikes a report entry", async (): Promise<void> => {
     const mock = await initIncidentPage();
 
@@ -1171,7 +1218,7 @@ function modalPrototype(): { show(): void, hide(): void } {
         .bootstrap.Modal.prototype;
 }
 
-// The help modal's Ctrl+K hint and the Go to… modal's Ctrl+Enter one.
+// The help modal's Ctrl+K hint, the Add Entry button's Ctrl+Enter, and the Go to… modal's Ctrl+Enter.
 function modifierKeyTexts(): string[] {
     return [...document.querySelectorAll(".modifier-key")].map((el: Element): string => el.textContent ?? "");
 }
@@ -1400,14 +1447,14 @@ test("shortcut hints name Cmd on a Mac", async (): Promise<void> => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await initIncidentPage(jumpRoutes);
 
-    expect(modifierKeyTexts()).toEqual(["⌘", "⌘"]);
+    expect(modifierKeyTexts()).toEqual(["⌘", "⌘", "⌘"]);
 });
 
 test("shortcut hints name Ctrl off a Mac", async (): Promise<void> => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     await initIncidentPage(jumpRoutes);
 
-    expect(modifierKeyTexts()).toEqual(["Ctrl+", "Ctrl+"]);
+    expect(modifierKeyTexts()).toEqual(["Ctrl", "Ctrl", "Ctrl"]);
 });
 
 test("Go to… is left off for someone who can't read any of the record types", async (): Promise<void> => {

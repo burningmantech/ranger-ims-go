@@ -41,9 +41,9 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div class="modal-body">
-            <code>n</code>: create (n)ew Sanctuary Visit<br/>
-            <code>a</code>: jump to (a)dd new report text<br/>
-            <code>h</code>: toggle showing system-generated (h)istory <br/>
+            <kbd>n</kbd>: create (n)ew Sanctuary Visit<br/>
+            <kbd>a</kbd>: jump to (a)dd new report text<br/>
+            <kbd>h</kbd>: toggle showing system-generated (h)istory <br/>
             <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
           </div>
         </div>
@@ -589,7 +589,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                       class="btn btn-default btn-sm btn-block my-1 disabled no-print float-start"
                       onclick="submitReportEntry()"
               >
-                Add Entry (Control &#9166;)
+                Add Entry <kbd><kbd class="modifier-key">Ctrl</kbd> + <kbd>Enter</kbd></kbd>
               </button>
               <!-- File attachment -->
               <label class="input-group-text hidden" for="attach_file_input">Attach file</label>

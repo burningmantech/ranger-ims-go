@@ -462,3 +462,30 @@ h1 {
 .hover-placeholder:hover::placeholder {
   opacity: 1;
 }
+
+/* Keys draw as keycaps. A key combination is an outer kbd wrapping one kbd per
+   key, like <kbd><kbd>Ctrl</kbd> + <kbd>K</kbd></kbd>, and draws no cap itself. */
+kbd {
+  display: inline-block;
+  padding: 0.05em 0.4em;
+  font-size: 0.85em;
+  line-height: 1.3;
+  color: var(--bs-body-color);
+  background-color: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-bottom-width: 2px;
+  border-radius: 0.3rem;
+  white-space: nowrap;
+}
+
+kbd:has(> kbd) {
+  padding: 0;
+  color: inherit;
+  background-color: transparent;
+  border: none;
+}
+
+kbd kbd {
+  padding: 0.05em 0.4em;
+  font-size: 1em;
+}

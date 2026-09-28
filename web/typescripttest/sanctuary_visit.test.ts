@@ -726,6 +726,6 @@ test("the Go to… modal opens on this page's Visit type", async (): Promise<voi
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
-    expect((document.getElementById("jump-kind-visit") as HTMLInputElement).checked).toBe(true);
-    expect((document.getElementById("jump-to-number") as HTMLInputElement).placeholder).toBe("VS#");
+    expect((document.getElementById("goto-kind-visit") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("VS#");
 });

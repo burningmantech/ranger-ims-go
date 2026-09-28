@@ -1209,8 +1209,8 @@ function jumpRoutes(url: string, init?: RequestInit): Response | undefined {
     return incidentRoutes(url, init);
 }
 
-function jumpModal(): HTMLDialogElement {
-    return document.getElementById("jumpToModal") as HTMLDialogElement;
+function goToModal(): HTMLDialogElement {
+    return document.getElementById("goToModal") as HTMLDialogElement;
 }
 
 // The help modal's Ctrl+K hint, the Add Entry button's Ctrl+Enter, and the Go to… modal's Ctrl+Enter.
@@ -1219,14 +1219,14 @@ function modifierKeyTexts(): string[] {
 }
 
 function typeJumpNumber(value: string): HTMLInputElement {
-    const input = document.getElementById("jump-to-number") as HTMLInputElement;
+    const input = document.getElementById("goto-number") as HTMLInputElement;
     input.value = value;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     return input;
 }
 
-function selectJumpKind(kind: string): HTMLInputElement {
-    const radio = document.getElementById(`jump-kind-${kind.replaceAll("_", "-")}`) as HTMLInputElement;
+function selectGoToKind(kind: string): HTMLInputElement {
+    const radio = document.getElementById(`goto-kind-${kind.replaceAll("_", "-")}`) as HTMLInputElement;
     radio.checked = true;
     radio.dispatchEvent(new Event("change", { bubbles: true }));
     return radio;
@@ -1240,15 +1240,15 @@ test("Ctrl+K and Cmd+K open Go to… even while typing in a field", async (): Pr
     const ctrlK = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true });
     entryBox.dispatchEvent(ctrlK);
     expect(ctrlK.defaultPrevented).toBe(true);
-    expect(jumpModal().open).toBe(true);
-    jumpModal().close();
+    expect(goToModal().open).toBe(true);
+    goToModal().close();
 
     entryBox.focus();
     const cmdK = new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true, cancelable: true });
     entryBox.dispatchEvent(cmdK);
     expect(cmdK.defaultPrevented).toBe(true);
-    expect(jumpModal().open).toBe(true);
-    jumpModal().close();
+    expect(goToModal().open).toBe(true);
+    goToModal().close();
 
     // A bare k, or one with another modifier, is left alone.
     const bareK = new KeyboardEvent("keydown", { key: "k", bubbles: true, cancelable: true });
@@ -1257,7 +1257,7 @@ test("Ctrl+K and Cmd+K open Go to… even while typing in a field", async (): Pr
     const ctrlShiftK = new KeyboardEvent("keydown", { key: "K", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true });
     entryBox.dispatchEvent(ctrlShiftK);
     expect(ctrlShiftK.defaultPrevented).toBe(false);
-    expect(jumpModal().open).toBe(false);
+    expect(goToModal().open).toBe(false);
 });
 
 // Handing focus back on close is the browser's job, which happy-dom doesn't do,
@@ -1268,16 +1268,16 @@ test("Ctrl+K closes Go to… again", async (): Promise<void> => {
     entryBox.focus();
 
     entryBox.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(jumpModal().open).toBe(true);
-    expect(document.activeElement).toBe(document.getElementById("jump-to-number"));
+    expect(goToModal().open).toBe(true);
+    expect(document.activeElement).toBe(document.getElementById("goto-number"));
 
     document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(jumpModal().open).toBe(false);
+    expect(goToModal().open).toBe(false);
 });
 
 test("Go to… previews the typed Incident number, or says it doesn't exist", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
-    const preview = document.getElementById("jump-to-preview")!;
+    const preview = document.getElementById("goto-preview")!;
 
     typeJumpNumber("5");
     await vi.waitFor((): void => {
@@ -1299,15 +1299,15 @@ test("Go to… previews the typed Incident number, or says it doesn't exist", as
 
 test("Go to… previews a Field Report and a Visit", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
-    const preview = document.getElementById("jump-to-preview")!;
+    const preview = document.getElementById("goto-preview")!;
 
-    selectJumpKind("field_report");
+    selectGoToKind("field_report");
     typeJumpNumber("5");
     await vi.waitFor((): void => {
         expect(preview.textContent).toBe("FR #5 (Tool): A field report");
     });
 
-    selectJumpKind("visit");
+    selectGoToKind("visit");
     typeJumpNumber("5");
     await vi.waitFor((): void => {
         expect(preview.textContent).toBe("VS #5: Stardust");
@@ -1322,9 +1322,9 @@ test("Go to… previews a Field Report and a Visit", async (): Promise<void> => 
 
 test("Go to… says so when the user can't access the typed record", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
-    const preview = document.getElementById("jump-to-preview")!;
+    const preview = document.getElementById("goto-preview")!;
 
-    selectJumpKind("field_report");
+    selectGoToKind("field_report");
     typeJumpNumber("7");
     await vi.waitFor((): void => {
         expect(preview.textContent).toBe("You don't have access to FR #7");
@@ -1351,7 +1351,7 @@ test("Go to…'s Enter navigates, and Ctrl+Enter opens a new tab", async (): Pro
 
 test("Go to…'s Go button is disabled until a number is typed", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
-    const button = document.getElementById("jump-to-go") as HTMLButtonElement;
+    const button = document.getElementById("goto-go") as HTMLButtonElement;
     expect(button.disabled).toBe(true);
 
     typeJumpNumber("5");
@@ -1365,7 +1365,7 @@ test("Go to…'s Go button does what Enter does, and Ctrl/Cmd-click opens a new 
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     const open = vi.spyOn(window, "open").mockImplementation((): null => null);
-    const button = document.getElementById("jump-to-go") as HTMLButtonElement;
+    const button = document.getElementById("goto-go") as HTMLButtonElement;
 
     typeJumpNumber("5");
     button.click();
@@ -1384,14 +1384,14 @@ test("Go to…'s Enter opens a Field Report or Visit at its own URL", async (): 
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
 
-    selectJumpKind("field_report");
+    selectGoToKind("field_report");
     const input = typeJumpNumber("5");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await vi.waitFor((): void => {
         expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/field_reports/5`);
     });
 
-    selectJumpKind("visit");
+    selectGoToKind("visit");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await vi.waitFor((): void => {
         expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/visits/5`);
@@ -1405,7 +1405,7 @@ test("Go to…'s Enter on a missing number stays put and says so", async (): Pro
     const input = typeJumpNumber("99");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await vi.waitFor((): void => {
-        expect(document.getElementById("jump-to-preview")!.textContent).toBe("No IMS #99");
+        expect(document.getElementById("goto-preview")!.textContent).toBe("No IMS #99");
     });
     expect(assign).not.toHaveBeenCalled();
 });
@@ -1414,28 +1414,28 @@ test("Go to…'s Enter on the current Incident just closes the modal", async ():
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(jumpModal().open).toBe(true);
+    expect(goToModal().open).toBe(true);
 
     const input = typeJumpNumber("1");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await vi.waitFor((): void => {
-        expect(jumpModal().open).toBe(false);
+        expect(goToModal().open).toBe(false);
     });
     expect(assign).not.toHaveBeenCalled();
 });
 
 test("Go to… defaults to the page's kind and relabels the input on change", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
-    const input = document.getElementById("jump-to-number") as HTMLInputElement;
+    const input = document.getElementById("goto-number") as HTMLInputElement;
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
     // This page is an Incident, so that kind is selected and named.
-    expect((document.getElementById("jump-kind-incident") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
     expect(input.placeholder).toBe("IMS#");
 
-    selectJumpKind("field_report");
+    selectGoToKind("field_report");
     expect(input.placeholder).toBe("FR#");
-    selectJumpKind("visit");
+    selectGoToKind("visit");
     expect(input.placeholder).toBe("VS#");
 });
 
@@ -1445,14 +1445,14 @@ test("Go to… hides the types a user can't read", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
 
     // With only writeFieldReports, the Field Report type remains.
-    expect(document.getElementById("jump-kind-field-report")!.classList.contains("d-none")).toBe(false);
-    expect(document.getElementById("jump-kind-incident")!.classList.contains("d-none")).toBe(true);
-    expect(document.getElementById("jump-kind-visit")!.classList.contains("d-none")).toBe(true);
+    expect(document.getElementById("goto-kind-field-report")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-kind-incident")!.classList.contains("d-none")).toBe(true);
+    expect(document.getElementById("goto-kind-visit")!.classList.contains("d-none")).toBe(true);
 
     // The modal still opens, defaulting to the one readable kind.
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(jumpModal().open).toBe(true);
-    expect((document.getElementById("jump-kind-field-report") as HTMLInputElement).checked).toBe(true);
+    expect(goToModal().open).toBe(true);
+    expect((document.getElementById("goto-kind-field-report") as HTMLInputElement).checked).toBe(true);
 });
 
 test("shortcut hints name Cmd on a Mac", async (): Promise<void> => {
@@ -1476,7 +1476,7 @@ test("Go to… is left off for someone who can't read any of the record types", 
     await initIncidentPage(jumpRoutes);
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(jumpModal().open).toBe(false);
+    expect(goToModal().open).toBe(false);
 });
 
 test("printing swaps in a filesystem-safe document title", async (): Promise<void> => {

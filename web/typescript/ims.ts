@@ -306,7 +306,7 @@ export function disableEditing() {
     enable(document.querySelectorAll("input[type=search]"));  // Don't disable search fields
     // The Go to… box is navigation, not editing, so it stays usable on
     // read-only pages like Places.
-    enable(document.querySelectorAll("#jump-to-number"));
+    enable(document.querySelectorAll("#goto-number"));
     document.documentElement.classList.add("no-edit");
 }
 
@@ -394,8 +394,8 @@ export async function commonPageInit(): Promise<PageInitResult> {
     if (authInfo.authenticated) {
         eventAccess = authInfo.event_access?.[pathIds.eventName!]??null;
         pathIds.eventId = eventAccess?.event_id??null;
-        if (jumpKinds.some(canReadJumpKind)) {
-            setupJumpTo();
+        if (goToKinds.some(canReadGoToKind)) {
+            setupGoTo();
         }
         eds =fetchNoThrow<EventData[]>(url_events, null).then(
             result => {
@@ -2065,11 +2065,11 @@ export function blockKeyboardShortcutFieldActive(): boolean {
 // The kinds of records the Go to… modal can jump to. Each kind numbers its
 // records independently, so the number alone is ambiguous and the modal has a
 // type selector to go with it.
-type JumpKind = "incident"|"field_report"|"visit";
+type GoToKind = "incident"|"field_report"|"visit";
 
-const jumpKinds: JumpKind[] = ["incident", "field_report", "visit"];
+const goToKinds: GoToKind[] = ["incident", "field_report", "visit"];
 
-const jumpKindLabels: Record<JumpKind, string> = {
+const goToKindLabels: Record<GoToKind, string> = {
     incident: "IMS",
     field_report: "FR",
     visit: "VS",
@@ -2079,7 +2079,7 @@ const jumpKindLabels: Record<JumpKind, string> = {
 // Reports are readable alongside Incidents during the overlap period, and with
 // writeFieldReports even without readIncidents, mirroring how the Field Reports
 // pages gate themselves.
-function canReadJumpKind(kind: JumpKind): boolean {
+function canReadGoToKind(kind: GoToKind): boolean {
     switch (kind) {
         case "incident":
             return eventAccess?.readIncidents ?? false;
@@ -2094,29 +2094,29 @@ function canReadJumpKind(kind: JumpKind): boolean {
 // Field Reports, or Visits by number. Unlike the single-key shortcuts, it works
 // while typing in a field, and it ignores the Settings switch, since WCAG 2.1.4
 // doesn't cover modified keys.
-function setupJumpTo(): void {
-    const modalEl = document.getElementById("jumpToModal");
+function setupGoTo(): void {
+    const modalEl = document.getElementById("goToModal");
     if (!(modalEl instanceof HTMLDialogElement)) {
         return;
     }
-    const input = typedElement("jump-to-number", HTMLInputElement);
-    const preview = typedElement("jump-to-preview", HTMLElement);
-    const goButton = typedElement("jump-to-go", HTMLButtonElement);
+    const input = typedElement("goto-number", HTMLInputElement);
+    const preview = typedElement("goto-preview", HTMLElement);
+    const goButton = typedElement("goto-go", HTMLButtonElement);
     const modal = dialogModal(modalEl);
 
-    const kindRadios: Record<JumpKind, HTMLInputElement> = {
-        incident: typedElement("jump-kind-incident", HTMLInputElement),
-        field_report: typedElement("jump-kind-field-report", HTMLInputElement),
-        visit: typedElement("jump-kind-visit", HTMLInputElement),
+    const kindRadios: Record<GoToKind, HTMLInputElement> = {
+        incident: typedElement("goto-kind-incident", HTMLInputElement),
+        field_report: typedElement("goto-kind-field-report", HTMLInputElement),
+        visit: typedElement("goto-kind-visit", HTMLInputElement),
     };
 
     // The types this user can read, remembering document order so that a
     // fallback default lands on Incident before the others.
-    const readableKinds = jumpKinds.filter(canReadJumpKind);
+    const readableKinds = goToKinds.filter(canReadGoToKind);
 
     // Hide the type buttons this user can't read, so the selector only offers
     // records they can actually open.
-    for (const kind of jumpKinds) {
+    for (const kind of goToKinds) {
         if (readableKinds.includes(kind)) {
             continue;
         }
@@ -2130,7 +2130,7 @@ function setupJumpTo(): void {
     // The kind to select when the modal opens: the kind for the page you're on
     // (a record page or its list page), if it's readable, else the first
     // readable kind.
-    function defaultKind(): JumpKind {
+    function defaultKind(): GoToKind {
         const path = window.location.pathname;
         if (path.startsWith(urlReplace(url_viewIncidents)) && readableKinds.includes("incident")) {
             return "incident";
@@ -2149,12 +2149,12 @@ function setupJumpTo(): void {
         return readableKinds[0]!;
     }
 
-    function selectedKind(): JumpKind {
-        return jumpKinds.find((kind: JumpKind): boolean => kindRadios[kind].checked) ?? defaultKind();
+    function selectedKind(): GoToKind {
+        return goToKinds.find((kind: GoToKind): boolean => kindRadios[kind].checked) ?? defaultKind();
     }
 
     // The number of the record the page is currently showing, for the given kind.
-    function currentNumber(kind: JumpKind): number|null {
+    function currentNumber(kind: GoToKind): number|null {
         switch (kind) {
             case "field_report":
                 return pathIds.fieldReportNumber;
@@ -2166,7 +2166,7 @@ function setupJumpTo(): void {
     }
 
     // The API URL that resolves a kind and number to a record.
-    function apiURL(kind: JumpKind, number: number): string {
+    function apiURL(kind: GoToKind, number: number): string {
         switch (kind) {
             case "field_report":
                 return urlReplace(url_fieldReport).replace("<field_report_number>", number.toString());
@@ -2178,7 +2178,7 @@ function setupJumpTo(): void {
     }
 
     // The app URL for viewing a kind and number.
-    function viewURL(kind: JumpKind, number: number): string {
+    function viewURL(kind: GoToKind, number: number): string {
         switch (kind) {
             case "field_report":
                 return urlReplace(url_viewFieldReportNumber).replace("<number>", number.toString());
@@ -2190,7 +2190,7 @@ function setupJumpTo(): void {
     }
 
     // A one-line description of a looked-up record.
-    function describe(kind: JumpKind, record: Incident|FieldReport|Visit): string {
+    function describe(kind: GoToKind, record: Incident|FieldReport|Visit): string {
         switch (kind) {
             case "field_report":
                 return fieldReportAsString(record as FieldReport);
@@ -2220,32 +2220,32 @@ function setupJumpTo(): void {
     }
 
     // Point the input at the given kind, adjusting its label.
-    function updateKindUI(kind: JumpKind): void {
+    function updateKindUI(kind: GoToKind): void {
         kindRadios[kind].checked = true;
-        const label = `${jumpKindLabels[kind]}#`;
+        const label = `${goToKindLabels[kind]}#`;
         input.placeholder = label;
         input.setAttribute("aria-label", label);
     }
 
     // Resolves to the record, or to a message saying why there isn't one.
-    function lookUp(kind: JumpKind, number: number): Promise<Incident|FieldReport|Visit|string> {
+    function lookUp(kind: GoToKind, number: number): Promise<Incident|FieldReport|Visit|string> {
         const key = `${kind}:${number}`;
         if (lookup?.key !== key) {
             const result = fetchNoThrow<Incident|FieldReport|Visit>(apiURL(kind, number), null).then(({resp, json, err}) => {
                 if (resp?.status === 404) {
-                    return `No ${jumpKindLabels[kind]} #${number}`;
+                    return `No ${goToKindLabels[kind]} #${number}`;
                 }
                 // E.g. someone who may only read their own Field Reports asking
                 // for someone else's.
                 if (resp?.status === 403) {
-                    return `You don't have access to ${jumpKindLabels[kind]} #${number}`;
+                    return `You don't have access to ${goToKindLabels[kind]} #${number}`;
                 }
                 if (err != null || json == null) {
                     // Don't hold on to a failure that retrying might fix.
                     if (lookup?.result === result) {
                         lookup = null;
                     }
-                    return `Couldn't look up ${jumpKindLabels[kind]} #${number}: ${err}`;
+                    return `Couldn't look up ${goToKindLabels[kind]} #${number}: ${err}`;
                 }
                 return json;
             });
@@ -2259,7 +2259,7 @@ function setupJumpTo(): void {
         const number = enteredNumber();
         if (number == null) {
             const typed = input.value.trim() !== "";
-            const label = jumpKindLabels[kind];
+            const label = goToKindLabels[kind];
             const article = /^[AEIOU]/.test(label) ? "an" : "a";
             showPreview(typed ? `Enter ${article} ${label} number` : "", typed);
             return;
@@ -2321,7 +2321,7 @@ function setupJumpTo(): void {
         input.focus();
     }
 
-    for (const kind of jumpKinds) {
+    for (const kind of goToKinds) {
         kindRadios[kind].addEventListener("change", (): void => {
             if (!kindRadios[kind].checked) {
                 return;

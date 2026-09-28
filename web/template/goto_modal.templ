@@ -16,32 +16,32 @@
 
 package template
 
-templ JumpToModal() {
-<dialog class="ims-modal no-print" id="jumpToModal" aria-labelledby="jumpToModalLabel">
+templ GoToModal() {
+<dialog class="ims-modal no-print" id="goToModal" aria-labelledby="goToModalLabel">
   <div class="modal-content">
     <div class="modal-header">
-      <p class="modal-title fs-5" id="jumpToModalLabel">Go to…</p>
+      <p class="modal-title fs-5" id="goToModalLabel">Go to…</p>
       <button type="button" class="btn-close" data-ims-close aria-label="Close" />
     </div>
     <div class="modal-body">
-      <div id="jump-kind-group" class="btn-group w-100 mb-2" role="group" aria-label="Record type">
-        <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-incident"
+      <div id="goto-kind-group" class="btn-group w-100 mb-2" role="group" aria-label="Record type">
+        <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-incident"
                value="incident" autocomplete="off" checked />
-        <label class="btn btn-outline-secondary" for="jump-kind-incident">Incident</label>
-        <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-field-report"
+        <label class="btn btn-outline-secondary" for="goto-kind-incident">Incident</label>
+        <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-field-report"
                value="field_report" autocomplete="off" />
-        <label class="btn btn-outline-secondary" for="jump-kind-field-report">Field Report</label>
-        <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-visit"
+        <label class="btn btn-outline-secondary" for="goto-kind-field-report">Field Report</label>
+        <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-visit"
                value="visit" autocomplete="off" />
-        <label class="btn btn-outline-secondary" for="jump-kind-visit">Visit</label>
+        <label class="btn btn-outline-secondary" for="goto-kind-visit">Visit</label>
       </div>
       <div class="input-group">
-        <input id="jump-to-number" type="text" inputmode="numeric" autocomplete="off"
+        <input id="goto-number" type="text" inputmode="numeric" autocomplete="off"
                class="form-control" placeholder="Number" aria-label="Number"
-               aria-describedby="jump-to-preview" />
-        <button id="jump-to-go" type="button" class="btn btn-primary" disabled>Go</button>
+               aria-describedby="goto-preview" />
+        <button id="goto-go" type="button" class="btn btn-primary" disabled>Go</button>
       </div>
-      <div id="jump-to-preview" class="form-text text-truncate" aria-live="polite"></div>
+      <div id="goto-preview" class="form-text text-truncate" aria-live="polite"></div>
       <p class="mt-2 mb-0 small text-body-secondary">
         <kbd>Enter</kbd> to go there, <kbd><kbd class="modifier-key">Ctrl</kbd> + <kbd>Enter</kbd></kbd> to open it in a new tab
       </p>

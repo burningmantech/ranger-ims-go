@@ -464,7 +464,7 @@ h1 {
 }
 
 /* Keys draw as keycaps. A key combination is an outer kbd wrapping one kbd per
-   key, like <kbd><kbd>Ctrl</kbd> + <kbd>K</kbd></kbd>, and draws no cap itself. */
+   key, like <kbd><kbd>Ctrl</kbd> + <kbd>k</kbd></kbd>, and draws no cap itself. */
 kbd {
   display: inline-block;
   padding: 0.05em 0.4em;

@@ -18,7 +18,7 @@
 // admin page (admindirectory.templ).
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
+import { answerDialog, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
 
 interface ServerPerson {
     id?: number;
@@ -417,10 +417,6 @@ test("an empty password sends nothing", async (): Promise<void> => {
 });
 
 test("a rejected password keeps the field and reports the failure", async (): Promise<void> => {
-    const alertSpy = vi.fn();
-    // happy-dom doesn't implement window.alert.
-    vi.stubGlobal("alert", alertSpy);
-
     await initAdminDirectoryPage((url, init) => {
         if (/\/password$/.test(url)) {
             return problemResponse("Password is too weak", 400);
@@ -432,24 +428,25 @@ test("a rejected password keeps the field and reports the failure", async (): Pr
     const passwordField = modalInput("edit_person_password");
     const saveButton = document.getElementById("edit_person_password_save")!;
     passwordField.value = "hunter2";
-    await window.setPersonPassword(saveButton);
+    const done = window.setPersonPassword(saveButton);
 
-    expect(alertSpy).toHaveBeenCalledOnce();
+    expect(await answerDialog("ok")).toContain("Password is too weak");
+    await done;
     expect(saveButton.classList.contains("is-invalid")).toBe(true);
     // The typed password is left in place so it can be corrected rather than retyped.
     expect(passwordField.value).toBe("hunter2");
 });
 
 test("deleting a person asks first, then DELETEs and redraws", async (): Promise<void> => {
-    const confirmSpy = vi.fn((): boolean => true);
-    vi.stubGlobal("confirm", confirmSpy);
     const mock = await initAdminDirectoryPage();
     openPersonModal(0);
 
     mock.mockClear();
-    await window.deletePerson(document.getElementById("edit_person_delete")!);
+    const done = window.deletePerson(document.getElementById("edit_person_delete")!);
+    expect(mock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    await answerDialog("ok");
+    await done;
 
-    expect(confirmSpy).toHaveBeenCalledOnce();
     expect(mock.mock.calls.some(([url, init]) =>
         url === "/ims/api/directory/persons/1" && init?.method === "DELETE")).toBe(true);
     await vi.waitFor((): void => {
@@ -459,12 +456,13 @@ test("deleting a person asks first, then DELETEs and redraws", async (): Promise
 });
 
 test("declining the delete confirmation leaves the person alone", async (): Promise<void> => {
-    vi.stubGlobal("confirm", vi.fn((): boolean => false));
     const mock = await initAdminDirectoryPage();
     openPersonModal(0);
 
     mock.mockClear();
-    await window.deletePerson(document.getElementById("edit_person_delete")!);
+    const done = window.deletePerson(document.getElementById("edit_person_delete")!);
+    await answerDialog("cancel");
+    await done;
 
     expect(mock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
     expect(personRows()[0]!.querySelector(".person-handle")!.textContent).toBe("Defect");
@@ -537,11 +535,11 @@ test("reactivating a position posts active=true", async (): Promise<void> => {
 });
 
 test("renaming a team posts the title typed into the prompt", async (): Promise<void> => {
-    vi.stubGlobal("prompt", vi.fn((): string => "Green Dots"));
     const mock = await initAdminDirectoryPage();
 
     mock.mockClear();
     document.querySelector<HTMLButtonElement>("#teams_list li .group-rename")!.click();
+    await answerDialog("ok", "Green Dots");
 
     await vi.waitFor((): void => {
         const call = mock.mock.calls.find(
@@ -554,60 +552,52 @@ test("renaming a team posts the title typed into the prompt", async (): Promise<
 // Renaming changes which event access rules match the group's members, so a
 // cancelled or unchanged prompt must not send anything.
 test("cancelling or not changing the rename prompt sends nothing", async (): Promise<void> => {
-    const cancelled = vi.fn((): string | null => null);
-    vi.stubGlobal("prompt", cancelled);
     const mock = await initAdminDirectoryPage();
 
     mock.mockClear();
     document.querySelector<HTMLButtonElement>("#teams_list li .group-rename")!.click();
-    // The prompt call proves the handler ran and reached its decision, so the
-    // absence of a request below isn't just a race.
-    expect(cancelled).toHaveBeenCalledOnce();
+    await answerDialog("cancel", "Green Dots");
+    // Wait out the handler's remaining microtasks, so that the absence of a
+    // request below isn't just a race.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(mock.mock.calls.some(([, init]) => init?.body != null)).toBe(false);
 
-    const unchanged = vi.fn((): string => "Green Dot");
-    vi.stubGlobal("prompt", unchanged);
     document.querySelector<HTMLButtonElement>("#teams_list li .group-rename")!.click();
-    expect(unchanged).toHaveBeenCalledOnce();
+    // The prompt starts out holding the current title.
+    await answerDialog("ok");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(mock.mock.calls.some(([, init]) => init?.body != null)).toBe(false);
 });
 
 test("deleting a team asks first, then DELETEs it", async (): Promise<void> => {
-    const confirmSpy = vi.fn((): boolean => true);
-    vi.stubGlobal("confirm", confirmSpy);
     const mock = await initAdminDirectoryPage();
 
     mock.mockClear();
     document.querySelector<HTMLButtonElement>("#teams_list li .group-delete")!.click();
+    expect(await answerDialog("ok")).toContain("Delete team");
 
     await vi.waitFor((): void => {
         expect(mock.mock.calls.some(([url, init]) =>
             url === "/ims/api/directory/teams/10" && init?.method === "DELETE")).toBe(true);
     });
-    expect(confirmSpy).toHaveBeenCalledOnce();
     await vi.waitFor((): void => {
         expect(document.querySelectorAll("#teams_list li").length).toBe(0);
     });
 });
 
 test("declining the team delete confirmation leaves it alone", async (): Promise<void> => {
-    const confirmSpy = vi.fn((): boolean => false);
-    vi.stubGlobal("confirm", confirmSpy);
     const mock = await initAdminDirectoryPage();
 
     mock.mockClear();
     document.querySelector<HTMLButtonElement>("#teams_list li .group-delete")!.click();
+    await answerDialog("cancel");
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // The confirm call proves the handler ran and stopped there.
-    expect(confirmSpy).toHaveBeenCalledOnce();
     expect(mock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
     expect(document.querySelectorAll("#teams_list li").length).toBe(1);
 });
 
 test("a failed person edit reports the failure and marks the control invalid", async (): Promise<void> => {
-    const alertSpy = vi.fn();
-    vi.stubGlobal("alert", alertSpy);
-
     await initAdminDirectoryPage((url, init) => {
         if (url === url_directoryPersons && init?.body != null) {
             return problemResponse("That handle is already taken", 400);
@@ -618,9 +608,10 @@ test("a failed person edit reports the failure and marks the control invalid", a
 
     const handleField = modalInput("edit_person_handle");
     handleField.value = "Slacker";
-    await window.setPersonHandle(handleField);
+    const done = window.setPersonHandle(handleField);
 
-    expect(alertSpy).toHaveBeenCalledOnce();
+    expect(await answerDialog("ok")).toContain("That handle is already taken");
+    await done;
     expect(handleField.classList.contains("is-invalid")).toBe(true);
     expect(personRows()[0]!.querySelector(".person-handle")!.textContent).toBe("Defect");
 });

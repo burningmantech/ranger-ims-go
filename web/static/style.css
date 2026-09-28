@@ -489,3 +489,22 @@ kbd kbd {
   padding: 0.05em 0.4em;
   font-size: 1em;
 }
+
+/* The in-page replacement for window.alert/confirm/prompt; see showDialog. */
+.ims-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  padding: 1rem;
+  color: var(--bs-body-color);
+  background-color: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  box-shadow: var(--bs-box-shadow);
+}
+
+.ims-dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.ims-dialog-message {
+  white-space: pre-wrap;
+}

@@ -240,11 +240,12 @@ function drawGroupList(list: HTMLElement, groups: DirectoryGroup[], kind: "team"
         });
         const renameButton: HTMLElement = li.querySelector(".group-rename")!;
         renameButton.addEventListener("click", async (_e: MouseEvent): Promise<void> => {
-            const newTitle = prompt(
+            const newTitle = await ims.promptDialog(
                 `Rename ${kind} "${group.title??""}"?\n\n` +
                 "Note that event access rules refer to teams and positions by name, " +
                 "so renaming will change which rules apply to this group's members.",
                 group.title??"",
+                {okLabel: "Rename"},
             );
             if (!newTitle || newTitle === group.title) {
                 return;
@@ -254,7 +255,9 @@ function drawGroupList(list: HTMLElement, groups: DirectoryGroup[], kind: "team"
         });
         const deleteButton: HTMLElement = li.querySelector(".group-delete")!;
         deleteButton.addEventListener("click", async (_e: MouseEvent): Promise<void> => {
-            if (!confirm(`Delete ${kind} "${group.title??""}"? This removes all its memberships.`)) {
+            if (!await ims.confirmDialog(
+                `Delete ${kind} "${group.title??""}"? This removes all its memberships.`,
+                {okLabel: "Delete", danger: true})) {
                 return;
             }
             const url = kind === "team"
@@ -262,7 +265,7 @@ function drawGroupList(list: HTMLElement, groups: DirectoryGroup[], kind: "team"
                 : url_directoryPosition.replace("<position_id>", groupID.toString());
             const {err} = await ims.fetchNoThrow(url, {method: "DELETE"});
             if (err != null) {
-                alertFailure(`Failed to delete ${kind}`, err);
+                await alertFailure(`Failed to delete ${kind}`, err);
             }
             await loadAndDrawDirectory();
         });
@@ -354,7 +357,7 @@ async function setPersonPassword(sender: HTMLElement): Promise<void> {
         body: JSON.stringify({password: el.editPersonPassword.value}),
     });
     if (err != null) {
-        alertFailure("Failed to set password", err);
+        await alertFailure("Failed to set password", err);
         ims.controlHasError(sender);
         return;
     }
@@ -367,16 +370,17 @@ async function deletePerson(_sender: HTMLElement): Promise<void> {
     if (id == null) {
         return;
     }
-    if (!confirm(
+    if (!await ims.confirmDialog(
         "Delete this person outright? Consider deactivating them instead, " +
         "so that their handle stays valid on old incidents.",
+        {okLabel: "Delete", danger: true},
     )) {
         return;
     }
     const url = url_directoryPerson.replace("<person_id>", id.toString());
     const {err} = await ims.fetchNoThrow(url, {method: "DELETE"});
     if (err != null) {
-        alertFailure("Failed to delete person", err);
+        await alertFailure("Failed to delete person", err);
         return;
     }
     ims.bsModal(el.editPersonModal).hide();
@@ -398,7 +402,7 @@ async function sendPerson(edits: DirectoryPerson): Promise<{err: string|null}> {
         body: JSON.stringify(edits),
     });
     if (err != null) {
-        alertFailure("Failed to edit person", err);
+        await alertFailure("Failed to edit person", err);
     }
     return {err: err};
 }
@@ -429,13 +433,13 @@ async function sendGroup(kind: "team"|"position", edits: DirectoryGroup): Promis
         body: JSON.stringify(edits),
     });
     if (err != null) {
-        alertFailure(`Failed to edit ${kind}`, err);
+        await alertFailure(`Failed to edit ${kind}`, err);
     }
     return {err: err};
 }
 
-function alertFailure(message: string, err: string): void {
+async function alertFailure(message: string, err: string): Promise<void> {
     const full = `${message}:\n${err}`;
     console.error(full);
-    window.alert(full);
+    await ims.alertDialog(full);
 }

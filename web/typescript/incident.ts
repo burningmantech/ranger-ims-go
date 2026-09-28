@@ -1171,7 +1171,7 @@ ims.setSendEdits(sendEdits);
 
 async function editState(): Promise<void> {
     if (el.incidentState.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
-        window.alert(
+        await ims.alertDialog(
             "Closing out this incident?\n"+
             "Please add an incident type!\n\n" +
             "Special cases:\n" +

@@ -91,12 +91,11 @@ async function addEvent(page: Page, eventName: string): Promise<void> {
 // because the dev server runs with IMS_EVENT_DELETION_ENABLED=true.
 async function deleteEvent(page: Page, eventName: string): Promise<void> {
   await eventsPage(page);
-  // accept the deletion confirm dialog
-  autoAcceptDialogs(page);
 
   const card = eventCard(page, eventName);
   await card.getByRole("button", {name: "Edit Event"}).click();
   await page.getByRole("button", {name: "Delete Event"}).click();
+  await imsDialog(page).getByRole("button", {name: "Delete", exact: true}).click();
   await expect(card).toBeHidden();
 }
 
@@ -132,20 +131,13 @@ async function expandEventCard(page: Page, eventName: string): Promise<Locator> 
   return card;
 }
 
-// Adding a rule for an unknown target pops up a confirm dialog; accept any
-// such dialogs on this page. Playwright dismisses dialogs by default.
-const dialogsAutoAccepted = new WeakSet<Page>();
-function autoAcceptDialogs(page: Page): void {
-  if (dialogsAutoAccepted.has(page)) {
-    return;
-  }
-  dialogsAutoAccepted.add(page);
-  page.on("dialog", (dialog) => void dialog.accept().catch((): void => {}));
+// imsDialog is the in-page dialog IMS uses in place of alert/confirm/prompt.
+function imsDialog(page: Page): Locator {
+  return page.locator("dialog.ims-dialog[open]");
 }
 
 async function addRule(page: Page, eventName: string, target: string, level: string): Promise<void> {
   await eventsPage(page);
-  autoAcceptDialogs(page);
 
   const card = await expandEventCard(page, eventName);
   // Compose a new grant at the requested level, then add the target to it.
@@ -157,7 +149,14 @@ async function addRule(page: Page, eventName: string, target: string, level: str
   // Commit with Tab (blur): WebKit doesn't fire "change" on Enter for inputs
   // backed by a datalist.
   await addWho.press("Tab");
-  await expect(card.getByText(target)).toBeVisible({timeout: 5000});
+  // Adding a rule for an unknown target asks for confirmation first.
+  const added = card.getByText(target);
+  const ok = imsDialog(page).getByRole("button", {name: "OK"});
+  await expect(added.or(ok)).toBeVisible({timeout: 5000});
+  if (await ok.isVisible()) {
+    await ok.click();
+  }
+  await expect(added).toBeVisible({timeout: 5000});
 }
 
 // editGrantTerms opens a grant's term editor, runs the given edits against its

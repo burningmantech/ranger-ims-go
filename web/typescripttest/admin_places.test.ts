@@ -20,7 +20,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { answerDialog, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
 
 const placesUrl = url_places.replace("<event_id>", "2025");
 const importUrl = url_placesImport.replace("<event_id>", "2025");
@@ -335,7 +335,6 @@ test("the import buttons are disabled when the server has no Burning Man API key
     expect(document.getElementById("camp-api-wrapper")!.title).toContain("no Burning Man API key");
 
     (await eventSelect()).value = "2025";
-    vi.stubGlobal("confirm", vi.fn((): boolean => true));
     importButton("camp").click();
 
     expect(importUrls(mock)).toEqual([]);
@@ -392,9 +391,9 @@ test("importing camps posts the place type and year, then reloads just that fiel
     // An unsaved edit in another field must survive the camp import.
     field("art-data").value = "pending edit";
     yearInput("camp").value = "2019";
-    vi.stubGlobal("confirm", vi.fn((): boolean => true));
 
     importButton("camp").click();
+    await answerDialog("ok");
 
     await vi.waitFor((): void => {
         expect(importUrls(mock)).toHaveLength(1);
@@ -426,25 +425,20 @@ test("the import confirmation names what it's about to delete, and declining sen
 
     (await eventSelect()).value = "2025";
     await window.loadPlaces();
-    const confirmMock = vi.fn((_message: string): boolean => false);
-    vi.stubGlobal("confirm", confirmMock);
 
     importButton("camp").click();
 
-    await vi.waitFor((): void => {
-        expect(confirmMock).toHaveBeenCalledTimes(1);
-    });
-    const prompt: string = confirmMock.mock.calls[0]![0];
+    const prompt: string = await answerDialog("cancel");
     expect(prompt).toContain("2025");
     // The count the page last loaded, so the admin knows the size of the loss.
     expect(prompt).toContain("delete the 1 camps");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(importUrls(mock)).toEqual([]);
 });
 
 test("importing with no event selected surfaces an error and sends nothing", async (): Promise<void> => {
     const mock = await initAdminPlacesPage();
     await eventSelect();
-    vi.stubGlobal("confirm", vi.fn((): boolean => true));
 
     importButton("camp").click();
 
@@ -461,7 +455,6 @@ test("importing with an empty year surfaces an error and sends nothing", async (
     (await eventSelect()).value = "2025";
     await window.loadPlaces();
     yearInput("camp").value = "";
-    vi.stubGlobal("confirm", vi.fn((): boolean => true));
 
     importButton("camp").click();
 
@@ -483,9 +476,9 @@ test("a failed import surfaces the server's message and re-enables the button", 
     (await eventSelect()).value = "2025";
     await window.loadPlaces();
     yearInput("camp").value = "1999";
-    vi.stubGlobal("confirm", vi.fn((): boolean => true));
 
     importButton("camp").click();
+    await answerDialog("ok");
 
     await vi.waitFor((): void => {
         expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);

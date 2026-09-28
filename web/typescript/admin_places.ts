@@ -296,9 +296,10 @@ async function importFromAPI(field: PlaceField): Promise<void> {
     const doomed: string = existing == null
         ? `all ${apiImport.noun} currently stored`
         : `the ${existing} ${apiImport.noun} currently stored`;
-    if (!confirm(
+    if (!await ims.confirmDialog(
         `Set ${apiImport.noun} for event "${eventName}" from the Burning Man API's ${year} data?\n\n` +
-        `This will delete ${doomed} for this event. This cannot be undone.`)) {
+        `This will delete ${doomed} for this event. This cannot be undone.`,
+        {okLabel: "Replace", danger: true})) {
         return;
     }
 

@@ -205,6 +205,78 @@ test("typedElement throws when the element does not exist", (): void => {
     }).toThrowError();
 });
 
+function modalFixture(): HTMLDialogElement {
+    document.body.innerHTML = `
+        <dialog class="ims-modal" id="some_modal">
+          <div class="modal-content">
+            <button type="button" class="btn-close" data-ims-close></button>
+            <p id="some_modal_text">Hello</p>
+          </div>
+        </dialog>
+    `;
+    return ims.typedElement("some_modal", HTMLDialogElement);
+}
+
+function clickWithPress(target: Element): void {
+    target.dispatchEvent(new PointerEvent("pointerdown", {bubbles: true}));
+    target.dispatchEvent(new MouseEvent("click", {bubbles: true}));
+}
+
+test("dialogModal shows, hides, and toggles its dialog", (): void => {
+    const dialog = modalFixture();
+    const modal = ims.dialogModal(dialog);
+
+    modal.show();
+    expect(dialog.open).toBe(true);
+    // A second show is a no-op, not an error.
+    modal.show();
+    expect(dialog.open).toBe(true);
+    modal.hide();
+    expect(dialog.open).toBe(false);
+
+    modal.toggle();
+    expect(dialog.open).toBe(true);
+    modal.toggle();
+    expect(dialog.open).toBe(false);
+});
+
+test("dialogModal closes from a data-ims-close element", (): void => {
+    const dialog = modalFixture();
+    ims.dialogModal(dialog).show();
+
+    dialog.querySelector<HTMLButtonElement>("[data-ims-close]")!.click();
+    expect(dialog.open).toBe(false);
+});
+
+test("dialogModal closes on a backdrop click, but not a click inside", (): void => {
+    const dialog = modalFixture();
+    ims.dialogModal(dialog).show();
+
+    clickWithPress(document.getElementById("some_modal_text")!);
+    expect(dialog.open).toBe(true);
+
+    // The backdrop is part of the dialog element, so a click on it targets
+    // the dialog itself.
+    clickWithPress(dialog);
+    expect(dialog.open).toBe(false);
+});
+
+test("dialogModal stays open when a drag from inside ends on the backdrop", (): void => {
+    const dialog = modalFixture();
+    ims.dialogModal(dialog).show();
+
+    document.getElementById("some_modal_text")!.dispatchEvent(new PointerEvent("pointerdown", {bubbles: true}));
+    dialog.dispatchEvent(new MouseEvent("click", {bubbles: true}));
+    expect(dialog.open).toBe(true);
+});
+
+test("isDialogOpen sees any open dialog", (): void => {
+    const dialog = modalFixture();
+    expect(ims.isDialogOpen()).toBe(false);
+    dialog.showModal();
+    expect(ims.isDialogOpen()).toBe(true);
+});
+
 test("setErrorMessage reveals the alert region before writing into it", async (): Promise<void> => {
     // A live region that is display:none is not in the accessibility tree, so
     // text written into it while it is still hidden is never announced. The

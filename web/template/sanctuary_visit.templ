@@ -33,22 +33,20 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
 @ErrorInfo()
 
     <!-- Help modal -->
-    <div class="modal no-print" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <p class="modal-title fs-5" id="helpModalLabel">Keyboard shortcuts</p>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
-          </div>
-          <div class="modal-body">
-            <kbd>n</kbd>: create (n)ew Sanctuary Visit<br/>
-            <kbd>a</kbd>: jump to (a)dd new report text<br/>
-            <kbd>h</kbd>: toggle showing system-generated (h)istory <br/>
-            <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
-          </div>
+    <dialog class="ims-modal no-print" id="helpModal" aria-labelledby="helpModalLabel">
+      <div class="modal-content">
+        <div class="modal-header">
+          <p class="modal-title fs-5" id="helpModalLabel">Keyboard shortcuts</p>
+          <button type="button" class="btn-close" data-ims-close aria-label="Close" />
+        </div>
+        <div class="modal-body">
+          <kbd>n</kbd>: create (n)ew Sanctuary Visit<br/>
+          <kbd>a</kbd>: jump to (a)dd new report text<br/>
+          <kbd>h</kbd>: toggle showing system-generated (h)istory <br/>
+          <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Visit number, state, check-in time -->
 

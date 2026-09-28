@@ -508,3 +508,61 @@ kbd kbd {
 .ims-dialog-message {
   white-space: pre-wrap;
 }
+
+/*
+ * A native <dialog> standing in for a Bootstrap modal; see dialogModal. It
+ * keeps Bootstrap's .modal-content markup inside, but the --bs-modal-*
+ * variables that markup reads are declared on Bootstrap's .modal, so they're
+ * repeated here.
+ */
+.ims-modal {
+  --bs-modal-width: 500px;
+  --bs-modal-padding: 1rem;
+  --bs-modal-margin: 0.5rem;
+  --bs-modal-color: var(--bs-body-color);
+  --bs-modal-bg: var(--bs-body-bg);
+  --bs-modal-border-color: var(--bs-border-color-translucent);
+  --bs-modal-border-width: var(--bs-border-width);
+  --bs-modal-border-radius: var(--bs-border-radius-lg);
+  --bs-modal-inner-border-radius: calc(var(--bs-border-radius-lg) - (var(--bs-border-width)));
+  --bs-modal-header-padding-x: 1rem;
+  --bs-modal-header-padding-y: 1rem;
+  --bs-modal-header-padding: 1rem 1rem;
+  --bs-modal-header-border-color: var(--bs-border-color);
+  --bs-modal-header-border-width: var(--bs-border-width);
+  --bs-modal-title-line-height: 1.5;
+  --bs-modal-footer-gap: 0.5rem;
+  --bs-modal-footer-border-color: var(--bs-border-color);
+  --bs-modal-footer-border-width: var(--bs-border-width);
+  width: calc(100vw - 2 * var(--bs-modal-margin));
+  max-width: var(--bs-modal-width);
+  max-height: calc(100dvh - 2 * var(--bs-modal-margin));
+  /* Top-aligned like a Bootstrap modal, rather than <dialog>'s centering. */
+  margin: var(--bs-modal-margin) auto auto;
+  padding: 0;
+  overflow: visible;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+/* The content scrolls, not the dialog, so that nothing but the backdrop
+   registers as a click on the dialog itself. */
+.ims-modal > .modal-content {
+  max-height: inherit;
+  overflow-y: auto;
+}
+
+@media (min-width: 576px) {
+  .ims-modal {
+    --bs-modal-margin: 1.75rem;
+  }
+}
+
+.ims-modal::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+html:has(dialog:modal) {
+  overflow: hidden;
+}

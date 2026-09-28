@@ -30,9 +30,6 @@ declare global {
     }
 }
 
-let explainModal: ims.bootstrap.Modal|null = null;
-let editEventModal: ims.bootstrap.Modal|null = null;
-
 //
 // Initialize UI
 //
@@ -42,8 +39,8 @@ const el = {
     dateFormatExample: ims.typedElement("date_format_example", HTMLElement),
     editBrowserTz: ims.typedElement("edit_browser_tz", HTMLElement),
     editDateFormatExample: ims.typedElement("edit_date_format_example", HTMLElement),
-    explainModal: ims.typedElement("explainModal", HTMLElement),
-    editEventModal: ims.typedElement("editEventModal", HTMLElement),
+    explainModal: ims.typedElement("explainModal", HTMLDialogElement),
+    editEventModal: ims.typedElement("editEventModal", HTMLDialogElement),
     eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
     eventAccessTemplate: ims.typedElement("event_access_template", HTMLTemplateElement),
     grantTemplate: ims.typedElement("grant_template", HTMLTemplateElement),
@@ -52,6 +49,9 @@ const el = {
     eventDeleteWrapper: ims.typedElement("event_delete_wrapper", HTMLElement),
     eventDelete: ims.typedElement("event_delete", HTMLButtonElement),
 };
+
+const explainModal = ims.dialogModal(el.explainModal);
+const editEventModal = ims.dialogModal(el.editEventModal);
 
 initAdminEventsPage();
 
@@ -90,9 +90,6 @@ async function initAdminEventsPage(): Promise<void> {
     await Promise.all([loadAccessControlList(), loadAccessTargets()]);
     expandEventsWithRules();
     drawAccess();
-
-    explainModal = ims.bsModal(el.explainModal);
-    editEventModal = ims.bsModal(el.editEventModal);
 
     ims.hideLoadingOverlay();
     ims.enableEditing();
@@ -437,7 +434,7 @@ function eventCard(event: ims.EventData): DocumentFragment {
         const normalizeInput = el.editEventModal.querySelector("#edit_normalize_addresses") as HTMLInputElement;
         normalizeInput.checked = event.normalize_addresses??false;
 
-        editEventModal?.show();
+        editEventModal.show();
     });
 
     // Build the grant blocks, plus any drafts the admin is composing.
@@ -495,7 +492,7 @@ function eventCard(event: ims.EventData): DocumentFragment {
                 modalBody.textContent += parentMsgs.length === 0 ? "No permissions" : parentMsgs.join("\n");
             }
         }
-        explainModal?.show();
+        explainModal.show();
     });
 
     return cardFrag;
@@ -1238,7 +1235,7 @@ async function deleteEvent(): Promise<void> {
         await ims.alertDialog(message);
         return;
     }
-    editEventModal?.hide();
+    editEventModal.hide();
     await loadAccessControlList();
     drawAccess();
 }

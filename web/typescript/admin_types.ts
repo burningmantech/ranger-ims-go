@@ -36,10 +36,12 @@ declare global {
 const el = {
     incidentTypes: ims.typedElement("incident_types", HTMLElement),
     typeLiTemplate: ims.typedElement("type_li_template", HTMLTemplateElement),
-    editIncidentTypeModal: ims.typedElement("editIncidentTypeModal", HTMLElement),
+    editIncidentTypeModal: ims.typedElement("editIncidentTypeModal", HTMLDialogElement),
     editIncidentTypeName: ims.typedElement("edit_incident_type_name", HTMLInputElement),
     editIncidentTypeDescription: ims.typedElement("edit_incident_type_description", HTMLTextAreaElement),
 };
+
+const editIncidentTypeModal = ims.dialogModal(el.editIncidentTypeModal);
 
 initAdminTypesPage();
 
@@ -94,8 +96,6 @@ function drawAllIncidentTypes(): void {
 function updateIncidentTypes(): void {
     const entryContainer = el.incidentTypes.querySelector("ul")!;
     entryContainer.querySelectorAll("li")!.forEach(entry => {entry.remove()});
-
-    const editIncidentTypeModal = ims.bsModal(el.editIncidentTypeModal);
 
     for (const incidentType of adminIncidentTypes??[]) {
         const entryItemFrag = el.typeLiTemplate.content.cloneNode(true) as DocumentFragment;

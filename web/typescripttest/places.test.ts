@@ -357,7 +357,9 @@ test("closing the modal drops the place from the URL hash but keeps the other st
     openPlace({ name: "Camp Friendly", type: "camp", external_data: { uid: "sf-1" } as ims.BMCamp });
     expect(placeParam()).not.toBeNull();
 
-    document.getElementById("placeInfoModal")!.dispatchEvent(new Event("hidden.bs.modal"));
+    const modal = document.getElementById("placeInfoModal") as HTMLDialogElement;
+    expect(modal.open).toBe(true);
+    modal.querySelector<HTMLButtonElement>("[data-ims-close]")!.click();
 
     expect(placeParam()).toBeNull();
     expect(window.location.hash).toContain("type=camp");

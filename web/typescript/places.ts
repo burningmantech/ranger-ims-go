@@ -40,8 +40,6 @@ const destDefaultType = "all";
 // asked for), as it appears in the URL fragment.
 let _destShowPlace: string|null = null;
 
-let placeInfoModal: ReturnType<typeof ims.bsModal>|null = null;
-
 //
 // Initialize UI
 //
@@ -50,13 +48,15 @@ const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
     showTypeMenu: ims.typedElement("show_type", HTMLButtonElement),
-    placeInfoModal: ims.typedElement("placeInfoModal", HTMLElement),
+    placeInfoModal: ims.typedElement("placeInfoModal", HTMLDialogElement),
     placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
     placeBody: ims.typedElement("placeBody", HTMLElement),
     mapLink: ims.typedElement("map-link", HTMLAnchorElement),
     embargoNotice: ims.typedElement("embargo_notice", HTMLDivElement),
-    helpModal: ims.typedElement("helpModal", HTMLDivElement),
+    helpModal: ims.typedElement("helpModal", HTMLDialogElement),
 };
+
+const placeInfoModal = ims.dialogModal(el.placeInfoModal);
 
 initPlacesPage();
 
@@ -86,7 +86,7 @@ async function initPlacesPage(): Promise<void> {
     ims.disableEditing();
     initPlacesTable();
 
-    const helpModal = ims.bsModal(el.helpModal);
+    const helpModal = ims.dialogModal(el.helpModal);
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -112,9 +112,8 @@ async function initPlacesPage(): Promise<void> {
     el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
-            // This is needed to prevent the document's listener for "?" to trigger the modal to
-            // toggle back on immediately. This is fallout from the fix for
-            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            // Closing the dialog returns focus to the page, where the document's
+            // "?" listener would otherwise reopen it straight away.
             e.stopPropagation();
         }
     });
@@ -170,12 +169,10 @@ function renderEmbargoNotice(events: ims.EventData[]|null, isAdmin: boolean): vo
 //
 
 function initPlacesTable() {
-    placeInfoModal = ims.bsModal(el.placeInfoModal);
-
     // A shared link names the place to open. Read it before anything can rewrite
     // the fragment, and drop it again once the reader closes the modal.
     _destShowPlace = ims.windowFragmentParams().get("place");
-    el.placeInfoModal.addEventListener("hidden.bs.modal", function(): void {
+    el.placeInfoModal.addEventListener("close", function(): void {
         _destShowPlace = null;
         destReplaceWindowState();
     });
@@ -308,7 +305,7 @@ function showPlace(place: ims.Place): void {
     el.placeBody.replaceChildren(placeToHTML(place));
     _destShowPlace = placeKey(place);
     destReplaceWindowState();
-    placeInfoModal!.show();
+    placeInfoModal.show();
 }
 
 

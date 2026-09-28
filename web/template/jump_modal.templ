@@ -17,37 +17,35 @@
 package template
 
 templ JumpToModal() {
-<div class="modal no-print" id="jumpToModal" tabindex="-1" aria-labelledby="jumpToModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <p class="modal-title fs-5" id="jumpToModalLabel">Go to…</p>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+<dialog class="ims-modal no-print" id="jumpToModal" aria-labelledby="jumpToModalLabel">
+  <div class="modal-content">
+    <div class="modal-header">
+      <p class="modal-title fs-5" id="jumpToModalLabel">Go to…</p>
+      <button type="button" class="btn-close" data-ims-close aria-label="Close" />
+    </div>
+    <div class="modal-body">
+      <div id="jump-kind-group" class="btn-group w-100 mb-2" role="group" aria-label="Record type">
+        <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-incident"
+               value="incident" autocomplete="off" checked />
+        <label class="btn btn-outline-secondary" for="jump-kind-incident">Incident</label>
+        <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-field-report"
+               value="field_report" autocomplete="off" />
+        <label class="btn btn-outline-secondary" for="jump-kind-field-report">Field Report</label>
+        <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-visit"
+               value="visit" autocomplete="off" />
+        <label class="btn btn-outline-secondary" for="jump-kind-visit">Visit</label>
       </div>
-      <div class="modal-body">
-        <div id="jump-kind-group" class="btn-group w-100 mb-2" role="group" aria-label="Record type">
-          <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-incident"
-                 value="incident" autocomplete="off" checked />
-          <label class="btn btn-outline-secondary" for="jump-kind-incident">Incident</label>
-          <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-field-report"
-                 value="field_report" autocomplete="off" />
-          <label class="btn btn-outline-secondary" for="jump-kind-field-report">Field Report</label>
-          <input type="radio" class="btn-check" name="jump-kind" id="jump-kind-visit"
-                 value="visit" autocomplete="off" />
-          <label class="btn btn-outline-secondary" for="jump-kind-visit">Visit</label>
-        </div>
-        <div class="input-group">
-          <input id="jump-to-number" type="text" inputmode="numeric" autocomplete="off"
-                 class="form-control" placeholder="Number" aria-label="Number"
-                 aria-describedby="jump-to-preview" />
-          <button id="jump-to-go" type="button" class="btn btn-primary" disabled>Go</button>
-        </div>
-        <div id="jump-to-preview" class="form-text text-truncate" aria-live="polite"></div>
-        <p class="mt-2 mb-0 small text-body-secondary">
-          <kbd>Enter</kbd> to go there, <kbd><kbd class="modifier-key">Ctrl</kbd> + <kbd>Enter</kbd></kbd> to open it in a new tab
-        </p>
+      <div class="input-group">
+        <input id="jump-to-number" type="text" inputmode="numeric" autocomplete="off"
+               class="form-control" placeholder="Number" aria-label="Number"
+               aria-describedby="jump-to-preview" />
+        <button id="jump-to-go" type="button" class="btn btn-primary" disabled>Go</button>
       </div>
+      <div id="jump-to-preview" class="form-text text-truncate" aria-live="polite"></div>
+      <p class="mt-2 mb-0 small text-body-secondary">
+        <kbd>Enter</kbd> to go there, <kbd><kbd class="modifier-key">Ctrl</kbd> + <kbd>Enter</kbd></kbd> to open it in a new tab
+      </p>
     </div>
   </div>
-</div>
+</dialog>
 }

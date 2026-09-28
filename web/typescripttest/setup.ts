@@ -32,15 +32,8 @@ for (const match of urlsSource.matchAll(/^const (url_\w+)\s*=\s*"([^"]*)"/gm)) {
 }
 
 Object.assign(globalThis, {
-    // Bootstrap and DataTables are loaded as classic scripts in head.templ.
-    // Stub the small surface that ims.ts touches.
-    bootstrap: {
-        Modal: class {
-            show(): void {}
-            hide(): void {}
-            toggle(): void {}
-        },
-    },
+    // DataTables is loaded as a classic script in head.templ. Stub the small
+    // surface that ims.ts touches.
     DataTable: {
         render: {
             text: () => ({

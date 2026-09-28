@@ -48,7 +48,7 @@ const el = {
     showDaysMenu: ims.typedElement("show_days", HTMLButtonElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
 
-    helpModal: ims.typedElement("helpModal", HTMLElement),
+    helpModal: ims.typedElement("helpModal", HTMLDialogElement),
 };
 
 initFieldReportsPage();
@@ -73,7 +73,7 @@ async function initFieldReportsPage(): Promise<void> {
     ims.disableEditing();
     initFieldReportsTable();
 
-    const helpModal = ims.bsModal(el.helpModal);
+    const helpModal = ims.dialogModal(el.helpModal);
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -103,9 +103,8 @@ async function initFieldReportsPage(): Promise<void> {
     el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
-            // This is needed to prevent the document's listener for "?" to trigger the modal to
-            // toggle back on immediately. This is fallout from the fix for
-            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            // Closing the dialog returns focus to the page, where the document's
+            // "?" listener would otherwise reopen it straight away.
             e.stopPropagation();
         }
     });

@@ -30,26 +30,24 @@ templ AdminTypes(deployment, versionName, versionRef string) {
 @LoadingOverlay()
 @ErrorInfo()
 
-    <div class="modal no-print" id="editIncidentTypeModal" tabindex="-1" aria-labelledby="editIncidentTypeModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <p class="modal-title fs-5" id="editIncidentTypeModalLabel">Edit Incident Type</p>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+    <dialog class="ims-modal no-print" id="editIncidentTypeModal" aria-labelledby="editIncidentTypeModalLabel">
+      <div class="modal-content">
+        <div class="modal-header">
+          <p class="modal-title fs-5" id="editIncidentTypeModalLabel">Edit Incident Type</p>
+          <button type="button" class="btn-close" data-ims-close aria-label="Close" />
+        </div>
+        <div class="modal-body row">
+          <div class="input-group mb-3">
+            <label for="edit_incident_type_name" class="control-label input-group-text">Name</label>
+            <input id="edit_incident_type_name" type="text" class="form-control form-control-sm" onchange="setIncidentTypeName(this);" />
           </div>
-          <div class="modal-body row">
-            <div class="input-group mb-3">
-              <label for="edit_incident_type_name" class="control-label input-group-text">Name</label>
-              <input id="edit_incident_type_name" type="text" class="form-control form-control-sm" onchange="setIncidentTypeName(this);" />
-            </div>
-            <div class="input-group mb-3">
-              <label for="edit_incident_type_description" class="control-label input-group-text">Description</label>
-              <textarea id="edit_incident_type_description" type="text" class="form-control form-control-sm" onchange="setIncidentTypeDescription(this);"></textarea>
-            </div>
+          <div class="input-group mb-3">
+            <label for="edit_incident_type_description" class="control-label input-group-text">Description</label>
+            <textarea id="edit_incident_type_description" type="text" class="form-control form-control-sm" onchange="setIncidentTypeDescription(this);"></textarea>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
   <div class="row" id="incident_types_container">
 

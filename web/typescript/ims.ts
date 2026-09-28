@@ -1761,16 +1761,43 @@ export function enableKeyboardSorting(tableId: string): void {
     });
 }
 
-export function bsModal(el: HTMLElement) {
-    const modal = new bootstrap.Modal(el);
-    // This is needed to resolve a Chrome Bootstrap ARIA bug
-    // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
-    el.addEventListener("hide.bs.modal", () => {
-        if (document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur();
-        }
+// dialogModal drives a native <dialog class="ims-modal">, adding the Bootstrap
+// modal behaviors that <dialog> lacks: a click on the backdrop closes it, as
+// does a click on any [data-ims-close] element inside it.
+export function dialogModal(dialog: HTMLDialogElement) {
+    // A drag that starts inside the dialog and ends on the backdrop, e.g. a
+    // text selection, clicks the dialog itself too, so only count a click
+    // that was also pressed on the backdrop.
+    let pressedOnBackdrop = false;
+    dialog.addEventListener("pointerdown", (e: PointerEvent): void => {
+        pressedOnBackdrop = e.target === dialog;
     });
-    return modal;
+    dialog.addEventListener("click", (e: MouseEvent): void => {
+        if (pressedOnBackdrop && e.target === dialog) {
+            dialog.close();
+        }
+        pressedOnBackdrop = false;
+    });
+    for (const el of dialog.querySelectorAll("[data-ims-close]")) {
+        el.addEventListener("click", (): void => dialog.close());
+    }
+    return {
+        show(): void {
+            if (!dialog.open) {
+                dialog.showModal();
+            }
+        },
+        hide(): void {
+            dialog.close();
+        },
+        toggle(): void {
+            if (dialog.open) {
+                dialog.close();
+            } else {
+                dialog.showModal();
+            }
+        },
+    };
 }
 
 interface DialogOptions {
@@ -1786,10 +1813,6 @@ interface DialogOptions {
 // showDialog is the in-page replacement for window.alert/confirm/prompt. It
 // resolves with the input's value (or "" if there's no input) when the user
 // clicks OK, or null if they back out.
-//
-// This uses a native <dialog> rather than a Bootstrap modal, because many of
-// these come up over an already-open Bootstrap modal, and Bootstrap can't
-// stack modals. A <dialog> lives in the browser's top layer instead.
 function showDialog(opts: DialogOptions): Promise<string|null> {
     const dialog = document.createElement("dialog");
     dialog.className = "ims-dialog";
@@ -1834,16 +1857,9 @@ function showDialog(opts: DialogOptions): Promise<string|null> {
             e.preventDefault();
             dialog.close("ok");
         }
-        // Keep Escape from also closing a Bootstrap modal underneath.
-        if (e.key === "Escape") {
-            e.stopPropagation();
-        }
     });
 
-    // Inside an open Bootstrap modal, since that modal's focus trap would
-    // otherwise pull focus back out of the dialog.
-    const parent: Element = document.querySelector(".modal.show") ?? document.body;
-    parent.append(dialog);
+    document.body.append(dialog);
 
     return new Promise((resolve): void => {
         dialog.addEventListener("close", (): void => {
@@ -1862,7 +1878,7 @@ function showDialog(opts: DialogOptions): Promise<string|null> {
 }
 
 export function isDialogOpen(): boolean {
-    return document.querySelector("dialog.ims-dialog[open]") != null;
+    return document.querySelector("dialog[open]") != null;
 }
 
 export async function alertDialog(message: string): Promise<void> {
@@ -2034,9 +2050,6 @@ export function blockKeyboardShortcutFieldActive(): boolean {
     if (document.activeElement?.id === "main") {
         return false;
     }
-    if (document.activeElement instanceof HTMLElement && document.activeElement.classList.contains("modal")) {
-        return false;
-    }
     if (document.activeElement instanceof HTMLInputElement) {
         return document.activeElement.type !== "checkbox";
     }
@@ -2083,13 +2096,13 @@ function canReadJumpKind(kind: JumpKind): boolean {
 // doesn't cover modified keys.
 function setupJumpTo(): void {
     const modalEl = document.getElementById("jumpToModal");
-    if (modalEl == null) {
+    if (!(modalEl instanceof HTMLDialogElement)) {
         return;
     }
     const input = typedElement("jump-to-number", HTMLInputElement);
     const preview = typedElement("jump-to-preview", HTMLElement);
     const goButton = typedElement("jump-to-go", HTMLButtonElement);
-    const modal = bsModal(modalEl);
+    const modal = dialogModal(modalEl);
 
     const kindRadios: Record<JumpKind, HTMLInputElement> = {
         incident: typedElement("jump-kind-incident", HTMLInputElement),
@@ -2111,7 +2124,6 @@ function setupJumpTo(): void {
         (kindRadios[kind].nextElementSibling)?.classList.add("d-none");
     }
 
-    let returnFocus: HTMLElement|null = null;
     let lookup: {key: string, result: Promise<Incident|FieldReport|Visit|string>}|null = null;
     let debounce: number|undefined;
 
@@ -2300,20 +2312,15 @@ function setupJumpTo(): void {
     }
 
     function open(): void {
-        returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         lookup = null;
         input.value = "";
         updateKindUI(defaultKind());
         updateGoButton();
         showPreview("", false);
         modal.show();
+        input.focus();
     }
 
-    modalEl.addEventListener("shown.bs.modal", () => input.focus());
-    modalEl.addEventListener("hidden.bs.modal", () => {
-        returnFocus?.focus();
-        returnFocus = null;
-    });
     for (const kind of jumpKinds) {
         kindRadios[kind].addEventListener("change", (): void => {
             if (!kindRadios[kind].checked) {
@@ -2349,12 +2356,12 @@ function setupJumpTo(): void {
         if (e.repeat) {
             return;
         }
-        if (modalEl.classList.contains("show")) {
+        if (modalEl.open) {
             modal.hide();
             return;
         }
-        // Bootstrap can't stack modals.
-        if (document.querySelector(".modal.show") != null || isDialogOpen()) {
+        // Not over another dialog, which may be waiting on an answer.
+        if (isDialogOpen()) {
             return;
         }
         open();
@@ -2803,18 +2810,6 @@ export interface DataTablesTable {
     draw(paging?: boolean|"full-hold"|"full-reset"|"page"): unknown;
     ajax: DTAjax;
     processing(b: boolean): unknown;
-}
-
-// This is a minimal declaration of pieces of Bootstrap code on which we depend.
-// See this repo for the full declaration:
-// https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/bootstrap
-export declare namespace bootstrap {
-    class Modal {
-        constructor(element: string | Element, options?: any);
-        toggle(relatedTarget?: HTMLElement): void;
-        hide(): void;
-        show(): void;
-    }
 }
 
 declare let DataTable: any;

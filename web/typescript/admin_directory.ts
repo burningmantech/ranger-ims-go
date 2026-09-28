@@ -59,7 +59,7 @@ const el = {
     groupLiTemplate: ims.typedElement("group_li_template", HTMLTemplateElement),
     teamsList: ims.typedElement("teams_list", HTMLElement),
     positionsList: ims.typedElement("positions_list", HTMLElement),
-    editPersonModal: ims.typedElement("editPersonModal", HTMLElement),
+    editPersonModal: ims.typedElement("editPersonModal", HTMLDialogElement),
     editPersonHandle: ims.typedElement("edit_person_handle", HTMLInputElement),
     editPersonEmail: ims.typedElement("edit_person_email", HTMLInputElement),
     editPersonActive: ims.typedElement("edit_person_active", HTMLInputElement),
@@ -68,6 +68,8 @@ const el = {
     editPersonPositions: ims.typedElement("edit_person_positions", HTMLElement),
     editPersonPassword: ims.typedElement("edit_person_password", HTMLInputElement),
 };
+
+const editPersonModal = ims.dialogModal(el.editPersonModal);
 
 initAdminDirectoryPage();
 
@@ -170,7 +172,7 @@ function showPersonModal(person: DirectoryPerson): void {
     el.editPersonPassword.value = "";
     drawMembershipCheckboxes(el.editPersonTeams, directory?.teams??[], person.team_ids??[], "team");
     drawMembershipCheckboxes(el.editPersonPositions, directory?.positions??[], person.position_ids??[], "position");
-    ims.bsModal(el.editPersonModal).show();
+    editPersonModal.show();
 }
 
 function drawMembershipCheckboxes(
@@ -383,7 +385,7 @@ async function deletePerson(_sender: HTMLElement): Promise<void> {
         await alertFailure("Failed to delete person", err);
         return;
     }
-    ims.bsModal(el.editPersonModal).hide();
+    editPersonModal.hide();
     await loadAndDrawDirectory();
 }
 

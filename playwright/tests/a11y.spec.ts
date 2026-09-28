@@ -326,6 +326,49 @@ test.describe("keyboard", (): void => {
     await expect(page.locator("#helpModal")).toBeVisible();
   });
 
+  test("the help dialog closes with ?, its close button, or a backdrop click", async ({page}): Promise<void> => {
+    await login(page);
+    await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents`);
+    await expect(page.locator("#queue_table tbody tr").first()).toBeVisible();
+    const help = page.getByRole("dialog", {name: "Incidents help"});
+
+    await page.locator("body").press("?");
+    await expect(help).toBeVisible();
+    await page.keyboard.press("?");
+    await expect(help).toBeHidden();
+    // Closing hands focus back to the page, which mustn't take that same "?"
+    // as a request to reopen.
+    await page.waitForTimeout(100);
+    await expect(help).toBeHidden();
+
+    await page.locator("body").press("?");
+    await expect(help).toBeVisible();
+    await help.getByRole("button", {name: "Close"}).click();
+    await expect(help).toBeHidden();
+
+    await page.locator("body").press("?");
+    await expect(help).toBeVisible();
+    await page.mouse.click(5, 5);
+    await expect(help).toBeHidden();
+  });
+
+  test("Go to… takes focus into its number field and hands it back on close", async ({page}): Promise<void> => {
+    await login(page);
+    await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents/${seededIncident}`);
+    await expect(page.getByLabel("IMS #", {exact: true})).toHaveValue(String(seededIncident));
+    const entryBox = page.locator("#report_entry_add");
+    await entryBox.focus();
+
+    await page.keyboard.press("ControlOrMeta+k");
+    const jump = page.getByRole("dialog", {name: "Go to…"});
+    await expect(jump).toBeVisible();
+    await expect(jump.getByRole("textbox")).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(jump).toBeHidden();
+    await expect(entryBox).toBeFocused();
+  });
+
   test("an edit is announced to assistive tech via the live region", async ({page}): Promise<void> => {
     await login(page);
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents/${seededIncident}`);

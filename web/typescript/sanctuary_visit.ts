@@ -227,7 +227,8 @@ async function initSanctuaryVisitPage(): Promise<void> {
         }
     }
 
-    const helpModal = ims.bsModal(document.getElementById("helpModal")!);
+    const helpModalEl = ims.typedElement("helpModal", HTMLDialogElement);
+    const helpModal = ims.dialogModal(helpModalEl);
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -259,12 +260,11 @@ async function initSanctuaryVisitPage(): Promise<void> {
             (window.open("./new", '_blank') as Window).focus();
         }
     });
-    (document.getElementById("helpModal") as HTMLDivElement).addEventListener("keydown", function(e: KeyboardEvent): void {
+    helpModalEl.addEventListener("keydown", function(e: KeyboardEvent): void {
         if (e.key === "?") {
             helpModal.toggle();
-            // This is needed to prevent the document's listener for "?" to trigger the modal to
-            // toggle back on immediately. This is fallout from the fix for
-            // https://github.com/twbs/bootstrap/issues/41005#issuecomment-2497670835
+            // Closing the dialog returns focus to the page, where the document's
+            // "?" listener would otherwise reopen it straight away.
             e.stopPropagation();
         }
     });

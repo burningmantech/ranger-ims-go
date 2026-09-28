@@ -31,87 +31,83 @@ templ AdminEvents(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
-  <div class="modal no-print" id="editEventModal" tabindex="-1" aria-labelledby="editEventModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <p class="modal-title fs-5" id="editEventModalLabel">Edit Event</p>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+  <dialog class="ims-modal no-print" id="editEventModal" aria-labelledby="editEventModalLabel">
+    <div class="modal-content">
+      <div class="modal-header">
+        <p class="modal-title fs-5" id="editEventModalLabel">Edit Event</p>
+        <button type="button" class="btn-close" data-ims-close aria-label="Close" />
+      </div>
+      <div class="modal-body row">
+        <div class="input-group mb-3">
+          <label for="is_group" class="control-label input-group-text">Is Group</label>
+          <input id="is_group" type="text" class="form-control form-control-sm" disabled="" />
         </div>
-        <div class="modal-body row">
-          <div class="input-group mb-3">
-            <label for="is_group" class="control-label input-group-text">Is Group</label>
-            <input id="is_group" type="text" class="form-control form-control-sm" disabled="" />
-          </div>
-          <div class="input-group mb-3">
-            <label for="edit_parent_group" class="control-label input-group-text">Parent Group</label>
-            <input id="edit_parent_group" type="text" class="form-control form-control-sm" onchange="setParentGroup(this);" />
-          </div>
-          <div class="input-group mb-3">
-            <label for="edit_map_url" class="control-label input-group-text">Map URL</label>
-            <input id="edit_map_url" type="url" class="form-control form-control-sm" onchange="setMapURL(this);" placeholder="https://example.com/map.pdf" />
-          </div>
-          <div class="input-group mb-3" id="edit_normalize_addresses_group">
-            <label for="edit_normalize_addresses" class="control-label input-group-text">Normalize Addresses</label>
-            <div class="input-group-text">
-              <input id="edit_normalize_addresses" type="checkbox" class="form-check-input mt-0" onchange="setNormalizeAddresses(this);" />
-            </div>
-            <span class="form-control form-control-sm text-smaller d-flex align-items-center">Rewrite addresses into BRC form, e.g. "7+e" becomes "7:00 &amp; E"</span>
-          </div>
-          <div id="edit_release_times_group">
-            <p class="text-smaller mb-2">
-              Burning Man doesn't publish camp and art placement until shortly before the event.
-              Until a release time below arrives, only IMS admins see the data it covers; everyone
-              else sees blank locations, and the Map link stays hidden. An empty field means no
-              embargo. Type a time like <strong id="edit_date_format_example"></strong>, in your time
-              zone (<span id="edit_browser_tz"></span>), and clear the field to lift the embargo.
-            </p>
-            <div class="input-group mb-3">
-              <label for="edit_camp_locations_release" class="control-label input-group-text">Camp Locations Release</label>
-              <input id="edit_camp_locations_release" type="text" class="form-control form-control-sm"
-                     placeholder="No embargo"
-                     title="Camp Place locations are hidden from non-admins until this time."
-                     onchange="setCampLocationsRelease(this);" />
-            </div>
-            <div class="input-group mb-3">
-              <label for="edit_art_locations_release" class="control-label input-group-text">Art Locations Release</label>
-              <input id="edit_art_locations_release" type="text" class="form-control form-control-sm"
-                     placeholder="No embargo"
-                     title="Art Place locations are hidden from non-admins until this time."
-                     onchange="setArtLocationsRelease(this);" />
-            </div>
-            <div class="input-group mb-3">
-              <label for="edit_map_url_release" class="control-label input-group-text">Map Link Release</label>
-              <input id="edit_map_url_release" type="text" class="form-control form-control-sm"
-                     placeholder="No embargo"
-                     title="The event's Map link is hidden from non-admins until this time."
-                     onchange="setMapURLRelease(this);" />
-            </div>
-          </div>
+        <div class="input-group mb-3">
+          <label for="edit_parent_group" class="control-label input-group-text">Parent Group</label>
+          <input id="edit_parent_group" type="text" class="form-control form-control-sm" onchange="setParentGroup(this);" />
         </div>
-        <div class="modal-footer">
-          <!-- The title tooltip goes on the wrapper span, since disabled buttons don't fire the events that show tooltips. -->
-          <span id="event_delete_wrapper">
-            <button id="event_delete" type="button" class="btn btn-sm btn-danger">Delete Event</button>
-          </span>
+        <div class="input-group mb-3">
+          <label for="edit_map_url" class="control-label input-group-text">Map URL</label>
+          <input id="edit_map_url" type="url" class="form-control form-control-sm" onchange="setMapURL(this);" placeholder="https://example.com/map.pdf" />
+        </div>
+        <div class="input-group mb-3" id="edit_normalize_addresses_group">
+          <label for="edit_normalize_addresses" class="control-label input-group-text">Normalize Addresses</label>
+          <div class="input-group-text">
+            <input id="edit_normalize_addresses" type="checkbox" class="form-check-input mt-0" onchange="setNormalizeAddresses(this);" />
+          </div>
+          <span class="form-control form-control-sm text-smaller d-flex align-items-center">Rewrite addresses into BRC form, e.g. "7+e" becomes "7:00 &amp; E"</span>
+        </div>
+        <div id="edit_release_times_group">
+          <p class="text-smaller mb-2">
+            Burning Man doesn't publish camp and art placement until shortly before the event.
+            Until a release time below arrives, only IMS admins see the data it covers; everyone
+            else sees blank locations, and the Map link stays hidden. An empty field means no
+            embargo. Type a time like <strong id="edit_date_format_example"></strong>, in your time
+            zone (<span id="edit_browser_tz"></span>), and clear the field to lift the embargo.
+          </p>
+          <div class="input-group mb-3">
+            <label for="edit_camp_locations_release" class="control-label input-group-text">Camp Locations Release</label>
+            <input id="edit_camp_locations_release" type="text" class="form-control form-control-sm"
+                   placeholder="No embargo"
+                   title="Camp Place locations are hidden from non-admins until this time."
+                   onchange="setCampLocationsRelease(this);" />
+          </div>
+          <div class="input-group mb-3">
+            <label for="edit_art_locations_release" class="control-label input-group-text">Art Locations Release</label>
+            <input id="edit_art_locations_release" type="text" class="form-control form-control-sm"
+                   placeholder="No embargo"
+                   title="Art Place locations are hidden from non-admins until this time."
+                   onchange="setArtLocationsRelease(this);" />
+          </div>
+          <div class="input-group mb-3">
+            <label for="edit_map_url_release" class="control-label input-group-text">Map Link Release</label>
+            <input id="edit_map_url_release" type="text" class="form-control form-control-sm"
+                   placeholder="No embargo"
+                   title="The event's Map link is hidden from non-admins until this time."
+                   onchange="setMapURLRelease(this);" />
+          </div>
         </div>
       </div>
+      <div class="modal-footer">
+        <!-- The title tooltip goes on the wrapper span, since disabled buttons don't fire the events that show tooltips. -->
+        <span id="event_delete_wrapper">
+          <button id="event_delete" type="button" class="btn btn-sm btn-danger">Delete Event</button>
+        </span>
+      </div>
     </div>
-  </div>
+  </dialog>
 
   <!-- "Explain permissions" modal -->
-  <div class="modal no-print" id="explainModal" tabindex="-1" aria-labelledby="explainModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <p class="modal-title fs-5" id="explainModalLabel">Current permissions</p>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
-        </div>
-        <div class="modal-body white-space-pre-wrap text-smaller">
-        </div>
+  <dialog class="ims-modal no-print" id="explainModal" aria-labelledby="explainModalLabel">
+    <div class="modal-content">
+      <div class="modal-header">
+        <p class="modal-title fs-5" id="explainModalLabel">Current permissions</p>
+        <button type="button" class="btn-close" data-ims-close aria-label="Close" />
+      </div>
+      <div class="modal-body white-space-pre-wrap text-smaller">
       </div>
     </div>
-  </div>
+  </dialog>
 
   <p>For each event, you configure permission <strong>grants</strong>. A grant pairs an access level and validity window with any number of targets &mdash; individuals, positions, onduty positions, or teams &mdash; so you can hand the same access to a whole batch of people without repeating yourself. Targets look like:</p>
   <ul>

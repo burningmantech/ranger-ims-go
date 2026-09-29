@@ -393,6 +393,7 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	reID, errHTTP := addIncidentReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber, newReportEntry{
 		author:                   jwtCtx.Claims.RangerHandle(),
 		text:                     reText,
+		generated:                false,
 		attachedFile:             newFileName,
 		attachedFileOriginalName: fiHead.Filename,
 		attachedFileMediaType:    mtype.String(),
@@ -510,6 +511,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 	reID, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, newReportEntry{
 		author:                   jwtCtx.Claims.RangerHandle(),
 		text:                     reText,
+		generated:                false,
 		attachedFile:             newFileName,
 		attachedFileOriginalName: fiHead.Filename,
 		attachedFileMediaType:    mtype.String(),
@@ -647,6 +649,7 @@ func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPE
 	reID, errHTTP := addVisitReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, visitNumber, newReportEntry{
 		author:                   jwtCtx.Claims.RangerHandle(),
 		text:                     reText,
+		generated:                false,
 		attachedFile:             newFileName,
 		attachedFileOriginalName: fiHead.Filename,
 		attachedFileMediaType:    mtype.String(),

@@ -140,6 +140,7 @@ func hammerKind(name string) (hammerEntityKind, error) {
 			name:         "incidents",
 			numberHeader: "IMS-Incident-Number",
 			body: func(event string, i int) any {
+				//exhaustruct:ignore
 				return imsjson.Incident{
 					Event:    event,
 					State:    "new",
@@ -153,6 +154,7 @@ func hammerKind(name string) (hammerEntityKind, error) {
 			name:         "field_reports",
 			numberHeader: "IMS-Field-Report-Number",
 			body: func(event string, i int) any {
+				//exhaustruct:ignore
 				return imsjson.FieldReport{
 					Event:   event,
 					Summary: hammerLabel(i),
@@ -164,6 +166,7 @@ func hammerKind(name string) (hammerEntityKind, error) {
 			name:         "visits",
 			numberHeader: "IMS-Visit-Number",
 			body: func(event string, i int) any {
+				//exhaustruct:ignore
 				return imsjson.Visit{
 					Event:              event,
 					GuestPreferredName: hammerLabel(i),
@@ -345,11 +348,11 @@ func hammerCreateOne(
 ) hammerResult {
 	body, err := json.Marshal(kind.body(hammerEvent, i))
 	if err != nil {
-		return hammerResult{err: fmt.Errorf("[json.Marshal]: %w", err)}
+		return hammerResult{number: 0, status: 0, duration: 0, err: fmt.Errorf("[json.Marshal]: %w", err)}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, createURL, bytes.NewReader(body))
 	if err != nil {
-		return hammerResult{err: fmt.Errorf("[http.NewRequestWithContext]: %w", err)}
+		return hammerResult{number: 0, status: 0, duration: 0, err: fmt.Errorf("[http.NewRequestWithContext]: %w", err)}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -359,13 +362,13 @@ func hammerCreateOne(
 	resp, err := client.Do(req)
 	took := time.Since(began)
 	if err != nil {
-		return hammerResult{duration: took, err: err}
+		return hammerResult{number: 0, status: 0, duration: took, err: err}
 	}
 	// Drain the body, so the connection can be reused by the next creation.
 	respBody, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 
-	result := hammerResult{status: resp.StatusCode, duration: took}
+	result := hammerResult{number: 0, status: resp.StatusCode, duration: took, err: nil}
 	if resp.StatusCode != http.StatusCreated {
 		result.err = fmt.Errorf("%v: %v", resp.Status, strings.TrimSpace(string(respBody)))
 		return result

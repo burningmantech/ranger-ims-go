@@ -53,6 +53,7 @@ func NewLogger(
 		imsDBQ:              imsDBQ,
 		actionLogEnabled:    actionLogEnabled,
 		synchronousForTests: synchronousForTests,
+		dropped:             atomic.Int64{},
 	}
 	go logger.startWorker(ctx)
 	return logger

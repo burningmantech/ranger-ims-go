@@ -43,6 +43,8 @@ var passwordValue = regexp.MustCompile(`(?i)("[^"]*password[^"]*"\s*:\s*)"(?:[^"
 // kept aside for the action log. It records what the handler actually reads,
 // rather than reading the body itself, so a handler that ignores its body (or
 // rejects it as too large) costs nothing.
+//
+//exhaustruct:optional
 type bodyCapture struct {
 	io.ReadCloser
 

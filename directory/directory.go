@@ -64,23 +64,12 @@ type User struct {
 }
 
 func NewUserStore(source Source, cacheTTL time.Duration) *UserStore {
-	us := &UserStore{
-		source: source,
+	return &UserStore{
+		source:        source,
+		userCache:     cache.New(cacheTTL, source.FetchUsers),
+		positionCache: cache.New(cacheTTL, source.FetchPositions),
+		teamCache:     cache.New(cacheTTL, source.FetchTeams),
 	}
-	us.userCache = cache.New(
-		cacheTTL,
-		source.FetchUsers,
-	)
-	us.positionCache = cache.New(
-		cacheTTL,
-		source.FetchPositions,
-	)
-	us.teamCache = cache.New(
-		cacheTTL,
-		source.FetchTeams,
-	)
-
-	return us
 }
 
 // Flush invalidates all cached directory data, so that the next read

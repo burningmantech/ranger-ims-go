@@ -65,12 +65,18 @@ func (s *IMSSource) FetchUsers(ctx context.Context) (map[int64]*User, error) {
 	m := make(map[int64]*User, len(persons))
 	for _, person := range persons {
 		m[person.ID] = &User{
-			ID:       person.ID,
-			Handle:   person.Handle,
-			Email:    person.Email.String,
-			Status:   IMSUserStatus,
-			Onsite:   person.Onsite,
-			Password: person.Password,
+			ID:                 person.ID,
+			Handle:             person.Handle,
+			Email:              person.Email.String,
+			Status:             IMSUserStatus,
+			Onsite:             person.Onsite,
+			Password:           person.Password,
+			PositionIDs:        nil,
+			PositionNames:      nil,
+			TeamIDs:            nil,
+			TeamNames:          nil,
+			OnDutyPositionID:   nil,
+			OnDutyPositionName: nil,
 		}
 	}
 	positions := make(map[int64]string, len(positionRows))

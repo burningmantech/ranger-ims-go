@@ -129,12 +129,18 @@ func (s *ClubhouseSource) FetchUsers(ctx context.Context) (map[int64]*User, erro
 	m := make(map[int64]*User, len(persons))
 	for _, person := range persons {
 		m[person.ID] = &User{
-			ID:       person.ID,
-			Handle:   person.Callsign,
-			Email:    person.Email.String,
-			Status:   string(person.Status),
-			Onsite:   person.OnSite,
-			Password: person.Password.String,
+			ID:                 person.ID,
+			Handle:             person.Callsign,
+			Email:              person.Email.String,
+			Status:             string(person.Status),
+			Onsite:             person.OnSite,
+			Password:           person.Password.String,
+			PositionIDs:        nil,
+			PositionNames:      nil,
+			TeamIDs:            nil,
+			TeamNames:          nil,
+			OnDutyPositionID:   nil,
+			OnDutyPositionName: nil,
 		}
 	}
 	positions := make(map[int64]string, len(positionRows))

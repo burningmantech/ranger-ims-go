@@ -50,6 +50,7 @@ func New[T any](
 		dataPtr:     atomic.Pointer[dataAndTime[T]]{},
 		ttl:         ttl,
 		refresher:   refresher,
+		writeMu:     sync.Mutex{},
 		initialized: true,
 	}
 	this.dataPtr.Store(emptyVal[T]())
@@ -68,7 +69,9 @@ func (im *InMemory[T]) Get(ctx context.Context) (*T, error) {
 }
 
 func emptyVal[T any]() *dataAndTime[T] {
+	var zero T
 	return &dataAndTime[T]{
+		data: zero,
 		time: time.UnixMilli(epochMs),
 	}
 }

@@ -251,6 +251,8 @@ type Adapter func(http.Handler) http.Handler
 
 // responseWriter is a wrapper around http.ResponseWriter that lets us
 // capture details about the response.
+//
+//exhaustruct:optional
 type responseWriter struct {
 	http.ResponseWriter
 	http.Flusher

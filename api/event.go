@@ -167,7 +167,9 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 			return nil, herr.BadRequest("Event names must match the pattern "+allowedEventNames.String(), fmt.Errorf("invalid event name: '%v'", editRequest.Name))
 		}
 		createParams := imsdb.CreateEventParams{
-			Name: *editRequest.Name,
+			Name:        *editRequest.Name,
+			IsGroup:     false,
+			ParentGroup: sql.NullInt32{},
 		}
 		id, err := action.imsDBQ.CreateEvent(req.Context(), action.imsDBQ, createParams)
 		if err != nil {

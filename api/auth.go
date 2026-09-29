@@ -46,7 +46,10 @@ type PostAuth struct {
 	userStore     *directory.UserStore
 	jwtSecret     string
 	tokenLifetime time.Duration
-	cookies       authz.TokenCookies
+	// longTokenLifetime replaces tokenLifetime for the handles in longTokenUsers.
+	longTokenLifetime time.Duration
+	longTokenUsers    []string
+	cookies           authz.TokenCookies
 }
 
 type PostAuthRequest struct {
@@ -140,7 +143,11 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 
 	slog.Info("Successful login for Ranger", "identification", matchedPerson.Handle)
 
-	expiration := time.Now().Add(action.tokenLifetime)
+	lifetime := action.tokenLifetime
+	if slices.Contains(action.longTokenUsers, matchedPerson.Handle) {
+		lifetime = action.longTokenLifetime
+	}
+	expiration := time.Now().Add(lifetime)
 	jwt, err := authz.JWTer{SecretKey: action.jwtSecret}.
 		CreateAccessToken(matchedPerson.Handle, matchedPerson.ID, expiration)
 	if err != nil {
@@ -152,7 +159,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		resp.Token = jwt
 		return resp, nil, nil
 	}
-	return resp, action.cookies.AccessToken(req, jwt, action.tokenLifetime), nil
+	return resp, action.cookies.AccessToken(req, jwt, lifetime), nil
 }
 
 type GetAuth struct {

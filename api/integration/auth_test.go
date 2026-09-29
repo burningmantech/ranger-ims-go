@@ -337,6 +337,64 @@ func TestPostAuthTokenInBody(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 }
 
+func TestPostAuthLongTokenUsers(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	cfg := *shared.cfg
+	cfg.Core.LongTokenLifetime = 240 * time.Hour
+	cfg.Core.LongTokenUsers = []string{userAliceHandle}
+	srv := newCustomServer(t, &cfg, shared.imsDBQ, shared.userStore)
+
+	login := func(identification, password string) *http.Response {
+		t.Helper()
+		// #nosec G117 // Test credentials
+		loginBody, err := json.Marshal(api.PostAuthRequest{
+			Identification: identification,
+			Password:       password,
+		})
+		require.NoError(t, err)
+		loginReq, err := http.NewRequestWithContext(ctx, http.MethodPost, srv.url.JoinPath("/ims/api/auth").String(), bytes.NewReader(loginBody))
+		require.NoError(t, err)
+		loginReq.Header.Set("Content-Type", "application/json")
+		return sendRaw(t, srv, loginReq)
+	}
+	jwter := authz.JWTer{SecretKey: cfg.Core.JWTSecret}
+
+	// Alice is a long token user, so her token, cookie, and reported expiration
+	// all last the long lifetime
+	resp := login(userAliceEmail, userAlicePassword)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	response := api.PostAuthResponse{}
+	require.NoError(t, json.Unmarshal(b, &response))
+	require.InDelta(t, time.Now().Add(cfg.Core.LongTokenLifetime).UnixMilli(), response.ExpiresUnixMs, float64(time.Minute.Milliseconds()))
+	cookie := authCookie(resp)
+	require.NotNil(t, cookie)
+	require.Equal(t, int(cfg.Core.LongTokenLifetime/time.Second), cookie.MaxAge)
+	claims, err := jwter.AuthenticateJWT(cookie.Value)
+	require.NoError(t, err)
+	require.InDelta(t, time.Now().Add(cfg.Core.LongTokenLifetime).Unix(), claims.ExpiresAt.Unix(), time.Minute.Seconds())
+
+	// Admin isn't, so gets the usual lifetime
+	resp = login(userAdminEmail, userAdminPassword)
+	b, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	response = api.PostAuthResponse{}
+	require.NoError(t, json.Unmarshal(b, &response))
+	require.InDelta(t, time.Now().Add(cfg.Core.TokenLifetime).UnixMilli(), response.ExpiresUnixMs, float64(time.Minute.Milliseconds()))
+	cookie = authCookie(resp)
+	require.NotNil(t, cookie)
+	require.Equal(t, int(cfg.Core.TokenLifetime/time.Second), cookie.MaxAge)
+	claims, err = jwter.AuthenticateJWT(cookie.Value)
+	require.NoError(t, err)
+	require.InDelta(t, time.Now().Add(cfg.Core.TokenLifetime).Unix(), claims.ExpiresAt.Unix(), time.Minute.Seconds())
+}
+
 func TestAuthorizationHeaderTakesPrecedenceOverCookie(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

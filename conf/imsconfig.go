@@ -43,6 +43,8 @@ func DefaultIMS() *IMSConfig {
 			Deployment:           "dev",
 			LogLevel:             "INFO",
 			TokenLifetime:        8 * time.Hour,
+			LongTokenLifetime:    21 * 24 * time.Hour, // three weeks, to cover the entire ROC period
+			LongTokenUsers:       nil,
 			CacheControlShort:    20 * time.Minute,
 			CacheControlLong:     2 * time.Hour,
 			MaxRequestBytes:      100 * mib,
@@ -144,6 +146,9 @@ func (c *IMSConfig) Validate() error {
 	if c.Core.TokenLifetime <= 0 {
 		errs = append(errs, errors.New("token lifetime must be positive"))
 	}
+	if len(c.Core.LongTokenUsers) > 0 && c.Core.LongTokenLifetime <= 0 {
+		errs = append(errs, errors.New("long token users require a positive long token lifetime"))
+	}
 	return errors.Join(errs...)
 }
 
@@ -227,7 +232,13 @@ type ConfigCore struct {
 	Port int32
 	// TokenLifetime is how long a login lasts, from the moment of logging in.
 	TokenLifetime time.Duration
-	Admins        []string
+	// LongTokenLifetime replaces TokenLifetime for anyone in LongTokenUsers. It's
+	// meant for a shared account, like one signed into an unattended dashboard,
+	// that should stay logged in for the whole event.
+	LongTokenLifetime time.Duration
+	// LongTokenUsers are the handles that get LongTokenLifetime logins.
+	LongTokenUsers []string
+	Admins         []string
 	// #nosec G117 // Exported secret struct field
 	JWTSecret  string `redact:"true"`
 	Deployment DeploymentType

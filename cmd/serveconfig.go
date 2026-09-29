@@ -58,6 +58,14 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 		must(err)
 		baseCfg.Core.TokenLifetime = dur
 	}
+	if v, ok := lookupEnv("IMS_LONG_TOKEN_LIFETIME"); ok {
+		dur, err := time.ParseDuration(v)
+		must(err)
+		baseCfg.Core.LongTokenLifetime = dur
+	}
+	if v, ok := lookupEnv("IMS_LONG_TOKEN_USERS"); ok && v != "" {
+		baseCfg.Core.LongTokenUsers = strings.Split(v, ",")
+	}
 	if v, ok := lookupEnv("IMS_CACHE_CONTROL_SHORT"); ok {
 		dur, err := time.ParseDuration(v)
 		must(err)

@@ -546,6 +546,90 @@ export function selectOptionWithValue(select: HTMLSelectElement, value: string|n
     }
 }
 
+// addMenuFilter puts a type-to-filter search box at the top of a Bootstrap
+// dropdown menu, hiding the items whose text doesn't match. An <li> marked
+// data-menu-filter-keep is never hidden. onFilter hears each new query, e.g.
+// for relabeling a "select all" item while only some items are showing.
+export function addMenuFilter(
+    toggle: HTMLElement,
+    menu: HTMLElement,
+    options: {placeholder?: string, onFilter?: (query: string)=>void} = {},
+): HTMLInputElement {
+    const input = document.createElement("input");
+    input.type = "search";
+    input.className = "form-control form-control-sm";
+    input.placeholder = options.placeholder ?? "Filter…";
+    input.setAttribute("aria-label", input.placeholder);
+    input.autocomplete = "off";
+    input.setAttribute("data-1p-ignore", "true");
+    input.setAttribute("data-bwignore", "true");
+    input.setAttribute("data-lpignore", "true");
+
+    const li = document.createElement("li");
+    li.className = "menu-filter";
+    li.dataset["menuFilterKeep"] = "";
+    li.append(input);
+    menu.prepend(li);
+    menu.classList.add("menu-filterable");
+
+    const filterableItems = (): HTMLElement[] =>
+        [...menu.querySelectorAll<HTMLElement>(":scope > li:not([data-menu-filter-keep]) > .dropdown-item")];
+    const visibleItems = (): HTMLElement[] =>
+        [...menu.querySelectorAll<HTMLElement>(":scope > li:not(.d-none) > .dropdown-item")];
+
+    const applyFilter = (): void => {
+        const query = input.value.trim().toLowerCase();
+        for (const item of filterableItems()) {
+            const matches = (item.textContent ?? "").toLowerCase().includes(query);
+            item.parentElement!.classList.toggle("d-none", !matches);
+        }
+        options.onFilter?.(query);
+    };
+
+    input.addEventListener("input", applyFilter);
+    input.addEventListener("keydown", (e: KeyboardEvent): void => {
+        if (e.key === "ArrowDown") {
+            // Bootstrap's own arrow-key navigation ignores keys typed in an
+            // input, so step into the list by hand. Land on the first match
+            // rather than on an always-shown item like "select all".
+            const matches = filterableItems().filter(i => !i.parentElement!.classList.contains("d-none"));
+            const first = input.value ? matches[0] : visibleItems()[0];
+            if (first) {
+                e.preventDefault();
+                first.focus();
+            }
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            const matches = filterableItems().filter(i => !i.parentElement!.classList.contains("d-none"));
+            if (matches.length === 1) {
+                matches[0]!.click();
+            }
+        }
+    });
+    // Bootstrap's handler (delegated from the document) would wrap ArrowUp on
+    // the first item around to the last one; send it back to the input instead.
+    menu.addEventListener("keydown", (e: KeyboardEvent): void => {
+        if (e.key === "ArrowUp" && e.target === visibleItems()[0]) {
+            e.preventDefault();
+            e.stopPropagation();
+            input.focus();
+        }
+    });
+    toggle.addEventListener("shown.bs.dropdown", (): void => {
+        // On a phone, focusing would pop up the keyboard over the menu.
+        if (!document.documentElement.classList.contains("touch")) {
+            input.focus();
+        }
+    });
+    toggle.addEventListener("hidden.bs.dropdown", (): void => {
+        if (input.value !== "") {
+            input.value = "";
+            applyFilter();
+        }
+    });
+    return input;
+}
+
 // The control the user has typed into since focusing it, if any. Only the
 // focused control can be receiving keystrokes, so one variable suffices.
 // Maintained by trackUncommittedInput.

@@ -425,3 +425,176 @@ test("the Go to… modal opens on the Incidents list page's type", async (): Pro
     expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
     expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("IMS#");
 });
+
+function typeFilterInput(): HTMLInputElement {
+    return document.querySelector("#ul_show_type .menu-filter input") as HTMLInputElement;
+}
+
+function typeFilterType(query: string): void {
+    const input = typeFilterInput();
+    input.value = query;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function typeItemShown(id: string): boolean {
+    const item = document.getElementById(id) ?? document.querySelector(`#ul_show_type button[data-incident-type-id="${id}"]`);
+    return !item!.parentElement!.classList.contains("d-none");
+}
+
+test("typing in the type filter box hides the types that don't match", async (): Promise<void> => {
+    await initIncidentsPage();
+
+    typeFilterType("LOST");
+    expect(typeItemShown("1")).toBe(false); // Junk
+    expect(typeItemShown("2")).toBe(true); // Lost Child
+    expect(typeItemShown("show_blank_type")).toBe(false);
+    expect(typeItemShown("show_other_type")).toBe(false);
+    // The toggle-all item always stays, relabeled for what it now acts on.
+    expect(typeItemShown("show_type_toggle_all")).toBe(true);
+    expect(document.getElementById("show_type_toggle_all")!.textContent).toBe("Select/Deselect Matching");
+
+    typeFilterType("");
+    expect(typeItemShown("1")).toBe(true);
+    expect(typeItemShown("show_blank_type")).toBe(true);
+    expect(document.getElementById("show_type_toggle_all")!.textContent).toBe("Select/Deselect All");
+});
+
+test("closing the type menu clears its filter", async (): Promise<void> => {
+    await initIncidentsPage();
+
+    typeFilterType("junk");
+    expect(typeItemShown("2")).toBe(false);
+
+    document.getElementById("show_type")!.dispatchEvent(new Event("hidden.bs.dropdown"));
+    expect(typeFilterInput().value).toBe("");
+    expect(typeItemShown("2")).toBe(true);
+});
+
+function isChecked(item: Element): boolean {
+    return item.classList.contains("dropdown-item-checked");
+}
+
+test("typing while every type is checked clears the checkmarks but not the table filter", async (): Promise<void> => {
+    await initIncidentsPage();
+    const table = MockDataTable.lastInstance!;
+    const hashBefore = window.location.hash;
+
+    typeFilterType("lost");
+    for (const item of document.querySelectorAll("#ul_show_type .dropdown-item-checkable")) {
+        expect(isChecked(item)).toBe(false);
+    }
+    expect(table.fixedSearch("type", 0)).toBe(true);
+    expect(table.fixedSearch("type", 1)).toBe(true);
+    expect(window.location.hash).toBe(hashBefore);
+    expect(document.getElementById("show_type")!.textContent).toBe("All Types");
+});
+
+test("picking a type after typing shows only that type, and later picks add to it", async (): Promise<void> => {
+    await initIncidentsPage();
+    const table = MockDataTable.lastInstance!;
+    const junk = document.querySelector('#ul_show_type button[data-incident-type-id="1"]') as HTMLElement;
+    const lostChild = document.querySelector('#ul_show_type button[data-incident-type-id="2"]') as HTMLElement;
+
+    typeFilterType("lost");
+    lostChild.click();
+    expect(isChecked(lostChild)).toBe(true);
+    expect(isChecked(junk)).toBe(false);
+    expect(isChecked(document.getElementById("show_blank_type")!)).toBe(false);
+    expect(table.fixedSearch("type", 0)).toBe(false); // Junk
+    expect(table.fixedSearch("type", 1)).toBe(false); // blank
+    expect(document.getElementById("show_type")!.textContent).toBe("Lost Child");
+
+    typeFilterType("junk");
+    junk.click();
+    expect(isChecked(lostChild)).toBe(true);
+    expect(isChecked(junk)).toBe(true);
+    expect(table.fixedSearch("type", 0)).toBe(true);
+    expect(document.getElementById("show_type")!.textContent).toBe("Types (2)");
+});
+
+test("closing the type menu without picking anything restores all the checkmarks", async (): Promise<void> => {
+    await initIncidentsPage();
+
+    typeFilterType("lost");
+    document.getElementById("show_type")!.dispatchEvent(new Event("hidden.bs.dropdown"));
+    for (const item of document.querySelectorAll("#ul_show_type .dropdown-item-checkable")) {
+        expect(isChecked(item)).toBe(true);
+    }
+});
+
+test("typing when only some types are checked keeps their checkmarks", async (): Promise<void> => {
+    await initIncidentsPage();
+    const junk = document.querySelector('#ul_show_type button[data-incident-type-id="1"]') as HTMLElement;
+    const lostChild = document.querySelector('#ul_show_type button[data-incident-type-id="2"]') as HTMLElement;
+
+    junk.click();
+    typeFilterType("lost");
+    expect(isChecked(lostChild)).toBe(true);
+
+    // A click toggles as usual rather than starting over.
+    lostChild.click();
+    expect(isChecked(lostChild)).toBe(false);
+    expect(isChecked(junk)).toBe(false);
+    expect(isChecked(document.getElementById("show_blank_type")!)).toBe(true);
+});
+
+test("Enter in the type filter box picks the type only when one matches", async (): Promise<void> => {
+    await initIncidentsPage();
+    const table = MockDataTable.lastInstance!;
+    const junk = document.querySelector('#ul_show_type button[data-incident-type-id="1"]')!;
+
+    // "(blank)" and "(other)" both match, so Enter does nothing.
+    typeFilterType("(");
+    typeFilterInput().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(isChecked(document.getElementById("show_blank_type")!)).toBe(false);
+    expect(isChecked(document.getElementById("show_other_type")!)).toBe(false);
+    expect(table.fixedSearch("type", 1)).toBe(true);
+
+    typeFilterType("junk");
+    typeFilterInput().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(isChecked(junk)).toBe(true);
+    expect(table.fixedSearch("type", 0)).toBe(true); // Junk
+    expect(table.fixedSearch("type", 1)).toBe(false); // blank
+});
+
+test("toggle-all acts on only the types the filter box leaves showing", async (): Promise<void> => {
+    await initIncidentsPage();
+    const junk = document.querySelector('#ul_show_type button[data-incident-type-id="1"]')!;
+    const lostChild = document.querySelector('#ul_show_type button[data-incident-type-id="2"]')!;
+
+    // Starting from all types, it selects just the matches.
+    typeFilterType("lost");
+    window.toggleCheckAllTypes();
+    expect(isChecked(lostChild)).toBe(true);
+    expect(isChecked(junk)).toBe(false);
+    expect(isChecked(document.getElementById("show_blank_type")!)).toBe(false);
+    expect(window.location.hash).toContain("type=2");
+    expect(window.location.hash).not.toContain("type=1");
+
+    // The matches are all checked now, so it unchecks them.
+    window.toggleCheckAllTypes();
+    expect(isChecked(lostChild)).toBe(false);
+});
+
+test("arrow keys move between the type filter box and the matching types", async (): Promise<void> => {
+    await initIncidentsPage();
+    const input = typeFilterInput();
+    const lostChild = document.querySelector('#ul_show_type button[data-incident-type-id="2"]') as HTMLElement;
+
+    // Unfiltered, ArrowDown lands on the first item, the toggle-all.
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(document.activeElement).toBe(document.getElementById("show_type_toggle_all"));
+
+    // Filtered, it skips past the toggle-all to the first match.
+    typeFilterType("lost");
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(document.activeElement).toBe(lostChild);
+
+    // ArrowUp from the top item goes back to the filter box.
+    const toggleAll = document.getElementById("show_type_toggle_all")!;
+    toggleAll.focus();
+    toggleAll.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    expect(document.activeElement).toBe(input);
+});

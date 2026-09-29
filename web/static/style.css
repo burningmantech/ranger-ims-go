@@ -314,6 +314,25 @@ h1 {
   padding: var(--bs-dropdown-item-padding-y) 1.5rem;
 }
 
+/* A dropdown with a type-to-filter box (addMenuFilter in ims.ts). The box
+   stays pinned while a long list scrolls beneath it. */
+.menu-filterable {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-top: 0;
+  scroll-padding-top: 3rem;
+}
+
+.menu-filter {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: .5rem;
+  margin-bottom: .25rem;
+  background-color: var(--bs-dropdown-bg);
+  border-bottom: var(--bs-border-width) solid var(--bs-dropdown-divider-bg);
+}
+
 .dropdown-item-checked::before {
   position: absolute;
   left: .4rem;

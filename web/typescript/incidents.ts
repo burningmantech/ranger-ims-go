@@ -44,6 +44,10 @@ const defaultDaysBack = "all";
 let _showTypes: string[] = [];
 let _showBlankType = true;
 let _showOtherType = true;
+// Typing into the type filter box while every type is checked starts a new
+// selection: the checkmarks clear, but the table keeps showing all types until
+// a type is actually picked. This is true during that in-between state.
+let _startingFreshTypeSelection = false;
 // these must match values in incidents_template/template.xhtml
 const _blankPlaceholder = "(blank)";
 const _otherPlaceholder = "(other)";
@@ -52,7 +56,6 @@ let _showRows: string|null = null;
 const defaultRows = "25";
 
 let allIncidentTypes: ims.IncidentType[] = [];
-let allIncidentTypeIds: number[] = [];
 let visibleIncidentTypes: ims.IncidentType[] = [];
 let visibleIncidentTypeIds: number[] = [];
 
@@ -70,6 +73,7 @@ const el = {
     showRows: ims.typedElement("show_rows", HTMLButtonElement),
 
     ulShowType: ims.typedElement("ul_show_type", HTMLUListElement),
+    showTypeToggleAll: ims.typedElement("show_type_toggle_all", HTMLButtonElement),
     showTypeTemplate: ims.typedElement("show_type_template", HTMLTemplateElement),
 
 };
@@ -199,7 +203,6 @@ async function initIncidentsTable(): Promise<void> {
         await ims.loadIncidentTypes().then(
             value=>{
                 allIncidentTypes=value.types;
-                allIncidentTypeIds=value.types.map(it=>it.id).filter(id=>id != null);
                 visibleIncidentTypes=value.types.filter(it=>!it.hidden);
                 visibleIncidentTypeIds=visibleIncidentTypes.map(it=>it.id).filter(id=>id != null);
             },
@@ -508,6 +511,21 @@ function initTableButtons(): void {
         el.ulShowType.append(newLi);
     }
 
+    ims.addMenuFilter(el.showType, el.ulShowType, {
+        placeholder: "Filter types…",
+        onFilter: (query: string): void => {
+            el.showTypeToggleAll.textContent = query ? "Select/Deselect Matching" : "Select/Deselect All";
+            if (query && !_startingFreshTypeSelection && allTypesChecked()) {
+                _startingFreshTypeSelection = true;
+                setCheckedTypes([], false, false);
+            } else if (!query && _startingFreshTypeSelection) {
+                // Nothing got picked, so the selection is still all types.
+                _startingFreshTypeSelection = false;
+                setCheckedTypes(visibleIncidentTypeIds, true, true);
+            }
+        },
+    });
+
     for (const el of document.getElementsByClassName("dropdown-item-checkable")) {
         const htmlEl = el as HTMLElement;
         htmlEl.addEventListener("click", function (e: MouseEvent): void {
@@ -773,11 +791,13 @@ function setCheckedTypes(types: number[], includeBlanks: boolean, includeOthers:
     }
 }
 
+// toggleCheckAllTypes acts only on the items the menu's filter box leaves
+// showing: it checks them all, unless they're all checked already.
 function toggleCheckAllTypes(): void {
-    if (_showTypes.length === 0 || _showTypes.length < visibleIncidentTypes.length) {
-        setCheckedTypes(allIncidentTypeIds, true, true);
-    } else {
-        setCheckedTypes([], false, false);
+    const items = el.ulShowType.querySelectorAll(":scope > li:not(.d-none) > .dropdown-item-checkable");
+    const check = [...items].some(item => !item.classList.contains("dropdown-item-checked"));
+    for (const item of items) {
+        setChecked(item, check);
     }
     showCheckedTypes(true);
 }
@@ -802,6 +822,7 @@ function allTypesChecked(): boolean {
 }
 
 function showCheckedTypes(replaceState: boolean): void {
+    _startingFreshTypeSelection = false;
     readCheckedTypes();
 
     const numTypesShown = _showTypes.length + (_showBlankType ? 1 : 0) + (_showOtherType ? 1 : 0);

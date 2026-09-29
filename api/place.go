@@ -88,6 +88,7 @@ func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError)
 		apiDest := imsjson.Place{
 			Name:           rowDest.Name,
 			LocationString: rowDest.LocationString,
+			ExternalData:   nil,
 		}
 		if !excludeExternalData {
 			ed := make(map[string]any)

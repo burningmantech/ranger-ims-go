@@ -76,7 +76,7 @@ func (action GetSearch) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *herr.HTTPError) {
-	resp := imsjson.SearchResults{Hits: []imsjson.SearchResult{}}
+	resp := imsjson.SearchResults{Hits: []imsjson.SearchResult{}, Truncated: false}
 	jwtCtx, errHTTP := getJwtCtx(req)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getJwtCtx]")
@@ -218,13 +218,14 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		}
 		for _, row := range rows {
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
-				Kind:    imsjson.SearchResultKindIncident,
-				Event:   row.EventName,
-				EventID: row.Event,
-				Number:  row.Number,
-				Created: conv.FloatToTime(row.Created),
-				Summary: row.Summary.String,
-				Snippet: snippet(row.MatchedEntryText),
+				Kind:     imsjson.SearchResultKindIncident,
+				Event:    row.EventName,
+				EventID:  row.Event,
+				Number:   row.Number,
+				Created:  conv.FloatToTime(row.Created),
+				Summary:  row.Summary.String,
+				Snippet:  snippet(row.MatchedEntryText),
+				Incident: nil,
 			})
 		}
 		resp.Truncated = resp.Truncated || len(rows) == int(limit)

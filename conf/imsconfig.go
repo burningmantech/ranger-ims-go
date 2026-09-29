@@ -36,17 +36,20 @@ const mib = 1 << 20
 func DefaultIMS() *IMSConfig {
 	return &IMSConfig{
 		Core: ConfigCore{
-			Host:              "localhost",
-			Port:              8080,
-			JWTSecret:         rand.Text(),
-			Deployment:        "dev",
-			LogLevel:          "INFO",
-			TokenLifetime:     8 * time.Hour,
-			CacheControlShort: 20 * time.Minute,
-			CacheControlLong:  2 * time.Hour,
-			MaxRequestBytes:   100 * mib,
-			ActionLogEnabled:  true,
-			ErrorLogEnabled:   true,
+			Host:                 "localhost",
+			Port:                 8080,
+			Admins:               nil,
+			JWTSecret:            rand.Text(),
+			Deployment:           "dev",
+			LogLevel:             "INFO",
+			TokenLifetime:        8 * time.Hour,
+			CacheControlShort:    20 * time.Minute,
+			CacheControlLong:     2 * time.Hour,
+			MaxRequestBytes:      100 * mib,
+			ActionLogEnabled:     true,
+			ErrorLogEnabled:      true,
+			EventDeletionEnabled: false,
+			InsecureCookies:      false,
 		},
 		Store: DBStore{
 			Type: DBStoreTypeMaria,
@@ -54,6 +57,8 @@ func DefaultIMS() *IMSConfig {
 				HostName: "localhost",
 				HostPort: 3306,
 				Database: "ims",
+				Username: "",
+				Password: "",
 				// Some arbitrary value. We'll get errors from MariaDB if the server
 				// hits the DB with too many parallel requests.
 				MaxOpenConns: 20,
@@ -64,14 +69,21 @@ func DefaultIMS() *IMSConfig {
 			ClubhouseDB: ClubhouseDB{
 				Hostname: "localhost:3306",
 				Database: "rangers",
+				Username: "",
+				Password: "",
+				// Same reasoning as the IMS DB's MaxOpenConns.
+				MaxOpenConns: 20,
 			},
 			InMemoryCacheTTL: 5 * time.Minute,
 		},
 		AttachmentsStore: AttachmentsStore{
-			Type: AttachmentsStoreNone,
+			Type:  AttachmentsStoreNone,
+			Local: LocalAttachments{},
+			S3:    S3Attachments{},
 		},
 		BurningManAPI: BurningManAPI{
-			URL: "https://api.burningman.org",
+			URL:    "https://api.burningman.org",
+			APIKey: "",
 		},
 	}
 }

@@ -439,7 +439,7 @@ func (action EditFieldReport) handleLinkToIncident(
 		newIncident = sql.NullInt32{Int32: num, Valid: true}
 		entryText = fmt.Sprintf("Attached to incident: %v", num)
 	case "detach":
-		newIncident = sql.NullInt32{Valid: false}
+		newIncident = sql.NullInt32{}
 		entryText = fmt.Sprintf("Detached from incident: %v", previousIncident.Int32)
 	default:
 		return herr.BadRequest("Invalid action", fmt.Errorf("provided bad action was %v", queryAction))

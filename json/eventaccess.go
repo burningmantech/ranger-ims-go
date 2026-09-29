@@ -37,6 +37,7 @@ type AccessRule struct {
 	// Pending is a read-only field, saying if the AccessRule's NotBefore time is in the future.
 	Pending bool `json:"pending,omitzero"`
 
+	//exhaustruct:optional
 	DebugInfo struct {
 		MatchesUsers    []string `json:"matches_users,omitempty"`
 		MatchesAllUsers bool     `json:"matches_all_users,omitempty"`

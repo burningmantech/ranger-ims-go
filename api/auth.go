@@ -147,7 +147,7 @@ func (action PostAuth) postAuth(req *http.Request) (PostAuthResponse, *http.Cook
 		return empty, nil, herr.InternalServerError("Failed to create access token", err).From("[CreateAccessToken]")
 	}
 
-	resp := PostAuthResponse{ExpiresUnixMs: expiration.UnixMilli()}
+	resp := PostAuthResponse{Token: "", ExpiresUnixMs: expiration.UnixMilli()}
 	if vals.TokenInBody {
 		resp.Token = jwt
 		return resp, nil, nil
@@ -205,7 +205,12 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 	jwtCtx, found := req.Context().Value(JWTContextKey).(JWTContext)
 	if !found || jwtCtx.Error != nil || jwtCtx.Claims == nil {
 		resp = GetAuthResponse{
-			Authenticated: false,
+			Authenticated:        false,
+			User:                 "",
+			Admin:                false,
+			EventAccess:          nil,
+			EventDeletionAllowed: false,
+			PlacesImportAllowed:  false,
 		}
 		return resp, nil //lint:ignore nilerr since the jwtCtx.Error is irrelevant
 	}
@@ -219,6 +224,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 		Authenticated:        true,
 		User:                 handle,
 		Admin:                slices.Contains(roles, authz.Administrator),
+		EventAccess:          nil,
 		EventDeletionAllowed: action.eventDeletionEnabled,
 		PlacesImportAllowed:  action.bmAPIEnabled,
 	}
@@ -235,6 +241,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 				// user has no access.
 				resp.EventAccess = map[string]AccessForEvent{
 					eventName: {
+						EventID:           0,
 						ReadIncidents:     false,
 						WriteIncidents:    false,
 						WriteFieldReports: false,

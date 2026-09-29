@@ -40,9 +40,9 @@ type newReportEntry struct {
 	generated bool
 
 	// These fields are set only when the entry records a file attachment.
-	attachedFile             string
-	attachedFileOriginalName string
-	attachedFileMediaType    string
+	attachedFile             string //exhaustruct:optional
+	attachedFileOriginalName string //exhaustruct:optional
+	attachedFileMediaType    string //exhaustruct:optional
 }
 
 // createReportEntry inserts a ReportEntry row and returns its ID. The caller must
@@ -150,8 +150,9 @@ func addChangeReportEntries(
 			continue
 		}
 		_, errHTTP := add(ctx, db, dbtx, eventID, number, newReportEntry{
-			author: author,
-			text:   entry.Text,
+			author:    author,
+			text:      entry.Text,
+			generated: false,
 		})
 		if errHTTP != nil {
 			return errHTTP.From("[addReportEntry]")

@@ -53,6 +53,7 @@ func New(code int, message string, internalErr error) *HTTPError {
 		Code:            code,
 		ResponseMessage: message,
 		InternalErr:     internalErr,
+		ExpectedError:   false,
 	}
 }
 

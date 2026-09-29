@@ -27,6 +27,7 @@ import (
 
 const EventSourceChannel = "imsevents"
 
+//exhaustruct:optional
 type IMSEventData struct {
 	EventID int32  `json:"event_id,omitzero"`
 	Comment string `json:"comment,omitzero"`

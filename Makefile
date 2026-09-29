@@ -108,12 +108,14 @@ upgrade/deps/npm:
 	npm install --prefix playwright
 
 ## upgrade/deps/actions: upgrade all GitHub Actions in .github/workflows to their
-## latest versions, keeping them pinned by commit SHA with a version comment.
+## latest versions, keeping them pinned by commit SHA with a version comment, and
+## upgrade the pre-commit hook repos in .pre-commit-config.yaml to their latest tags.
 ## Borrows the gh CLI's token when GITHUB_TOKEN isn't set, to avoid API rate limits.
 .PHONY: upgrade/deps/actions
 upgrade/deps/actions:
 	GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" \
 		go tool github.com/suzuki-shunsuke/pinact/v5/cmd/pinact run --update
+	uvx pre-commit autoupdate
 
 # This is kind of silly, but it's similar to what the Go website itself
 # does to check the latest version.

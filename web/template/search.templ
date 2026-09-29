@@ -30,6 +30,14 @@ templ Search(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+@HelpModal("Search", "searching") {
+  <p class="mb-0">Keyboard shortcuts</p>
+  <ul>
+    <li><kbd>/</kbd>: jump to search field</li>
+  </ul>
+  @helpShortcutsOffNote()
+}
+
     <p class="no-print">
       Search Incidents, Field Reports, and Visits across every Event for which you have access.
     </p>

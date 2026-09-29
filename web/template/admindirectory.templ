@@ -30,6 +30,10 @@ templ AdminDirectory(deployment, versionName, versionRef string) {
 @LoadingOverlay()
 @ErrorInfo()
 
+@HelpModal("Directory", "admin") {
+  @helpNoShortcuts()
+}
+
     <dialog class="ims-modal no-print" id="editPersonModal" aria-labelledby="editPersonModalLabel">
       <div class="modal-content">
         <div class="modal-header">

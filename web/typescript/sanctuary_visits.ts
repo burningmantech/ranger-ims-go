@@ -52,7 +52,6 @@ const el = {
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
     showStatusMenu: ims.typedElement("show_status", HTMLButtonElement),
 
-    helpModal: ims.typedElement("helpModal", HTMLDialogElement),
 };
 
 initSanctuaryVisitsPage();
@@ -77,8 +76,6 @@ async function initSanctuaryVisitsPage(): Promise<void> {
     ims.disableEditing();
     initVisitsTable();
 
-    const helpModal = ims.dialogModal(el.helpModal);
-
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -89,10 +86,6 @@ async function initSanctuaryVisitsPage(): Promise<void> {
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
         }
-        // ? --> show help modal
-        if (e.key === "?") {
-            helpModal.toggle();
-        }
         // / --> jump to search box
         if (e.key === "/") {
             // don't immediately input a "/" into the search box
@@ -102,14 +95,6 @@ async function initSanctuaryVisitsPage(): Promise<void> {
         // n --> new visit
         if (e.key.toLowerCase() === "n") {
             el.newVisit.click();
-        }
-    });
-    el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
-        if (e.key === "?") {
-            helpModal.toggle();
-            // Closing the dialog returns focus to the page, where the document's
-            // "?" listener would otherwise reopen it straight away.
-            e.stopPropagation();
         }
     });
 }

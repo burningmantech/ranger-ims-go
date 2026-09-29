@@ -72,7 +72,6 @@ const el = {
     ulShowType: ims.typedElement("ul_show_type", HTMLUListElement),
     showTypeTemplate: ims.typedElement("show_type_template", HTMLTemplateElement),
 
-    helpModal: ims.typedElement("helpModal", HTMLDialogElement),
 };
 
 initIncidentsPage();
@@ -109,8 +108,6 @@ async function initIncidentsPage(): Promise<void> {
 
     await initIncidentsTable();
 
-    const helpModal = ims.dialogModal(el.helpModal);
-
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -120,10 +117,6 @@ async function initIncidentsPage(): Promise<void> {
         // No shortcuts when ctrl, alt, or meta is being held down
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
-        }
-        // ? --> show help modal
-        if (e.key === "?") {
-            helpModal.toggle();
         }
         // / --> jump to search box
         if (e.key === "/") {
@@ -137,14 +130,6 @@ async function initIncidentsPage(): Promise<void> {
         }
     });
 
-    el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
-        if (e.key === "?") {
-            helpModal.toggle();
-            // Closing the dialog returns focus to the page, where the document's
-            // "?" listener would otherwise reopen it straight away.
-            e.stopPropagation();
-        }
-    });
 
 }
 

@@ -30,6 +30,10 @@ templ AdminActionLogs(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+@HelpModal("Action Logs", "admin") {
+  @helpNoShortcuts()
+}
+
 <h2 class="h4">Filters</h2>
 
 <div class="row">

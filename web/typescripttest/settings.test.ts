@@ -146,3 +146,46 @@ test("the visits status and rows-per-page selects persist their valid values", a
     await window.setPreferredRowsPerPage(rowsSelect);
     expect(localStorage.getItem("preferred_table_rows_per_page")).toBe("100");
 });
+
+function helpModal(): HTMLDialogElement {
+    return document.getElementById("helpModal") as HTMLDialogElement;
+}
+
+function pressKey(target: EventTarget, key: string): void {
+    target.dispatchEvent(new KeyboardEvent("keydown", { key: key, bubbles: true, cancelable: true }));
+}
+
+test("? toggles the page's help dialog", async (): Promise<void> => {
+    await initSettingsPage();
+
+    expect(document.getElementById("helpModalLabel")!.textContent).toBe("Settings help");
+    expect(helpModal().textContent).toContain("This page has no keyboard shortcuts.");
+    expect(helpModal().open).toBe(false);
+
+    pressKey(document.body, "?");
+    expect(helpModal().open).toBe(true);
+
+    pressKey(helpModal(), "?");
+    expect(helpModal().open).toBe(false);
+});
+
+test("? does nothing when single-key shortcuts are turned off", async (): Promise<void> => {
+    localStorage.setItem("keyboard_shortcuts_enabled", "false");
+    await initSettingsPage();
+
+    pressKey(document.body, "?");
+    expect(helpModal().open).toBe(false);
+});
+
+test("? reopens the help dialog while focus lingers on its Close button", async (): Promise<void> => {
+    await initSettingsPage();
+    const closeButton = helpModal().querySelector("button.btn-close") as HTMLButtonElement;
+
+    pressKey(document.body, "?");
+    closeButton.click();
+    expect(helpModal().open).toBe(false);
+
+    closeButton.focus();
+    pressKey(closeButton, "?");
+    expect(helpModal().open).toBe(true);
+});

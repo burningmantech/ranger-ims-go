@@ -30,6 +30,10 @@ templ AdminDebug(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+@HelpModal("Debug", "admin") {
+  @helpNoShortcuts()
+}
+
 <h2 class="h4">Server Info</h2>
 <p><button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Server Info</button></p>
 <div id="build-info-div" style="display:none;">

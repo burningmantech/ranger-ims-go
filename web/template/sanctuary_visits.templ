@@ -33,29 +33,21 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
 
 @ErrorInfo()
 
-    <!-- Help modal for visits page -->
-    <dialog class="ims-modal no-print" id="helpModal" aria-labelledby="helpModalLabel">
-      <div class="modal-content">
-        <div class="modal-header">
-          <p class="modal-title fs-5" id="helpModalLabel">Sanctuary Visits help</p>
-          <button type="button" class="btn-close" data-ims-close aria-label="Close" />
-        </div>
-        <div class="modal-body">
-          <p class="mt-2 mb-0">Keyboard shortcuts</p>
-          <ul>
-            <li><kbd>n</kbd>: create (n)ew Visit <br /></li>
-            <li><kbd>/</kbd>: jump to search field <br /></li>
-          </ul>
-          <p class="mt-2 mb-0">In the search field</p>
-          <ul>
-            <li>Type a Visit number then press <kbd>Enter</kbd> to be redirected to that Visit</li>
-            <li>Search by regular expression by enclosing a pattern with slashes, e.g. <code>/r.nger/</code> or <code>/\b(dog|cat)\b/</code></li>
-            <li>All searches are case-insensitive</li>
-          </ul>
-          <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
-        </div>
-      </div>
-    </dialog>
+    @HelpModal("Sanctuary Visits", "visits") {
+      <p class="mb-0">Keyboard shortcuts</p>
+      <ul>
+        @helpGoToShortcut()
+        <li><kbd>n</kbd>: create (n)ew Visit</li>
+        <li><kbd>/</kbd>: jump to search field</li>
+      </ul>
+      <p class="mt-2 mb-0">In the search field</p>
+      <ul>
+        <li>Type a Visit number then press <kbd>Enter</kbd> to be redirected to that Visit</li>
+        <li>Search by regular expression by enclosing a pattern with slashes, e.g. <code>/r.nger/</code> or <code>/\b(dog|cat)\b/</code></li>
+        <li>All searches are case-insensitive</li>
+      </ul>
+      @helpShortcutsOffNote()
+    }
 
     <div class="row">
       <div class="col-sm-7">

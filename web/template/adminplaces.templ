@@ -30,6 +30,10 @@ templ AdminPlaces(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+@HelpModal("Places admin", "admin") {
+  @helpNoShortcuts()
+}
+
 <form id="place-form">
   <div class="mb-3">
     <label for="event-name" class="form-label">Event name</label>

@@ -30,6 +30,10 @@ templ Help(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+@HelpModal("Help page", "") {
+  @helpNoShortcuts()
+}
+
 <p class="mt-3">
   This page explains what the Incident Management System (IMS) is, what each part of it does,
   and how to use it. It's written for everyone, and it assumes no technical background.
@@ -403,8 +407,9 @@ templ Help(deployment, versionName, versionRef string) {
 <h2 id="shortcuts" class="h4 mt-4">Keyboard shortcuts</h2>
 <p>
   Most record pages have single-key shortcuts that work when you're not typing in a field.
-  Press <kbd>?</kbd> to pop up the full, authoritative list of shortcuts for that
-  page (press <kbd>?</kbd> again, or <kbd>Esc</kbd>, to close it). The common ones:
+  On any page, press <kbd>?</kbd> to pop up that page's help, including the full,
+  authoritative list of its shortcuts (press <kbd>?</kbd> again, or <kbd>Esc</kbd>, to close
+  it). The common ones:
 </p>
 <ul>
   <li><kbd>n</kbd>: create a new Incident / Field Report / Visit (on a record's own page, this opens a new one in a new tab)</li>

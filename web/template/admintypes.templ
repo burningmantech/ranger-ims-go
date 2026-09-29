@@ -30,6 +30,10 @@ templ AdminTypes(deployment, versionName, versionRef string) {
 @LoadingOverlay()
 @ErrorInfo()
 
+@HelpModal("Incident Types", "admin") {
+  @helpNoShortcuts()
+}
+
     <dialog class="ims-modal no-print" id="editIncidentTypeModal" aria-labelledby="editIncidentTypeModalLabel">
       <div class="modal-content">
         <div class="modal-header">

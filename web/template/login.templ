@@ -32,6 +32,10 @@ templ Login(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+@HelpModal("Log in", "logging-in") {
+  @helpNoShortcuts()
+}
+
 <form method="POST" id="login_form" class="form-horizontal">
 
 <div id="auth_fail_message" role="alert" class="alert alert-danger if-authentication-failed hidden">Authentication Failed</div>

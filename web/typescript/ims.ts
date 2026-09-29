@@ -375,6 +375,7 @@ function controlClear(element: HTMLElement) {
 //
 export async function commonPageInit(): Promise<PageInitResult> {
     detectTouchDevice();
+    setupHelpModal();
     trackUncommittedInput();
     let authInfo: AuthInfo|null = null;
     pathIds = idsFromPath();
@@ -2088,6 +2089,33 @@ function canReadGoToKind(kind: GoToKind): boolean {
         case "visit":
             return eventAccess?.readVisits ?? false;
     }
+}
+
+// Every page has a #helpModal, which "?" toggles.
+function setupHelpModal(): void {
+    const modalEl = document.getElementById("helpModal");
+    if (!(modalEl instanceof HTMLDialogElement)) {
+        return;
+    }
+    const modal = dialogModal(modalEl);
+    document.addEventListener("keydown", (e: KeyboardEvent): void => {
+        if (blockKeyboardShortcutFieldActive() || e.altKey || e.ctrlKey || e.metaKey) {
+            return;
+        }
+        if (e.key === "?") {
+            modal.show();
+        }
+    });
+    // Focus can linger on the Close button after the dialog closes, so keys
+    // still land here while it's closed.
+    modalEl.addEventListener("keydown", (e: KeyboardEvent): void => {
+        if (e.key === "?" && modalEl.open) {
+            modal.hide();
+            // Closing the dialog returns focus to the page, where the document's
+            // "?" listener would otherwise reopen it straight away.
+            e.stopPropagation();
+        }
+    });
 }
 
 // Ctrl/Cmd+K opens a modal for going to another of this event's Incidents,

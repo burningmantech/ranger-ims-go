@@ -227,9 +227,6 @@ async function initSanctuaryVisitPage(): Promise<void> {
         }
     }
 
-    const helpModalEl = ims.typedElement("helpModal", HTMLDialogElement);
-    const helpModal = ims.dialogModal(helpModalEl);
-
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -239,10 +236,6 @@ async function initSanctuaryVisitPage(): Promise<void> {
         // No shortcuts when ctrl, alt, or meta is being held down
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
-        }
-        // ? --> show help modal
-        if (e.key === "?") {
-            helpModal.toggle();
         }
         // a --> jump to add a new report entry
         if (e.key === "a") {
@@ -258,14 +251,6 @@ async function initSanctuaryVisitPage(): Promise<void> {
         // n --> new visit
         if (e.key.toLowerCase() === "n") {
             (window.open("./new", '_blank') as Window).focus();
-        }
-    });
-    helpModalEl.addEventListener("keydown", function(e: KeyboardEvent): void {
-        if (e.key === "?") {
-            helpModal.toggle();
-            // Closing the dialog returns focus to the page, where the document's
-            // "?" listener would otherwise reopen it straight away.
-            e.stopPropagation();
         }
     });
     el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {

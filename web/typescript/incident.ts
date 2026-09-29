@@ -100,7 +100,6 @@ const el = {
     attachFile: ims.typedElement("attach_file", HTMLInputElement),
     attachFileInput: ims.typedElement("attach_file_input", HTMLInputElement),
 
-    helpModal: ims.typedElement("helpModal", HTMLDialogElement),
 };
 
 initIncidentPage();
@@ -240,8 +239,6 @@ async function initIncidentPage(): Promise<void> {
         }
     }
 
-    const helpModal = ims.dialogModal(el.helpModal);
-
     const incidentTypeInfoModal = ims.dialogModal(ims.typedElement("incidentTypeInfoModal", HTMLDialogElement));
 
     // Keyboard shortcuts
@@ -253,10 +250,6 @@ async function initIncidentPage(): Promise<void> {
         // No shortcuts when ctrl, alt, or meta is being held down
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
-        }
-        // ? --> show help modal
-        if (e.key === "?") {
-            helpModal.toggle();
         }
         // a --> jump to add a new report entry
         if (e.key === "a") {
@@ -272,14 +265,6 @@ async function initIncidentPage(): Promise<void> {
         // n --> new incident
         if (e.key.toLowerCase() === "n") {
             (window.open("./new", '_blank') as Window).focus();
-        }
-    });
-    el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
-        if (e.key === "?") {
-            helpModal.toggle();
-            // Closing the dialog returns focus to the page, where the document's
-            // "?" listener would otherwise reopen it straight away.
-            e.stopPropagation();
         }
     });
     el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {

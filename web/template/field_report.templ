@@ -32,22 +32,16 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
 
 @ErrorInfo()
 
-  <!-- Help modal for field report page -->
-  <dialog class="ims-modal no-print" id="helpModal" aria-labelledby="helpModalLabel">
-    <div class="modal-content">
-      <div class="modal-header">
-        <p class="modal-title fs-5" id="helpModalLabel">Keyboard shortcuts</p>
-        <button type="button" class="btn-close" data-ims-close aria-label="Close" />
-      </div>
-      <div class="modal-body">
-        <kbd>n</kbd>: create (n)ew Field Report <br/>
-        <kbd>a</kbd>: jump to (a)dd new report text<br/>
-        <kbd>h</kbd>: toggle showing system-generated (h)istory <br/>
-        <kbd><kbd class="modifier-key">Ctrl</kbd> + <kbd>k</kbd></kbd>: go to a record by number, even while typing<br/>
-        <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
-      </div>
-    </div>
-  </dialog>
+  @HelpModal("Field Report", "field-reports") {
+    <p class="mb-0">Keyboard shortcuts</p>
+    <ul>
+      @helpGoToShortcut()
+      <li><kbd>n</kbd>: create (n)ew Field Report</li>
+      <li><kbd>a</kbd>: jump to (a)dd new report text</li>
+      <li><kbd>h</kbd>: toggle showing system-generated (h)istory</li>
+    </ul>
+    @helpShortcutsOffNote()
+  }
 
   <!-- Identifiers -->
 

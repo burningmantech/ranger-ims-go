@@ -53,7 +53,6 @@ const el = {
     placeBody: ims.typedElement("placeBody", HTMLElement),
     mapLink: ims.typedElement("map-link", HTMLAnchorElement),
     embargoNotice: ims.typedElement("embargo_notice", HTMLDivElement),
-    helpModal: ims.typedElement("helpModal", HTMLDialogElement),
 };
 
 const placeInfoModal = ims.dialogModal(el.placeInfoModal);
@@ -86,8 +85,6 @@ async function initPlacesPage(): Promise<void> {
     ims.disableEditing();
     initPlacesTable();
 
-    const helpModal = ims.dialogModal(el.helpModal);
-
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {
         // No shortcuts when an input field is active
@@ -98,23 +95,11 @@ async function initPlacesPage(): Promise<void> {
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
         }
-        // ? --> show help modal
-        if (e.key === "?") {
-            helpModal.toggle();
-        }
         // / --> jump to search box
         if (e.key === "/") {
             // don't immediately input a "/" into the search box
             e.preventDefault();
             el.searchInput.focus();
-        }
-    });
-    el.helpModal.addEventListener("keydown", function(e: KeyboardEvent): void {
-        if (e.key === "?") {
-            helpModal.toggle();
-            // Closing the dialog returns focus to the page, where the document's
-            // "?" listener would otherwise reopen it straight away.
-            e.stopPropagation();
         }
     });
 }

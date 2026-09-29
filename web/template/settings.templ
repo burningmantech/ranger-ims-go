@@ -30,6 +30,10 @@ templ Settings(deployment, versionName, versionRef string) {
 
 @ErrorInfo()
 
+@HelpModal("Settings", "settings") {
+  @helpNoShortcuts()
+}
+
 <h2 class="h5">Preferred Table Filters</h2>
 <div class="py-1">
   <div class="input-group mb-1 flex-nowrap">

@@ -279,6 +279,8 @@ The `store.DBQ` wraps a `*sql.DB` and sqlc-generated `Querier` interface, provid
 
 JWT-based authentication with a single access token, signed with `IMS_JWT_SECRET`, that lasts
 `IMS_TOKEN_LIFETIME` (default 8 hours) from login. There is no refresh; when it expires, the user logs in again.
+The handles in `IMS_LONG_TOKEN_USERS` get `IMS_LONG_TOKEN_LIFETIME` instead, for a shared account like the one an
+event dashboard is signed into, which should stay logged in for the whole event.
 Tokens can't be revoked, so authentication (`authenticate` in `api/mux.go`) also requires the token's user to
 still be in the directory with the same handle: deactivating, deleting, or renaming someone cuts them off as
 soon as the directory cache refreshes.

@@ -126,6 +126,8 @@ func AddToMux(
 			userStore,
 			cfg.Core.JWTSecret,
 			cfg.Core.TokenLifetime,
+			cfg.Core.LongTokenLifetime,
+			cfg.Core.LongTokenUsers,
 			cookies,
 		}, LogMetadata)
 

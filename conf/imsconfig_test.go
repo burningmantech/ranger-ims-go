@@ -17,11 +17,13 @@
 package conf_test
 
 import (
+	"os"
+	"testing"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 func TestPrintRedacted(t *testing.T) {
@@ -62,6 +64,26 @@ func TestValidateBase(t *testing.T) {
 
 	cfg.Core.TokenLifetime = 0
 	require.Error(t, cfg.Validate())
+}
+
+func TestValidateLongTokens(t *testing.T) {
+	t.Parallel()
+
+	// Long token users need a long token lifetime
+	cfg := conf.DefaultIMS()
+	cfg.Core.LongTokenLifetime = 0
+	cfg.Core.LongTokenUsers = []string{"dashboard"}
+	require.Error(t, cfg.Validate())
+
+	cfg = conf.DefaultIMS()
+	cfg.Core.LongTokenUsers = []string{"dashboard"}
+	cfg.Core.LongTokenLifetime = 240 * time.Hour
+	require.NoError(t, cfg.Validate())
+
+	// A lifetime with no one to use it is harmless
+	cfg = conf.DefaultIMS()
+	cfg.Core.LongTokenLifetime = 240 * time.Hour
+	require.NoError(t, cfg.Validate())
 }
 
 func TestValidateInsecureCookies(t *testing.T) {

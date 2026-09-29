@@ -420,6 +420,49 @@ test("blockKeyboardShortcutFieldActive blocks everything when shortcuts are off"
     localStorage.clear();
 });
 
+test("blockKeyboardShortcutFieldActive blocks only while typing into a field", (): void => {
+    localStorage.clear();
+    document.body.innerHTML = `
+        <a id="link" href="#">link</a>
+        <button id="button">button</button>
+        <input id="checkbox" type="checkbox">
+        <input id="text" type="text">
+        <input id="search" type="search">
+        <textarea id="textarea"></textarea>
+        <select id="select"><option>a</option></select>
+        <div id="editable" contenteditable="true" tabindex="0"></div>
+    `;
+    const focus = (id: string): void => {
+        document.getElementById(id)!.focus();
+    };
+
+    focus("link");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(false);
+
+    focus("button");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(false);
+
+    focus("checkbox");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(false);
+
+    focus("text");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(true);
+
+    focus("search");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(true);
+
+    focus("textarea");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(true);
+
+    focus("select");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(true);
+
+    focus("editable");
+    expect(ims.blockKeyboardShortcutFieldActive()).toBe(true);
+
+    document.body.innerHTML = "";
+});
+
 // This is the shape DataTables leaves behind: the table sits inside a
 // .dt-container, and the header the user sees is a *clone* in a separate table
 // (.dt-scroll-head), while the real table's own header is hidden. Sort controls

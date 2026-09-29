@@ -2033,8 +2033,16 @@ export function hideLoadingOverlay(): void {
     }
 }
 
-// Returns whether an input text-ish field is active. This is meant to talk about fields
-// for which keyboard a-z letters are used, such as text field and select fields.
+// Input types that don't take typed characters, so shortcuts can fire while
+// one is focused.
+const nonTextInputTypes = new Set<string>([
+    "button", "checkbox", "color", "file", "image", "radio", "range", "reset", "submit",
+]);
+
+// Returns whether single-key shortcuts should be ignored right now: because
+// they're switched off, a dialog is open, or focus is in a field that takes
+// typed characters (text inputs, textareas, selects, and contenteditables).
+// Anything else, like a link or button, lets them through.
 export function blockKeyboardShortcutFieldActive(): boolean {
     // IMS's shortcuts are single characters with no modifier, which speech-input
     // users trigger by accident just by talking. WCAG 2.1.4 therefore requires
@@ -2045,22 +2053,15 @@ export function blockKeyboardShortcutFieldActive(): boolean {
     if (isDialogOpen()) {
         return true;
     }
-    if (document.activeElement === document.body) {
-        return false;
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement) {
+        return !nonTextInputTypes.has(active.type);
     }
-    if (document.activeElement?.id === "main") {
-        return false;
-    }
-    if (document.activeElement instanceof HTMLInputElement) {
-        return document.activeElement.type !== "checkbox";
-    }
-    if (document.activeElement instanceof HTMLButtonElement) {
-        return false;
-    }
-    if (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable) {
+    // A select jumps to the option matching a typed letter.
+    if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) {
         return true;
     }
-    return true;
+    return active instanceof HTMLElement && active.isContentEditable;
 }
 
 // The kinds of records the Go to… modal can jump to. Each kind numbers its

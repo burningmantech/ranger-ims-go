@@ -30,6 +30,8 @@ declare global {
 // The DataTables object
 let incidentsTable: ims.DataTablesTable|null = null;
 
+const listSearch: ims.ListSearch = ims.newListSearch(url_incidents);
+
 const _searchDelayMs = 250;
 let _searchDelayTimer: number|undefined = undefined;
 
@@ -139,60 +141,6 @@ async function initIncidentsPage(): Promise<void> {
 
 
 //
-// Load event field reports and visits
-//
-// Note that nothing from these data is displayed in the incidents table.
-// We do this fetch in order to make incidents searchable by text in their
-// attached field reports.
-
-let eventFieldReports: ims.FieldReportsByNumber|undefined = undefined;
-let eventVisits: ims.VisitsByNumber|undefined = undefined;
-
-async function loadEventFieldReports(): Promise<{err: string|null}> {
-    const {json, err} = await ims.fetchNoThrow<ims.FieldReport[]>(
-        ims.urlReplace(url_fieldReports + "?exclude_system_entries=true"), null,
-    );
-    if (err != null) {
-        const message = `Failed to load event field reports: ${err}`;
-        console.error(message);
-        ims.setErrorMessage(message);
-        return {err: message};
-    }
-    const reports: ims.FieldReportsByNumber = {};
-
-    for (const report of json!) {
-        reports[report.number!] = report;
-    }
-
-    eventFieldReports = reports;
-
-    console.log("Loaded event field reports");
-    return {err: null};
-}
-
-async function loadEventVisits(): Promise<{err: string|null}> {
-    const {json, err} = await ims.fetchNoThrow<ims.Visit[]>(
-        ims.urlReplace(url_visits + "?exclude_system_entries=true"), null,
-    );
-    if (err != null) {
-        const message = `Failed to load event visits: ${err}`;
-        console.error(message);
-        ims.setErrorMessage(message);
-        return {err: message};
-    }
-    const visits: ims.VisitsByNumber = {};
-
-    for (const visit of json!) {
-        visits[visit.number!] = visit;
-    }
-
-    eventVisits = visits;
-
-    console.log("Loaded event visits");
-    return {err: null};
-}
-
-//
 // Dispatch queue table
 //
 
@@ -246,16 +194,18 @@ async function initIncidentsTable(): Promise<void> {
                 return;
             }
 
-            const {json, err} = await ims.fetchNoThrow(
-                ims.urlReplace(url_incidentNumber).replace("<incident_number>", number.toString()),
-                null,
+            const {json, err} = await ims.fetchNoThrow<ims.IncidentListItem[]>(
+                `${ims.urlReplace(url_incidents)}?number=${number}`, null,
             );
-            if (err != null) {
+            if (err != null || json?.[0] == null) {
                 const message = `Failed to update Incident ${number}: ${err}`;
                 console.error(message);
                 ims.setErrorMessage(message);
                 return;
             }
+            const item = json[0];
+            // The change may have moved the Incident into or out of the search results.
+            await listSearch.refresh();
             // Now update/create the relevant row. This is a change from pre-2025, in that
             // we no longer reload all incidents here on any single incident update.
             let done = false;
@@ -265,13 +215,13 @@ async function initIncidentsTable(): Promise<void> {
                 if (existingIncident.number === number) {
                     console.log("Updating Incident " + number);
                     // @ts-expect-error use of "this" for DataTables
-                    this.data(json);
+                    this.data(item);
                     done = true;
                 }
             });
             if (!done) {
                 console.log("Loading new Incident " + number);
-                incidentsTable!.row.add(json);
+                incidentsTable!.row.add(item);
             }
             ims.clearErrorMessage();
             incidentsTable!.processing(false);
@@ -326,16 +276,14 @@ function initDataTables(tablePrereqs: Promise<void>): void {
         // DataTables gets mad if you return a Promise from this function, so we use an inner
         // async function instead.
         // https://datatables.net/forums/discussion/47411/i-always-get-error-when-i-use-table-ajax-reload
-        "ajax": function (_data: any, callback: (resp: {data: ims.Incident[]})=>void, _settings: any): void {
+        "ajax": function (_data: any, callback: (resp: {data: ims.IncidentListItem[]})=>void, _settings: any): void {
             async function doAjax(): Promise<void> {
-                let json: ims.Incident[] = [];
+                let json: ims.IncidentListItem[] = [];
                 // concurrently fetch the data needed for the table
                 await Promise.all([
                     tablePrereqs,
-                    loadEventFieldReports(),
-                    loadEventVisits(),
-                    ims.fetchNoThrow<ims.Incident[]>(
-                        ims.urlReplace(url_incidents + "?exclude_system_entries=true"), null,
+                    ims.fetchNoThrow<ims.IncidentListItem[]>(
+                        ims.urlReplace(url_incidents), null,
                     ).then(res => {
                         if (res.err != null || res.json == null) {
                             ims.setErrorMessage(`Failed to load table: ${res.err}`);
@@ -421,7 +369,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
             // 1 --> "Started" time
             [1, "dsc"],
         ],
-        "createdRow": function (row: HTMLElement, incident: ims.Incident, _index: number) {
+        "createdRow": function (row: HTMLElement, incident: ims.IncidentListItem, _index: number) {
             const openLink = function(e: MouseEvent): void {
                 // If the user clicked on a link, then let them access that link without the JS below.
                 if (e.target?.constructor?.name === "HTMLAnchorElement") {
@@ -448,7 +396,7 @@ function initDataTables(tablePrereqs: Promise<void>): void {
     });
 }
 
-function renderSummary(_data: string|null, type: ims.RenderType, incident: ims.Incident): ims.RenderValue {
+function renderSummary(_data: string|null, type: ims.RenderType, incident: ims.IncidentListItem): ims.RenderValue {
     switch (type) {
         case "display": {
             const maxDisplayLength = 250;
@@ -460,7 +408,6 @@ function renderSummary(_data: string|null, type: ims.RenderType, incident: ims.I
             return DataTable.render.text().display(summarized) as string;
         }
         case "filter":
-            return ims.reportTextFromIncident(incident, eventFieldReports, eventVisits);
         case "sort":
         case "type":
         case undefined:
@@ -470,7 +417,7 @@ function renderSummary(_data: string|null, type: ims.RenderType, incident: ims.I
     }
 }
 
-function renderIncidentTypes(ids: number[], type: ims.RenderType, _incident: ims.Incident): ims.RenderValue {
+function renderIncidentTypes(ids: number[], type: ims.RenderType, _incident: ims.IncidentListItem): ims.RenderValue {
     if (ids == null) {
         return undefined;
     }
@@ -590,18 +537,17 @@ function initTableButtons(): void {
 
 function initSearchField() {
     // Search field handling
-    function searchAndDraw(): void {
+    // The search runs on the server (see ims.newListSearch), which also takes
+    // a /regex/ query. The table's own search stays empty.
+    incidentsTable!.search("");
+    async function searchAndDraw(): Promise<void> {
         replaceWindowState();
-        let q = el.searchInput.value;
-        let isRegex = false;
-        let smartSearch = true;
-        if (q.startsWith("/") && q.endsWith("/")) {
-            isRegex = true;
-            smartSearch = false;
-            q = q.slice(1, q.length-1);
+        incidentsTable!.processing(true);
+        const current = await listSearch.search(el.searchInput.value);
+        if (current) {
+            incidentsTable!.processing(false);
+            incidentsTable!.draw();
         }
-        incidentsTable!.search(q, isRegex, smartSearch);
-        incidentsTable!.draw();
     }
 
     const fragmentParams: URLSearchParams = ims.windowFragmentParams();
@@ -652,16 +598,23 @@ function initSearchField() {
 //
 
 function initSearch(): void {
+    incidentsTable!.search.fixed("query",
+        function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
+            const incident: ims.IncidentListItem = incidentsTable!.data()[rowIndex]!;
+            return listSearch.matches(incident.number);
+        },
+    );
+
     incidentsTable!.search.fixed("modification_date",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
-            const incident: ims.Incident = incidentsTable!.data()[rowIndex]!;
+            const incident: ims.IncidentListItem = incidentsTable!.data()[rowIndex]!;
             return !(_showModifiedAfter != null &&
                 new Date(Date.parse(incident.last_modified!)) < _showModifiedAfter);
         },
     );
 
     incidentsTable!.search.fixed("state", function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
-        const incident: ims.Incident = incidentsTable!.data()[rowIndex]!;
+        const incident: ims.IncidentListItem = incidentsTable!.data()[rowIndex]!;
         let state: ims.IncidentState;
         if (_showState != null) {
             switch (_showState) {
@@ -691,7 +644,7 @@ function initSearch(): void {
     });
 
     incidentsTable!.search.fixed("type", function (_searchStr: string, _rowData: object, rowIndex: number): boolean {
-        const incident: ims.Incident = incidentsTable!.data()[rowIndex]!;
+        const incident: ims.IncidentListItem = incidentsTable!.data()[rowIndex]!;
         // don't bother with filtering if all types are selected
         if (!allTypesChecked()) {
             const rowTypes: number[] = Object.values(incident.incident_type_ids??[]);

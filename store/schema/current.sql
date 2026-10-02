@@ -220,9 +220,10 @@ create table `ACTION_LOG` (
     `METHOD`            varchar(128),
     `PATH`              varchar(128),
     `REFERRER`          varchar(128),
-    -- The request's JSON body, i.e. the mutation being performed. Null for
-    -- routes that carry no body worth keeping: reads, logins, and attachment
-    -- uploads. Passwords are redacted and oversized bodies are truncated.
+    -- The request's JSON body, i.e. the mutation being performed, or for a
+    -- search, its query parameters as JSON. Null for routes that carry no body
+    -- worth keeping: other reads, logins, and attachment uploads. Passwords are
+    -- redacted and oversized bodies are truncated.
     `REQUEST_BODY`      text,
 
     -- requestor metadata

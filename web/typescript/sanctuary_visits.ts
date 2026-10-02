@@ -191,9 +191,9 @@ function initDataTables() {
         // DataTables gets mad if you return a Promise from this function, so we use an inner
         // async function instead.
         // https://datatables.net/forums/discussion/47411/i-always-get-error-when-i-use-table-ajax-reload
-        "ajax": function (_data: unknown, callback: (resp: {data: ims.Visit[]})=>void, _settings: unknown): void {
+        "ajax": function (_data: unknown, callback: (resp: {data: ims.VisitListItem[]})=>void, _settings: unknown): void {
             async function doAjax(): Promise<void> {
-                const {json, err} = await ims.fetchNoThrow<ims.Visit[]>(
+                const {json, err} = await ims.fetchNoThrow<ims.VisitListItem[]>(
                     ims.urlReplace(url_visits), null,
                 );
                 if (err != null || json == null) {
@@ -263,7 +263,7 @@ function initDataTables() {
             // arrival time descending
             [2, "dsc"],
         ],
-        "createdRow": function (row: HTMLElement, visit: ims.Visit, _index: number) {
+        "createdRow": function (row: HTMLElement, visit: ims.VisitListItem, _index: number) {
             const openLink = function(e: MouseEvent): void {
                 // If the user clicked on a link, then let them access that link without the JS below.
                 if (e.target?.constructor?.name === "HTMLAnchorElement") {
@@ -290,7 +290,7 @@ function initDataTables() {
     });
 }
 
-function renderName(_data: string|null, type: string, visit: ims.Visit): ims.RenderValue {
+function renderName(_data: string|null, type: string, visit: ims.VisitListItem): ims.RenderValue {
     const guestName = visit.guest_preferred_name || visit.guest_legal_name || "";
     switch (type) {
         case "display":
@@ -403,25 +403,11 @@ function initSearchField(): void {
 //
 
 function initSearch() {
-    function modifiedAfter(visit: ims.Visit, timestamp: Date) {
-        if (timestamp < new Date(Date.parse(visit.created!))) {
-            return true;
-        }
-        // needs to use native comparison
-        for (const entry of visit.report_entries??[]) {
-            if (timestamp < new Date(Date.parse(entry.created!))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     visitsTable!.search.fixed("modification_date",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
-            const visit: ims.Visit = visitsTable!.data()[rowIndex]!;
+            const visit: ims.VisitListItem = visitsTable!.data()[rowIndex]!;
             return !(_showModifiedAfter != null &&
-                !modifiedAfter(visit, _showModifiedAfter));
-
+                new Date(Date.parse(visit.last_modified!)) < _showModifiedAfter);
         },
     );
 
@@ -431,13 +417,13 @@ function initSearch() {
                 return true;
             }
             // "current" means no departure time
-            const visit: ims.Visit = visitsTable!.data()[rowIndex]!;
+            const visit: ims.VisitListItem = visitsTable!.data()[rowIndex]!;
             return visit.departure_time == null || visit.departure_time === "";
         },
     );
 }
 
-function renderString(data: string|null, type: ims.RenderType, _visit: ims.Visit): ims.RenderValue {
+function renderString(data: string|null, type: ims.RenderType, _visit: ims.VisitListItem): ims.RenderValue {
     switch (type) {
         case "display": {
             const maxDisplayLength = 250;

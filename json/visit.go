@@ -65,3 +65,27 @@ type VisitRanger struct {
 	Handle string  `json:"handle,omitempty"`
 	Role   *string `json:"role,omitempty"`
 }
+
+type VisitListItems []VisitListItem
+
+// VisitListItem is a Visit as the event-wide Visits list returns it: the
+// columns of the Visits table, and nothing more. See IncidentListItem.
+type VisitListItem struct {
+	Event        string    `json:"event"`
+	EventID      int32     `json:"event_id"`
+	Number       int32     `json:"number"`
+	Created      time.Time `json:"created,omitzero"`
+	LastModified time.Time `json:"last_modified,omitzero"`
+	Incident     *int32    `json:"incident,omitzero"`
+
+	GuestPreferredName *string `json:"guest_preferred_name,omitzero"`
+	// GuestLegalName is only present when the guest has no preferred name,
+	// since that's the only time the Visits table shows it.
+	GuestLegalName *string `json:"guest_legal_name,omitzero"`
+
+	ArrivalTime   *time.Time `json:"arrival_time,omitempty"`
+	DepartureTime *time.Time `json:"departure_time,omitempty"`
+
+	ResourceSitter *string `json:"resource_sitter,omitzero"`
+	ResourceBedID  *string `json:"resource_bed_id,omitzero"`
+}

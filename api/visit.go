@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -37,11 +36,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// GetVisits lists an Event's Visits, slimmed down to what the Visits table
+// shows. It takes listFilter's "number" filter, but not its search.
 type GetVisits struct {
-	imsDBQ             *store.DBQ
-	userStore          *directory.UserStore
-	imsAdmins          []string
-	attachmentsEnabled bool
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	imsAdmins []string
 }
 
 func (action GetVisits) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -53,8 +53,8 @@ func (action GetVisits) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mustWriteJSON(w, req, resp)
 }
 
-func (action GetVisits) getVisits(req *http.Request) (imsjson.Visits, *herr.HTTPError) {
-	resp := make(imsjson.Visits, 0)
+func (action GetVisits) getVisits(req *http.Request) (imsjson.VisitListItems, *herr.HTTPError) {
+	resp := make(imsjson.VisitListItems, 0)
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getEventPermissions]")
@@ -62,14 +62,24 @@ func (action GetVisits) getVisits(req *http.Request) (imsjson.Visits, *herr.HTTP
 	if eventPermissions&authz.EventReadVisits == 0 {
 		return nil, herr.Forbidden("The requestor does not have EventReadVisits permission", nil)
 	}
-	err := req.ParseForm()
-	if err != nil {
-		return nil, herr.BadRequest("Failed to parse form", err)
+	filter, errHTTP := parseListFilter(req)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[parseListFilter]")
 	}
-	includeSystemEntries := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
+	// Everything the Visits table searches is in the list items themselves,
+	// so that page still searches on the client.
+	if filter.match != nil {
+		return nil, herr.BadRequest("The Visits list doesn't support the 'q' parameter", nil)
+	}
 
-	// The Visits and ReportEntries queries both request a lot of data, and we can query
-	// and process those results concurrently.
+	if filter.hasNumber {
+		storedRow, entries, errHTTP := fetchVisit(req.Context(), action.imsDBQ, event.ID, filter.number)
+		if errHTTP != nil {
+			return nil, errHTTP.From("[fetchVisit]")
+		}
+		return append(resp, visitToListItem(storedRow.Visit, entries, event)), nil
+	}
+
 	group, groupCtx := errgroup.WithContext(req.Context())
 
 	entriesByVisit := make(map[int32][]imsdb.ReportEntry)
@@ -79,7 +89,7 @@ func (action GetVisits) getVisits(req *http.Request) (imsjson.Visits, *herr.HTTP
 			action.imsDBQ,
 			imsdb.Visits_ReportEntriesParams{
 				Event:     event.ID,
-				Generated: includeSystemEntries,
+				Generated: true,
 			},
 		)
 		if err != nil {
@@ -94,18 +104,6 @@ func (action GetVisits) getVisits(req *http.Request) (imsjson.Visits, *herr.HTTP
 		return nil
 	})
 
-	rangersByVisit := make(map[int32][]imsdb.VisitRanger)
-	group.Go(func() error {
-		rangersRows, err := action.imsDBQ.Visits_Rangers(groupCtx, action.imsDBQ, event.ID)
-		if err != nil {
-			return herr.InternalServerError("Failed to fetch rangers", err).From("[Visits_Rangers]")
-		}
-		for _, row := range rangersRows {
-			rangersByVisit[row.VisitRanger.VisitNumber] = append(rangersByVisit[row.VisitRanger.VisitNumber], row.VisitRanger)
-		}
-		return nil
-	})
-
 	var visitsRows []imsdb.VisitsRow
 	group.Go(func() error {
 		var err error
@@ -115,24 +113,39 @@ func (action GetVisits) getVisits(req *http.Request) (imsjson.Visits, *herr.HTTP
 		}
 		return nil
 	})
-	err = group.Wait()
+	err := group.Wait()
 	if err != nil {
 		return resp, herr.AsHTTPError(err)
 	}
 
 	for _, r := range visitsRows {
-		// The conversion from VisitsRow to VisitRow works because the Visit and Visits
-		// query row structs currently have the same fields in the same order.
-		visitRow := imsdb.VisitRow(r)
-
-		visitJSON, errHTTP := visitToJSON(visitRow, rangersByVisit[r.Visit.Number], entriesByVisit[r.Visit.Number], event, action.attachmentsEnabled)
-		if errHTTP != nil {
-			return resp, errHTTP.From("[visitToJSON]")
-		}
-		resp = append(resp, visitJSON)
+		resp = append(resp, visitToListItem(r.Visit, entriesByVisit[r.Visit.Number], event))
 	}
 
 	return resp, nil
+}
+
+// visitToListItem slims a Visit down for the Visits list.
+func visitToListItem(v imsdb.Visit, entries []imsdb.ReportEntry, event imsdb.Event) imsjson.VisitListItem {
+	preferredName := conv.SqlToString(v.GuestPreferredName)
+	var legalName *string
+	if preferredName == nil || *preferredName == "" {
+		legalName = conv.SqlToString(v.GuestLegalName)
+	}
+	return imsjson.VisitListItem{
+		Event:              event.Name,
+		EventID:            event.ID,
+		Number:             v.Number,
+		Created:            conv.FloatToTime(v.Created),
+		LastModified:       lastModified(v.Created, entries),
+		Incident:           conv.SqlToInt32(v.IncidentNumber),
+		GuestPreferredName: preferredName,
+		GuestLegalName:     legalName,
+		ArrivalTime:        conv.NullFloatToTimePtr(v.ArrivalTime),
+		DepartureTime:      conv.NullFloatToTimePtr(v.DepartureTime),
+		ResourceSitter:     conv.SqlToString(v.ResourceSitter),
+		ResourceBedID:      conv.SqlToString(v.ResourceBedID),
+	}
 }
 
 type GetVisit struct {

@@ -151,10 +151,16 @@ func (a ApiHelper) getFieldReport(ctx context.Context, eventName string, fieldRe
 	return a.imsGet[imsjson.FieldReport](ctx, path)
 }
 
-func (a ApiHelper) getFieldReports(ctx context.Context, eventName string) (imsjson.FieldReports, *http.Response) {
+func (a ApiHelper) getFieldReports(ctx context.Context, eventName string) (imsjson.FieldReportListItems, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/field_reports")).String()
-	return a.imsGet[imsjson.FieldReports](ctx, path)
+	return a.queryFieldReports(ctx, eventName, nil)
+}
+
+func (a ApiHelper) queryFieldReports(ctx context.Context, eventName string, query url.Values) (imsjson.FieldReportListItems, *http.Response) {
+	a.t.Helper()
+	u := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/field_reports"))
+	u.RawQuery = query.Encode()
+	return a.imsGet[imsjson.FieldReportListItems](ctx, u.String())
 }
 
 func (a ApiHelper) updateFieldReport(ctx context.Context, eventName string, fieldReport int32, req imsjson.FieldReport) *http.Response {
@@ -316,16 +322,28 @@ func (a ApiHelper) detachRangerFromVisit(ctx context.Context, eventName string, 
 	return a.imsDelete(ctx, a.serverURL.JoinPath("/ims/api/events/", eventName, "/visits/", strconv.Itoa(int(visit)), "/rangers/", handle).String())
 }
 
-func (a ApiHelper) getIncidents(ctx context.Context, eventName string) (imsjson.Incidents, *http.Response) {
+func (a ApiHelper) getIncidents(ctx context.Context, eventName string) (imsjson.IncidentListItems, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/incidents")).String()
-	return a.imsGet[imsjson.Incidents](ctx, path)
+	return a.queryIncidents(ctx, eventName, nil)
 }
 
-func (a ApiHelper) getVisits(ctx context.Context, eventName string) (imsjson.Visits, *http.Response) {
+func (a ApiHelper) queryIncidents(ctx context.Context, eventName string, query url.Values) (imsjson.IncidentListItems, *http.Response) {
 	a.t.Helper()
-	path := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/visits")).String()
-	return a.imsGet[imsjson.Visits](ctx, path)
+	u := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/incidents"))
+	u.RawQuery = query.Encode()
+	return a.imsGet[imsjson.IncidentListItems](ctx, u.String())
+}
+
+func (a ApiHelper) getVisits(ctx context.Context, eventName string) (imsjson.VisitListItems, *http.Response) {
+	a.t.Helper()
+	return a.queryVisits(ctx, eventName, nil)
+}
+
+func (a ApiHelper) queryVisits(ctx context.Context, eventName string, query url.Values) (imsjson.VisitListItems, *http.Response) {
+	a.t.Helper()
+	u := a.serverURL.JoinPath(fmt.Sprint("/ims/api/events/", eventName, "/visits"))
+	u.RawQuery = query.Encode()
+	return a.imsGet[imsjson.VisitListItems](ctx, u.String())
 }
 
 func (a ApiHelper) updateIncidentReportEntry(ctx context.Context, eventName string, incident int32, req imsjson.ReportEntry) *http.Response {

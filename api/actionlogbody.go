@@ -124,3 +124,26 @@ func isJSONContentType(r *http.Request) bool {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	return err == nil && strings.EqualFold(mediaType, "application/json")
 }
+
+// isSearchRequest reports whether a request carries a search query.
+func isSearchRequest(r *http.Request) bool {
+	return strings.TrimSpace(r.URL.Query().Get("q")) != ""
+}
+
+// loggedQueryParams returns a request's query parameters as JSON, for the
+// action log of a search. It returns nil when there are none.
+func loggedQueryParams(r *http.Request) *string {
+	params := r.URL.Query()
+	if len(params) == 0 {
+		return nil
+	}
+	encoded, err := json.Marshal(params)
+	if err != nil {
+		return nil
+	}
+	s := string(encoded)
+	if len(s) > maxLoggedBodyBytes {
+		s = strings.ToValidUTF8(s[:maxLoggedBodyBytes], "") + truncationMarker
+	}
+	return &s
+}

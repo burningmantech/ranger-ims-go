@@ -27,7 +27,7 @@ const eventId = 1;
 const frUrl = `/ims/api/events/${eventName}/field_reports`;
 
 let serverEventAccess: ims.AuthInfoEventAccess;
-let serverFieldReports: ims.FieldReport[];
+let serverFieldReports: ims.FieldReportListItem[];
 let serverEvents: ims.EventData[];
 
 beforeEach((): void => {
@@ -52,8 +52,8 @@ beforeEach((): void => {
         attachFiles: true,
     };
     serverFieldReports = [
-        { number: 7, summary: "Lost child", incident: null, report_entries: [] },
-        { number: 8, summary: "Found wallet", incident: 3, report_entries: [] },
+        { number: 7, summary: "Lost child", incident: null, author: "Hardware" },
+        { number: 8, summary: "Found wallet", incident: 3, author: "Loosey" },
     ];
     serverEvents = [{ id: eventId, name: eventName }];
 });
@@ -95,7 +95,7 @@ test("page init loads the event's field reports into the table", async (): Promi
     await vi.waitFor((): void => {
         expect(MockDataTable.lastInstance?.data().length).toBe(2);
     });
-    const numbers = MockDataTable.lastInstance!.data().map((fr: ims.FieldReport) => fr.number);
+    const numbers = MockDataTable.lastInstance!.data().map((fr: ims.FieldReportListItem) => fr.number);
     expect(numbers).toEqual([7, 8]);
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
 });
@@ -120,7 +120,7 @@ test("a viewer without field-report read access sees an authorization error", as
 });
 
 // Pull a column's render function off the table the page configured.
-function renderColumn(name: string): (value: any, type: string, row: ims.FieldReport) => unknown {
+function renderColumn(name: string): (value: any, type: string, row: ims.FieldReportListItem) => unknown {
     const column = MockDataTable.lastInstance!.column(name)!;
     return column.render!;
 }
@@ -132,54 +132,26 @@ test("the summary column renders display, filter, and sort text", async (): Prom
 
     expect(render(report.summary, "display", report)).toBe("Lost child");
     expect(render(report.summary, "sort", report)).toBe("Lost child");
-    expect(render(report.summary, "filter", report)).toContain("Lost child");
+    expect(render(report.summary, "filter", report)).toBe("Lost child");
     expect(render(report.summary, "bogus", report)).toBeUndefined();
 });
 
-test("the summary column falls back to the first report entry line", async (): Promise<void> => {
-    serverFieldReports[0] = {
-        number: 7, summary: "", incident: null,
-        report_entries: [{ text: "First line\nSecond line", system_entry: false }],
-    };
-    await initFieldReportsPage();
-    const render = renderColumn("field_report_summary");
-
-    expect(render("", "display", serverFieldReports[0]!)).toBe("First line");
-});
-
-test("the author column shows the author of the first report entry", async (): Promise<void> => {
-    serverFieldReports[0]!.report_entries = [
-        { text: "Created field report", system_entry: true, author: "Hardware" },
-    ];
+test("the author column shows the field report's author", async (): Promise<void> => {
     await initFieldReportsPage();
     const render = renderColumn("field_report_author");
     const report = serverFieldReports[0]!;
 
-    expect(render(report.report_entries, "display", report)).toBe("Hardware");
+    expect(render(report.author, "display", report)).toBe("Hardware");
 });
 
-test("the author column takes the first entry's author, not a later one's", async (): Promise<void> => {
-    serverFieldReports[0]!.report_entries = [
-        { text: "started it", system_entry: false, author: "Hardware" },
-        { text: "chimed in", system_entry: false, author: "Loosey" },
-    ];
+test("the author column falls back when there's no author", async (): Promise<void> => {
     await initFieldReportsPage();
     const render = renderColumn("field_report_author");
     const report = serverFieldReports[0]!;
 
-    expect(render(report.report_entries, "display", report)).toBe("Hardware");
-});
-
-test("the author column falls back when there's no authored first entry", async (): Promise<void> => {
-    await initFieldReportsPage();
-    const render = renderColumn("field_report_author");
-    const report = serverFieldReports[0]!; // no report entries at all
-
-    expect(render(report.report_entries, "display", report)).toBe("None?");
+    expect(render("", "display", report)).toBe("None?");
     expect(render(null, "display", report)).toBe("None?");
     expect(render(undefined, "display", report)).toBe("None?");
-    // An entry that somehow carries no author.
-    expect(render([{ text: "anonymous", system_entry: false }], "display", report)).toBe("None?");
 });
 
 test("the table's columns line up with the rendered table headers", async (): Promise<void> => {
@@ -196,8 +168,8 @@ test("the table's columns line up with the rendered table headers", async (): Pr
 });
 
 test("the modification-date filter passes everything until a window is set", async (): Promise<void> => {
-    serverFieldReports[0]!.created = new Date().toISOString();
-    serverFieldReports[1]!.created = "2000-01-01T00:00:00Z";
+    serverFieldReports[0]!.last_modified = new Date().toISOString();
+    serverFieldReports[1]!.last_modified = "2000-01-01T00:00:00Z";
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
     await vi.waitFor((): void => {
@@ -214,10 +186,10 @@ test("the modification-date filter passes everything until a window is set", asy
     expect(table.fixedSearch("modification_date", 1)).toBe(false);
 });
 
-test("the modification-date filter keeps reports with a recent entry", async (): Promise<void> => {
+test("the modification-date filter goes by last modification, not creation", async (): Promise<void> => {
     serverFieldReports[0] = {
-        number: 7, summary: "Old report", incident: null, created: "2000-01-01T00:00:00Z",
-        report_entries: [{ text: "fresh note", system_entry: false, created: new Date().toISOString() }],
+        number: 7, summary: "Old report", incident: null,
+        created: "2000-01-01T00:00:00Z", last_modified: new Date().toISOString(),
     };
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
@@ -258,15 +230,26 @@ test("pressing Enter on an integer search jumps to that field report", async ():
     expect(window.location.href).toContain("/field_reports/55");
 });
 
-test("a /regex/ search is handed to the table as a regex query", async (): Promise<void> => {
-    await initFieldReportsPage();
+test("a search asks the server which field reports match and shows only those rows", async (): Promise<void> => {
+    const handler = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `${frUrl}?q=%2Fwallet%2F`) {
+            return jsonResponse([serverFieldReports[1]]);
+        }
+        return frRoutes(url, init);
+    };
+    await initFieldReportsPage(handler);
     const table = MockDataTable.lastInstance!;
     const input = document.getElementById("search_input") as HTMLInputElement;
     input.value = "/wallet/";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 
-    expect(table.lastSearch).toEqual(["wallet", true, false]);
+    await vi.waitFor((): void => {
+        expect(table.fixedSearch("query", 0)).toBe(false);
+    });
+    expect(table.fixedSearch("query", 1)).toBe(true);
     expect(window.location.hash).toContain("q=");
+    // The table's own client-side search is left empty.
+    expect(table.lastSearch).toEqual(["", false, false]);
 });
 
 test("a field report update broadcast reloads the table", async (): Promise<void> => {
@@ -276,7 +259,7 @@ test("a field report update broadcast reloads the table", async (): Promise<void
         expect(table.data().length).toBe(2);
     });
 
-    serverFieldReports.push({ number: 9, summary: "New report", incident: null, report_entries: [] });
+    serverFieldReports.push({ number: 9, summary: "New report", incident: null, author: "Hardware" });
     const channel = new BroadcastChannel("field_report_update");
     channel.postMessage({ field_report_number: 9, event_id: eventId });
     await vi.waitFor((): void => {
@@ -292,7 +275,7 @@ test("an update_all field report broadcast reloads the table", async (): Promise
         expect(table.data().length).toBe(2);
     });
 
-    serverFieldReports.push({ number: 9, summary: "New report", incident: null, report_entries: [] });
+    serverFieldReports.push({ number: 9, summary: "New report", incident: null, author: "Hardware" });
     const channel = new BroadcastChannel("field_report_update");
     channel.postMessage({ update_all: true });
     await vi.waitFor((): void => {

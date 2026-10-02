@@ -198,20 +198,24 @@ func TestCreateAndGetVisit(t *testing.T) {
 	}
 
 	{
-		// Now get the visit via the GetVisits (plural) endpoint, and repeat the validation
+		// Now get the visit via the GetVisits (plural) endpoint, which returns
+		// only the Visits table's columns
 		retrievedVisits, resp := apisNonAdmin.getVisits(ctx, eventName)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
 		require.Len(t, retrievedVisits, 1)
-
-		// The first entry will be the system entry. The second should be the one we sent in the request
-		retrievedUserEntry := retrievedVisits[0].ReportEntries[1]
-		retrievedUserEntry.ID = 0
-		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
-		retrievedUserEntry.Created = time.Time{}
-		entryReq.Author = userAliceHandle
-		require.Equal(t, entryReq, retrievedUserEntry)
-		requireEqualVisit(t, visitReq, retrievedVisits[0])
+		item := retrievedVisits[0]
+		require.Equal(t, eventName, item.Event)
+		require.Equal(t, num, item.Number)
+		require.Equal(t, visitReq.GuestPreferredName, item.GuestPreferredName)
+		// The legal name is withheld, since the preferred name is set
+		require.Nil(t, item.GuestLegalName)
+		require.True(t, visitReq.ArrivalTime.Equal(*item.ArrivalTime))
+		require.True(t, visitReq.DepartureTime.Equal(*item.DepartureTime))
+		require.Equal(t, visitReq.ResourceSitter, item.ResourceSitter)
+		require.Equal(t, visitReq.ResourceBedID, item.ResourceBedID)
+		require.WithinDuration(t, time.Now(), item.Created, 5*time.Minute)
+		require.WithinDuration(t, time.Now(), item.LastModified, 5*time.Minute)
 	}
 }
 

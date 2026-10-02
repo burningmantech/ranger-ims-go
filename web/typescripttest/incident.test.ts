@@ -120,6 +120,26 @@ beforeEach((): void => {
     ];
 });
 
+// The list endpoints answer with slimmed-down copies of the server's records,
+// which the page fetches in full only when they're attached to the incident.
+function fieldReportListItem(fr: ims.FieldReport): ims.FieldReportListItem {
+    return {
+        number: fr.number ?? null,
+        incident: fr.incident ?? null,
+        summary: fr.summary ?? null,
+        author: fr.report_entries?.[0]?.author ?? null,
+    };
+}
+
+function visitListItem(visit: ims.Visit): ims.VisitListItem {
+    return {
+        number: visit.number ?? null,
+        incident: visit.incident ?? null,
+        guest_preferred_name: visit.guest_preferred_name ?? null,
+        guest_legal_name: visit.guest_legal_name ?? null,
+    };
+}
+
 function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
     const hasBody = init?.body != null;
     if (url === `/ims/api/auth?event_id=${eventName}`) {
@@ -143,10 +163,28 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
         return jsonResponse(serverPlaces);
     }
     if (url === `/ims/api/events/${eventName}/field_reports` && !hasBody) {
-        return jsonResponse(serverFieldReports);
+        return jsonResponse(serverFieldReports.map(fieldReportListItem));
     }
     if (url === `/ims/api/events/${eventName}/visits` && !hasBody) {
-        return jsonResponse(serverVisits);
+        return jsonResponse(serverVisits.map(visitListItem));
+    }
+    const listNumberMatch = url.match(new RegExp(`^/ims/api/events/${eventName}/(field_reports|visits)\\?number=(\\d+)$`));
+    if (listNumberMatch && !hasBody) {
+        const number = Number(listNumberMatch[2]);
+        const item = listNumberMatch[1] === "field_reports"
+            ? serverFieldReports.filter((fr: ims.FieldReport): boolean => fr.number === number).map(fieldReportListItem)
+            : serverVisits.filter((v: ims.Visit): boolean => v.number === number).map(visitListItem);
+        return item.length > 0 ? jsonResponse(item) : problemResponse("Not found", 404);
+    }
+    const fullFieldReportMatch = url.match(new RegExp(`^/ims/api/events/${eventName}/field_reports/(\\d+)$`));
+    if (fullFieldReportMatch && !hasBody) {
+        const fr = serverFieldReports.find((fr: ims.FieldReport): boolean => fr.number === Number(fullFieldReportMatch[1]));
+        return fr != null ? jsonResponse(fr) : problemResponse("Not found", 404);
+    }
+    const fullVisitMatch = url.match(new RegExp(`^/ims/api/events/${eventName}/visits/(\\d+)$`));
+    if (fullVisitMatch && !hasBody) {
+        const visit = serverVisits.find((v: ims.Visit): boolean => v.number === Number(fullVisitMatch[1]));
+        return visit != null ? jsonResponse(visit) : problemResponse("Not found", 404);
     }
     if (url.startsWith(`/ims/api/events/${eventName}/incidents/1/rangers/`)) {
         return new Response(null, { status: 204 });
@@ -195,9 +233,6 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
     }
     if ((url === `/ims/api/events/${eventName}/incidents/1` || url === `/ims/api/events/${eventName}/incidents/42`) && hasBody) {
         return new Response(null, { status: 204 });
-    }
-    if (url === `/ims/api/events/${eventName}/field_reports/8` && !hasBody) {
-        return jsonResponse(serverFieldReports.find((fr: ims.FieldReport): boolean => fr.number === 8));
     }
     if (url.startsWith(`/ims/api/events/${eventName}/field_reports/`) && hasBody) {
         return new Response(null, { status: 204 });
@@ -936,12 +971,7 @@ test("a field report broadcast refreshes that one field report", async (): Promi
 });
 
 test("a visit broadcast refreshes that one visit", async (): Promise<void> => {
-    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
-        if (url === `/ims/api/events/${eventName}/visits/3` && init?.body == null) {
-            return jsonResponse(serverVisits[1]);
-        }
-        return incidentRoutes(url, init);
-    });
+    await initIncidentPage();
     expect(document.querySelector('#attached_field_reports li[data-visit-number="3"]')).toBeNull();
 
     // VS#3 got attached to this incident elsewhere.
@@ -1001,7 +1031,7 @@ test("a reader who can't see field reports still sees the attached visits", asyn
 
 test("a broadcast for a field report the reader can't see leaves the list alone", async (): Promise<void> => {
     await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
-        if (url === `/ims/api/events/${eventName}/field_reports/9` && init?.body == null) {
+        if (url === `/ims/api/events/${eventName}/field_reports?number=9` && init?.body == null) {
             return problemResponse("Forbidden", 403);
         }
         return incidentRoutes(url, init);
@@ -1021,7 +1051,7 @@ test("a broadcast for a field report the reader can't see leaves the list alone"
 
 test("a broadcast for a visit the reader can't see leaves the list alone", async (): Promise<void> => {
     await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
-        if (url === `/ims/api/events/${eventName}/visits/9` && init?.body == null) {
+        if (url === `/ims/api/events/${eventName}/visits?number=9` && init?.body == null) {
             return problemResponse("Forbidden", 403);
         }
         return incidentRoutes(url, init);
@@ -1041,7 +1071,7 @@ test("a broadcast for a visit the reader can't see leaves the list alone", async
 
 test("a broadcast for a field report that fails to load shows an error", async (): Promise<void> => {
     await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
-        if (url === `/ims/api/events/${eventName}/field_reports/9` && init?.body == null) {
+        if (url === `/ims/api/events/${eventName}/field_reports?number=9` && init?.body == null) {
             return problemResponse("database on fire", 500);
         }
         return incidentRoutes(url, init);
@@ -1058,7 +1088,7 @@ test("a broadcast for a field report that fails to load shows an error", async (
 
 test("a broadcast for a visit that fails to load shows an error", async (): Promise<void> => {
     await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
-        if (url === `/ims/api/events/${eventName}/visits/9` && init?.body == null) {
+        if (url === `/ims/api/events/${eventName}/visits?number=9` && init?.body == null) {
             return problemResponse("database on fire", 500);
         }
         return incidentRoutes(url, init);
@@ -1542,4 +1572,49 @@ test("a failed attachment re-enables the button and surfaces the error", async (
     expect(button.disabled).toBe(false);
     expect(button.value).toBe("Attach file");
     expect(document.getElementById("error_text")!.textContent).toContain("Failed to attach file");
+});
+
+test("only the attached field reports and visits are fetched in full", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    const fullReads = requestsMatching(mock, /\/(field_reports|visits)\/\d+$/).map((r): string => r.url);
+    expect(fullReads.toSorted()).toEqual([
+        "/ims/api/events/2025/field_reports/7",
+        "/ims/api/events/2025/visits/2",
+    ]);
+    // The unattached ones are in the attach dropdown all the same.
+    const options = [...document.querySelectorAll("#attached_field_report_add option")]
+        .map((o): string => (o as HTMLOptionElement).value);
+    expect(options).toContain("FR#8");
+    expect(options).toContain("VS#3");
+});
+
+test("a broadcast for an attached field report refetches it in full", async (): Promise<void> => {
+    await initIncidentPage();
+
+    serverFieldReports[0]!.report_entries!.push(
+        { id: 22, created: "2025-08-25T10:20:00Z", author: "Tool", text: "a newer field note", system_entry: false },
+    );
+    const channel = new BroadcastChannel("field_report_update");
+    channel.postMessage({ event_id: eventId, field_report_number: 7 });
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("report_entries")!.textContent).toContain("a newer field note");
+    });
+    channel.close();
+});
+
+test("a broadcast for an unattached field report doesn't fetch it in full", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    serverFieldReports[1]!.summary = "Unattached, renamed";
+    const channel = new BroadcastChannel("field_report_update");
+    channel.postMessage({ event_id: eventId, field_report_number: 8 });
+
+    await vi.waitFor((): void => {
+        const option = document.querySelector('#attached_field_report_add option[value="FR#8"]');
+        expect(option?.textContent).toContain("Unattached, renamed");
+    });
+    expect(requestsMatching(mock, /\/field_reports\/8$/)).toEqual([]);
+    channel.close();
 });

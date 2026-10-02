@@ -16,7 +16,7 @@
 
 import { expect, test, vi } from "vitest";
 import * as ims from "../typescript/ims.ts";
-import { MockEventSource } from "./helpers.ts";
+import { jsonResponse, MockEventSource, mockFetch } from "./helpers.ts";
 
 test("parseInt10 parses base-10 integers and rejects garbage", (): void => {
     expect(ims.parseInt10("0")).toBe(0);
@@ -104,28 +104,68 @@ test("visitAsString uses the preferred name, then the legal name", (): void => {
     expect(ims.visitAsString({ number: 5 })).toBe("VS #5: ");
 });
 
-test("reportTextFromIncident merges incident text with linked field reports", (): void => {
-    const incident: ims.Incident = {
-        summary: "Art car crash",
-        report_entries: [
-            { text: "entered state: on_scene", system_entry: true },
-            { text: "ranger dispatched", system_entry: false },
-        ],
-        field_reports: [9],
-    };
-    const fieldReports: ims.FieldReportsByNumber = {
-        9: {
-            number: 9,
-            summary: "FR summary",
-            report_entries: [{ text: "fr detail", system_entry: false }],
-        },
-    };
-    const text = ims.reportTextFromIncident(incident, fieldReports, {});
-    expect(text).toContain("Art car crash");
-    expect(text).toContain("ranger dispatched");
-    expect(text).toContain("FR summary");
-    expect(text).toContain("fr detail");
-    expect(text).not.toContain("entered state");
+test("fieldReportAsString takes the author from a list item", (): void => {
+    const item: ims.FieldReportListItem = { number: 8, summary: "Found a hat", author: "Hubcap" };
+    expect(ims.fieldReportAsString(item)).toBe("FR #8 (Hubcap): Found a hat");
+    expect(ims.fieldReportAsString({ number: 9, summary: "No author", author: "" })).toBe("FR #9 ((none)): No author");
+});
+
+test("summarizeIncidentOrFR uses a list item's summary as is", (): void => {
+    const item: ims.IncidentListItem = { number: 3, summary: "From the first entry" };
+    expect(ims.summarizeIncidentOrFR(item)).toBe("From the first entry");
+    expect(ims.summarizeIncidentOrFR({ number: 4 } as ims.IncidentListItem)).toBe("");
+});
+
+test("newListSearch matches everything until a search runs", async (): Promise<void> => {
+    const fetchMock = mockFetch((): Response | undefined => undefined);
+    const search = ims.newListSearch("/ims/api/events/2025/incidents");
+
+    expect(search.matches(1)).toBe(true);
+    expect(search.matches(null)).toBe(true);
+    // An empty search doesn't go to the server.
+    expect(await search.search("   ")).toBe(true);
+    expect(search.matches(1)).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test("newListSearch matches only the numbers the server returns", async (): Promise<void> => {
+    const fetchMock = mockFetch((url: string): Response | undefined => {
+        if (url === "/ims/api/events/2025/incidents?q=lost+hat") {
+            return jsonResponse([{ number: 2 }, { number: 5 }]);
+        }
+        return undefined;
+    });
+    const search = ims.newListSearch("/ims/api/events/2025/incidents");
+
+    expect(await search.search(" lost hat ")).toBe(true);
+    expect(search.matches(2)).toBe(true);
+    expect(search.matches(5)).toBe(true);
+    expect(search.matches(3)).toBe(false);
+    expect(search.matches(null)).toBe(false);
+
+    // refresh re-runs the same search.
+    expect(await search.refresh()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+test("newListSearch ignores a search that a later one overtook", async (): Promise<void> => {
+    let releaseSlow: (() => void) | null = null;
+    const slowResponse = new Promise<void>((resolve): void => { releaseSlow = resolve; });
+    vi.stubGlobal("fetch", vi.fn(async (url: string): Promise<Response> => {
+        if (url.endsWith("?q=slow")) {
+            await slowResponse;
+            return jsonResponse([{ number: 1 }]);
+        }
+        return jsonResponse([{ number: 2 }]);
+    }));
+    const search = ims.newListSearch("/ims/api/events/2025/incidents");
+
+    const slow = search.search("slow");
+    expect(await search.search("fast")).toBe(true);
+    releaseSlow!();
+    expect(await slow).toBe(false);
+    expect(search.matches(2)).toBe(true);
+    expect(search.matches(1)).toBe(false);
 });
 
 test("localDateISO and localTimeHHMM format in local time", (): void => {

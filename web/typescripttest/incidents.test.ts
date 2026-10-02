@@ -15,8 +15,8 @@
 //
 
 // Tests for incidents.ts against the real templ-rendered incidents list page
-// (incidents.templ). The page loads incident types, field reports,
-// visits, and incidents before handing rows to a DataTables grid; a stand-in
+// (incidents.templ). The page loads incident types and the slimmed-down
+// incidents list before handing rows to a DataTables grid; a stand-in
 // DataTable (MockDataTable) captures those rows.
 
 import { beforeEach, expect, test, vi } from "vitest";
@@ -25,10 +25,10 @@ import { jsonResponse, loadFixture, MockDataTable, mockFetch } from "./helpers.t
 
 const eventName = "2025";
 const eventId = 1;
-const incidentsUrl = `/ims/api/events/${eventName}/incidents?exclude_system_entries=true`;
+const incidentsUrl = `/ims/api/events/${eventName}/incidents`;
 
 let serverEventAccess: ims.AuthInfoEventAccess;
-let serverIncidents: ims.Incident[];
+let serverIncidents: ims.IncidentListItem[];
 let serverTypes: ims.IncidentType[];
 let serverEvents: ims.EventData[];
 
@@ -54,8 +54,8 @@ beforeEach((): void => {
         attachFiles: true,
     };
     serverIncidents = [
-        { number: 1, event: eventName, state: "on_scene", priority: 3, summary: "Dust storm", incident_type_ids: [1], report_entries: [] },
-        { number: 2, event: eventName, state: "closed", priority: 5, summary: "Lost shoe", incident_type_ids: [], report_entries: [] },
+        { number: 1, event: eventName, state: "on_scene", priority: 3, summary: "Dust storm", incident_type_ids: [1] },
+        { number: 2, event: eventName, state: "closed", priority: 5, summary: "Lost shoe", incident_type_ids: [] },
     ];
     serverTypes = [
         { id: 1, name: "Junk", hidden: false, description: "" },
@@ -78,12 +78,6 @@ function incidentsRoutes(url: string, _init?: RequestInit): Response | undefined
     }
     if (url === "/ims/api/incident_types") {
         return jsonResponse(serverTypes);
-    }
-    if (url === `/ims/api/events/${eventName}/field_reports?exclude_system_entries=true`) {
-        return jsonResponse([]);
-    }
-    if (url === `/ims/api/events/${eventName}/visits?exclude_system_entries=true`) {
-        return jsonResponse([]);
     }
     if (url === incidentsUrl) {
         return jsonResponse(serverIncidents);
@@ -108,7 +102,7 @@ test("page init loads the event's incidents into the table", async (): Promise<v
     await vi.waitFor((): void => {
         expect(MockDataTable.lastInstance?.data().length).toBe(2);
     });
-    const numbers = MockDataTable.lastInstance!.data().map((i: ims.Incident) => i.number);
+    const numbers = MockDataTable.lastInstance!.data().map((i: ims.IncidentListItem) => i.number);
     expect(numbers).toEqual([1, 2]);
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
 });
@@ -153,7 +147,7 @@ test("a field-report writer without incident access is redirected to the field r
 });
 
 // Pull a column's render function off the table the page configured.
-function renderColumn(name: string): (value: any, type: string, row: ims.Incident) => unknown {
+function renderColumn(name: string): (value: any, type: string, row: ims.IncidentListItem) => unknown {
     const column = MockDataTable.lastInstance!.column(name)!;
     return column.render!;
 }
@@ -165,8 +159,7 @@ test("the summary column renders display, filter, and sort text", async (): Prom
 
     expect(render(incident.summary, "display", incident)).toBe("Dust storm");
     expect(render(incident.summary, "sort", incident)).toBe("Dust storm");
-    // The filter value pulls in attached report text, so it contains the summary.
-    expect(render(incident.summary, "filter", incident)).toContain("Dust storm");
+    expect(render(incident.summary, "filter", incident)).toBe("Dust storm");
     // An unrecognized render type yields undefined.
     expect(render(incident.summary, "bogus", incident)).toBeUndefined();
 });
@@ -198,7 +191,7 @@ test("the types column renders type names and handles missing ids", async (): Pr
 test("the state filter shows open, active, on hold, and all states correctly", async (): Promise<void> => {
     // data[0] on_scene (open+active), data[1] closed, data[2] on_hold (open but not active)
     serverIncidents.push({
-        number: 3, event: eventName, state: "on_hold", priority: 3, summary: "On hold", incident_type_ids: [1], report_entries: [],
+        number: 3, event: eventName, state: "on_hold", priority: 3, summary: "On hold", incident_type_ids: [1],
     });
     await initIncidentsPage();
     const table = MockDataTable.lastInstance!;
@@ -306,24 +299,84 @@ test("pressing Enter on an integer search jumps to that incident", async (): Pro
     expect(window.location.href).toContain("/incidents/42");
 });
 
-test("a /regex/ search is handed to the table as a regex query", async (): Promise<void> => {
-    await initIncidentsPage();
+test("a search asks the server which incidents match and shows only those rows", async (): Promise<void> => {
+    const handler = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `${incidentsUrl}?q=dust`) {
+            return jsonResponse([serverIncidents[0]]);
+        }
+        return incidentsRoutes(url, init);
+    };
+    await initIncidentsPage(handler);
     const table = MockDataTable.lastInstance!;
+    expect(table.fixedSearch("query", 0)).toBe(true);
+    expect(table.fixedSearch("query", 1)).toBe(true);
+
     const input = document.getElementById("search_input") as HTMLInputElement;
-    input.value = "/dust/";
+    input.value = "dust";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 
-    expect(table.lastSearch).toEqual(["dust", true, false]);
-    expect(window.location.hash).toContain("q=");
+    await vi.waitFor((): void => {
+        expect(table.fixedSearch("query", 1)).toBe(false);
+    });
+    expect(table.fixedSearch("query", 0)).toBe(true);
+    expect(window.location.hash).toContain("q=dust");
+    // The table's own client-side search is left empty.
+    expect(table.lastSearch).toEqual(["", false, false]);
+
+    // Clearing the search shows everything again, without asking the server.
+    input.value = "";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await vi.waitFor((): void => {
+        expect(table.fixedSearch("query", 1)).toBe(true);
+    });
+});
+
+test("a /regex/ search is passed to the server as typed", async (): Promise<void> => {
+    const handler = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `${incidentsUrl}?q=%2Fshoe%2F`) {
+            return jsonResponse([serverIncidents[1]]);
+        }
+        return incidentsRoutes(url, init);
+    };
+    await initIncidentsPage(handler);
+    const table = MockDataTable.lastInstance!;
+    const input = document.getElementById("search_input") as HTMLInputElement;
+    input.value = "/shoe/";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    await vi.waitFor((): void => {
+        expect(table.fixedSearch("query", 0)).toBe(false);
+    });
+    expect(table.fixedSearch("query", 1)).toBe(true);
+});
+
+test("a failed search shows an error and no rows", async (): Promise<void> => {
+    const handler = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `${incidentsUrl}?q=%2F%28%2F`) {
+            return jsonResponse({ detail: "Invalid regular expression" }, 400);
+        }
+        return incidentsRoutes(url, init);
+    };
+    await initIncidentsPage(handler);
+    const table = MockDataTable.lastInstance!;
+    const input = document.getElementById("search_input") as HTMLInputElement;
+    input.value = "/(/";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(false);
+    });
+    expect(table.fixedSearch("query", 0)).toBe(false);
+    expect(table.fixedSearch("query", 1)).toBe(false);
 });
 
 test("an incident update broadcast refreshes the matching row in place", async (): Promise<void> => {
-    const updated: ims.Incident = {
-        number: 1, event: eventName, state: "closed", priority: 3, summary: "Dust storm RESOLVED", incident_type_ids: [1], report_entries: [],
+    const updated: ims.IncidentListItem = {
+        number: 1, event: eventName, state: "closed", priority: 3, summary: "Dust storm RESOLVED", incident_type_ids: [1],
     };
     const handler = (url: string, init?: RequestInit): Response | undefined => {
-        if (url === `/ims/api/events/${eventName}/incidents/1`) {
-            return jsonResponse(updated);
+        if (url === `${incidentsUrl}?number=1`) {
+            return jsonResponse([updated]);
         }
         return incidentsRoutes(url, init);
     };
@@ -338,19 +391,19 @@ test("an incident update broadcast refreshes the matching row in place", async (
     const channel = new BroadcastChannel("incident_update");
     channel.postMessage({ incident_number: 1, event_id: eventId });
     await vi.waitFor((): void => {
-        const row = table.data().find((i: ims.Incident) => i.number === 1);
+        const row = table.data().find((i: ims.IncidentListItem) => i.number === 1);
         expect(row.summary).toBe("Dust storm RESOLVED");
     });
     channel.close();
 });
 
 test("a broadcast for an unknown incident adds a new row", async (): Promise<void> => {
-    const created: ims.Incident = {
-        number: 9, event: eventName, state: "new", priority: 3, summary: "Brand new", incident_type_ids: [], report_entries: [],
+    const created: ims.IncidentListItem = {
+        number: 9, event: eventName, state: "new", priority: 3, summary: "Brand new", incident_type_ids: [],
     };
     const handler = (url: string, init?: RequestInit): Response | undefined => {
-        if (url === `/ims/api/events/${eventName}/incidents/9`) {
-            return jsonResponse(created);
+        if (url === `${incidentsUrl}?number=9`) {
+            return jsonResponse([created]);
         }
         return incidentsRoutes(url, init);
     };
@@ -363,7 +416,7 @@ test("a broadcast for an unknown incident adds a new row", async (): Promise<voi
     const channel = new BroadcastChannel("incident_update");
     channel.postMessage({ incident_number: 9, event_id: eventId });
     await vi.waitFor((): void => {
-        expect(table.data().some((i: ims.Incident) => i.number === 9)).toBe(true);
+        expect(table.data().some((i: ims.IncidentListItem) => i.number === 9)).toBe(true);
     });
     channel.close();
 });
@@ -377,7 +430,7 @@ test("an update_all broadcast reloads the whole table", async (): Promise<void> 
 
     // The server now returns a third incident; update_all reloads everything.
     serverIncidents.push({
-        number: 5, event: eventName, state: "new", priority: 3, summary: "Reloaded", incident_type_ids: [], report_entries: [],
+        number: 5, event: eventName, state: "new", priority: 3, summary: "Reloaded", incident_type_ids: [],
     });
     const channel = new BroadcastChannel("incident_update");
     channel.postMessage({ update_all: true });
@@ -597,4 +650,37 @@ test("arrow keys move between the type filter box and the matching types", async
     toggleAll.focus();
     toggleAll.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
     expect(document.activeElement).toBe(input);
+});
+
+test("an incident update re-runs an active search", async (): Promise<void> => {
+    let matching: ims.IncidentListItem[] = [];
+    const handler = (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `${incidentsUrl}?q=storm`) {
+            return jsonResponse(matching);
+        }
+        if (url === `${incidentsUrl}?number=2`) {
+            return jsonResponse([{ ...serverIncidents[1], summary: "Lost shoe in a storm" }]);
+        }
+        return incidentsRoutes(url, init);
+    };
+    await initIncidentsPage(handler);
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+    const input = document.getElementById("search_input") as HTMLInputElement;
+    input.value = "storm";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await vi.waitFor((): void => {
+        expect(table.fixedSearch("query", 1)).toBe(false);
+    });
+
+    // Incident 2 now mentions a storm, so it matches the search.
+    matching = [serverIncidents[1]!];
+    const channel = new BroadcastChannel("incident_update");
+    channel.postMessage({ incident_number: 2, event_id: eventId });
+    await vi.waitFor((): void => {
+        expect(table.fixedSearch("query", 1)).toBe(true);
+    });
+    channel.close();
 });

@@ -24,7 +24,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -37,11 +36,12 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+// GetFieldReports lists an Event's Field Reports, slimmed down to what the
+// Field Reports table shows. See listFilter for the optional filters it takes.
 type GetFieldReports struct {
-	imsDBQ             *store.DBQ
-	userStore          *directory.UserStore
-	imsAdmins          []string
-	attachmentsEnabled bool
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	imsAdmins []string
 }
 
 func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -52,8 +52,8 @@ func (action GetFieldReports) ServeHTTP(w http.ResponseWriter, req *http.Request
 	}
 	mustWriteJSON(w, req, resp)
 }
-func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldReports, *herr.HTTPError) {
-	resp := make(imsjson.FieldReports, 0)
+func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldReportListItems, *herr.HTTPError) {
+	resp := make(imsjson.FieldReportListItems, 0)
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getEventPermissions]")
@@ -64,68 +64,93 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 	// i.e. the user has EventReadOwnFieldReports, but not EventReadAllFieldReports
 	limitedAccess := eventPermissions&authz.EventReadAllFieldReports == 0
 
-	err := req.ParseForm()
-	if err != nil {
-		return resp, herr.BadRequest("Failed to parse form", err).From("[ParseForm]")
+	filter, errHTTP := parseListFilter(req)
+	if errHTTP != nil {
+		return resp, errHTTP.From("[parseListFilter]")
 	}
 
-	includeSystemEntries := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
-
-	reportEntries, err := action.imsDBQ.FieldReports_ReportEntries(
-		req.Context(),
-		action.imsDBQ,
-		imsdb.FieldReports_ReportEntriesParams{
-			Event:     event.ID,
-			Generated: includeSystemEntries,
-		},
-	)
-	if err != nil {
-		return resp, herr.InternalServerError("Failed to get FR report entries", err).From("[FieldReports_ReportEntries]")
-	}
-
+	var storedFRs []imsdb.FieldReport
 	entriesByFR := make(map[int32][]imsdb.ReportEntry)
-	for _, row := range reportEntries {
-		entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], row.ReportEntry)
-	}
-
-	storedFRs, err := action.imsDBQ.FieldReports(req.Context(), action.imsDBQ, event.ID)
-	if err != nil {
-		return resp, herr.InternalServerError("Failed to fetch Field Reports", err).From("[FieldReports]")
-	}
-
-	var authorizedFRs []imsdb.FieldReportsRow
-	if limitedAccess {
-		for _, storedFR := range storedFRs {
-			entries := entriesByFR[storedFR.FieldReport.Number]
-			if containsAuthor(entries, jwtCtx.Claims.RangerHandle()) {
-				authorizedFRs = append(authorizedFRs, storedFR)
-			}
+	if filter.hasNumber {
+		fr, entries, errHTTP := fetchFieldReport(req.Context(), action.imsDBQ, event.ID, filter.number)
+		if errHTTP != nil {
+			return resp, errHTTP.From("[fetchFieldReport]")
 		}
+		storedFRs = []imsdb.FieldReport{fr}
+		entriesByFR[fr.Number] = entries
 	} else {
-		authorizedFRs = storedFRs
-	}
+		reportEntries, err := action.imsDBQ.FieldReports_ReportEntries(
+			req.Context(),
+			action.imsDBQ,
+			imsdb.FieldReports_ReportEntriesParams{
+				Event:     event.ID,
+				Generated: true,
+			},
+		)
+		if err != nil {
+			return resp, herr.InternalServerError("Failed to get FR report entries", err).From("[FieldReports_ReportEntries]")
+		}
+		for _, row := range reportEntries {
+			entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], row.ReportEntry)
+		}
 
-	entryJSONsByFR := make(map[int32][]imsdb.ReportEntry)
-	for frNum, entries := range entriesByFR {
-		for _, entry := range entries {
-			entryJSONsByFR[frNum] = append(entryJSONsByFR[frNum], entry)
+		rows, err := action.imsDBQ.FieldReports(req.Context(), action.imsDBQ, event.ID)
+		if err != nil {
+			return resp, herr.InternalServerError("Failed to fetch Field Reports", err).From("[FieldReports]")
+		}
+		for _, row := range rows {
+			storedFRs = append(storedFRs, row.FieldReport)
 		}
 	}
 
-	resp = make(imsjson.FieldReports, 0, len(authorizedFRs))
-	for _, fr := range authorizedFRs {
-		resp = append(
-			resp,
-			fieldReportToJSON(
-				fr.FieldReport,
-				entryJSONsByFR[fr.FieldReport.Number],
-				event,
-				action.attachmentsEnabled,
-			),
-		)
+	resp = make(imsjson.FieldReportListItems, 0, len(storedFRs))
+	for _, fr := range storedFRs {
+		entries := entriesByFR[fr.Number]
+		if limitedAccess && !containsAuthor(entries, jwtCtx.Claims.RangerHandle()) {
+			if filter.hasNumber {
+				return resp, herr.Forbidden("The requestor does not have permission to access this particular Field Report", nil)
+			}
+			continue
+		}
+		sortEntries(entries)
+		item := fieldReportToListItem(fr, entries, event)
+		if filter.match != nil && !filter.match(fieldReportSearchText(fr, item, entries)) {
+			continue
+		}
+		resp = append(resp, item)
 	}
 
 	return resp, nil
+}
+
+// fieldReportToListItem slims a Field Report down for the Field Reports list.
+// The entries must be sorted.
+func fieldReportToListItem(fr imsdb.FieldReport, entries []imsdb.ReportEntry, event imsdb.Event) imsjson.FieldReportListItem {
+	var author string
+	if len(entries) > 0 {
+		author = entries[0].Author
+	}
+	return imsjson.FieldReportListItem{
+		Event:        event.Name,
+		Number:       fr.Number,
+		Created:      conv.FloatToTime(fr.Created),
+		LastModified: lastModified(fr.Created, entries),
+		Summary:      listSummary(fr.Summary.String, entries),
+		Incident:     conv.SqlToInt32(fr.IncidentNumber),
+		Author:       author,
+	}
+}
+
+// fieldReportSearchText is everything a Field Report search looks through,
+// i.e. what the Field Reports table used to search on the client.
+func fieldReportSearchText(fr imsdb.FieldReport, item imsjson.FieldReportListItem, entries []imsdb.ReportEntry) string {
+	var doc searchDoc
+	doc.add(strconv.Itoa(int(fr.Number)), item.Author, fr.Summary.String)
+	if item.Incident != nil {
+		doc.add(strconv.Itoa(int(*item.Incident)))
+	}
+	doc.addEntries(entries)
+	return doc.String()
 }
 
 func containsAuthor(entries []imsdb.ReportEntry, author string) bool {

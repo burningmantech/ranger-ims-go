@@ -29,3 +29,19 @@ type FieldReport struct {
 	Incident      *int32        `json:"incident,omitzero"`
 	ReportEntries []ReportEntry `json:"report_entries"`
 }
+
+type FieldReportListItems []FieldReportListItem
+
+// FieldReportListItem is a Field Report as the event-wide Field Reports list
+// returns it. See IncidentListItem.
+type FieldReportListItem struct {
+	Event        string    `json:"event"`
+	Number       int32     `json:"number"`
+	Created      time.Time `json:"created,omitzero"`
+	LastModified time.Time `json:"last_modified,omitzero"`
+	// Summary is as for IncidentListItem.Summary.
+	Summary  string `json:"summary"`
+	Incident *int32 `json:"incident,omitzero"`
+	// Author is the author of the Field Report's first report entry.
+	Author string `json:"author"`
+}

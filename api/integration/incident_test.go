@@ -181,20 +181,29 @@ func TestCreateAndGetIncident(t *testing.T) {
 	}
 
 	{
-		// Now get the incident via the GetIncidents (plural) endpoint, and repeat the validation
+		// Now get the incident via the GetIncidents (plural) endpoint, which
+		// returns it without its report entries
 		retrievedIncidents, resp := apisNonAdmin.getIncidents(ctx, eventName)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
 		require.Len(t, retrievedIncidents, 1)
-
-		// The first entry will be the system entry. The second should be the one we sent in the request
-		retrievedUserEntry := retrievedIncidents[0].ReportEntries[1]
-		retrievedUserEntry.ID = 0
-		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
-		retrievedUserEntry.Created = time.Time{}
-		entryReq.Author = userAliceHandle
-		require.Equal(t, entryReq, retrievedUserEntry)
-		requireEqualIncident(t, incidentReq, retrievedIncidents[0])
+		item := retrievedIncidents[0]
+		require.Equal(t, eventName, item.Event)
+		require.Equal(t, num, item.Number)
+		require.Equal(t, incidentReq.State, item.State)
+		require.Equal(t, incidentReq.Priority, item.Priority)
+		require.Equal(t, *incidentReq.Summary, item.Summary)
+		require.Equal(t, incidentReq.Location, item.Location)
+		require.WithinDuration(t, time.Now(), item.Created, 5*time.Minute)
+		require.WithinDuration(t, time.Now(), item.Started, 5*time.Minute)
+		require.WithinDuration(t, time.Now(), item.LastModified, 5*time.Minute)
+		require.ElementsMatch(t,
+			[]imsjson.IncidentRanger{{Handle: "SomeOne"}, {Handle: "SomeTwo"}},
+			item.Rangers,
+		)
+		require.Empty(t, item.IncidentTypeIDs)
+		require.Empty(t, item.FieldReports)
+		require.Empty(t, item.Visits)
 	}
 }
 

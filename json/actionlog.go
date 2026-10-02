@@ -28,7 +28,8 @@ type ActionLog struct {
 	Path       string    `json:"path,omitzero"`
 	Referrer   string    `json:"referrer,omitzero"`
 	// RequestBody is the mutation the request performed, as the API JSON it
-	// was sent as. Empty for requests whose body isn't logged.
+	// was sent as, or for a search, its query parameters as JSON. Empty for
+	// requests whose body isn't logged.
 	RequestBody   string `json:"request_body,omitzero"`
 	UserID        int64  `json:"user_id,omitzero"`
 	UserName      string `json:"user_name"`

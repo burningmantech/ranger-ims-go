@@ -56,6 +56,10 @@ const (
 	// LogMutation additionally records the request's JSON body, which for a
 	// mutating endpoint is the mutation itself.
 	LogMutation
+	// LogSearch records only the requests that carry a search (a "q"
+	// parameter), along with their query parameters, so that the audit trail
+	// shows what people searched for. A plain list fetch isn't logged.
+	LogSearch
 )
 
 func AddToMux(
@@ -143,9 +147,9 @@ func AddToMux(
 			cfg.BurningManAPI.Enabled(),
 		}, LogMetadata, OptionalAuthN(jwter, cookies, userStore))
 
-	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins}, LogSearch)
 	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
-	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}", GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}", GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}", EditIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
 	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}", GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments", AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
@@ -157,16 +161,16 @@ func AddToMux(
 	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", LinkIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
 	authed("DELETE /ims/api/events/{eventName}/incidents/{incidentNumber}/linked_incidents/{linkedEventName}/{linkedIncidentNumber}", UnlinkIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
 
-	authed("GET /ims/api/events/{eventName}/field_reports", GetFieldReports{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("GET /ims/api/events/{eventName}/field_reports", GetFieldReports{db, userStore, cfg.Core.Admins}, LogSearch)
 	authed("POST /ims/api/events/{eventName}/field_reports", NewFieldReport{db, userStore, es, cfg.Core.Admins}, LogMutation)
-	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", GetFieldReport{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}", EditFieldReport{db, userStore, es, cfg.Core.Admins}, LogMutation)
 	authed("GET /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments/{attachmentNumber}", GetFieldReportAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/attachments", AttachToFieldReport{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/field_reports/{fieldReportNumber}/report_entries/{reportEntryId}", EditFieldReportReportEntry{db, userStore, es, cfg.Core.Admins}, LogMutation)
 
-	authed("GET /ims/api/events/{eventName}/visits", GetVisits{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
-	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}", GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogNothing)
+	authed("GET /ims/api/events/{eventName}/visits", GetVisits{db, userStore, cfg.Core.Admins}, LogNothing)
+	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}", GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/visits", NewVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
 	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}", EditVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
 	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", AttachRangerToVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
@@ -185,7 +189,7 @@ func AddToMux(
 	authed("POST /ims/api/events", EditEvent{db, userStore, cfg.Core.Admins}, LogMutation)
 	authed("DELETE /ims/api/events/{eventName}", DeleteEvent{db, userStore, cfg.Core.Admins, cfg.Core.EventDeletionEnabled}, LogMutation)
 
-	authed("GET /ims/api/search", GetSearch{db, userStore, cfg.Core.Admins}, LogNothing)
+	authed("GET /ims/api/search", GetSearch{db, userStore, cfg.Core.Admins}, LogSearch)
 
 	authed("GET /ims/api/incident_types", GetIncidentTypes{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogNothing)
 	authed("POST /ims/api/incident_types", EditIncidentTypes{db, userStore, cfg.Core.Admins}, LogMutation)
@@ -385,7 +389,7 @@ func LogRequest(mode ActionLogMode, actionLogger ActionLogger, userStore *direct
 
 			next.ServeHTTP(writ, r)
 
-			if mode != LogNothing {
+			if mode != LogNothing && (mode != LogSearch || isSearchRequest(r)) {
 				referrer := requestReferrer(r)
 				remoteAddr := clientAddress(r)
 				var requestBody sql.NullString
@@ -393,6 +397,9 @@ func LogRequest(mode ActionLogMode, actionLogger ActionLogger, userStore *direct
 					// No length limit: bodyCapture already caps what it keeps,
 					// and cutting bytes here could split a UTF-8 rune.
 					requestBody = conv.StringToSql(body.logged(), 0)
+				}
+				if mode == LogSearch {
+					requestBody = conv.StringToSql(loggedQueryParams(r), 0)
 				}
 				actionLogger.Log(
 					r.Context(),

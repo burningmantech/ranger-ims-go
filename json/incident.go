@@ -79,3 +79,28 @@ type LinkedIncident struct {
 	Number    int32  `json:"number"`
 	Summary   string `json:"summary,omitempty"`
 }
+
+type IncidentListItems []IncidentListItem
+
+// IncidentListItem is an Incident as the event-wide Incidents list returns it:
+// enough to draw the Incidents table, but without report entries, so that
+// reading what's in an Incident takes a request for that Incident alone.
+type IncidentListItem struct {
+	Event        string    `json:"event"`
+	EventID      int32     `json:"event_id"`
+	Number       int32     `json:"number"`
+	Created      time.Time `json:"created,omitzero"`
+	LastModified time.Time `json:"last_modified,omitzero"`
+	State        string    `json:"state"`
+	Started      time.Time `json:"started,omitzero"`
+	Closed       time.Time `json:"closed,omitzero"`
+	Priority     int8      `json:"priority"`
+	// Summary is the Incident's own summary or, failing that, an excerpt of
+	// the first line of its first non-system report entry.
+	Summary         string           `json:"summary"`
+	Location        Location         `json:"location"`
+	IncidentTypeIDs []int32          `json:"incident_type_ids"`
+	FieldReports    []int32          `json:"field_reports"`
+	Visits          []int32          `json:"visits"`
+	Rangers         []IncidentRanger `json:"rangers"`
+}

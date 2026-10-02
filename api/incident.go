@@ -38,11 +38,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// GetIncidents lists an Event's Incidents, slimmed down to what the Incidents
+// table shows. See listFilter for the optional filters it takes.
 type GetIncidents struct {
-	imsDBQ             *store.DBQ
-	userStore          *directory.UserStore
-	imsAdmins          []string
-	attachmentsEnabled bool
+	imsDBQ    *store.DBQ
+	userStore *directory.UserStore
+	imsAdmins []string
 }
 
 func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -54,8 +55,8 @@ func (action GetIncidents) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mustWriteJSON(w, req, resp)
 }
 
-func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *herr.HTTPError) {
-	resp := make(imsjson.Incidents, 0)
+func (action GetIncidents) getIncidents(req *http.Request) (imsjson.IncidentListItems, *herr.HTTPError) {
+	resp := make(imsjson.IncidentListItems, 0)
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return resp, errHTTP.From("[getEventPermissions]")
@@ -63,14 +64,21 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 	if eventPermissions&authz.EventReadIncidents == 0 {
 		return nil, herr.Forbidden("The requestor does not have EventReadIncidents permission", nil)
 	}
-	err := req.ParseForm()
-	if err != nil {
-		return nil, herr.BadRequest("Failed to parse form", err)
+	filter, errHTTP := parseListFilter(req)
+	if errHTTP != nil {
+		return nil, errHTTP.From("[parseListFilter]")
 	}
-	includeSystemEntries := !strings.EqualFold(req.Form.Get("exclude_system_entries"), "true")
 
-	// The Incidents and ReportEntries queries both request a lot of data, and we can query
-	// and process those results concurrently.
+	if filter.hasNumber {
+		item, errHTTP := action.getIncidentListItem(req.Context(), event, filter.number)
+		if errHTTP != nil {
+			return nil, errHTTP.From("[getIncidentListItem]")
+		}
+		return append(resp, item), nil
+	}
+
+	// These queries all request a lot of data, and we can query and process
+	// those results concurrently.
 	group, groupCtx := errgroup.WithContext(req.Context())
 
 	entriesByIncident := make(map[int32][]imsdb.ReportEntry)
@@ -80,7 +88,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 			action.imsDBQ,
 			imsdb.Incidents_ReportEntriesParams{
 				Event:     event.ID,
-				Generated: includeSystemEntries,
+				Generated: true,
 			},
 		)
 		if err != nil {
@@ -116,7 +124,13 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 		}
 		return nil
 	})
-	err = group.Wait()
+
+	var corpus incidentSearchCorpus
+	if filter.match != nil {
+		corpus = action.fetchIncidentSearchCorpus(groupCtx, group, event.ID, eventPermissions)
+	}
+
+	err := group.Wait()
 	if err != nil {
 		return resp, herr.AsHTTPError(err)
 	}
@@ -127,18 +141,195 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.Incidents, *
 		// future, this won't compile, and we may need to duplicate the readExtraIncidentRowFields
 		// function.
 		incidentRow := imsdb.IncidentRow(r)
+		entries := entriesByIncident[r.Incident.Number]
+		sortEntries(entries)
 
-		// we don't bother looking up linked incidents for the GetIncidents call
-		var emptyLinkedIncidents []imsdb.Incident_LinkedIncidentsRow
-
-		incJSON, errHTTP := incidentToJSON(incidentRow, rangersByIncident[r.Incident.Number], entriesByIncident[r.Incident.Number], emptyLinkedIncidents, event, action.attachmentsEnabled)
+		item, errHTTP := incidentToListItem(incidentRow, rangersByIncident[r.Incident.Number], entries, event)
 		if errHTTP != nil {
-			return resp, errHTTP.From("[incidentToJSON]")
+			return resp, errHTTP.From("[incidentToListItem]")
 		}
-		resp = append(resp, incJSON)
+		if filter.match != nil && !filter.match(corpus.searchText(incidentRow.Incident, item, entries)) {
+			continue
+		}
+		resp = append(resp, item)
 	}
 
 	return resp, nil
+}
+
+func (action GetIncidents) getIncidentListItem(ctx context.Context, event imsdb.Event, incidentNumber int32) (
+	imsjson.IncidentListItem, *herr.HTTPError,
+) {
+	storedRow, entries, errHTTP := fetchIncident(ctx, action.imsDBQ, event.ID, incidentNumber)
+	if errHTTP != nil {
+		return imsjson.IncidentListItem{}, errHTTP.From("[fetchIncident]")
+	}
+	rangersRows, err := action.imsDBQ.Incident_Rangers(ctx, action.imsDBQ, imsdb.Incident_RangersParams{
+		Event:          event.ID,
+		IncidentNumber: incidentNumber,
+	})
+	if err != nil {
+		return imsjson.IncidentListItem{}, herr.InternalServerError("Failed to fetch rangers", err).From("[Incident_Rangers]")
+	}
+	rangers := make([]imsdb.IncidentRanger, len(rangersRows))
+	for i, row := range rangersRows {
+		rangers[i] = row.IncidentRanger
+	}
+	sortEntries(entries)
+	return incidentToListItem(storedRow, rangers, entries, event)
+}
+
+// incidentToListItem slims an Incident down for the Incidents list. The
+// entries must be sorted.
+func incidentToListItem(storedRow imsdb.IncidentRow, incidentRangers []imsdb.IncidentRanger,
+	entries []imsdb.ReportEntry, event imsdb.Event,
+) (imsjson.IncidentListItem, *herr.HTTPError) {
+	incidentTypeIDs, fieldReportNumbers, visitNumbers, err := readExtraIncidentRowFields(storedRow)
+	if err != nil {
+		return imsjson.IncidentListItem{}, herr.InternalServerError("Failed to fetch Incident details", err).From("[readExtraIncidentRowFields]")
+	}
+	rangersJSON := make([]imsjson.IncidentRanger, len(incidentRangers))
+	for i, ir := range incidentRangers {
+		rangersJSON[i] = imsjson.IncidentRanger{
+			Handle: ir.RangerHandle,
+			Role:   conv.SqlToString(ir.Role),
+		}
+	}
+	inc := storedRow.Incident
+	return imsjson.IncidentListItem{
+		Event:        event.Name,
+		EventID:      event.ID,
+		Number:       inc.Number,
+		Created:      conv.FloatToTime(inc.Created),
+		LastModified: lastModified(inc.Created, entries),
+		State:        string(inc.State),
+		Started:      conv.FloatToTime(inc.Started),
+		Closed:       conv.NullFloatToTime(inc.Closed),
+		Priority:     inc.Priority,
+		Summary:      listSummary(inc.Summary.String, entries),
+		Location: imsjson.Location{
+			Name:        conv.SqlToString(inc.LocationName),
+			Address:     conv.SqlToString(inc.LocationAddress),
+			Description: conv.SqlToString(inc.LocationDescription),
+		},
+		IncidentTypeIDs: incidentTypeIDs,
+		FieldReports:    fieldReportNumbers,
+		Visits:          visitNumbers,
+		Rangers:         rangersJSON,
+	}, nil
+}
+
+// incidentSearchCorpus is what an Incident search matches beyond the
+// Incident's own fields: the names of its types, and the text of its attached
+// Field Reports and Visits.
+type incidentSearchCorpus struct {
+	typeNames       map[int32]string
+	fieldReportText map[int32]string
+	visitText       map[int32]string
+}
+
+// fetchIncidentSearchCorpus adds the queries for an incidentSearchCorpus to
+// group. The corpus is filled in once the group is done. Field Reports and
+// Visits only contribute text when the requestor could read them anyway.
+func (action GetIncidents) fetchIncidentSearchCorpus(
+	ctx context.Context, group *errgroup.Group, eventID int32, eventPermissions authz.EventPermissionMask,
+) incidentSearchCorpus {
+	corpus := incidentSearchCorpus{
+		typeNames:       make(map[int32]string),
+		fieldReportText: make(map[int32]string),
+		visitText:       make(map[int32]string),
+	}
+	group.Go(func() error {
+		types, err := action.imsDBQ.IncidentTypes(ctx, action.imsDBQ)
+		if err != nil {
+			return herr.InternalServerError("Failed to fetch Incident Types", err).From("[IncidentTypes]")
+		}
+		for _, t := range types {
+			corpus.typeNames[t.IncidentType.ID] = t.IncidentType.Name
+		}
+		return nil
+	})
+	if eventPermissions&authz.EventReadAllFieldReports != 0 {
+		group.Go(func() error {
+			frs, err := action.imsDBQ.FieldReports(ctx, action.imsDBQ, eventID)
+			if err != nil {
+				return herr.InternalServerError("Failed to fetch Field Reports", err).From("[FieldReports]")
+			}
+			entries, err := action.imsDBQ.FieldReports_ReportEntries(ctx, action.imsDBQ,
+				imsdb.FieldReports_ReportEntriesParams{Event: eventID, Generated: false})
+			if err != nil {
+				return herr.InternalServerError("Failed to fetch FR report entries", err).From("[FieldReports_ReportEntries]")
+			}
+			docs := make(map[int32]*searchDoc)
+			for _, fr := range frs {
+				doc := &searchDoc{}
+				doc.add(fr.FieldReport.Summary.String)
+				docs[fr.FieldReport.Number] = doc
+			}
+			for _, row := range entries {
+				if doc := docs[row.FieldReportNumber]; doc != nil {
+					doc.addEntries([]imsdb.ReportEntry{row.ReportEntry})
+				}
+			}
+			for number, doc := range docs {
+				corpus.fieldReportText[number] = doc.String()
+			}
+			return nil
+		})
+	}
+	if eventPermissions&authz.EventReadVisits != 0 {
+		group.Go(func() error {
+			visits, err := action.imsDBQ.Visits(ctx, action.imsDBQ, eventID)
+			if err != nil {
+				return herr.InternalServerError("Failed to fetch Visits", err).From("[Visits]")
+			}
+			entries, err := action.imsDBQ.Visits_ReportEntries(ctx, action.imsDBQ,
+				imsdb.Visits_ReportEntriesParams{Event: eventID, Generated: false})
+			if err != nil {
+				return herr.InternalServerError("Failed to fetch Visit report entries", err).From("[Visits_ReportEntries]")
+			}
+			docs := make(map[int32]*searchDoc)
+			for _, v := range visits {
+				doc := &searchDoc{}
+				doc.add(v.Visit.GuestPreferredName.String, v.Visit.GuestLegalName.String, v.Visit.GuestDescription.String)
+				docs[v.Visit.Number] = doc
+			}
+			for _, row := range entries {
+				if doc := docs[row.VisitNumber]; doc != nil {
+					doc.addEntries([]imsdb.ReportEntry{row.ReportEntry})
+				}
+			}
+			for number, doc := range docs {
+				corpus.visitText[number] = doc.String()
+			}
+			return nil
+		})
+	}
+	return corpus
+}
+
+// searchText is everything an Incident search looks through for this
+// Incident, i.e. what the Incidents table used to search on the client.
+func (c incidentSearchCorpus) searchText(
+	inc imsdb.Incident, item imsjson.IncidentListItem, entries []imsdb.ReportEntry,
+) string {
+	var doc searchDoc
+	doc.add(strconv.Itoa(int(inc.Number)), inc.Summary.String)
+	doc.addEntries(entries)
+	for _, typeID := range item.IncidentTypeIDs {
+		doc.add(c.typeNames[typeID])
+	}
+	doc.add(inc.LocationName.String, inc.LocationAddress.String)
+	for _, r := range item.Rangers {
+		doc.add(r.Handle)
+	}
+	for _, frNumber := range item.FieldReports {
+		doc.add(c.fieldReportText[frNumber])
+	}
+	for _, visitNumber := range item.Visits {
+		doc.add(c.visitText[visitNumber])
+	}
+	return doc.String()
 }
 
 type GetIncident struct {

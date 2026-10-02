@@ -27,7 +27,7 @@ const eventId = 1;
 const visitsUrl = `/ims/api/events/${eventName}/visits`;
 
 let serverEventAccess: ims.AuthInfoEventAccess;
-let serverVisits: ims.Visit[];
+let serverVisits: ims.VisitListItem[];
 let serverEvents: ims.EventData[];
 
 beforeEach((): void => {
@@ -52,8 +52,8 @@ beforeEach((): void => {
         attachFiles: true,
     };
     serverVisits = [
-        { number: 2, guest_preferred_name: "Sparkle", report_entries: [] },
-        { number: 3, guest_preferred_name: "Wanderer", departure_time: "2025-08-25T12:00:00Z", report_entries: [] },
+        { number: 2, guest_preferred_name: "Sparkle" },
+        { number: 3, guest_preferred_name: "Wanderer", departure_time: "2025-08-25T12:00:00Z" },
     ];
     serverEvents = [{ id: eventId, name: eventName }];
 });
@@ -93,7 +93,7 @@ test("page init loads the event's visits into the table", async (): Promise<void
     await vi.waitFor((): void => {
         expect(MockDataTable.lastInstance?.data().length).toBe(2);
     });
-    const numbers = MockDataTable.lastInstance!.data().map((v: ims.Visit) => v.number);
+    const numbers = MockDataTable.lastInstance!.data().map((v: ims.VisitListItem) => v.number);
     expect(numbers).toEqual([2, 3]);
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
 });
@@ -117,13 +117,13 @@ test("a viewer without visit read access sees an authorization error", async ():
 });
 
 // Pull a column's render function off the table the page configured.
-function renderColumn(name: string): (value: any, type: string, row: ims.Visit) => unknown {
+function renderColumn(name: string): (value: any, type: string, row: ims.VisitListItem) => unknown {
     const column = MockDataTable.lastInstance!.column(name)!;
     return column.render!;
 }
 
 test("the name column renders the guest's preferred name, falling back to legal name", async (): Promise<void> => {
-    serverVisits.push({ number: 4, guest_legal_name: "Legal Name", report_entries: [] });
+    serverVisits.push({ number: 4, guest_legal_name: "Legal Name" });
     await initVisitsPage();
     const render = renderColumn("visit_name");
 
@@ -228,7 +228,7 @@ test("a visit update broadcast reloads the table", async (): Promise<void> => {
         expect(table.data().length).toBe(2);
     });
 
-    serverVisits.push({ number: 9, guest_preferred_name: "Newcomer", report_entries: [] });
+    serverVisits.push({ number: 9, guest_preferred_name: "Newcomer" });
     const channel = new BroadcastChannel("visit_update");
     channel.postMessage({ visit_number: 9, event_id: eventId });
     await vi.waitFor((): void => {
@@ -244,7 +244,7 @@ test("an update_all visit broadcast reloads the table", async (): Promise<void> 
         expect(table.data().length).toBe(2);
     });
 
-    serverVisits.push({ number: 9, guest_preferred_name: "Newcomer", report_entries: [] });
+    serverVisits.push({ number: 9, guest_preferred_name: "Newcomer" });
     const channel = new BroadcastChannel("visit_update");
     channel.postMessage({ update_all: true });
     await vi.waitFor((): void => {

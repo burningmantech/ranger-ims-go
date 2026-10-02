@@ -162,6 +162,10 @@ export async function fetchNoThrow<T>(url: string, init: RequestInit|null): Prom
     try {
         response = await fetch(url, init);
     } catch (err: unknown) {
+        if (err instanceof TypeError) {
+            // "Failed to fetch"
+            return {resp: null, json: null, err: "Server may be down"};
+        }
         if (err instanceof Error) {
             return {resp: null, json: null, err: err.message};
         }
@@ -772,10 +776,14 @@ export function stateForIncident(incident: Incident): IncidentState {
 }
 
 
-// Return a summary for a given incident.
-export function summarizeIncidentOrFR(ifr: Incident|FieldReport): string {
+// Return a summary for a given incident. A list item's summary already has the
+// server's fallback to the first report entry applied.
+export function summarizeIncidentOrFR(ifr: Incident|FieldReport|IncidentListItem|FieldReportListItem): string {
     if (ifr.summary) {
         return ifr.summary;
+    }
+    if (!("report_entries" in ifr)) {
+        return "";
     }
 
     // Get the first line of the first report entry.
@@ -809,7 +817,10 @@ function incidentAuthor(incident: Incident): string {
 
 
 // Get author for field report
-function fieldReportAuthor(report: FieldReport): string {
+function fieldReportAuthor(report: FieldReport|FieldReportListItem): string {
+    if ("author" in report) {
+        return report.author || "(none)";
+    }
     return incidentAuthor(report);
 }
 
@@ -824,75 +835,19 @@ export function incidentAsString(incident: Incident): string {
 
 
 // Render field report as a string
-export function fieldReportAsString(report: FieldReport): string {
+export function fieldReportAsString(report: FieldReport|FieldReportListItem): string {
     if (report.number == null) {
         return `New Field Report`;
     }
     return `FR #${report.number} (${fieldReportAuthor(report)}): ${summarizeIncidentOrFR(report)}`;
 }
 
-export function visitAsString(s: Visit): string {
+export function visitAsString(s: Visit|VisitListItem): string {
     if (s.number == null) {
         return "New Visit";
     }
     return `VS #${s.number}: ${s.guest_preferred_name || s.guest_legal_name || ""}`;
 }
-
-// Return all user-entered report text for a given incident as a single string.
-export function reportTextFromIncident(
-    incidentFROrVisit: Incident|FieldReport|Visit,
-    eventFieldReports?: FieldReportsByNumber,
-    eventVisits?: VisitsByNumber,
-): string {
-    const texts: string[] = [];
-
-    if ("summary" in incidentFROrVisit) {
-        texts.push(incidentFROrVisit.summary||"");
-    }
-    if ("guest_preferred_name" in incidentFROrVisit) {
-        texts.push(incidentFROrVisit.guest_preferred_name||"");
-    }
-    if ("guest_legal_name" in incidentFROrVisit) {
-        texts.push(incidentFROrVisit.guest_legal_name||"");
-    }
-    if ("guest_description" in incidentFROrVisit) {
-        texts.push(incidentFROrVisit.guest_description||"");
-    }
-
-    for (const reportEntry of incidentFROrVisit.report_entries??[]) {
-
-        // Skip system entries
-        if (reportEntry.system_entry) {
-            continue;
-        }
-
-        if (reportEntry.text != null) {
-            texts.push(reportEntry.text);
-        }
-    }
-
-    // Incidents page loads all field reports for the event
-    if (eventFieldReports != null && "field_reports" in incidentFROrVisit) {
-        for (const reportNumber of incidentFROrVisit.field_reports??[]) {
-            const report: FieldReport = eventFieldReports[reportNumber]!;
-            const reportText = reportTextFromIncident(report);
-
-            texts.push(reportText);
-        }
-    }
-    // Incidents page also loads all visits for the event
-    if (eventVisits != null && "visits" in incidentFROrVisit) {
-        for (const visitNumber of incidentFROrVisit.visits??[]) {
-            const visit: Visit = eventVisits[visitNumber]!;
-            const reportText = reportTextFromIncident(visit);
-
-            texts.push(reportText);
-        }
-    }
-
-    return texts.join(" ");
-}
-
 
 // Return a short description for a given location.
 function safeShortDescribeLocation(location: EventLocation): string {
@@ -1709,6 +1664,57 @@ export function announce(msg: string): void {
     setTimeout((): void => {
         region.textContent = msg;
     }, 0);
+}
+
+// ListSearch runs a list page's search box on the server. The event-wide list
+// endpoints don't send report entries, so the table can't search them itself:
+// instead the server answers a search with the matching records, and the table
+// shows only the rows whose numbers are among them.
+export type ListSearch = {
+    // Whether the record with this number passes the current search. Every
+    // record does when there's no search.
+    matches: (number: number|null|undefined) => boolean;
+    // Searches for q. Resolves to false, having changed nothing, when a later
+    // search overtook this one, in which case there's nothing to redraw.
+    search: (q: string) => Promise<boolean>;
+    // Runs the current search again, e.g. because a record changed.
+    refresh: () => Promise<boolean>;
+};
+
+// listURL is the list's URL template, e.g. url_incidents.
+export function newListSearch(listURL: string): ListSearch {
+    let query = "";
+    let matching: Set<number>|null = null;
+    let latest = 0;
+
+    async function search(q: string): Promise<boolean> {
+        const current = ++latest;
+        query = q.trim();
+        if (!query) {
+            matching = null;
+            return true;
+        }
+        const {json, err} = await fetchNoThrow<{number?: number|null}[]>(
+            `${urlReplace(listURL)}?${new URLSearchParams({q: query}).toString()}`, null,
+        );
+        if (current !== latest) {
+            return false;
+        }
+        if (err != null || json == null) {
+            setErrorMessage(`Search failed: ${err}`);
+            matching = new Set();
+            return true;
+        }
+        matching = new Set(json.map(item => item.number).filter((n): n is number => n != null));
+        return true;
+    }
+
+    return {
+        matches: (number: number|null|undefined): boolean =>
+            matching == null || (number != null && matching.has(number)),
+        search: search,
+        refresh: (): Promise<boolean> => search(query),
+    };
 }
 
 // newUpdateAnnouncer returns a function to call on each live (SSE) update of a
@@ -2627,8 +2633,50 @@ export type FieldReport = {
     report_entries?: ReportEntry[]|null;
 }
 
-export type FieldReportsByNumber = Record<number, FieldReport>;
-export type VisitsByNumber = Record<number, Visit>;
+
+// The event-wide lists return these slimmed-down records, which carry what the
+// list tables show but no report entries. A list item's summary falls back to
+// the first line of the first non-system report entry.
+export type IncidentListItem = {
+    number?: number|null;
+    event?: string|null;
+    state?: IncidentState|null;
+    priority?: number|null;
+    summary?: string|null;
+    created?: string|null;
+    started?: string|null;
+    last_modified?: string|null;
+    rangers?: IncidentRanger[]|null;
+    incident_type_ids?: number[]|null;
+    location?: EventLocation|null;
+    field_reports?: number[]|null;
+    visits?: number[]|null;
+}
+
+export type FieldReportListItem = {
+    event?: string|null;
+    number?: number|null;
+    created?: string|null;
+    last_modified?: string|null;
+    summary?: string|null;
+    incident?: number|null;
+    author?: string|null;
+}
+
+export type VisitListItem = {
+    number?: number|null;
+    event?: string|null;
+    created?: string|null;
+    last_modified?: string|null;
+    incident?: number|null;
+    guest_preferred_name?: string|null;
+    // Only present when there's no preferred name.
+    guest_legal_name?: string|null;
+    arrival_time?: string|null;
+    departure_time?: string|null;
+    resource_sitter?: string|null;
+    resource_bed_id?: string|null;
+}
 
 export type Visit = {
     number?: number|null;

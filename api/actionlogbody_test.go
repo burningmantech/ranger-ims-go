@@ -211,3 +211,41 @@ func TestLogRequest_UnreadBodyIsNotLogged(t *testing.T) {
 	require.Len(t, logger.rows, 1)
 	assert.False(t, logger.rows[0].RequestBody.Valid)
 }
+
+func TestLogRequest_SearchModeRecordsQuery(t *testing.T) {
+	t.Parallel()
+	logger := &fakeActionLogger{}
+
+	req := httptest.NewRequest(http.MethodGet, "/ims/api/events/2026/incidents?q=lost+child", nil)
+	serveWithActionLogging(logger, api.LogSearch, req, drainBody)
+
+	require.Len(t, logger.rows, 1)
+	row := logger.rows[0]
+	assert.Equal(t, "/ims/api/events/2026/incidents", row.Path.String)
+	assert.JSONEq(t, `{"q":["lost child"]}`, row.RequestBody.String)
+}
+
+func TestLogRequest_SearchModeSkipsPlainList(t *testing.T) {
+	t.Parallel()
+	logger := &fakeActionLogger{}
+
+	req := httptest.NewRequest(http.MethodGet, "/ims/api/events/2026/incidents", nil)
+	serveWithActionLogging(logger, api.LogSearch, req, drainBody)
+	req = httptest.NewRequest(http.MethodGet, "/ims/api/events/2026/incidents?number=4&q=+", nil)
+	serveWithActionLogging(logger, api.LogSearch, req, drainBody)
+
+	assert.Empty(t, logger.rows)
+}
+
+func TestLogRequest_SearchModeTruncatesLongQuery(t *testing.T) {
+	t.Parallel()
+	logger := &fakeActionLogger{}
+
+	req := httptest.NewRequest(http.MethodGet, "/ims/api/search?q="+strings.Repeat("a", 20*1024), nil)
+	serveWithActionLogging(logger, api.LogSearch, req, drainBody)
+
+	require.Len(t, logger.rows, 1)
+	body := logger.rows[0].RequestBody.String
+	assert.Less(t, len(body), 17*1024)
+	assert.True(t, strings.HasSuffix(body, "…[truncated]"))
+}

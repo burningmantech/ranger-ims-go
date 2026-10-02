@@ -224,6 +224,7 @@ The API (`api/` package) uses a custom middleware adapter pattern:
 - Handlers return `*herr.HTTPError` (`lib/herr/`), which carries both an internal error and a client-safe response message
 - Real-time updates are pushed to clients via Server-Sent Events (`api/eventsource.go`); mutations publish events that the web UI listens for
 - Incidents, Field Reports, and Visits carry a `VERSION` counter used as an internal concurrency gate: an edit reads the record, then applies a version-guarded `UPDATE`, and retries the read-merge-write if a concurrent writer moved the version first (`maxCASAttempts` in `api/incident.go`). The counter is reported in the record body but is not part of the request contract — clients send no precondition header. It guards only the record's own columns, so nothing else moves it: report entries, roster changes, incident types, links, and field-report/visit assignment all live in other tables, where no edit can clobber them. Set-valued fields are mutated one member at a time through their own endpoints so that concurrent writers can't undo each other
+- The event-wide lists (`GET .../incidents`, `.../field_reports`, `.../visits`) return slimmed-down list items (`IncidentListItem` etc. in `json/`) with no report entries, so that reading a record's content takes a request for that one record, which the action log records. A list item's summary falls back to the first line of the record's first non-system entry. The lists take `number=N` to return just one item (how the list pages refresh a row on an SSE update without a full, logged read), and the Incidents and Field Reports lists take `q=...` to return only the matching items (`api/listsearch.go`). That search stands in for the client-side DataTables search the list pages used to run over every record's full text, with the same syntax: every word or `"quoted phrase"` must appear somewhere, `!word` excludes, and `/.../` is a regex. An Incident search also looks through its attached Field Reports and Visits. The Visits page still searches on the client, since everything it searches is in the list items
 - Cross-event search (`api/search.go`) matches a substring or regex query against Incidents, Field Reports, and Visits across all events the requestor can read
 - Burning Man doesn't publish camp and art placement until shortly before the event, so an Event carries release times (set on the Edit Event modal) that embargo that data. Until a release time arrives, only IMS admins see it: `api/embargo.go` strips camp/art Place locations out of the `GetPlaces` response and withholds the event's `MapURL` from `GetEvents`. A null release time means no embargo. The release times themselves go out to everyone, so the Places page can show a banner naming what's still embargoed and when it'll appear
 - Camp, art, and mutant vehicle Places can come straight from the public Burning Man API instead of being pasted in: `ImportPlaces` (`api/place.go`) fetches one place type for a given year through `lib/bmapi` and replaces the event's places of that type. The year is a request parameter, since an IMS event isn't necessarily named for the year whose data it wants. The API key lives only on the server, so the browser never sees it; `GetAuth` reports whether one is configured, which is what disables the admin page's buttons. An empty upstream response is rejected rather than applied, so a mistyped year can't wipe an event's places
@@ -312,10 +313,12 @@ Event-based access control defined in `lib/authz/`:
 
 Most API requests are logged to an action log (`store/actionlog/`) for audit purposes. Each route
 declares an `ActionLogMode` in `api/mux.go`: `LogNothing` for the chatty reads, `LogMetadata` for
-who-did-what, and `LogMutation`, which additionally stores the request's JSON body (the mutation
-itself) in `ACTION_LOG.REQUEST_BODY`. Logins, attachment uploads, and bulk Places updates stay at
-`LogMetadata`, since their bodies are secret or enormous; captured bodies have passwords redacted
-and are truncated past 16KiB (`api/actionlogbody.go`).
+who-did-what (including every read of a single Incident, Field Report, or Visit), `LogMutation`,
+which additionally stores the request's JSON body (the mutation itself) in
+`ACTION_LOG.REQUEST_BODY`, and `LogSearch`, which logs only requests carrying a `q` search
+parameter, storing their query parameters as JSON in that column. Logins, attachment uploads, and
+bulk Places updates stay at `LogMetadata`, since their bodies are secret or enormous; captured
+bodies have passwords redacted and are truncated past 16KiB (`api/actionlogbody.go`).
 
 ## Key Differences from Python Version
 

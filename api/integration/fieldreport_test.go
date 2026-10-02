@@ -82,22 +82,20 @@ func TestCreateAndGetFieldReport(t *testing.T) {
 	}
 
 	{
-		// Now get the field report via the GetFieldReports (plural) endpoint, and repeat the validation
+		// Now get the field report via the GetFieldReports (plural) endpoint,
+		// which returns it without its report entries
 		retrievedFieldReports, resp := apisNonAdmin.getFieldReports(ctx, eventName)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
-		require.NotNil(t, retrievedFieldReports)
 		require.Len(t, retrievedFieldReports, 1)
-		requireEqualFieldReport(t, fieldReportReq, retrievedFieldReports[0])
-		require.Len(t, retrievedFieldReports[0].ReportEntries, 2)
-
-		// The first report entry will be the system entry. The second should be the one we sent in the request
-		retrievedUserEntry := retrievedFieldReports[0].ReportEntries[1]
-		retrievedUserEntry.ID = 0
-		require.WithinDuration(t, time.Now(), retrievedUserEntry.Created, 5*time.Minute)
-		retrievedUserEntry.Created = time.Time{}
-		entryReq.Author = userAliceHandle
-		require.Equal(t, entryReq, retrievedUserEntry)
+		item := retrievedFieldReports[0]
+		require.Equal(t, eventName, item.Event)
+		require.Equal(t, num, item.Number)
+		require.Equal(t, *fieldReportReq.Summary, item.Summary)
+		require.Nil(t, item.Incident)
+		require.Equal(t, userAliceHandle, item.Author)
+		require.WithinDuration(t, time.Now(), item.Created, 5*time.Minute)
+		require.WithinDuration(t, time.Now(), item.LastModified, 5*time.Minute)
 	}
 }
 

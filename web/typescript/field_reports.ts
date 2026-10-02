@@ -27,6 +27,8 @@ declare global {
 
 let fieldReportsTable: ims.DataTablesTable|null = null;
 
+const listSearch: ims.ListSearch = ims.newListSearch(url_fieldReports);
+
 let _frShowModifiedAfter: Date|null = null;
 let _frShowDaysBack: number|string|null = null;
 const frDefaultDaysBack = "all";
@@ -121,7 +123,7 @@ function initFieldReportsTable() {
         console.log("Table initialized. Requesting EventSource lock");
         ims.requestEventSourceLock();
 
-        ims.newFieldReportChannel().onmessage = function (e: MessageEvent<ims.FieldReportBroadcast>): void {
+        ims.newFieldReportChannel().onmessage = async function (e: MessageEvent<ims.FieldReportBroadcast>): Promise<void> {
             if (e.data.update_all) {
                 console.log("Reloading the whole table to be cautious, as an SSE was missed");
                 fieldReportsTable!.ajax.reload();
@@ -143,6 +145,8 @@ function initFieldReportsTable() {
             //  Field Reports for which they're not authorized, and those errors
             //  show up in the browser console. I'd like to find a way to avoid
             //  bringing those errors into the console constantly.
+            // The change may have moved the Field Report into or out of the search results.
+            await listSearch.refresh();
             fieldReportsTable!.ajax.reload(null, false);
             ims.clearErrorMessage();
             announceUpdate();
@@ -193,13 +197,9 @@ function frInitDataTables() {
         // DataTables gets mad if you return a Promise from this function, so we use an inner
         // async function instead.
         // https://datatables.net/forums/discussion/47411/i-always-get-error-when-i-use-table-ajax-reload
-        "ajax": function (_data: unknown, callback: (resp: {data: ims.FieldReport[]})=>void, _settings: unknown): void {
+        "ajax": function (_data: unknown, callback: (resp: {data: ims.FieldReportListItem[]})=>void, _settings: unknown): void {
             async function doAjax(): Promise<void> {
-                const {json, err} = await ims.fetchNoThrow<ims.FieldReport[]>(
-                    // don't use exclude_system_entries here, since the field reports
-                    // per-user authorization can exclude field reports entirely from
-                    // someone who created a field report but then didn't add an
-                    // entry to it.
+                const {json, err} = await ims.fetchNoThrow<ims.FieldReportListItem[]>(
                     ims.urlReplace(url_fieldReports), null,
                 );
                 if (err != null || json == null) {
@@ -238,11 +238,11 @@ function frInitDataTables() {
             {   // 3
                 "name": "field_report_author",
                 "className": "field_report_author text-center",
-                "data": "report_entries",
+                "data": "author",
                 "defaultContent": "",
-                "render": function(reportEntries: ims.ReportEntry[]|null|undefined, _type: string, _fr: ims.FieldReport): ims.RenderValue {
-                    if (reportEntries && reportEntries[0]?.author) {
-                        return DataTable.render.text().display(reportEntries[0].author) as string;
+                "render": function(author: string|null|undefined, _type: string, _fr: ims.FieldReportListItem): ims.RenderValue {
+                    if (author) {
+                        return DataTable.render.text().display(author) as string;
                     }
                     return "None?";
                 },
@@ -261,7 +261,7 @@ function frInitDataTables() {
             // creation time descending
             [2, "dsc"],
         ],
-        "createdRow": function (row: HTMLElement, fieldReport: ims.FieldReport, _index: number) {
+        "createdRow": function (row: HTMLElement, fieldReport: ims.FieldReportListItem, _index: number) {
             const openLink = function(e: MouseEvent): void {
                 // If the user clicked on a link, then let them access that link without the JS below.
                 if (e.target?.constructor?.name === "HTMLAnchorElement") {
@@ -288,13 +288,12 @@ function frInitDataTables() {
     });
 }
 
-function renderSummary(_data: string|null, type: string, fieldReport: ims.FieldReport): string|undefined {
+function renderSummary(_data: string|null, type: string, fieldReport: ims.FieldReportListItem): string|undefined {
     switch (type) {
         case "display":
             // XSS prevention
             return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport)) as string;
         case "filter":
-            return ims.reportTextFromIncident(fieldReport);
         case "sort":
         case "type":
         case undefined:
@@ -332,18 +331,17 @@ function frInitTableButtons() {
 
 function frInitSearchField(): void {
     // Search field handling
-    function searchAndDraw(): void {
+    // The search runs on the server (see ims.newListSearch), which also takes
+    // a /regex/ query. The table's own search stays empty.
+    fieldReportsTable!.search("");
+    async function searchAndDraw(): Promise<void> {
         frReplaceWindowState();
-        let q = el.searchInput.value;
-        let isRegex = false;
-        let smartSearch = true;
-        if (q.startsWith("/") && q.endsWith("/")) {
-            isRegex = true;
-            smartSearch = false;
-            q = q.slice(1, q.length-1);
+        fieldReportsTable!.processing(true);
+        const current = await listSearch.search(el.searchInput.value);
+        if (current) {
+            fieldReportsTable!.processing(false);
+            fieldReportsTable!.draw();
         }
-        fieldReportsTable!.search(q, isRegex, smartSearch);
-        fieldReportsTable!.draw();
     }
 
     const fragmentParams: URLSearchParams = ims.windowFragmentParams();
@@ -394,25 +392,18 @@ function frInitSearchField(): void {
 //
 
 function frInitSearch() {
-    function modifiedAfter(fieldReport: ims.FieldReport, timestamp: Date) {
-        if (timestamp < new Date(Date.parse(fieldReport.created!))) {
-            return true;
-        }
-        // needs to use native comparison
-        for (const entry of fieldReport.report_entries??[]) {
-            if (timestamp < new Date(Date.parse(entry.created!))) {
-                return true;
-            }
-        }
-        return false;
-    }
+    fieldReportsTable!.search.fixed("query",
+        function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
+            const fieldReport: ims.FieldReportListItem = fieldReportsTable!.data()[rowIndex]!;
+            return listSearch.matches(fieldReport.number);
+        },
+    );
 
     fieldReportsTable!.search.fixed("modification_date",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
-            const fieldReport = fieldReportsTable!.data()[rowIndex]!;
+            const fieldReport: ims.FieldReportListItem = fieldReportsTable!.data()[rowIndex]!;
             return !(_frShowModifiedAfter != null &&
-                !modifiedAfter(fieldReport, _frShowModifiedAfter));
-
+                new Date(Date.parse(fieldReport.last_modified!)) < _frShowModifiedAfter);
         },
     );
 }

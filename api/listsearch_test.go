@@ -17,6 +17,10 @@
 package api
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -122,4 +126,24 @@ func TestSortEntries(t *testing.T) {
 	}
 	sortEntries(entries)
 	assert.Equal(t, []int32{1, 2, 3}, []int32{entries[0].ID, entries[1].ID, entries[2].ID})
+}
+
+func TestParseListFilter_QueryLength(t *testing.T) {
+	t.Parallel()
+	listRequest := func(q string) *http.Request {
+		return httptest.NewRequest(http.MethodGet, "/incidents?"+url.Values{"q": {q}}.Encode(), nil)
+	}
+
+	// Multibyte runes count once each, so this is at the limit.
+	filter, errHTTP := parseListFilter(listRequest(strings.Repeat("é", searchMaxQueryRunes)))
+	require.Nil(t, errHTTP)
+	assert.NotNil(t, filter.match)
+
+	_, errHTTP = parseListFilter(listRequest(strings.Repeat("a", searchMaxQueryRunes+1)))
+	require.NotNil(t, errHTTP)
+	assert.Equal(t, http.StatusBadRequest, errHTTP.Code)
+
+	// Surrounding whitespace is trimmed before the length check.
+	_, errHTTP = parseListFilter(listRequest("  " + strings.Repeat("a", searchMaxQueryRunes) + "  "))
+	require.Nil(t, errHTTP)
 }

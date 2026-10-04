@@ -18,12 +18,14 @@ package api
 
 import (
 	"cmp"
+	"fmt"
 	"net/http"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
@@ -74,6 +76,9 @@ func parseListFilter(req *http.Request) (listFilter, *herr.HTTPError) {
 		filter.hasNumber = true
 	}
 	if query != "" {
+		if utf8.RuneCountInString(query) > searchMaxQueryRunes {
+			return filter, herr.BadRequest(fmt.Sprintf("The 'q' parameter must be at most %d characters long", searchMaxQueryRunes), nil)
+		}
 		match, errHTTP := parseListQuery(query)
 		if errHTTP != nil {
 			return filter, errHTTP.From("[parseListQuery]")

@@ -18,29 +18,12 @@
 // wired together in a real browser.
 //
 // These tests create nothing. They search for records seeded into the dev
-// stack by store/fakeimsdb/seed.sql, and they log in through the API once per
-// worker rather than through the login page in every test.
+// stack by store/fakeimsdb/seed.sql.
 
-import {test as base, expect, Locator, Page} from "@playwright/test";
+import {Locator, Page} from "@playwright/test";
+import {baseURL, expect, test} from "./fixtures";
 
-const baseURL = "http://localhost:8080";
-const username = "Hardware";
 const seededEvent = "2026";
-
-const test = base.extend<{}, {workerStorageState: string}>({
-  storageState: ({workerStorageState}, use) => use(workerStorageState),
-  workerStorageState: [async ({playwright}, use, workerInfo): Promise<void> => {
-    const request = await playwright.request.newContext({baseURL});
-    const resp = await request.post("/ims/api/auth", {
-      data: {identification: username, password: username},
-    });
-    expect(resp.ok()).toBeTruthy();
-    const file = workerInfo.project.outputDir + `/.auth/search-${workerInfo.parallelIndex}.json`;
-    await request.storageState({path: file});
-    await request.dispose();
-    await use(file);
-  }, {scope: "worker"}],
-});
 
 function resultRow(page: Page, kind: string, num: number): Locator {
   return page.locator("#search_results_table tbody tr")

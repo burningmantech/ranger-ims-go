@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {test, expect, Locator, Page} from "@playwright/test";
-
-const username = "Hardware";
-
-function randomName(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`;
-}
+import {Locator, Page} from "@playwright/test";
+import {baseURL, expect, randomName, test, TestEvents, username} from "./fixtures";
 
 async function login(page: Page): Promise<void> {
   await page.goto("http://localhost:8080/ims/app/");
@@ -45,6 +40,9 @@ async function adminPage(page: Page): Promise<void> {
   // event dispatch, in which case no navigation happens (seen as a flake on
   // Mobile Safari). Bound each step and retry the whole sequence until we
   // actually arrive on the admin page.
+  if (!page.url().startsWith(`${baseURL}/ims/app/`)) {
+    await page.goto(`${baseURL}/ims/app/`);
+  }
   const adminLink = page.getByRole("link", { name: "Admin" });
   await expect(async (): Promise<void> => {
     await maybeOpenNav(page);
@@ -72,18 +70,15 @@ async function addIncidentType(page: Page, incidentType: string): Promise<void> 
   await page.getByPlaceholder("Chooch").press("Enter");
 }
 
-// Events created by the current test, to be deleted again by the afterEach
-// hook below. A worker runs one test at a time, so it's fine for a test and
-// its cleanup hook to share this module-level list.
-const createdEvents: string[] = [];
-
-async function addEvent(page: Page, eventName: string): Promise<void> {
+// addEvent creates an event through the admin events page. Tests that just
+// need an event to work in should use TestEvents.create instead.
+async function addEvent(page: Page, events: TestEvents, eventName: string): Promise<void> {
   await eventsPage(page);
   await page.getByPlaceholder("Burn-A-Matic-3000").fill(eventName);
   await page.getByPlaceholder("Burn-A-Matic-3000").press("Enter");
 
   await expect(eventCard(page, eventName)).toBeVisible();
-  createdEvents.push(eventName);
+  events.track(eventName);
 }
 
 // deleteEvent deletes an event and all its data through the admin events
@@ -98,23 +93,6 @@ async function deleteEvent(page: Page, eventName: string): Promise<void> {
   await imsDialog(page).getByRole("button", {name: "Delete", exact: true}).click();
   await expect(card).toBeHidden();
 }
-
-// Delete the events made by each test, so that test runs don't pile up
-// events on the server. This runs on failed tests too, and the pages the
-// test itself used may already be closed, so it uses a fresh context.
-test.afterEach(async ({ browser }): Promise<void> => {
-  if (createdEvents.length === 0) {
-    return;
-  }
-  const events = createdEvents.splice(0);
-  const ctx = await browser.newContext();
-  const page = await ctx.newPage();
-  await login(page);
-  for (const eventName of events) {
-    await deleteEvent(page, eventName);
-  }
-  await ctx.close();
-});
 
 function eventCard(page: Page, eventName: string): Locator {
   return page.locator(".event_access").filter({hasText: eventName});
@@ -171,14 +149,6 @@ async function addWriter(page: Page, eventName: string, writer: string): Promise
   await addRule(page, eventName, writer, "writers");
 }
 
-async function addReporter(page: Page, eventName: string, reporter: string): Promise<void> {
-  await addRule(page, eventName, reporter, "reporters");
-}
-
-async function addVisitWriter(page: Page, eventName: string, writer: string): Promise<void> {
-  await addRule(page, eventName, writer, "visit_writers");
-}
-
 async function maybeOpenNav(page: Page): Promise<void> {
   const toggler = page.getByLabel("Toggle navigation");
   await expect(async (): Promise<void> => {
@@ -220,6 +190,16 @@ async function unstrikeReportEntry(page: Page, reportEntry: string): Promise<voi
   }).toPass();
 }
 
+// Every other test starts out logged in (see fixtures.ts), so this is the one
+// that goes through the login page.
+test.describe("logged out", (): void => {
+  test.use({storageState: {cookies: [], origins: []}});
+
+  test("login", async ({ page }) => {
+    await login(page);
+  });
+});
+
 test("themes", async ({ page }) => {
   await page.goto("http://localhost:8080/ims/app/");
 
@@ -240,8 +220,6 @@ test("themes", async ({ page }) => {
 })
 
 test("admin_incident_types", async ({ page }) => {
-  await login(page);
-
   const incidentType: string = randomName("type");
   await addIncidentType(page, incidentType);
 
@@ -257,15 +235,13 @@ test("admin_incident_types", async ({ page }) => {
   await expect(newLi.getByRole("button", {name: "Hidden"})).toBeVisible();
 });
 
-test("admin_events", async ({ browser }) => {
+test("admin_events", async ({ context, events }) => {
   test.slow();
 
-  const ctx = await browser.newContext();
-  const page = await ctx.newPage()
-  await login(page);
+  const page = await context.newPage();
 
   const eventName: string = randomName("event");
-  await addEvent(page, eventName);
+  await addEvent(page, events, eventName);
   await addWriter(page, eventName, "person:SomeGuy");
 
   const card = eventCard(page, eventName);
@@ -286,8 +262,7 @@ test("admin_events", async ({ browser }) => {
   await expect(grant.locator(".grant_interval_badge")).toHaveText("Expired");
 
   // Reload in a second page and confirm the edited terms persisted server-side.
-  const page2 = await ctx.newPage();
-  await login(page2);
+  const page2 = await context.newPage();
   await eventsPage(page2);
   const grant2 = eventCard(page2, eventName).locator(".grant").filter({hasText: "person:SomeGuy"});
   await expect(grant2.locator(".grant_when_badge")).toHaveText("On-Site");
@@ -302,19 +277,13 @@ test("admin_events", async ({ browser }) => {
   await expect(grant2.locator(".grant_when_badge")).toHaveText("On-Site");
   await expect(grant2.locator(".grant_interval_badge")).toHaveText("Expired");
 
-  await page2.close();
-  await page.close();
-  await ctx.close();
+  await deleteEvent(page2, eventName);
 })
 
-test("incidents", async ({ page, browser }) => {
+test("incidents", async ({ page, browser, authState, events }) => {
   test.slow();
 
-  // make a new event with a writer
-  await login(page);
-  const eventName: string = randomName("event");
-  await addEvent(page, eventName);
-  await addWriter(page, eventName, "person:" + username);
+  const eventName = await events.create("writers", "person:" + username);
 
   // check that we can navigate to the incidents page for that event
   await page.goto("http://localhost:8080/ims/app/");
@@ -326,9 +295,8 @@ test("incidents", async ({ page, browser }) => {
   await page.close();
 
   for (let i = 0; i < 3; i++) {
-    const ctx = await browser.newContext();
+    const ctx = await browser.newContext({storageState: authState});
     const page = await ctx.newPage()
-    await login(page);
 
     await page.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
     const incidentsPage = page;
@@ -550,11 +518,8 @@ test("incidents", async ({ page, browser }) => {
 // than fetch (only XHR reports upload progress), so the Vitest suite's mocked
 // fetch can't cover it. A few bytes are plenty: this checks the round trip, not
 // throughput.
-test("attachments", async ({ page }) => {
-  await login(page);
-  const eventName: string = randomName("event");
-  await addEvent(page, eventName);
-  await addWriter(page, eventName, "person:" + username);
+test("attachments", async ({ page, events }) => {
+  const eventName = await events.create("writers", "person:" + username);
 
   await page.goto(`http://localhost:8080/ims/app/events/${eventName}/incidents`);
   await page.getByRole("link", {name: "New"}).click();
@@ -597,14 +562,10 @@ test("attachments", async ({ page }) => {
   expect(Buffer.concat(chunks).toString()).toBe(contents);
 });
 
-test("field_reports", async ({ page, browser }) => {
+test("field_reports", async ({ page, browser, authState, events }) => {
   test.slow();
 
-  // make a new event with a writer
-  await login(page);
-  const eventName: string = randomName("event");
-  await addEvent(page, eventName);
-  await addReporter(page, eventName, "person:" + username);
+  const eventName = await events.create("reporters", "person:" + username);
 
   // check that we can navigate to the incidents page for that event
   await page.goto("http://localhost:8080/ims/app/");
@@ -618,9 +579,8 @@ test("field_reports", async ({ page, browser }) => {
   await page.close();
 
   for (let i = 0; i < 3; i++) {
-    const ctx = await browser.newContext();
+    const ctx = await browser.newContext({storageState: authState});
     const page = await ctx.newPage()
-    await login(page);
 
     await page.goto(`http://localhost:8080/ims/app/events/${eventName}/field_reports`);
     const tablePage = page;
@@ -727,20 +687,15 @@ async function commitVisitField(page: Page, field: Locator, jsonField: string, v
   }).toPass();
 }
 
-test("sanctuary_visits", async ({ page, browser }) => {
+test("sanctuary_visits", async ({ browser, authState, events }) => {
   test.slow();
 
   // make a new event in which our user may (only) write Sanctuary Visits
-  await login(page);
-  const eventName: string = randomName("event");
-  await addEvent(page, eventName);
-  await addVisitWriter(page, eventName, "person:" + username);
-  await page.close();
+  const eventName = await events.create("visit_writers", "person:" + username);
 
   for (let i = 0; i < 2; i++) {
-    const ctx = await browser.newContext();
+    const ctx = await browser.newContext({storageState: authState});
     const tablePage = await ctx.newPage();
-    await login(tablePage);
     await tablePage.goto(`http://localhost:8080/ims/app/events/${eventName}/visits`);
 
     const visitPage = await ctx.newPage();

@@ -409,6 +409,11 @@ func TestSearchBadRequests(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
+	// Query too long
+	_, resp = aliceUser.search(ctx, url.Values{"q": []string{strings.Repeat("x", 257)}})
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
 	// Missing query
 	_, resp = aliceUser.search(ctx, url.Values{})
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)

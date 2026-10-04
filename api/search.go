@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -53,6 +54,10 @@ type GetSearch struct {
 
 const (
 	searchMinQueryRunes = 2
+	// searchMaxQueryRunes bounds the work a single search can ask for, since
+	// every search scans a lot of text, and a regexp's cost grows with its length.
+	// It also applies to the list pages' searches (see parseListFilter).
+	searchMaxQueryRunes = 256
 	searchDefaultLimit  = 100
 	searchMaxLimit      = 1000
 	// searchQueryTimeout is absurdly long, because sometimes cold search queries in AWS take over 20 seconds.
@@ -89,6 +94,9 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	query := strings.TrimSpace(req.Form.Get("q"))
 	if utf8.RuneCountInString(query) < searchMinQueryRunes {
 		return resp, herr.BadRequest("The 'q' parameter must be at least 2 characters long", nil)
+	}
+	if utf8.RuneCountInString(query) > searchMaxQueryRunes {
+		return resp, herr.BadRequest(fmt.Sprintf("The 'q' parameter must be at most %d characters long", searchMaxQueryRunes), nil)
 	}
 
 	regex := false

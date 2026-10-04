@@ -148,6 +148,36 @@ func TestSearchAcrossEvents(t *testing.T) {
 		assert.Equal(t, imsjson.SearchResultKindIncident, hit.Kind)
 	}
 
+	// The event filter restricts which Events are searched.
+	results, resp = aliceUser.search(ctx, url.Values{
+		"q":     []string{token},
+		"event": []string{eventA},
+	})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Len(t, results.Hits, 2)
+	for _, hit := range results.Hits {
+		assert.Equal(t, eventA, hit.Event)
+	}
+
+	// Naming both Events finds everything again.
+	results, resp = aliceUser.search(ctx, url.Values{
+		"q":     []string{token},
+		"event": []string{eventA, eventB},
+	})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Len(t, results.Hits, 4)
+
+	// An Event that doesn't exist matches nothing, rather than failing.
+	results, resp = aliceUser.search(ctx, url.Values{
+		"q":     []string{token},
+		"event": []string{"NoSuchEvent" + token},
+	})
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Empty(t, results.Hits)
+
 	// A small limit truncates results and says so.
 	results, resp = aliceUser.search(ctx, url.Values{
 		"q":     []string{token},

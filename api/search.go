@@ -45,7 +45,8 @@ import (
 // GetSearch serves cross-event search: it matches a text query — a literal
 // substring by default, or a regular expression with regex=true — against
 // Incidents, Field Reports, and Visits in every Event the requestor is
-// permitted to read, returning a single merged result list.
+// permitted to read, returning a single merged result list. Repeated event=NAME
+// parameters narrow the search to just those Events.
 type GetSearch struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
@@ -58,7 +59,7 @@ const (
 	// every search scans a lot of text, and a regexp's cost grows with its length.
 	// It also applies to the list pages' searches (see parseListFilter).
 	searchMaxQueryRunes = 256
-	searchDefaultLimit  = 100
+	searchDefaultLimit  = 200
 	searchMaxLimit      = 1000
 	// searchQueryTimeout is absurdly long, because sometimes cold search queries in AWS take over 20 seconds.
 	searchQueryTimeout   = 50 * time.Second
@@ -125,6 +126,15 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		}
 	}
 
+	// Names the requestor can't read, or that don't exist, just match nothing.
+	var onlyEvents map[string]bool
+	if eventNames := req.Form["event"]; len(eventNames) > 0 {
+		onlyEvents = make(map[string]bool, len(eventNames))
+		for _, name := range eventNames {
+			onlyEvents[name] = true
+		}
+	}
+
 	limit := int32(searchDefaultLimit)
 	if limitParam := req.Form.Get("limit"); limitParam != "" {
 		parsed, err := strconv.ParseInt(limitParam, 10, 32)
@@ -147,6 +157,9 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	var incidentEventIDs, fieldReportEventIDs, visitEventIDs []int32
 	for _, e := range events {
 		if e.Event.IsGroup {
+			continue
+		}
+		if onlyEvents != nil && !onlyEvents[e.Event.Name] {
 			continue
 		}
 		perms := permsByEvent[e.Event.ID]

@@ -71,13 +71,130 @@ const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     searchButton: ims.typedElement("search_button", HTMLButtonElement),
     searchSpinner: ims.typedElement("search_spinner", HTMLSpanElement),
-    kindIncident: ims.typedElement("kind_incident", HTMLInputElement),
-    kindFieldReport: ims.typedElement("kind_field_report", HTMLInputElement),
-    kindVisit: ims.typedElement("kind_visit", HTMLInputElement),
+    showKind: ims.typedElement("show_kind", HTMLButtonElement),
+    ulShowKind: ims.typedElement("ul_show_kind", HTMLUListElement),
+    showKindToggleAll: ims.typedElement("show_kind_toggle_all", HTMLButtonElement),
+    showEvent: ims.typedElement("show_event", HTMLButtonElement),
+    ulShowEvent: ims.typedElement("ul_show_event", HTMLUListElement),
+    showEventToggleAll: ims.typedElement("show_event_toggle_all", HTMLButtonElement),
+    showEventTemplate: ims.typedElement("show_event_template", HTMLTemplateElement),
     resultsInfo: ims.typedElement("search_results_info", HTMLParagraphElement),
     resultsTable: ims.typedElement("search_results_table", HTMLTableElement),
     resultRowTemplate: ims.typedElement("search_result_row_template", HTMLTemplateElement),
 };
+
+// A dropdown of checkable items that narrows a selection down from
+// everything, working like the Incidents page's Incident Type filter.
+class CheckMenu {
+    // The values the search uses. This lags the checkmarks while a fresh
+    // selection is being started (see startingFresh).
+    private selected: string[] = [];
+    // Typing into the filter box while every item is checked starts a new
+    // selection: the checkmarks clear, but the selection stays everything
+    // until an item is actually picked.
+    private startingFresh = false;
+
+    constructor(
+        private readonly toggle: HTMLButtonElement,
+        private readonly menu: HTMLUListElement,
+        toggleAll: HTMLButtonElement,
+        private readonly noun: string,
+        private readonly onChange: ()=>void,
+    ) {
+        for (const item of this.items()) {
+            item.addEventListener("click", (e: MouseEvent): void => {
+                e.preventDefault();
+                setChecked(item, !isChecked(item));
+                this.commit();
+            });
+        }
+        toggleAll.addEventListener("click", (): void => {
+            // Acts only on the items the filter box leaves showing.
+            const shown = this.items().filter(item => !item.parentElement!.classList.contains("d-none"));
+            const check = shown.some(item => !isChecked(item));
+            for (const item of shown) {
+                setChecked(item, check);
+            }
+            this.commit();
+        });
+        ims.addMenuFilter(toggle, menu, {
+            placeholder: `Filter ${noun.toLowerCase()}…`,
+            onFilter: (query: string): void => {
+                toggleAll.textContent = query ? "Select/Deselect Matching" : "Select/Deselect All";
+                if (query && !this.startingFresh && this.allSelected()) {
+                    this.startingFresh = true;
+                    this.checkOnly([]);
+                } else if (!query && this.startingFresh) {
+                    // Nothing got picked, so the selection is still everything.
+                    this.startingFresh = false;
+                    this.checkOnly(this.allValues());
+                }
+            },
+        });
+        this.selected = this.allValues();
+    }
+
+    private items(): HTMLElement[] {
+        return [...this.menu.querySelectorAll<HTMLElement>(":scope > li > .dropdown-item-checkable")];
+    }
+
+    private allValues(): string[] {
+        return this.items().map(item => item.dataset["value"]??"");
+    }
+
+    private checkOnly(values: string[]): void {
+        for (const item of this.items()) {
+            setChecked(item, values.includes(item.dataset["value"]??""));
+        }
+    }
+
+    values(): string[] {
+        return this.selected;
+    }
+
+    allSelected(): boolean {
+        return this.selected.length === this.items().length;
+    }
+
+    // select sets the selection, ignoring unknown values, without counting
+    // as a change to the form.
+    select(values: string[]): void {
+        this.checkOnly(values);
+        this.read();
+    }
+
+    private commit(): void {
+        this.read();
+        this.onChange();
+    }
+
+    private read(): void {
+        this.startingFresh = false;
+        const checked = this.items().filter(isChecked);
+        this.selected = checked.map(item => item.dataset["value"]??"");
+        if (this.allSelected()) {
+            this.toggle.textContent = `All ${this.noun}`;
+        } else if (checked.length === 1) {
+            this.toggle.textContent = checked[0]!.textContent;
+        } else {
+            this.toggle.textContent = `${this.noun} (${checked.length})`;
+        }
+    }
+}
+
+// The checkmark is drawn from the class; aria-pressed is what tells assistive
+// tech the toggle's state.
+function setChecked(item: Element, checked: boolean): void {
+    item.classList.toggle("dropdown-item-checked", checked);
+    item.setAttribute("aria-pressed", checked ? "true" : "false");
+}
+
+function isChecked(item: Element): boolean {
+    return item.classList.contains("dropdown-item-checked");
+}
+
+let kindMenu: CheckMenu;
+let eventMenu: CheckMenu;
 
 initSearchPage();
 
@@ -88,24 +205,37 @@ async function initSearchPage(): Promise<void> {
         return;
     }
 
+    const eventNames = ((await initResult.eventDatas)??[])
+        .filter(e => !e.is_group)
+        .map(e => e.name)
+        .sort((a, b) => b.localeCompare(a));
+    for (const name of eventNames) {
+        const li = el.showEventTemplate.content.cloneNode(true) as DocumentFragment;
+        const item = li.querySelector("button")!;
+        item.dataset["value"] = name;
+        item.textContent = name;
+        el.ulShowEvent.append(li);
+    }
+
+    // Searches only run when asked for, since each one is a real load on the
+    // server. Edits to the form just keep the shareable URL current and note
+    // that the results on screen no longer match the form.
+    kindMenu = new CheckMenu(el.showKind, el.ulShowKind, el.showKindToggleAll, "Types", formChanged);
+    eventMenu = new CheckMenu(el.showEvent, el.ulShowEvent, el.showEventToggleAll, "Events", formChanged);
+    el.searchInput.addEventListener("input", formChanged);
+
     // Restore search parameters from the URL fragment, so that search links
     // can be shared and reloaded.
     const fragmentParams = ims.windowFragmentParams();
     el.searchInput.value = fragmentParams.get("q")??"";
     const kinds = fragmentParams.get("kinds");
-    if (kinds) {
-        const kindSet = new Set(kinds.split(","));
-        el.kindIncident.checked = kindSet.has(kindIncident);
-        el.kindFieldReport.checked = kindSet.has(kindFieldReport);
-        el.kindVisit.checked = kindSet.has(kindVisit);
+    if (kinds != null) {
+        kindMenu.select(kinds.split(","));
     }
-    // Searches only run when asked for, since each one is a real load on the
-    // server. Edits to the form just keep the shareable URL current and note
-    // that the results on screen no longer match the form.
-    el.searchInput.addEventListener("input", formChanged);
-    el.kindIncident.addEventListener("change", formChanged);
-    el.kindFieldReport.addEventListener("change", formChanged);
-    el.kindVisit.addEventListener("change", formChanged);
+    const events = fragmentParams.getAll("event");
+    if (events.length > 0) {
+        eventMenu.select(events);
+    }
 
     el.searchButton.addEventListener("click", doSearch);
     el.searchInput.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -163,28 +293,18 @@ function setSearching(searching: boolean): void {
     el.searchButton.setAttribute("aria-busy", searching ? "true" : "false");
 }
 
-function selectedKinds(): string[] {
-    const kinds: string[] = [];
-    if (el.kindIncident.checked) {
-        kinds.push(kindIncident);
-    }
-    if (el.kindFieldReport.checked) {
-        kinds.push(kindFieldReport);
-    }
-    if (el.kindVisit.checked) {
-        kinds.push(kindVisit);
-    }
-    return kinds;
-}
-
 function replaceWindowState(): void {
     const newParams: [string, string][] = [];
     if (el.searchInput.value) {
         newParams.push(["q", el.searchInput.value]);
     }
-    const kinds = selectedKinds();
-    if (kinds.length < 3) {
-        newParams.push(["kinds", kinds.join(",")]);
+    if (!kindMenu.allSelected()) {
+        newParams.push(["kinds", kindMenu.values().join(",")]);
+    }
+    if (!eventMenu.allSelected()) {
+        for (const event of eventMenu.values()) {
+            newParams.push(["event", event]);
+        }
     }
     const fragment = new URLSearchParams(newParams).toString();
     history.replaceState(null, "", fragment ? "#" + fragment : window.location.pathname);
@@ -197,10 +317,13 @@ function currentQuery(): {params: string}|{problem: string} {
     // A query enclosed in slashes, like /ab?c/, is a regular expression.
     const isRegex = rawQuery.length > 2 && rawQuery.startsWith("/") && rawQuery.endsWith("/");
     const query = isRegex ? rawQuery.slice(1, -1) : rawQuery;
-    const kinds = selectedKinds();
-
-    if (kinds.length === 0) {
+    if (kindMenu.values().length === 0) {
         return {problem: "Select at least one record type to search."};
+    }
+    // An empty Event menu (e.g. the Events failed to load) leaves the search
+    // to cover whatever the server allows.
+    if (!eventMenu.allSelected() && eventMenu.values().length === 0) {
+        return {problem: "Select at least one Event to search."};
     }
     if (query.length < minQueryLength) {
         return {problem: `Enter at least ${minQueryLength} characters to search.`};
@@ -210,8 +333,15 @@ function currentQuery(): {params: string}|{problem: string} {
     if (isRegex) {
         params.set("regex", "true");
     }
-    if (kinds.length < 3) {
-        params.set("kinds", kinds.join(","));
+    if (!kindMenu.allSelected()) {
+        params.set("kinds", kindMenu.values().join(","));
+    }
+    // With every Event selected, send none, which also covers any Event
+    // created since the page loaded.
+    if (!eventMenu.allSelected()) {
+        for (const event of eventMenu.values()) {
+            params.append("event", event);
+        }
     }
     return {params: params.toString()};
 }

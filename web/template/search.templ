@@ -19,14 +19,14 @@ package template
 templ Search(deployment, versionName, versionRef string) {
 <!DOCTYPE html>
 <html lang="en">
-@Head("Search Anywhere", "search.js", false, versionRef)
+@Head("Search Everywhere", "search.js", false, versionRef)
 
 <body>
 <div class="container-fluid">
 @Header(deployment)
 @Nav("")
 <main id="main" tabindex="-1">
-<h1 id="doc-title">Search Anywhere</h1>
+<h1 id="doc-title">Search Everywhere</h1>
 
 @ErrorInfo()
 
@@ -37,10 +37,6 @@ templ Search(deployment, versionName, versionRef string) {
   </ul>
   @helpShortcutsOffNote()
 }
-
-    <p class="no-print">
-      Search Incidents, Field Reports, and Visits across every Event for which you have access.
-    </p>
 
     <p class="no-print">
       This search works differently than searches elsewhere in IMS. This is still case-insensitive, but
@@ -75,18 +71,39 @@ templ Search(deployment, versionName, versionRef string) {
         </div>
       </div>
       <div class="col-sm-6 no-print">
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="checkbox" id="kind_incident" checked />
-          <label class="form-check-label" for="kind_incident">Incidents</label>
-        </div>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="checkbox" id="kind_field_report" checked />
-          <label class="form-check-label" for="kind_field_report">Field Reports</label>
-        </div>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="checkbox" id="kind_visit" checked />
-          <label class="form-check-label" for="kind_visit">Visits</label>
-        </div>
+        <button
+                id="show_kind"
+                type="button"
+                class="btn btn-light btn-sm dropdown-toggle"
+                data-bs-toggle="dropdown"
+                data-bs-auto-close="outside"
+        >
+          All Types
+        </button>
+        <ul id="ul_show_kind" class="dropdown-menu">
+          <li data-menu-filter-keep><button type="button" id="show_kind_toggle_all" class="dropdown-item">Select/Deselect All</button></li>
+          <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="incident">Incidents</button></li>
+          <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="field_report">Field Reports</button></li>
+          <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="visit">Visits</button></li>
+        </ul>
+        { }
+        <button
+                id="show_event"
+                type="button"
+                class="btn btn-light btn-sm dropdown-toggle"
+                data-bs-toggle="dropdown"
+                data-bs-auto-close="outside"
+        >
+          All Events
+        </button>
+        <ul id="ul_show_event" class="dropdown-menu">
+          <li data-menu-filter-keep><button type="button" id="show_event_toggle_all" class="dropdown-item">Select/Deselect All</button></li>
+          <template id="show_event_template">
+            <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked"
+                   aria-pressed="true" data-value=""></button>
+            </li>
+          </template>
+        </ul>
       </div>
     </div>
 

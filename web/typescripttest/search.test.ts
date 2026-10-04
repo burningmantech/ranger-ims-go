@@ -81,7 +81,7 @@ beforeEach((): void => {
 
 // Import search.ts behind a fake authenticated server and wait for its init
 // to settle, which ends with the page focusing the search input.
-async function initSearchPage() {
+async function initSearchPage(events: object[] = []) {
     const searchCalls: string[] = [];
     // Not the shared mockFetch helper, since the search route has to be able
     // to answer asynchronously.
@@ -90,7 +90,7 @@ async function initSearchPage() {
             return jsonResponse({ authenticated: true, user: "Tester" });
         }
         if (url === url_events && init?.body == null) {
-            return jsonResponse([]);
+            return jsonResponse(events);
         }
         if (url.startsWith(`${url_search}?`) && init?.body == null) {
             searchCalls.push(url);
@@ -125,6 +125,40 @@ function spinnerShown(): boolean {
 function resultRows(): HTMLTableRowElement[] {
     return Array.from(document.querySelectorAll("#search_results_table tbody tr"));
 }
+
+function menuItem(menuId: string, label: string): HTMLButtonElement {
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>(`#${menuId} .dropdown-item-checkable`));
+    const item = items.find((i) => i.textContent === label);
+    if (item == null) {
+        throw new Error(`no ${label} item in ${menuId}`);
+    }
+    return item;
+}
+
+function isChecked(item: HTMLElement): boolean {
+    return item.classList.contains("dropdown-item-checked");
+}
+
+function menuLabel(buttonId: string): string {
+    return document.getElementById(buttonId)!.textContent!.trim();
+}
+
+function menuItemLabels(menuId: string): string[] {
+    return Array.from(document.querySelectorAll(`#${menuId} .dropdown-item-checkable`)).map((i) => i.textContent ?? "");
+}
+
+function typeIntoMenuFilter(menuId: string, text: string): void {
+    const input = document.querySelector(`#${menuId} .menu-filter input`) as HTMLInputElement;
+    input.value = text;
+    input.dispatchEvent(new Event("input"));
+}
+
+const threeEvents = [
+    { id: 1, name: "2023" },
+    { id: 2, name: "2024" },
+    { id: 3, name: "2025" },
+    { id: 4, name: "AllYears", is_group: true },
+];
 
 test("pressing Search fetches results and renders one row per hit", async (): Promise<void> => {
     const { searchCalls } = await initSearchPage();
@@ -202,8 +236,7 @@ test("editing the form after a search notes that the results are out of date", a
         expect(resultsInfo()).toBe("3 results");
     });
 
-    (document.getElementById("kind_visit") as HTMLInputElement).checked = false;
-    (document.getElementById("kind_visit") as HTMLInputElement).dispatchEvent(new Event("change"));
+    menuItem("ul_show_kind", "Visits").click();
     expect(resultsInfo()).toContain("press Search");
     // The stale results themselves stay put.
     expect(resultRows().length).toBe(3);
@@ -252,9 +285,10 @@ test("search parameters are restored from the URL fragment on load", async (): P
     const { searchCalls } = await initSearchPage();
 
     expect(searchInput().value).toBe("dusty");
-    expect((document.getElementById("kind_incident") as HTMLInputElement).checked).toBe(true);
-    expect((document.getElementById("kind_field_report") as HTMLInputElement).checked).toBe(false);
-    expect((document.getElementById("kind_visit") as HTMLInputElement).checked).toBe(false);
+    expect(isChecked(menuItem("ul_show_kind", "Incidents"))).toBe(true);
+    expect(isChecked(menuItem("ul_show_kind", "Field Reports"))).toBe(false);
+    expect(isChecked(menuItem("ul_show_kind", "Visits"))).toBe(false);
+    expect(menuLabel("show_kind")).toBe("Incidents");
 
     await vi.waitFor((): void => {
         expect(searchCalls.length).toBe(1);
@@ -280,10 +314,9 @@ test("unchecking every record type prompts to select one instead of searching", 
     const { searchCalls } = await initSearchPage();
 
     searchInput().value = "dusty";
-    for (const id of ["kind_incident", "kind_field_report", "kind_visit"]) {
-        const checkbox = document.getElementById(id) as HTMLInputElement;
-        checkbox.checked = false;
-    }
+    // Select/Deselect All, with everything checked, deselects everything.
+    (document.getElementById("show_kind_toggle_all") as HTMLButtonElement).click();
+    expect(menuLabel("show_kind")).toBe("Types (0)");
     clickSearch();
 
     await vi.waitFor((): void => {
@@ -348,4 +381,134 @@ test("truncated results include a warning in the results info line", async (): P
     await vi.waitFor((): void => {
         expect(resultsInfo()).toContain("too many matches");
     });
+});
+
+test("the Type menu narrows which record types are searched", async (): Promise<void> => {
+    const { searchCalls } = await initSearchPage();
+
+    expect(menuLabel("show_kind")).toBe("All Types");
+
+    menuItem("ul_show_kind", "Visits").click();
+    expect(menuLabel("show_kind")).toBe("Types (2)");
+    expect(window.location.hash).toContain("kinds=incident%2Cfield_report");
+
+    searchInput().value = "dusty";
+    clickSearch();
+    await vi.waitFor((): void => {
+        expect(searchCalls.length).toBe(1);
+    });
+    expect(searchCalls[0]).toContain("kinds=incident%2Cfield_report");
+});
+
+test("the Event menu lists Events newest first, without groups, all selected", async (): Promise<void> => {
+    const { searchCalls } = await initSearchPage(threeEvents);
+
+    expect(menuItemLabels("ul_show_event")).toEqual(["2025", "2024", "2023"]);
+    expect(menuLabel("show_event")).toBe("All Events");
+
+    // With every Event selected, the search doesn't name any.
+    searchInput().value = "dusty";
+    clickSearch();
+    await vi.waitFor((): void => {
+        expect(searchCalls.length).toBe(1);
+    });
+    expect(searchCalls[0]).not.toContain("event=");
+});
+
+test("unchecking Events narrows the search to the rest", async (): Promise<void> => {
+    const { searchCalls } = await initSearchPage(threeEvents);
+
+    menuItem("ul_show_event", "2023").click();
+    expect(menuLabel("show_event")).toBe("Events (2)");
+    expect(window.location.hash).toContain("event=2025&event=2024");
+
+    searchInput().value = "dusty";
+    clickSearch();
+    await vi.waitFor((): void => {
+        expect(searchCalls.length).toBe(1);
+    });
+    expect(searchCalls[0]).toContain("event=2025&event=2024");
+    expect(searchCalls[0]).not.toContain("event=2023");
+});
+
+test("typing into the Event filter starts a fresh selection", async (): Promise<void> => {
+    const { searchCalls } = await initSearchPage(threeEvents);
+
+    // Typing clears the checkmarks, but until something is picked, the
+    // search still covers every Event.
+    typeIntoMenuFilter("ul_show_event", "2024");
+    expect(isChecked(menuItem("ul_show_event", "2025"))).toBe(false);
+    expect(isChecked(menuItem("ul_show_event", "2024"))).toBe(false);
+    expect(menuLabel("show_event")).toBe("All Events");
+    expect(document.getElementById("show_event_toggle_all")!.textContent).toBe("Select/Deselect Matching");
+
+    menuItem("ul_show_event", "2024").click();
+    expect(menuLabel("show_event")).toBe("2024");
+
+    searchInput().value = "dusty";
+    clickSearch();
+    await vi.waitFor((): void => {
+        expect(searchCalls.length).toBe(1);
+    });
+    expect(searchCalls[0]).toContain("event=2024");
+    expect(searchCalls[0]).not.toContain("event=2025");
+});
+
+test("clearing the Event filter without picking anything restores every Event", async (): Promise<void> => {
+    await initSearchPage(threeEvents);
+
+    typeIntoMenuFilter("ul_show_event", "2024");
+    typeIntoMenuFilter("ul_show_event", "");
+
+    for (const name of ["2025", "2024", "2023"]) {
+        expect(isChecked(menuItem("ul_show_event", name))).toBe(true);
+    }
+    expect(menuLabel("show_event")).toBe("All Events");
+});
+
+test("Select/Deselect Matching acts only on the Events the filter shows", async (): Promise<void> => {
+    await initSearchPage(threeEvents);
+
+    menuItem("ul_show_event", "2025").click();
+    menuItem("ul_show_event", "2024").click();
+    menuItem("ul_show_event", "2023").click();
+    expect(menuLabel("show_event")).toBe("Events (0)");
+
+    typeIntoMenuFilter("ul_show_event", "202");
+    // Typing with only some selected doesn't start over.
+    typeIntoMenuFilter("ul_show_event", "2025");
+    (document.getElementById("show_event_toggle_all") as HTMLButtonElement).click();
+
+    expect(isChecked(menuItem("ul_show_event", "2025"))).toBe(true);
+    expect(isChecked(menuItem("ul_show_event", "2024"))).toBe(false);
+    expect(menuLabel("show_event")).toBe("2025");
+});
+
+test("Events are restored from the URL fragment on load", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/search#q=dusty&event=2023&event=2025");
+
+    const { searchCalls } = await initSearchPage(threeEvents);
+
+    expect(isChecked(menuItem("ul_show_event", "2025"))).toBe(true);
+    expect(isChecked(menuItem("ul_show_event", "2024"))).toBe(false);
+    expect(isChecked(menuItem("ul_show_event", "2023"))).toBe(true);
+    expect(menuLabel("show_event")).toBe("Events (2)");
+
+    await vi.waitFor((): void => {
+        expect(searchCalls.length).toBe(1);
+    });
+    expect(searchCalls[0]).toContain("event=2025&event=2023");
+});
+
+test("deselecting every Event prompts to select one instead of searching", async (): Promise<void> => {
+    const { searchCalls } = await initSearchPage(threeEvents);
+
+    searchInput().value = "dusty";
+    (document.getElementById("show_event_toggle_all") as HTMLButtonElement).click();
+    clickSearch();
+
+    await vi.waitFor((): void => {
+        expect(resultsInfo()).toContain("at least one Event");
+    });
+    expect(searchCalls.length).toBe(0);
 });

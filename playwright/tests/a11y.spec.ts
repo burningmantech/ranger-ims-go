@@ -24,10 +24,8 @@
 // entry here. The allowlist should only ever shrink.
 
 import AxeBuilder from "@axe-core/playwright";
-import {expect, Page, test} from "@playwright/test";
-
-const baseURL = "http://localhost:8080";
-const username = "Hardware";
+import {Page} from "@playwright/test";
+import {baseURL, expect, test} from "./fixtures";
 
 // The event seeded into the dev stack by store/fakeimsdb/seed.sql, which has
 // incidents, field reports and visits (and grants write access to everyone).
@@ -45,23 +43,6 @@ const wcagTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 // Known, not-yet-fixed violations, keyed by page name, as axe rule IDs. Every
 // entry here is a bug we intend to fix; the goal is an empty object.
 const KNOWN_VIOLATIONS: Record<string, string[]> = {};
-
-async function login(page: Page): Promise<void> {
-  await page.goto(`${baseURL}/ims/app/`);
-  await expect(page.getByRole("button", {name: /^Log (In|Out)$/})).toBeVisible();
-  if (await page.getByRole("button", {name: "Log In"}).isVisible()) {
-    await page.getByRole("button", {name: "Log In"}).click();
-    // The login page's inputs are usable before its JavaScript has finished
-    // initializing, and submitting that early does a native form POST to a
-    // GET-only route (a 405). Page init ends by focusing the username input,
-    // so that's the signal that the form is ready to submit.
-    await expect(page.getByPlaceholder("name@example.com")).toBeFocused();
-    await page.getByPlaceholder("name@example.com").fill(username);
-    await page.getByPlaceholder("Password").fill(username);
-    await page.getByPlaceholder("Password").press("Enter");
-  }
-  await expect(page.getByRole("button", {name: "Log Out"})).toBeVisible();
-}
 
 // setTheme pins the theme, which is otherwise "auto" (i.e. dependent on the
 // OS setting of whoever runs the tests).
@@ -232,17 +213,20 @@ const pages: {name: string; goto: (page: Page) => Promise<void>}[] = [
 for (const theme of ["light", "dark"] as const) {
   test.describe(theme, (): void => {
     // The login page is the only one worth scanning logged out.
-    test("login", async ({page}): Promise<void> => {
-      await setTheme(page, theme);
-      await page.goto(`${baseURL}/ims/auth/login`);
-      await expect(page.getByPlaceholder("Password")).toBeVisible();
-      await scan(page, "login");
+    test.describe("logged out", (): void => {
+      test.use({storageState: {cookies: [], origins: []}});
+
+      test("login", async ({page}): Promise<void> => {
+        await setTheme(page, theme);
+        await page.goto(`${baseURL}/ims/auth/login`);
+        await expect(page.getByPlaceholder("Password")).toBeVisible();
+        await scan(page, "login");
+      });
     });
 
     for (const p of pages) {
       test(p.name, async ({page}): Promise<void> => {
         await setTheme(page, theme);
-        await login(page);
         await p.goto(page);
         await scan(page, p.name);
       });
@@ -252,7 +236,6 @@ for (const theme of ["light", "dark"] as const) {
     // what's visible, so open the big ones explicitly.
     test("incidents modals", async ({page}): Promise<void> => {
       await setTheme(page, theme);
-      await login(page);
       await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents`);
       await expect(page.locator("#queue_table tbody tr").first()).toBeVisible();
 
@@ -269,7 +252,6 @@ for (const theme of ["light", "dark"] as const) {
 // actually operable without a mouse. These do.
 test.describe("keyboard", (): void => {
   test("the skip link jumps past the navbar to the main content", async ({page}): Promise<void> => {
-    await login(page);
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents`);
     await expect(page.locator("#queue_table tbody tr").first()).toBeVisible();
 
@@ -285,7 +267,6 @@ test.describe("keyboard", (): void => {
   });
 
   test("table columns can be sorted without a mouse", async ({page}): Promise<void> => {
-    await login(page);
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents`);
     await expect(page.locator("#queue_table tbody tr").first()).toBeVisible();
 
@@ -304,7 +285,6 @@ test.describe("keyboard", (): void => {
   });
 
   test("single-key shortcuts can be switched off in settings", async ({page}): Promise<void> => {
-    await login(page);
     await page.goto(`${baseURL}/ims/app/settings`);
 
     // WCAG 2.1.4: a single-character shortcut must be able to be turned off.
@@ -327,7 +307,6 @@ test.describe("keyboard", (): void => {
   });
 
   test("the help dialog closes with ?, its close button, or a backdrop click", async ({page}): Promise<void> => {
-    await login(page);
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents`);
     await expect(page.locator("#queue_table tbody tr").first()).toBeVisible();
     const help = page.getByRole("dialog", {name: "Incidents help"});
@@ -353,7 +332,6 @@ test.describe("keyboard", (): void => {
   });
 
   test("Go to… takes focus into its number field and hands it back on close", async ({page}): Promise<void> => {
-    await login(page);
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents/${seededIncident}`);
     await expect(page.getByLabel("IMS #", {exact: true})).toHaveValue(String(seededIncident));
     const entryBox = page.locator("#report_entry_add");
@@ -370,7 +348,6 @@ test.describe("keyboard", (): void => {
   });
 
   test("an edit is announced to assistive tech via the live region", async ({page}): Promise<void> => {
-    await login(page);
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents/${seededIncident}`);
     await expect(page.getByLabel("IMS #", {exact: true})).toHaveValue(String(seededIncident));
 

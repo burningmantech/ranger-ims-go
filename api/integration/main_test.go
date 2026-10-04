@@ -183,7 +183,8 @@ func setup(ctx context.Context, tempDir string) {
 		}
 		mainTestInternal.clubhouseDbCtr = chCtr
 		mainTestInternal.clubhouseDbCtrCleanup = chCleanup
-		shared.cfg.Directory.ClubhouseDB.Hostname = fmt.Sprintf(":%d", chDbHostPort)
+		shared.cfg.Directory.ClubhouseDB.HostName = ""
+		shared.cfg.Directory.ClubhouseDB.HostPort = chDbHostPort
 		clubhouseDB, err := directory.MariaDB(ctx, shared.cfg.Directory)
 		if err != nil {
 			return err

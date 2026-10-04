@@ -19,14 +19,14 @@ package directory_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"io"
+	"testing"
+
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/testctr"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"io"
-	"testing"
 )
 
 func TestMariaDB(t *testing.T) {
@@ -68,7 +68,8 @@ func newEmptyDB(t *testing.T, ctx context.Context, database, username, password 
 	db, err := directory.MariaDB(ctx,
 		conf.Directory{
 			ClubhouseDB: conf.ClubhouseDB{
-				Hostname: fmt.Sprint(":", dbHostPort),
+				HostName: "",
+				HostPort: dbHostPort,
 				Database: database,
 				Username: username,
 				Password: password,

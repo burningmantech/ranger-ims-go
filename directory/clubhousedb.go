@@ -22,11 +22,14 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/conf"
 	chqueries "github.com/burningmantech/ranger-ims-go/directory/clubhousedb"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	"github.com/go-sql-driver/mysql"
-	"log/slog"
-	"time"
 )
 
 //go:embed schema/current.sql
@@ -50,7 +53,7 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	cfg.User = chDBCfg.Username
 	cfg.Passwd = chDBCfg.Password
 	cfg.Net = "tcp"
-	cfg.Addr = chDBCfg.Hostname
+	cfg.Addr = net.JoinHostPort(chDBCfg.HostName, conv.FormatInt(chDBCfg.HostPort))
 	cfg.DBName = chDBCfg.Database
 	cfg.MultiStatements = true
 

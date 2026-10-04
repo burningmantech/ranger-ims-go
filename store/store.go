@@ -22,9 +22,11 @@ import (
 	"embed"
 	"fmt"
 	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/go-sql-driver/mysql"
 	"log/slog"
+	"net"
 	"time"
 )
 
@@ -73,7 +75,7 @@ func openDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (*sql.DB, error) {
 	cfg.User = mariaCfg.Username
 	cfg.Passwd = mariaCfg.Password
 	cfg.Net = "tcp"
-	cfg.Addr = fmt.Sprintf("%v:%v", mariaCfg.HostName, mariaCfg.HostPort)
+	cfg.Addr = net.JoinHostPort(mariaCfg.HostName, conv.FormatInt(mariaCfg.HostPort))
 	cfg.DBName = mariaCfg.Database
 	cfg.MultiStatements = true
 

@@ -133,8 +133,12 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	if v, ok := lookupEnv("IMS_DB_PASSWORD"); ok {
 		baseCfg.Store.MariaDB.Password = v
 	}
-	if v, ok := lookupEnv("IMS_DMS_HOSTNAME"); ok {
-		baseCfg.Directory.ClubhouseDB.Hostname = v
+	if v, ok := lookupEnv("IMS_DMS_HOST_NAME"); ok {
+		baseCfg.Directory.ClubhouseDB.HostName = v
+	}
+	if v, ok := lookupEnv("IMS_DMS_HOST_PORT"); ok {
+		baseCfg.Directory.ClubhouseDB.HostPort, err = conv.ParseInt32(v)
+		must(err)
 	}
 	if v, ok := lookupEnv("IMS_DMS_DATABASE"); ok {
 		baseCfg.Directory.ClubhouseDB.Database = v

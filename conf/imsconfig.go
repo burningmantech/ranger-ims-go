@@ -69,7 +69,8 @@ func DefaultIMS() *IMSConfig {
 		Directory: Directory{
 			Directory: DirectoryTypeClubhouseDB,
 			ClubhouseDB: ClubhouseDB{
-				Hostname: "localhost:3306",
+				HostName: "localhost",
+				HostPort: 3306,
 				Database: "rangers",
 				Username: "",
 				Password: "",
@@ -322,7 +323,8 @@ type AttachmentsStore struct {
 }
 
 type ClubhouseDB struct {
-	Hostname string
+	HostName string
+	HostPort int32
 	Database string
 	Username string
 	// #nosec G117 // Exported secret struct field

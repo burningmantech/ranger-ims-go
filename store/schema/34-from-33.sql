@@ -56,8 +56,9 @@ create table DIRECTORY_PERSON__TEAM (
     TEAM_ID   bigint not null,
 
     primary key (PERSON_ID, TEAM_ID),
-    foreign key (PERSON_ID) references DIRECTORY_PERSON (ID) on delete cascade,
-    foreign key (TEAM_ID)   references DIRECTORY_TEAM (ID)   on delete cascade
+    key `TEAM_ID` (TEAM_ID),
+    constraint `DIRECTORY_PERSON__TEAM_ibfk_1` foreign key (PERSON_ID) references DIRECTORY_PERSON (ID) on delete cascade,
+    constraint `DIRECTORY_PERSON__TEAM_ibfk_2` foreign key (TEAM_ID)   references DIRECTORY_TEAM (ID)   on delete cascade
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table DIRECTORY_PERSON__POSITION (
@@ -65,8 +66,9 @@ create table DIRECTORY_PERSON__POSITION (
     POSITION_ID bigint not null,
 
     primary key (PERSON_ID, POSITION_ID),
-    foreign key (PERSON_ID)   references DIRECTORY_PERSON (ID)   on delete cascade,
-    foreign key (POSITION_ID) references DIRECTORY_POSITION (ID) on delete cascade
+    key `POSITION_ID` (POSITION_ID),
+    constraint `DIRECTORY_PERSON__POSITION_ibfk_1` foreign key (PERSON_ID)   references DIRECTORY_PERSON (ID)   on delete cascade,
+    constraint `DIRECTORY_PERSON__POSITION_ibfk_2` foreign key (POSITION_ID) references DIRECTORY_POSITION (ID) on delete cascade
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 update `SCHEMA_INFO`

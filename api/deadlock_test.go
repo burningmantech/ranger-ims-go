@@ -39,6 +39,9 @@ func TestIsDeadlockError(t *testing.T) {
 	// the retry, so it has to be found through the wrapping.
 	require.True(t, isDeadlockError(fmt.Errorf("[attach]: %w", deadlockErr())))
 
+	// A snapshot-isolation conflict calls for the same restart.
+	require.True(t, isDeadlockError(&mysql.MySQLError{Number: 1020, Message: "Record has changed since last read in table 'INCIDENT__RANGER'; try restarting transaction"}))
+
 	require.False(t, isDeadlockError(nil))
 	require.False(t, isDeadlockError(errors.New("some other failure")))
 	// A duplicate key is a different error that must not be retried this way.

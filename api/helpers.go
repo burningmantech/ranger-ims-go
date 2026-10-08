@@ -77,10 +77,18 @@ func isDuplicateKeyError(err error) bool {
 // (ER_LOCK_DEADLOCK), meaning InnoDB chose this transaction as the victim and
 // rolled it back. Nothing it did was applied, so the whole transaction can be
 // run again; MariaDB's own error text says as much.
+//
+// It also counts ER_CHECKREAD, which MariaDB 11.6.2+ raises by default
+// (innodb_snapshot_isolation=ON) when a transaction tries to lock a row that
+// another one changed after this transaction's snapshot was taken. That's the
+// same race resolved a different way, and the cure is the same: start over.
 func isDeadlockError(err error) bool {
-	const mySQLErLockDeadlock = 1213
+	const (
+		mySQLErCheckRead    = 1020
+		mySQLErLockDeadlock = 1213
+	)
 	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
-	return ok && mysqlErr.Number == mySQLErLockDeadlock
+	return ok && (mysqlErr.Number == mySQLErLockDeadlock || mysqlErr.Number == mySQLErCheckRead)
 }
 
 // retryOnDeadlock runs body, running it again if InnoDB rolled its transaction

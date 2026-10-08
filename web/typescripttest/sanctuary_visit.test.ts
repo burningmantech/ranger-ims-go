@@ -252,7 +252,7 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
         // it before the upload is awaited.
         const pending = window.attachFile();
         expect(button.disabled).toBe(true);
-        expect(button.value).toBe("Uploading …");
+        expect(button.value).toBe("Uploading ...");
 
         await pending;
 
@@ -262,7 +262,7 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
         expect(uploads[0]!.body).toBeInstanceOf(FormData);
 
         // The button tracked the upload, then waited on the server to store it.
-        expect(labels).toEqual(["Uploading 25%", "Uploading 100%", "Uploading …"]);
+        expect(labels).toEqual(["Uploading 25%", "Uploading 100%", "Uploading ..."]);
 
         // On success the button re-enables and briefly confirms.
         expect(button.disabled).toBe(false);
@@ -721,7 +721,7 @@ test("opening a picker that already has a time leaves it alone", async (): Promi
         u === `${visitsUrl}/2` && init?.body != null)).toBe(false);
 });
 
-test("the Go to… modal opens on this page's Visit type", async (): Promise<void> => {
+test("the Go to... modal opens on this page's Visit type", async (): Promise<void> => {
     await initVisitPage();
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));

@@ -103,7 +103,7 @@ test("the event-name select is populated in reverse-alphabetical order, excludin
     expect(options).not.toContain("Group");
     // Options need visible text, not just a value, to be pickable in a select.
     expect([...select.options].map(o => o.textContent)).toEqual([
-        "Select an event…", "2025", "2024",
+        "Select an event...", "2025", "2024",
     ]);
     // Nothing is selected until the user picks an event.
     expect(select.value).toBe("");

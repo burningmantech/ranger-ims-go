@@ -118,7 +118,7 @@ class CheckMenu {
             this.commit();
         });
         ims.addMenuFilter(toggle, menu, {
-            placeholder: `Filter ${noun.toLowerCase()}…`,
+            placeholder: `Filter ${noun.toLowerCase()}...`,
             onFilter: (query: string): void => {
                 toggleAll.textContent = query ? "Select/Deselect Matching" : "Select/Deselect All";
                 if (query && !this.startingFresh && this.allSelected()) {
@@ -277,7 +277,7 @@ function formChanged(): void {
 // from the results being shown.
 function refreshInfo(): void {
     if (_searchAbort != null) {
-        el.resultsInfo.textContent = "Searching…";
+        el.resultsInfo.textContent = "Searching...";
         return;
     }
     let info = _resultsInfo;

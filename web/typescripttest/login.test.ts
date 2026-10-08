@@ -119,7 +119,7 @@ test("the Show/Hide button toggles password visibility via its inline onclick ha
     expect(button.textContent).toBe("Show");
 });
 
-test("the login page has no Go to… modal", async (): Promise<void> => {
+test("the login page has no Go to... modal", async (): Promise<void> => {
     await initLoginPage(() => undefined);
 
     expect(document.getElementById("goToModal")).toBeNull();

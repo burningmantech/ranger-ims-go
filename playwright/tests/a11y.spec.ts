@@ -331,14 +331,14 @@ test.describe("keyboard", (): void => {
     await expect(help).toBeHidden();
   });
 
-  test("Go to… takes focus into its number field and hands it back on close", async ({page}): Promise<void> => {
+  test("Go to... takes focus into its number field and hands it back on close", async ({page}): Promise<void> => {
     await page.goto(`${baseURL}/ims/app/events/${seededEvent}/incidents/${seededIncident}`);
     await expect(page.getByLabel("IMS #", {exact: true})).toHaveValue(String(seededIncident));
     const entryBox = page.locator("#report_entry_add");
     await entryBox.focus();
 
     await page.keyboard.press("ControlOrMeta+k");
-    const goTo = page.getByRole("dialog", {name: "Go to…"});
+    const goTo = page.getByRole("dialog", {name: "Go to..."});
     await expect(goTo).toBeVisible();
     await expect(goTo.getByRole("textbox")).toBeFocused();
 

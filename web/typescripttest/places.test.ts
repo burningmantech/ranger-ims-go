@@ -594,14 +594,14 @@ test("the slash key focuses the search box", async (): Promise<void> => {
     expect(document.activeElement).toBe(document.getElementById("search_input"));
 });
 
-test("the Go to… modal defaults to Incident on the Places page, with a usable input", async (): Promise<void> => {
+test("the Go to... modal defaults to Incident on the Places page, with a usable input", async (): Promise<void> => {
     await initPlacesPage();
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
     expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
     expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("IMS#");
-    // Places is read-only, but the Go to… box is navigation, not editing, so
+    // Places is read-only, but the Go to... box is navigation, not editing, so
     // disableEditing() must leave it enabled.
     expect((document.getElementById("goto-number") as HTMLInputElement).disabled).toBe(false);
     // The other record types stay selectable.

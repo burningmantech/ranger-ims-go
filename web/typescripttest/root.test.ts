@@ -117,7 +117,7 @@ function goToEventOptions(): string[] {
         .map((opt: HTMLOptionElement): string => opt.value);
 }
 
-test("Ctrl+K on the home page opens Go to… on the active event", async (): Promise<void> => {
+test("Ctrl+K on the home page opens Go to... on the active event", async (): Promise<void> => {
     await initRootPage(true, undefined, [
         { id: 1, name: "2025", is_active: false },
         { id: 2, name: "2024", is_active: true },
@@ -132,7 +132,7 @@ test("Ctrl+K on the home page opens Go to… on the active event", async (): Pro
     expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
 });
 
-test("with no active event, Go to… on the home page starts on the most recently created event", async (): Promise<void> => {
+test("with no active event, Go to... on the home page starts on the most recently created event", async (): Promise<void> => {
     await initRootPage(true, undefined, [
         { id: 3, name: "2024", is_active: false },
         { id: 1, name: "Test", is_active: false },
@@ -147,7 +147,7 @@ test("with no active event, Go to… on the home page starts on the most recentl
     expect((document.getElementById("goto-event") as HTMLSelectElement).value).toBe("2024");
 });
 
-test("Go to… on the home page looks up and opens a record in the chosen event", async (): Promise<void> => {
+test("Go to... on the home page looks up and opens a record in the chosen event", async (): Promise<void> => {
     await initRootPage(true, (url) => {
         if (url === "/ims/api/events/2024/visits/3") {
             return jsonResponse({ number: 3, event: "2024", guest_preferred_name: "Stardust" });
@@ -182,7 +182,7 @@ test("Go to… on the home page looks up and opens a record in the chosen event"
     });
 });
 
-test("Go to… doesn't open when there are no events to go to", async (): Promise<void> => {
+test("Go to... doesn't open when there are no events to go to", async (): Promise<void> => {
     const mock = await initRootPage(true);
     await vi.waitFor((): void => {
         expect(mock.mock.calls.some(([url]) => url === url_events)).toBe(true);
@@ -192,7 +192,7 @@ test("Go to… doesn't open when there are no events to go to", async (): Promis
     expect((document.getElementById("goToModal") as HTMLDialogElement).open).toBe(false);
 });
 
-test("Go to… is off for a visitor who isn't logged in", async (): Promise<void> => {
+test("Go to... is off for a visitor who isn't logged in", async (): Promise<void> => {
     await initRootPage(false, undefined, [{ id: 1, name: "2025", is_active: true }]);
 
     pressCtrlK();

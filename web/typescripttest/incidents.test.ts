@@ -470,7 +470,7 @@ test("keyboard shortcuts trigger new-incident and focus the search box", async (
     expect(document.activeElement).toBe(document.getElementById("search_input"));
 });
 
-test("the Go to… modal opens on the Incidents list page's type", async (): Promise<void> => {
+test("the Go to... modal opens on the Incidents list page's type", async (): Promise<void> => {
     await initIncidentsPage();
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));

@@ -1420,7 +1420,7 @@ async function addRanger(): Promise<void> {
     }
 
     if (handles.includes(handle)) {
-        // Already in the list, so… move along.
+        // Already in the list, so... move along.
         el.rangerAdd.value = "";
         return;
     }
@@ -1489,7 +1489,7 @@ async function addIncidentType(): Promise<void> {
     }
 
     if (currentIncidentTypes.includes(validTypeInputId)) {
-        // Already in the list, so… move along.
+        // Already in the list, so... move along.
         el.incidentTypeAdd.value = "";
         return;
     }
@@ -1794,7 +1794,7 @@ async function attachFile(): Promise<void> {
         .replace("<incident_number>", (ims.pathIds.incidentNumber??"").toString());
 
     el.attachFile.disabled = true;
-    el.attachFile.value = "Uploading …";
+    el.attachFile.value = "Uploading ...";
     try {
         const {err} = await ims.uploadNoThrow(attachURL, formData, (progress: string): void => {
             el.attachFile.value = `Uploading ${progress}`;

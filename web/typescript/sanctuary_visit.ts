@@ -661,7 +661,7 @@ async function attachFile(): Promise<void> {
         .replace("<visit_number>", (ims.pathIds.visitNumber??"").toString());
 
     el.attachFile.disabled = true;
-    el.attachFile.value = "Uploading …";
+    el.attachFile.value = "Uploading ...";
     try {
         const {err} = await ims.uploadNoThrow(attachURL, formData, (progress: string): void => {
             el.attachFile.value = `Uploading ${progress}`;
@@ -729,7 +729,7 @@ async function addRanger(): Promise<void> {
     }
 
     if (handles.includes(handle)) {
-        // Already in the list, so… move along.
+        // Already in the list, so... move along.
         el.addRanger.value = "";
         return;
     }

@@ -1215,7 +1215,7 @@ test("keyboard shortcuts toggle history and jump to the entry box", async (): Pr
     expect(document.activeElement!.id).toBe("report_entry_add");
 });
 
-// Routes for the Go to… modal's lookups: #5 exists, #99 doesn't. The other
+// Routes for the Go to... modal's lookups: #5 exists, #99 doesn't. The other
 // event, 2015, has Incidents #1 and #5.
 function jumpRoutes(url: string, init?: RequestInit): Response | undefined {
     switch (url) {
@@ -1248,7 +1248,7 @@ function goToModal(): HTMLDialogElement {
     return document.getElementById("goToModal") as HTMLDialogElement;
 }
 
-// The help modal's Ctrl+K hint, the Add Entry button's Ctrl+Enter, and the Go to… modal's Ctrl+Enter.
+// The help modal's Ctrl+K hint, the Add Entry button's Ctrl+Enter, and the Go to... modal's Ctrl+Enter.
 function modifierKeyTexts(): string[] {
     return [...document.querySelectorAll(".modifier-key")].map((el: Element): string => el.textContent ?? "");
 }
@@ -1274,7 +1274,7 @@ function selectGoToKind(kind: string): HTMLInputElement {
     return radio;
 }
 
-test("Ctrl+K and Cmd+K open Go to… even while typing in a field", async (): Promise<void> => {
+test("Ctrl+K and Cmd+K open Go to... even while typing in a field", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
 
     const entryBox = document.getElementById("report_entry_add") as HTMLTextAreaElement;
@@ -1304,7 +1304,7 @@ test("Ctrl+K and Cmd+K open Go to… even while typing in a field", async (): Pr
 
 // Handing focus back on close is the browser's job, which happy-dom doesn't do,
 // so the Playwright tests cover that.
-test("Ctrl+K closes Go to… again", async (): Promise<void> => {
+test("Ctrl+K closes Go to... again", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const entryBox = document.getElementById("report_entry_add") as HTMLTextAreaElement;
     entryBox.focus();
@@ -1317,7 +1317,7 @@ test("Ctrl+K closes Go to… again", async (): Promise<void> => {
     expect(goToModal().open).toBe(false);
 });
 
-test("Go to… previews the typed Incident number, or says it doesn't exist", async (): Promise<void> => {
+test("Go to... previews the typed Incident number, or says it doesn't exist", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const preview = document.getElementById("goto-preview")!;
 
@@ -1339,7 +1339,7 @@ test("Go to… previews the typed Incident number, or says it doesn't exist", as
     });
 });
 
-test("Go to… previews a Field Report and a Visit", async (): Promise<void> => {
+test("Go to... previews a Field Report and a Visit", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const preview = document.getElementById("goto-preview")!;
 
@@ -1362,7 +1362,7 @@ test("Go to… previews a Field Report and a Visit", async (): Promise<void> => 
     expect(preview.classList.contains("text-danger")).toBe(true);
 });
 
-test("Go to… says so when the user can't access the typed record", async (): Promise<void> => {
+test("Go to... says so when the user can't access the typed record", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const preview = document.getElementById("goto-preview")!;
 
@@ -1374,7 +1374,7 @@ test("Go to… says so when the user can't access the typed record", async (): P
     expect(preview.classList.contains("text-danger")).toBe(true);
 });
 
-test("Go to…'s Enter navigates, and Ctrl+Enter opens a new tab", async (): Promise<void> => {
+test("Go to...'s Enter navigates, and Ctrl+Enter opens a new tab", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     const open = vi.spyOn(window, "open").mockImplementation((): null => null);
@@ -1391,7 +1391,7 @@ test("Go to…'s Enter navigates, and Ctrl+Enter opens a new tab", async (): Pro
     });
 });
 
-test("Go to…'s Go button is disabled until a number is typed", async (): Promise<void> => {
+test("Go to...'s Go button is disabled until a number is typed", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const button = document.getElementById("goto-go") as HTMLButtonElement;
     expect(button.disabled).toBe(true);
@@ -1403,7 +1403,7 @@ test("Go to…'s Go button is disabled until a number is typed", async (): Promi
     expect(button.disabled).toBe(true);
 });
 
-test("Go to…'s Go button does what Enter does, and Ctrl/Cmd-click opens a new tab", async (): Promise<void> => {
+test("Go to...'s Go button does what Enter does, and Ctrl/Cmd-click opens a new tab", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     const open = vi.spyOn(window, "open").mockImplementation((): null => null);
@@ -1422,7 +1422,7 @@ test("Go to…'s Go button does what Enter does, and Ctrl/Cmd-click opens a new 
     });
 });
 
-test("Go to…'s Enter opens a Field Report or Visit at its own URL", async (): Promise<void> => {
+test("Go to...'s Enter opens a Field Report or Visit at its own URL", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
 
@@ -1440,7 +1440,7 @@ test("Go to…'s Enter opens a Field Report or Visit at its own URL", async (): 
     });
 });
 
-test("Go to…'s Enter on a missing number stays put and says so", async (): Promise<void> => {
+test("Go to...'s Enter on a missing number stays put and says so", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
 
@@ -1452,7 +1452,7 @@ test("Go to…'s Enter on a missing number stays put and says so", async (): Pro
     expect(assign).not.toHaveBeenCalled();
 });
 
-test("Go to…'s Enter on the current Incident just closes the modal", async (): Promise<void> => {
+test("Go to...'s Enter on the current Incident just closes the modal", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
@@ -1466,7 +1466,7 @@ test("Go to…'s Enter on the current Incident just closes the modal", async ():
     expect(assign).not.toHaveBeenCalled();
 });
 
-test("Go to… defaults to the page's kind and relabels the input on change", async (): Promise<void> => {
+test("Go to... defaults to the page's kind and relabels the input on change", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const input = document.getElementById("goto-number") as HTMLInputElement;
 
@@ -1481,7 +1481,7 @@ test("Go to… defaults to the page's kind and relabels the input on change", as
     expect(input.placeholder).toBe("VS#");
 });
 
-test("Go to… offers every record type, even ones the user can't read here", async (): Promise<void> => {
+test("Go to... offers every record type, even ones the user can't read here", async (): Promise<void> => {
     serverEventAccess.readIncidents = false;
     serverEventAccess.writeFieldReports = false;
     serverEventAccess.readVisits = false;
@@ -1495,7 +1495,7 @@ test("Go to… offers every record type, even ones the user can't read here", as
     expect(document.getElementById("goto-kind-visit")!.classList.contains("d-none")).toBe(false);
 });
 
-test("Go to… lists the events in reverse name order, and starts on the page's event", async (): Promise<void> => {
+test("Go to... lists the events in reverse name order, and starts on the page's event", async (): Promise<void> => {
     serverEvents = [
         { id: 2, name: "2015", is_active: true },
         { id: eventId, name: eventName },
@@ -1512,7 +1512,7 @@ test("Go to… lists the events in reverse name order, and starts on the page's 
     expect(select.value).toBe(eventName);
 });
 
-test("Go to… previews and opens a record in another event", async (): Promise<void> => {
+test("Go to... previews and opens a record in another event", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     const preview = document.getElementById("goto-preview")!;
@@ -1535,7 +1535,7 @@ test("Go to… previews and opens a record in another event", async (): Promise<
     });
 });
 
-test("Go to…'s Enter on this Incident's number in another event goes there", async (): Promise<void> => {
+test("Go to...'s Enter on this Incident's number in another event goes there", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     await vi.waitFor((): void => {
@@ -1593,7 +1593,7 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
         // it before the upload is awaited.
         const pending = window.attachFile();
         expect(button.disabled).toBe(true);
-        expect(button.value).toBe("Uploading …");
+        expect(button.value).toBe("Uploading ...");
 
         await pending;
 
@@ -1603,7 +1603,7 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
         expect(uploads[0]!.body).toBeInstanceOf(FormData);
 
         // The button tracked the upload, then waited on the server to store it.
-        expect(labels).toEqual(["Uploading 25%", "Uploading 100%", "Uploading …"]);
+        expect(labels).toEqual(["Uploading 25%", "Uploading 100%", "Uploading ..."]);
 
         // On success the button re-enables and briefly confirms.
         expect(button.disabled).toBe(false);

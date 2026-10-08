@@ -308,7 +308,7 @@ async function importFromAPI(field: PlaceField): Promise<void> {
         year: year.toString(),
     });
     apiImport.buttonEl.disabled = true;
-    apiImport.statusEl.textContent = `Fetching ${apiImport.noun} for ${year}…`;
+    apiImport.statusEl.textContent = `Fetching ${apiImport.noun} for ${year}...`;
     const {json, err} = await ims.fetchNoThrow<ims.ImportPlacesResponse>(
         `${url_placesImport.replace("<event_id>", eventName)}?${params.toString()}`, {
             method: "POST",

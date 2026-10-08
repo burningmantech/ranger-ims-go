@@ -110,7 +110,7 @@ test("uploadNoThrow reports progress as a percentage, then as pending once the b
         progress.push(p);
     });
     expect(err).toBeNull();
-    expect(progress).toEqual(["0%", "50%", "99%", "100%", "…"]);
+    expect(progress).toEqual(["0%", "50%", "99%", "100%", "..."]);
 });
 
 test("uploadNoThrow reports a byte count when the upload size is unknown", async (): Promise<void> => {
@@ -124,7 +124,7 @@ test("uploadNoThrow reports a byte count when the upload size is unknown", async
         progress.push(p);
     });
     // Half of the fake's 1000 byte total.
-    expect(progress).toEqual(["0.0 MB", "…"]);
+    expect(progress).toEqual(["0.0 MB", "..."]);
 });
 
 test("uploadNoThrow extracts the detail from an application/problem+json error", async (): Promise<void> => {

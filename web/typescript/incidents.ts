@@ -459,7 +459,7 @@ function initTableButtons(): void {
     }
 
     ims.addMenuFilter(el.showType, el.ulShowType, {
-        placeholder: "Filter types…",
+        placeholder: "Filter types...",
         onFilter: (query: string): void => {
             el.showTypeToggleAll.textContent = query ? "Select/Deselect Matching" : "Select/Deselect All";
             if (query && !_startingFreshTypeSelection && allTypesChecked()) {

@@ -63,7 +63,7 @@ beforeEach((): void => {
                 number: 3,
                 created: "2024-08-27T18:30:00Z",
                 summary: "Found wallet",
-                snippet: "…the wallet was extremely dusty…",
+                snippet: "...the wallet was extremely dusty...",
                 incident: 7,
             },
             {
@@ -258,7 +258,7 @@ test("starting a search abandons the one still running", async (): Promise<void>
     await vi.waitFor((): void => {
         expect(pending.length).toBe(1);
     });
-    expect(resultsInfo()).toBe("Searching…");
+    expect(resultsInfo()).toBe("Searching...");
     expect(spinnerShown()).toBe(true);
 
     // A second search is allowed while the first is in flight, and it cuts the

@@ -491,7 +491,7 @@ async function attachFile(): Promise<void> {
         .replace("<field_report_number>", (ims.pathIds.fieldReportNumber??"").toString());
 
     el.attachFile.disabled = true;
-    el.attachFile.value = "Uploading …";
+    el.attachFile.value = "Uploading ...";
     try {
         const {err} = await ims.uploadNoThrow(attachURL, formData, (progress: string): void => {
             el.attachFile.value = `Uploading ${progress}`;

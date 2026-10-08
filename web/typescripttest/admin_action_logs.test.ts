@@ -225,13 +225,13 @@ test("a truncated body is shown as the stored text rather than dropped", async (
     await initActionLogsPage();
 
     const table = MockDataTable.lastInstance!;
-    table.setRowData({ id: 2, request_body: '{"summary":"abc…[truncated]' });
+    table.setRowData({ id: 2, request_body: '{"summary":"abc...[truncated]' });
 
     const handler = table.delegated["click td.dt-control"]!;
     handler.call(document.createElement("td"));
 
     const detail = table.clickedRow.child.content as HTMLElement;
-    expect(detail.textContent).toContain("…[truncated]");
+    expect(detail.textContent).toContain("...[truncated]");
 });
 
 test("a row with no logged body still expands to something readable", async (): Promise<void> => {

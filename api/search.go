@@ -66,7 +66,7 @@ const (
 	searchSlowThreshold  = 2 * time.Second
 	searchSnippetPrefix  = 40
 	searchSnippetMaxLen  = 200
-	searchSnippetMarker  = "…"
+	searchSnippetMarker  = "..."
 	searchAllResultKinds = imsjson.SearchResultKindIncident + "," +
 		imsjson.SearchResultKindFieldReport + "," +
 		imsjson.SearchResultKindVisit

@@ -207,7 +207,7 @@ export async function uploadNoThrow(
         // The bytes are out, but the server still has to store the file, so
         // stop showing a percentage while that finishes.
         xhr.upload.onload = (): void => {
-            onProgress("…");
+            onProgress("...");
         };
         xhr.onload = (): void => {
             resolve({err: xhr.status < 400 ? null : uploadError(xhr)});
@@ -308,7 +308,7 @@ export function disableEditing() {
     // disable(document.querySelectorAll("#entries-form input,select,textarea,button"));
     // disable(document.querySelectorAll("#attach-file-form input,select,textarea,button"));
     enable(document.querySelectorAll("input[type=search]"));  // Don't disable search fields
-    // The Go to… box is navigation, not editing, so it stays usable on
+    // The Go to... box is navigation, not editing, so it stays usable on
     // read-only pages like Places.
     enable(document.querySelectorAll("#goto-number"));
     document.documentElement.classList.add("no-edit");
@@ -565,7 +565,7 @@ export function addMenuFilter(
     const input = document.createElement("input");
     input.type = "search";
     input.className = "form-control form-control-sm";
-    input.placeholder = options.placeholder ?? "Filter…";
+    input.placeholder = options.placeholder ?? "Filter...";
     input.setAttribute("aria-label", input.placeholder);
     input.autocomplete = "off";
     input.setAttribute("data-1p-ignore", "true");
@@ -2157,7 +2157,7 @@ export function blockKeyboardShortcutFieldActive(): boolean {
     return active instanceof HTMLElement && active.isContentEditable;
 }
 
-// The kinds of records the Go to… modal can jump to. Each kind numbers its
+// The kinds of records the Go to... modal can jump to. Each kind numbers its
 // records independently, so the number alone is ambiguous and the modal has a
 // type selector to go with it.
 type GoToKind = "incident"|"field_report"|"visit";

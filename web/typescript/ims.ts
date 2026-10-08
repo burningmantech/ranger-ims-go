@@ -2302,11 +2302,11 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
     function apiURL(event: string, kind: GoToKind, number: number): string {
         switch (kind) {
             case "field_report":
-                return url_fieldReport.replace("<event_id>", event).replace("<field_report_number>", number.toString());
+                return url_fieldReport.replace("<event_id>", encodeURIComponent(event)).replace("<field_report_number>", number.toString());
             case "visit":
-                return url_visitNumber.replace("<event_id>", event).replace("<visit_number>", number.toString());
+                return url_visitNumber.replace("<event_id>", encodeURIComponent(event)).replace("<visit_number>", number.toString());
             case "incident":
-                return url_incidentNumber.replace("<event_id>", event).replace("<incident_number>", number.toString());
+                return url_incidentNumber.replace("<event_id>", encodeURIComponent(event)).replace("<incident_number>", number.toString());
         }
     }
 
@@ -2314,11 +2314,11 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
     function viewURL(event: string, kind: GoToKind, number: number): string {
         switch (kind) {
             case "field_report":
-                return url_viewFieldReportNumber.replace("<event_id>", event).replace("<number>", number.toString());
+                return url_viewFieldReportNumber.replace("<event_id>", encodeURIComponent(event)).replace("<number>", number.toString());
             case "visit":
-                return url_viewVisitNumber.replace("<event_id>", event).replace("<number>", number.toString());
+                return url_viewVisitNumber.replace("<event_id>", encodeURIComponent(event)).replace("<number>", number.toString());
             case "incident":
-                return url_viewIncidentNumber.replace("<event_id>", event).replace("<number>", number.toString());
+                return url_viewIncidentNumber.replace("<event_id>", encodeURIComponent(event)).replace("<number>", number.toString());
         }
     }
 

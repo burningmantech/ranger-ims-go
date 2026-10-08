@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -39,6 +40,7 @@ type rangerRoster struct {
 	numberPathKey       string
 	noun                string
 
+	lock           func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) error
 	detach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error
 	attach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string, role sql.NullString) error
 	currentRole    func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (sql.NullString, bool, error)
@@ -52,6 +54,10 @@ func incidentRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 		writePermissionName: "EventWriteIncidents",
 		numberPathKey:       "incidentNumber",
 		noun:                "Incident",
+		lock: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) error {
+			_, err := imsDBQ.LockIncident(ctx, dbtx, imsdb.LockIncidentParams{Event: eventID, Number: number})
+			return err
+		},
 		detach: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error {
 			return imsDBQ.DetachRangerHandleFromIncident(ctx, dbtx, imsdb.DetachRangerHandleFromIncidentParams{
 				Event:          eventID,
@@ -95,6 +101,10 @@ func visitRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 		writePermissionName: "EventWriteVisits",
 		numberPathKey:       "visitNumber",
 		noun:                "Visit",
+		lock: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) error {
+			_, err := imsDBQ.LockVisit(ctx, dbtx, imsdb.LockVisitParams{Event: eventID, Number: number})
+			return err
+		},
 		detach: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error {
 			return imsDBQ.DetachRangerFromVisit(ctx, dbtx, imsdb.DetachRangerFromVisitParams{
 				Event:        eventID,
@@ -173,6 +183,22 @@ func parseRangerRosterRequest(
 	}, nil
 }
 
+// lockRoster takes an exclusive lock on the roster's parent Incident or Visit
+// row, and must come first in the transaction. Without it, concurrent roster
+// writers deadlock on the shared locks their foreign keys take on that row and
+// on the roster table's index gaps, often enough that a burst of them could
+// exhaust the deadlock retries. With it, they simply queue.
+func lockRoster(ctx context.Context, txn imsdb.DBTX, roster rangerRoster, rosterReq rangerRosterRequest) *herr.HTTPError {
+	err := roster.lock(ctx, txn, rosterReq.event.ID, rosterReq.number)
+	if errors.Is(err, sql.ErrNoRows) {
+		return herr.NotFound(fmt.Sprintf("%v not found", roster.noun), err).From("[lock]")
+	}
+	if err != nil {
+		return herr.InternalServerError(fmt.Sprintf("Failed to lock %v", roster.noun), err).From("[lock]")
+	}
+	return nil
+}
+
 // rangerRosterBody is the request body for the attach-Ranger endpoints. It has
 // the same shape as imsjson.IncidentRanger and imsjson.VisitRanger, which are
 // identical to each other.
@@ -208,6 +234,11 @@ func attachRanger(
 			return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
 		}
 		defer rollback(txn)
+
+		errHTTP := lockRoster(ctx, txn, roster, rosterReq)
+		if errHTTP != nil {
+			return errHTTP
+		}
 
 		// This endpoint both adds a Ranger and sets the role of one who's already
 		// on the roster, and the change log should say which of those happened.
@@ -245,7 +276,7 @@ func attachRanger(
 			return herr.InternalServerError(fmt.Sprintf("Failed to attach Ranger to %v", roster.noun), err).From("[attach]")
 		}
 
-		_, errHTTP := roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
+		_, errHTTP = roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
 			author:    rosterReq.author,
 			text:      logLine,
 			generated: true,
@@ -289,12 +320,17 @@ func detachRanger(
 		}
 		defer rollback(txn)
 
+		errHTTP := lockRoster(ctx, txn, roster, rosterReq)
+		if errHTTP != nil {
+			return errHTTP
+		}
+
 		err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
 		if err != nil {
 			return herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
 		}
 
-		_, errHTTP := roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
+		_, errHTTP = roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
 			author:    rosterReq.author,
 			text:      fmt.Sprintf("Removed Ranger: %v", rosterReq.rangerName),
 			generated: true,

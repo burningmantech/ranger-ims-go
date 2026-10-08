@@ -278,13 +278,24 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		return nil, herr.InternalServerError("Failed to update event", err).From("[UpdateEvent]")
 	}
 	if editRequest.IsActive != nil {
-		if *editRequest.IsActive {
-			err = action.imsDBQ.SetActiveEvent(req.Context(), action.imsDBQ, editRequest.ID)
-		} else {
-			err = action.imsDBQ.ClearActiveEvent(req.Context(), action.imsDBQ, editRequest.ID)
-		}
-		if err != nil {
-			return nil, herr.InternalServerError("Failed to set active event", err).From("[SetActiveEvent]")
+		// SetActiveEvent writes every EVENT row, so it can deadlock with any
+		// concurrent event write. Each is a single idempotent statement, so a
+		// deadlock victim can just run again.
+		ctx := req.Context()
+		errHTTP := retryOnDeadlockErr(func() *herr.HTTPError {
+			var err error
+			if *editRequest.IsActive {
+				err = action.imsDBQ.SetActiveEvent(ctx, action.imsDBQ, editRequest.ID)
+			} else {
+				err = action.imsDBQ.ClearActiveEvent(ctx, action.imsDBQ, editRequest.ID)
+			}
+			if err != nil {
+				return herr.InternalServerError("Failed to set active event", err).From("[SetActiveEvent]")
+			}
+			return nil
+		})
+		if errHTTP != nil {
+			return nil, errHTTP
 		}
 	}
 

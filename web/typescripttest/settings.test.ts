@@ -159,7 +159,7 @@ test("? toggles the page's help dialog", async (): Promise<void> => {
     await initSettingsPage();
 
     expect(document.getElementById("helpModalLabel")!.textContent).toBe("Settings help");
-    expect(helpModal().textContent).toContain("This page has no keyboard shortcuts.");
+    expect(helpModal().textContent).toContain("go to a record by number");
     expect(helpModal().open).toBe(false);
 
     pressKey(document.body, "?");

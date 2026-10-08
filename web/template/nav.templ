@@ -16,7 +16,19 @@
 
 package template
 
+// Nav is the top bar, plus the Go to… modal that Ctrl/Cmd+K opens on every
+// page that has one.
 templ Nav(eventName string) {
+@navBar(eventName)
+@GoToModal()
+}
+
+// LoginNav is the top bar alone, for the login page, which has no use for Go to….
+templ LoginNav() {
+@navBar("")
+}
+
+templ navBar(eventName string) {
 {{
   eventSet := eventName != ""
   logoHref := "/ims/app"
@@ -239,7 +251,4 @@ templ Nav(eventName string) {
     </div>
   </div>
 </nav>
-if eventSet {
-  @GoToModal()
-}
 }

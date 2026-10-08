@@ -107,3 +107,94 @@ test("the ?logout flow clears browser storage, hits the logout endpoint, and cle
     expect(window.location.search).toBe("");
     expect(window.location.pathname).toBe(url_app);
 });
+
+function pressCtrlK(): void {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+}
+
+function goToEventOptions(): string[] {
+    return [...(document.getElementById("goto-event") as HTMLSelectElement).options]
+        .map((opt: HTMLOptionElement): string => opt.value);
+}
+
+test("Ctrl+K on the home page opens Go to… on the active event", async (): Promise<void> => {
+    await initRootPage(true, undefined, [
+        { id: 1, name: "2025", is_active: false },
+        { id: 2, name: "2024", is_active: true },
+    ]);
+    await vi.waitFor((): void => {
+        expect(goToEventOptions()).toEqual(["2025", "2024"]);
+    });
+
+    pressCtrlK();
+    expect((document.getElementById("goToModal") as HTMLDialogElement).open).toBe(true);
+    expect((document.getElementById("goto-event") as HTMLSelectElement).value).toBe("2024");
+    expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
+});
+
+test("with no active event, Go to… on the home page starts on the most recently created event", async (): Promise<void> => {
+    await initRootPage(true, undefined, [
+        { id: 3, name: "2024", is_active: false },
+        { id: 1, name: "Test", is_active: false },
+        { id: 2, name: "2025", is_active: false },
+    ]);
+    await vi.waitFor((): void => {
+        expect(goToEventOptions()).toEqual(["Test", "2025", "2024"]);
+    });
+
+    // Not the first one listed, which only sorts first by name.
+    pressCtrlK();
+    expect((document.getElementById("goto-event") as HTMLSelectElement).value).toBe("2024");
+});
+
+test("Go to… on the home page looks up and opens a record in the chosen event", async (): Promise<void> => {
+    await initRootPage(true, (url) => {
+        if (url === "/ims/api/events/2024/visits/3") {
+            return jsonResponse({ number: 3, event: "2024", guest_preferred_name: "Stardust" });
+        }
+        return undefined;
+    }, [
+        { id: 1, name: "2025", is_active: true },
+        { id: 2, name: "2024", is_active: false },
+    ]);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+    await vi.waitFor((): void => {
+        expect(goToEventOptions()).toEqual(["2025", "2024"]);
+    });
+    pressCtrlK();
+
+    const select = document.getElementById("goto-event") as HTMLSelectElement;
+    select.value = "2024";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const visitRadio = document.getElementById("goto-kind-visit") as HTMLInputElement;
+    visitRadio.checked = true;
+    visitRadio.dispatchEvent(new Event("change", { bubbles: true }));
+    const input = document.getElementById("goto-number") as HTMLInputElement;
+    input.value = "3";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.waitFor((): void => {
+        expect(document.getElementById("goto-preview")!.textContent).toBe("VS #3: Stardust");
+    });
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(assign).toHaveBeenCalledWith("/ims/app/events/2024/visits/3");
+    });
+});
+
+test("Go to… doesn't open when there are no events to go to", async (): Promise<void> => {
+    const mock = await initRootPage(true);
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([url]) => url === url_events)).toBe(true);
+    });
+
+    pressCtrlK();
+    expect((document.getElementById("goToModal") as HTMLDialogElement).open).toBe(false);
+});
+
+test("Go to… is off for a visitor who isn't logged in", async (): Promise<void> => {
+    await initRootPage(false, undefined, [{ id: 1, name: "2025", is_active: true }]);
+
+    pressCtrlK();
+    expect((document.getElementById("goToModal") as HTMLDialogElement).open).toBe(false);
+});

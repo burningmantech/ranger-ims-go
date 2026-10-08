@@ -97,7 +97,7 @@ test("the event-name select is populated in reverse-alphabetical order, excludin
 
     const select = await eventSelect();
     const options = [...select.options].map(o => o.value);
-    // The templ-rendered placeholder stays first, then events newest-first.
+    // The templ-rendered placeholder stays first, then events in reverse name order.
     expect(options).toEqual(["", "2025", "2024"]);
     // Groups hold no places of their own.
     expect(options).not.toContain("Group");

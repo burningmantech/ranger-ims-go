@@ -43,6 +43,15 @@ templ helpNoShortcuts() {
 <p class="mb-0">This page has no keyboard shortcuts.</p>
 }
 
+// helpOnlyGoToShortcut is the shortcut list for a page whose only shortcut is
+// the Go to… modal's, which every page but login has.
+templ helpOnlyGoToShortcut() {
+<p class="mb-0">Keyboard shortcuts</p>
+<ul class="mb-0">
+  @helpGoToShortcut()
+</ul>
+}
+
 templ helpShortcutsOffNote() {
 <p class="mt-3 mb-0 text-body-secondary">These single-key shortcuts can be turned off on the <a href="/ims/app/settings">Settings page</a>.</p>
 }

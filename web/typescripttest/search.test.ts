@@ -400,7 +400,7 @@ test("the Type menu narrows which record types are searched", async (): Promise<
     expect(searchCalls[0]).toContain("kinds=incident%2Cfield_report");
 });
 
-test("the Event menu lists Events newest first, without groups, all selected", async (): Promise<void> => {
+test("the Event menu lists Events in reverse name order, without groups, all selected", async (): Promise<void> => {
     const { searchCalls } = await initSearchPage(threeEvents);
 
     expect(menuItemLabels("ul_show_event")).toEqual(["2025", "2024", "2023"]);

@@ -1215,7 +1215,8 @@ test("keyboard shortcuts toggle history and jump to the entry box", async (): Pr
     expect(document.activeElement!.id).toBe("report_entry_add");
 });
 
-// Routes for the Go to… modal's lookups: #5 exists, #99 doesn't.
+// Routes for the Go to… modal's lookups: #5 exists, #99 doesn't. The other
+// event, 2015, has Incidents #1 and #5.
 function jumpRoutes(url: string, init?: RequestInit): Response | undefined {
     switch (url) {
         case `/ims/api/events/${eventName}/incidents/5`:
@@ -1235,6 +1236,10 @@ function jumpRoutes(url: string, init?: RequestInit): Response | undefined {
             return jsonResponse({ number: 5, event: eventName, guest_preferred_name: "Stardust" });
         case `/ims/api/events/${eventName}/visits/99`:
             return problemResponse("Visit not found", 404);
+        case "/ims/api/events/2015/incidents/1":
+            return jsonResponse({ number: 1, event: "2015", state: "closed", summary: "Old news" });
+        case "/ims/api/events/2015/incidents/5":
+            return jsonResponse({ number: 5, event: "2015", state: "closed", summary: "Older bike" });
     }
     return incidentRoutes(url, init);
 }
@@ -1253,6 +1258,13 @@ function typeJumpNumber(value: string): HTMLInputElement {
     input.value = value;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     return input;
+}
+
+function selectGoToEvent(event: string): HTMLSelectElement {
+    const select = document.getElementById("goto-event") as HTMLSelectElement;
+    select.value = event;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    return select;
 }
 
 function selectGoToKind(kind: string): HTMLInputElement {
@@ -1469,20 +1481,75 @@ test("Go to… defaults to the page's kind and relabels the input on change", as
     expect(input.placeholder).toBe("VS#");
 });
 
-test("Go to… hides the types a user can't read", async (): Promise<void> => {
+test("Go to… offers every record type, even ones the user can't read here", async (): Promise<void> => {
     serverEventAccess.readIncidents = false;
+    serverEventAccess.writeFieldReports = false;
     serverEventAccess.readVisits = false;
     await initIncidentPage(jumpRoutes);
 
-    // With only writeFieldReports, the Field Report type remains.
-    expect(document.getElementById("goto-kind-field-report")!.classList.contains("d-none")).toBe(false);
-    expect(document.getElementById("goto-kind-incident")!.classList.contains("d-none")).toBe(true);
-    expect(document.getElementById("goto-kind-visit")!.classList.contains("d-none")).toBe(true);
-
-    // The modal still opens, defaulting to the one readable kind.
+    // Another event might allow them, so the modal doesn't check.
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
     expect(goToModal().open).toBe(true);
-    expect((document.getElementById("goto-kind-field-report") as HTMLInputElement).checked).toBe(true);
+    expect(document.getElementById("goto-kind-incident")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-kind-field-report")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-kind-visit")!.classList.contains("d-none")).toBe(false);
+});
+
+test("Go to… lists the events in reverse name order, and starts on the page's event", async (): Promise<void> => {
+    serverEvents = [
+        { id: 2, name: "2015", is_active: true },
+        { id: eventId, name: eventName },
+        { id: 3, name: "2020" },
+    ];
+    await initIncidentPage(jumpRoutes);
+    const select = document.getElementById("goto-event") as HTMLSelectElement;
+    await vi.waitFor((): void => {
+        expect([...select.options].map((opt: HTMLOptionElement): string => opt.value)).toEqual(["2025", "2020", "2015"]);
+    });
+
+    // The page's event wins over the active one.
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(select.value).toBe(eventName);
+});
+
+test("Go to… previews and opens a record in another event", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+    const preview = document.getElementById("goto-preview")!;
+    await vi.waitFor((): void => {
+        expect((document.getElementById("goto-event") as HTMLSelectElement).options.length).toBe(2);
+    });
+
+    const input = typeJumpNumber("5");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("#5 Lost bike (On Hold)");
+    });
+    selectGoToEvent("2015");
+    await vi.waitFor((): void => {
+        expect(preview.textContent).toBe("#5 Older bike (Closed)");
+    });
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(assign).toHaveBeenCalledWith("/ims/app/events/2015/incidents/5");
+    });
+});
+
+test("Go to…'s Enter on this Incident's number in another event goes there", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+    await vi.waitFor((): void => {
+        expect((document.getElementById("goto-event") as HTMLSelectElement).options.length).toBe(2);
+    });
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+
+    selectGoToEvent("2015");
+    const input = typeJumpNumber("1");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor((): void => {
+        expect(assign).toHaveBeenCalledWith("/ims/app/events/2015/incidents/1");
+    });
+    expect(goToModal().open).toBe(true);
 });
 
 test("shortcut hints name Cmd on a Mac", async (): Promise<void> => {
@@ -1497,16 +1564,6 @@ test("shortcut hints name Ctrl off a Mac", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
 
     expect(modifierKeyTexts()).toEqual(["Ctrl", "Ctrl", "Ctrl"]);
-});
-
-test("Go to… is left off for someone who can't read any of the record types", async (): Promise<void> => {
-    serverEventAccess.readIncidents = false;
-    serverEventAccess.writeFieldReports = false;
-    serverEventAccess.readVisits = false;
-    await initIncidentPage(jumpRoutes);
-
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(goToModal().open).toBe(false);
 });
 
 test("printing swaps in a filesystem-safe document title", async (): Promise<void> => {

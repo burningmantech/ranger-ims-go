@@ -399,9 +399,6 @@ export async function commonPageInit(): Promise<PageInitResult> {
     if (authInfo.authenticated) {
         eventAccess = authInfo.event_access?.[pathIds.eventName!]??null;
         pathIds.eventId = eventAccess?.event_id??null;
-        if (goToKinds.some(canReadGoToKind)) {
-            setupGoTo();
-        }
         eds =fetchNoThrow<EventData[]>(url_events, null).then(
             result => {
                 if (result.err != null || result.json == null) {
@@ -412,6 +409,7 @@ export async function commonPageInit(): Promise<PageInitResult> {
                 return result.json;
             }
         );
+        setupGoTo(eds);
     }
     renderCommonPageItems(authInfo);
     renderModifierKeys();
@@ -508,9 +506,14 @@ function renderCommonPageItems(authInfo: AuthInfo): void {
     }
 }
 
+// Event names in the order the nav's Events menu lists them: reverse
+// alphabetical, which for events named by year puts the latest first.
+function sortedEventNames(eds: EventData[]): string[] {
+    return eds.map((ed) => ed.name).sort((a, b) => b.localeCompare(a));
+}
+
 function renderNavEvents(eds: EventData[]): void {
-    const eventIds: string[] = eds.map((ed) => ed.name);
-    eventIds.sort((a, b) => b.localeCompare(a));
+    const eventIds = sortedEventNames(eds);
     const navEvents = document.getElementById("nav-events") as HTMLUListElement;
     for (const id of eventIds) {
         const anchor = document.createElement("a");
@@ -2167,21 +2170,6 @@ const goToKindLabels: Record<GoToKind, string> = {
     visit: "VS",
 };
 
-// Whether this event's access grants reading the given kind of record. Field
-// Reports are readable alongside Incidents during the overlap period, and with
-// writeFieldReports even without readIncidents, mirroring how the Field Reports
-// pages gate themselves.
-function canReadGoToKind(kind: GoToKind): boolean {
-    switch (kind) {
-        case "incident":
-            return eventAccess?.readIncidents ?? false;
-        case "field_report":
-            return (eventAccess?.readIncidents ?? false) || (eventAccess?.writeFieldReports ?? false);
-        case "visit":
-            return eventAccess?.readVisits ?? false;
-    }
-}
-
 // Every page has a #helpModal, which "?" toggles.
 function setupHelpModal(): void {
     const modalEl = document.getElementById("helpModal");
@@ -2209,15 +2197,17 @@ function setupHelpModal(): void {
     });
 }
 
-// Ctrl/Cmd+K opens a modal for going to another of this event's Incidents,
-// Field Reports, or Visits by number. Unlike the single-key shortcuts, it works
-// while typing in a field, and it ignores the Settings switch, since WCAG 2.1.4
-// doesn't cover modified keys.
-function setupGoTo(): void {
+// Ctrl/Cmd+K opens a modal for going to an Incident, Field Report, or Visit by
+// event and number. Unlike the single-key shortcuts, it works while typing in a
+// field, and it ignores the Settings switch, since WCAG 2.1.4 doesn't cover
+// modified keys. It offers every record type in every event without checking
+// what the user may read there; a lookup they can't make says so instead.
+function setupGoTo(events: Promise<EventData[]|null>): void {
     const modalEl = document.getElementById("goToModal");
     if (!(modalEl instanceof HTMLDialogElement)) {
         return;
     }
+    const eventSelect = typedElement("goto-event", HTMLSelectElement);
     const input = typedElement("goto-number", HTMLInputElement);
     const preview = typedElement("goto-preview", HTMLElement);
     const goButton = typedElement("goto-go", HTMLButtonElement);
@@ -2229,51 +2219,75 @@ function setupGoTo(): void {
         visit: typedElement("goto-kind-visit", HTMLInputElement),
     };
 
-    // The types this user can read, remembering document order so that a
-    // fallback default lands on Incident before the others.
-    const readableKinds = goToKinds.filter(canReadGoToKind);
-
-    // Hide the type buttons this user can't read, so the selector only offers
-    // records they can actually open.
-    for (const kind of goToKinds) {
-        if (readableKinds.includes(kind)) {
-            continue;
-        }
-        kindRadios[kind].classList.add("d-none");
-        (kindRadios[kind].nextElementSibling)?.classList.add("d-none");
-    }
-
+    // The event to start on when the page has none: the active one, else the
+    // most recently created (highest ID). Names needn't sort chronologically.
+    let fallbackEvent: string|null = null;
     let lookup: {key: string, result: Promise<Incident|FieldReport|Visit|string>}|null = null;
     let debounce: number|undefined;
 
+    function defaultEvent(): string|null {
+        return pathIds.eventName ?? fallbackEvent;
+    }
+
+    function setEventOptions(names: string[]): void {
+        const selected = eventSelect.value;
+        eventSelect.replaceChildren(...names.map((name: string): HTMLOptionElement => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            return opt;
+        }));
+        eventSelect.value = names.includes(selected) ? selected : (defaultEvent() ?? "");
+    }
+
+    // The page's own event is there before the events list arrives, and even
+    // if it never does.
+    if (pathIds.eventName) {
+        setEventOptions([pathIds.eventName]);
+    }
+    void events.then((eds: EventData[]|null): void => {
+        if (eds == null) {
+            return;
+        }
+        const names = sortedEventNames(eds);
+        if (pathIds.eventName && !names.includes(pathIds.eventName)) {
+            names.unshift(pathIds.eventName);
+        }
+        const latest = eds.reduce<EventData|null>(
+            (max: EventData|null, ed: EventData): EventData|null => max == null || ed.id > max.id ? ed : max,
+            null,
+        );
+        fallbackEvent = eds.find((ed: EventData): boolean => ed.is_active === true)?.name ?? latest?.name ?? null;
+        setEventOptions(names);
+    });
+
+    function selectedEvent(): string|null {
+        return eventSelect.value || null;
+    }
+
     // The kind to select when the modal opens: the kind for the page you're on
-    // (a record page or its list page), if it's readable, else the first
-    // readable kind.
+    // (a record page or its list page), else Incident.
     function defaultKind(): GoToKind {
         const path = window.location.pathname;
-        if (path.startsWith(urlReplace(url_viewIncidents)) && readableKinds.includes("incident")) {
-            return "incident";
-        }
-        if (path.startsWith(urlReplace(url_viewFieldReports)) && readableKinds.includes("field_report")) {
+        if (path.startsWith(urlReplace(url_viewFieldReports))) {
             return "field_report";
         }
-        if (path.startsWith(urlReplace(url_viewVisits)) && readableKinds.includes("visit")) {
+        if (path.startsWith(urlReplace(url_viewVisits))) {
             return "visit";
         }
-        // Places isn't tied to one record type, so default to Incident, the
-        // number a Ranger is most likely to have in hand there.
-        if (path.startsWith(urlReplace(url_viewPlaces)) && readableKinds.includes("incident")) {
-            return "incident";
-        }
-        return readableKinds[0]!;
+        return "incident";
     }
 
     function selectedKind(): GoToKind {
         return goToKinds.find((kind: GoToKind): boolean => kindRadios[kind].checked) ?? defaultKind();
     }
 
-    // The number of the record the page is currently showing, for the given kind.
-    function currentNumber(kind: GoToKind): number|null {
+    // The number of the record the page is currently showing, for the given
+    // event and kind.
+    function currentNumber(event: string, kind: GoToKind): number|null {
+        if (event !== pathIds.eventName) {
+            return null;
+        }
         switch (kind) {
             case "field_report":
                 return pathIds.fieldReportNumber;
@@ -2284,27 +2298,27 @@ function setupGoTo(): void {
         }
     }
 
-    // The API URL that resolves a kind and number to a record.
-    function apiURL(kind: GoToKind, number: number): string {
+    // The API URL that resolves an event, kind, and number to a record.
+    function apiURL(event: string, kind: GoToKind, number: number): string {
         switch (kind) {
             case "field_report":
-                return urlReplace(url_fieldReport).replace("<field_report_number>", number.toString());
+                return url_fieldReport.replace("<event_id>", event).replace("<field_report_number>", number.toString());
             case "visit":
-                return urlReplace(url_visitNumber).replace("<visit_number>", number.toString());
+                return url_visitNumber.replace("<event_id>", event).replace("<visit_number>", number.toString());
             case "incident":
-                return urlReplace(url_incidentNumber).replace("<incident_number>", number.toString());
+                return url_incidentNumber.replace("<event_id>", event).replace("<incident_number>", number.toString());
         }
     }
 
-    // The app URL for viewing a kind and number.
-    function viewURL(kind: GoToKind, number: number): string {
+    // The app URL for viewing an event, kind, and number.
+    function viewURL(event: string, kind: GoToKind, number: number): string {
         switch (kind) {
             case "field_report":
-                return urlReplace(url_viewFieldReportNumber).replace("<number>", number.toString());
+                return url_viewFieldReportNumber.replace("<event_id>", event).replace("<number>", number.toString());
             case "visit":
-                return urlReplace(url_viewVisitNumber).replace("<number>", number.toString());
+                return url_viewVisitNumber.replace("<event_id>", event).replace("<number>", number.toString());
             case "incident":
-                return urlReplace(url_viewIncidentNumber).replace("<number>", number.toString());
+                return url_viewIncidentNumber.replace("<event_id>", event).replace("<number>", number.toString());
         }
     }
 
@@ -2347,10 +2361,10 @@ function setupGoTo(): void {
     }
 
     // Resolves to the record, or to a message saying why there isn't one.
-    function lookUp(kind: GoToKind, number: number): Promise<Incident|FieldReport|Visit|string> {
-        const key = `${kind}:${number}`;
+    function lookUp(event: string, kind: GoToKind, number: number): Promise<Incident|FieldReport|Visit|string> {
+        const key = `${event}:${kind}:${number}`;
         if (lookup?.key !== key) {
-            const result = fetchNoThrow<Incident|FieldReport|Visit>(apiURL(kind, number), null).then(({resp, json, err}) => {
+            const result = fetchNoThrow<Incident|FieldReport|Visit>(apiURL(event, kind, number), null).then(({resp, json, err}) => {
                 if (resp?.status === 404) {
                     return `No ${goToKindLabels[kind]} #${number}`;
                 }
@@ -2374,8 +2388,13 @@ function setupGoTo(): void {
     }
 
     async function updatePreview(): Promise<void> {
+        const event = selectedEvent();
         const kind = selectedKind();
         const number = enteredNumber();
+        if (event == null) {
+            showPreview("", false);
+            return;
+        }
         if (number == null) {
             const typed = input.value.trim() !== "";
             const label = goToKindLabels[kind];
@@ -2383,10 +2402,10 @@ function setupGoTo(): void {
             showPreview(typed ? `Enter ${article} ${label} number` : "", typed);
             return;
         }
-        const result = await lookUp(kind, number);
+        const result = await lookUp(event, kind, number);
         // A slow response for an earlier selection mustn't replace the current
         // one's preview.
-        if (selectedKind() !== kind || enteredNumber() !== number) {
+        if (selectedEvent() !== event || selectedKind() !== kind || enteredNumber() !== number) {
             return;
         }
         if (typeof result === "string") {
@@ -2398,22 +2417,23 @@ function setupGoTo(): void {
 
     async function go(newTab: boolean): Promise<void> {
         clearTimeout(debounce);
+        const event = selectedEvent();
         const kind = selectedKind();
         const number = enteredNumber();
-        if (number == null) {
+        if (event == null || number == null) {
             await updatePreview();
             return;
         }
-        if (number === currentNumber(kind) && !newTab) {
+        if (number === currentNumber(event, kind) && !newTab) {
             modal.hide();
             return;
         }
-        const result = await lookUp(kind, number);
+        const result = await lookUp(event, kind, number);
         if (typeof result === "string") {
             showPreview(result, true);
             return;
         }
-        const url = viewURL(kind, number);
+        const url = viewURL(event, kind, number);
         if (newTab) {
             // A window.open() made while the browser is still handling a Cmd/Ctrl
             // keypress opens a background tab, as a Cmd-click would. Opening from
@@ -2431,7 +2451,13 @@ function setupGoTo(): void {
     }
 
     function open(): void {
+        const event = defaultEvent();
+        // E.g. on a page with no event, before the events list has arrived.
+        if (event == null) {
+            return;
+        }
         lookup = null;
+        eventSelect.value = event;
         input.value = "";
         updateKindUI(defaultKind());
         updateGoButton();
@@ -2440,6 +2466,10 @@ function setupGoTo(): void {
         input.focus();
     }
 
+    eventSelect.addEventListener("change", (): void => {
+        clearTimeout(debounce);
+        void updatePreview();
+    });
     for (const kind of goToKinds) {
         kindRadios[kind].addEventListener("change", (): void => {
             if (!kindRadios[kind].checked) {

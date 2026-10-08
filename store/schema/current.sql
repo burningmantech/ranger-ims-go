@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (42);
+insert into SCHEMA_INFO (VERSION) values (43);
 
 
 create table `EVENT` (
@@ -25,6 +25,10 @@ create table `EVENT` (
 
     -- Whether to rewrite client-supplied addresses into canonical BRC form.
     NORMALIZE_ADDRESSES boolean not null default false,
+
+    -- Whether this is the active event, i.e. the one people most likely care
+    -- about. At most one event is active at a time.
+    IS_ACTIVE boolean not null default false,
 
     primary key (ID),
     unique key (NAME),

@@ -41,4 +41,10 @@ type Event struct {
 	// NormalizeAddresses turns on canonicalization of the BRC addresses
 	// clients send for this event's Incidents and Visits.
 	NormalizeAddresses *bool `json:"normalize_addresses"`
+
+	// IsActive marks the one event people most likely care about, because
+	// it's happening soon, is happening now, or happened most recently. At
+	// most one event is active. In an edit request, true makes this event the
+	// active one (so no other event is), and false makes it inactive.
+	IsActive *bool `json:"is_active"`
 }

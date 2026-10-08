@@ -27,6 +27,7 @@ declare global {
         setArtLocationsRelease: (el: HTMLInputElement) => Promise<void>;
         setMapURLRelease: (el: HTMLInputElement) => Promise<void>;
         setNormalizeAddresses: (el: HTMLInputElement) => Promise<void>;
+        setIsActive: (el: HTMLInputElement) => Promise<void>;
     }
 }
 
@@ -78,6 +79,7 @@ async function initAdminEventsPage(): Promise<void> {
     window.setArtLocationsRelease = setArtLocationsRelease;
     window.setMapURLRelease = setMapURLRelease;
     window.setNormalizeAddresses = setNormalizeAddresses;
+    window.setIsActive = setIsActive;
 
     const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     el.browserTz.textContent = browserTz;
@@ -354,6 +356,9 @@ function eventCard(event: ims.EventData): DocumentFragment {
         }
     }
     card.querySelector(".event_name")!.textContent = eventWithGroupName;
+    if (event.is_active) {
+        show(card.querySelector(".active_badge") as HTMLElement);
+    }
 
     // Wire up the collapsible grant list, restoring this event's expansion state.
     const collapse = card.querySelector(".access_rules_collapse") as HTMLElement;
@@ -426,6 +431,12 @@ function eventCard(event: ims.EventData): DocumentFragment {
             const input = el.editEventModal.querySelector(selector) as HTMLInputElement;
             input.value = release ? formatDateForInput(new Date(release)) : "";
         }
+
+        // Groups aren't events anyone works in, so they can't be the active one.
+        const isActiveGroup = el.editEventModal.querySelector("#edit_is_active_group") as HTMLElement;
+        isActiveGroup.classList.toggle("d-none", event.is_group??false);
+        const isActiveInput = el.editEventModal.querySelector("#edit_is_active") as HTMLInputElement;
+        isActiveInput.checked = event.is_active??false;
 
         // Groups hold no incidents or visits, so address normalization is
         // meaningless for them.
@@ -1248,6 +1259,32 @@ async function setNormalizeAddresses(sender: HTMLInputElement): Promise<void> {
         // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.
         name: null,
         normalize_addresses: sender.checked,
+    };
+    const {err} = await ims.fetchNoThrow(url_events, {
+        body: JSON.stringify(requestBod),
+    });
+    if (err != null) {
+        const message = `Failed to edit event: ${err}`;
+        console.log(message);
+        await ims.alertDialog(message);
+        await loadAccessControlList();
+        drawAccess();
+        ims.controlHasError(sender);
+        return;
+    }
+    ims.controlHasSuccess(sender);
+    await loadAccessControlList();
+    drawAccess();
+}
+
+async function setIsActive(sender: HTMLInputElement): Promise<void> {
+    const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"])!;
+
+    const requestBod: ims.EventData = {
+        id: eventId,
+        // @ts-expect-error the server is fine to receive null here. Really this field should allow null/undefined.
+        name: null,
+        is_active: sender.checked,
     };
     const {err} = await ims.fetchNoThrow(url_events, {
         body: JSON.stringify(requestBod),

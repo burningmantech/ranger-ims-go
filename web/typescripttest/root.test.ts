@@ -19,6 +19,7 @@
 // control depending on whether the visitor is authenticated.
 
 import { beforeEach, expect, test, vi } from "vitest";
+import type { EventData } from "../typescript/ims.ts";
 import { type FetchHandler, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
 
 beforeEach((): void => {
@@ -30,13 +31,17 @@ beforeEach((): void => {
 
 // Import root.ts behind a fake server and wait for its init to settle (signaled
 // by the auth check having been made).
-async function initRootPage(authenticated: boolean, handler: FetchHandler = () => undefined) {
+async function initRootPage(
+    authenticated: boolean,
+    handler: FetchHandler = () => undefined,
+    events: EventData[] = [],
+) {
     const mock = mockFetch((url, init) => {
         if (url === url_auth && init?.body == null) {
             return jsonResponse({ authenticated: authenticated, user: "Tester" });
         }
         if (url === url_events && init?.body == null) {
-            return jsonResponse([]);
+            return jsonResponse(events);
         }
         return handler(url, init);
     });
@@ -47,11 +52,33 @@ async function initRootPage(authenticated: boolean, handler: FetchHandler = () =
     return mock;
 }
 
-test("an authenticated visitor gets focus on the current-year link", async (): Promise<void> => {
-    await initRootPage(true);
+test("an authenticated visitor gets a focused link to the active event", async (): Promise<void> => {
+    await initRootPage(true, undefined, [
+        { id: 1, name: "2025", is_active: false },
+        { id: 2, name: "2026", is_active: true },
+    ]);
     await vi.waitFor((): void => {
-        expect(document.activeElement?.id).toBe("current-year-link");
+        expect(document.activeElement?.id).toBe("active-event-link");
     });
+    const link = document.getElementById("active-event-link") as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe(url_viewIncidents.replace("<event_id>", "2026"));
+    expect(link.textContent).toBe("Jump to the 2026 event");
+    expect(document.getElementById("active-event-jump")!.classList.contains("hidden")).toBe(false);
+    expect(document.getElementById("no-active-event")!.classList.contains("hidden")).toBe(true);
+});
+
+test("with no active event, an authenticated visitor is told to pick one from the dropdown", async (): Promise<void> => {
+    const mock = await initRootPage(true, undefined, [
+        { id: 1, name: "2025", is_active: false },
+    ]);
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([url]) => url === url_events)).toBe(true);
+    });
+    await vi.waitFor((): void => {
+        expect(document.querySelectorAll("#nav-events a").length).toBe(1);
+    });
+    expect(document.getElementById("active-event-jump")!.classList.contains("hidden")).toBe(true);
+    expect(document.getElementById("no-active-event")!.classList.contains("hidden")).toBe(false);
 });
 
 test("an unauthenticated visitor gets focus on the login button", async (): Promise<void> => {

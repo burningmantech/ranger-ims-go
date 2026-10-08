@@ -548,6 +548,45 @@ test("the edit modal shows the event's address normalization setting, and toggli
     expect(JSON.parse(call![1]!.body as string)).toEqual({ id: 1, name: null, normalize_addresses: false });
 });
 
+test("the active event's card shows an Active badge", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025" }, { id: 2, name: "2026", is_active: true }];
+    await initAdminEventsPage();
+
+    const badges = new Map(eventCards().map((card) => [
+        card.dataset["eventName"],
+        !card.querySelector(".active_badge")!.classList.contains("d-none"),
+    ]));
+    expect(badges.get("2025")).toBe(false);
+    expect(badges.get("2026")).toBe(true);
+});
+
+test("the edit modal shows whether the event is active, and toggling it posts the change", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025" }];
+    const mock = await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    expect(document.getElementById("edit_is_active_group")!.classList.contains("d-none")).toBe(false);
+    const isActive = document.getElementById("edit_is_active") as HTMLInputElement;
+    expect(isActive.checked).toBe(false);
+
+    isActive.checked = true;
+    await window.setIsActive(isActive);
+
+    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+    expect(call).toBeDefined();
+    expect(JSON.parse(call![1]!.body as string)).toEqual({ id: 1, name: null, is_active: true });
+});
+
+test("the edit modal hides the active setting for event groups", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025", is_group: true }];
+    await initAdminEventsPage();
+
+    (eventCards()[0]!.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+
+    expect(document.getElementById("edit_is_active_group")!.classList.contains("d-none")).toBe(true);
+});
+
 test("the edit modal hides address normalization for event groups", async (): Promise<void> => {
     serverEvents = [{ id: 1, name: "2025", is_group: true }];
     await initAdminEventsPage();

@@ -35,12 +35,18 @@ async function initRootPage(): Promise<void> {
     }
     const result = await ims.commonPageInit();
 
-    const currentYearLink = document.getElementById("current-year-link");
-    const loginButton = document.getElementById("login-button");
+    if (!result.authInfo.authenticated) {
+        document.getElementById("login-button")?.focus();
+        return;
+    }
 
-    if (result.authInfo.authenticated) {
-        currentYearLink?.focus();
-    } else {
-        loginButton?.focus();
+    const activeEvent = (await result.eventDatas)?.find(e => e.is_active);
+    if (activeEvent != null) {
+        const link = document.getElementById("active-event-link") as HTMLAnchorElement;
+        link.href = url_viewIncidents.replace("<event_id>", activeEvent.name);
+        document.getElementById("active-event-name")!.textContent = activeEvent.name;
+        document.getElementById("active-event-jump")!.classList.remove("hidden");
+        document.getElementById("no-active-event")!.classList.add("hidden");
+        link.focus();
     }
 }

@@ -2729,6 +2729,8 @@ export type EventData = {
     art_locations_release?: string|null,
     map_url_release?: string|null,
     normalize_addresses?: boolean|null,
+    // Whether this is the one event people most likely care about right now.
+    is_active?: boolean|null,
 }
 
 export interface Attachment {

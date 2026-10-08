@@ -95,6 +95,94 @@ func TestGetAndEditEvent(t *testing.T) {
 	require.NotZero(t, foundEvent.ID)
 }
 
+// TestActiveEvent checks that at most one event is active, and that a group
+// can't be. No other test touches the active flag, since the database is shared.
+func TestActiveEvent(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	apisAdmin := srv.admin(ctx)
+
+	firstName := rand.NonCryptoText()
+	firstID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &firstName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	secondName := rand.NonCryptoText()
+	secondID, resp := apisAdmin.createEvent(ctx, imsjson.Event{Name: &secondName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A new event isn't active.
+	events, resp := apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	first := findEvent(events, firstID)
+	require.NotNil(t, first)
+	require.NotNil(t, first.IsActive)
+	require.False(t, *first.IsActive)
+
+	// Make the first event active.
+	status, body := editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: firstID, IsActive: new(true)})
+	require.Equal(t, http.StatusNoContent, status, body)
+
+	events, resp = apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.True(t, *findEvent(events, firstID).IsActive)
+	require.False(t, *findEvent(events, secondID).IsActive)
+
+	// Making the second event active makes the first inactive.
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: secondID, IsActive: new(true)})
+	require.Equal(t, http.StatusNoContent, status, body)
+
+	events, resp = apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.False(t, *findEvent(events, firstID).IsActive)
+	require.True(t, *findEvent(events, secondID).IsActive)
+	activeCount := 0
+	for _, e := range events {
+		if *e.IsActive {
+			activeCount++
+		}
+	}
+	require.Equal(t, 1, activeCount)
+
+	// Unrelated edits leave the active flag alone.
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: secondID, NormalizeAddresses: new(true)})
+	require.Equal(t, http.StatusNoContent, status, body)
+
+	events, resp = apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.True(t, *findEvent(events, secondID).IsActive)
+
+	// An active event can't become a group.
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: secondID, IsGroup: new(true)})
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, body, "cannot be the active event")
+
+	// Deactivating the second event leaves no event active.
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: secondID, IsActive: new(false)})
+	require.Equal(t, http.StatusNoContent, status, body)
+
+	events, resp = apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	for _, e := range events {
+		require.False(t, *e.IsActive, "event %v", *e.Name)
+	}
+
+	// A group can't be made active.
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: firstID, IsGroup: new(true)})
+	require.Equal(t, http.StatusNoContent, status, body)
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: firstID, IsActive: new(true)})
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, body, "cannot be the active event")
+}
+
 func TestEventNormalizeAddresses(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

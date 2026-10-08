@@ -35,7 +35,11 @@ templ Root(deployment, versionName, versionRef string) {
 }
 
 <p class="mt-3 if-logged-in hidden">
-  <a id="current-year-link" href="/ims/app/events/2026/incidents">Jump to the 2026 event</a> or select another event from the dropdown above.
+  <span id="active-event-jump" class="hidden">
+    <a id="active-event-link" href="#">Jump to the <span id="active-event-name"></span> event</a>
+    or select another event from the dropdown above.
+  </span>
+  <span id="no-active-event">Select an event from the dropdown above.</span>
 </p>
 
 <div class="mt-3 if-logged-in hidden">

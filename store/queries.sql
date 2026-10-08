@@ -27,6 +27,19 @@ set
 where ID = ?
 ;
 
+-- Make the given event the only active one.
+-- name: SetActiveEvent :exec
+update `EVENT`
+set IS_ACTIVE = (ID = sqlc.arg(id))
+where true
+;
+
+-- name: ClearActiveEvent :exec
+update `EVENT`
+set IS_ACTIVE = false
+where ID = ?
+;
+
 -- The DeleteEvent* queries below support full deletion of an Event and all
 -- rows associated with it. They must run in the order used by the DeleteEvent
 -- API handler, so that no foreign key constraint is violated along the way.

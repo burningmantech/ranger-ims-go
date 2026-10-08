@@ -52,7 +52,7 @@ when you run `ims serve` directly — the two configs can't collide. Edit `.env.
      -e MARIADB_DATABASE=ims \
      -e MARIADB_USER=rangers \
      -e MARIADB_PASSWORD=${password} \
-     -p 3306:3306 mariadb:10.5.29
+     -p 3306:3306 mariadb:13.0.2
    ```
 2. Copy `.env.example` as `.env`, and set the various flags. Without a Clubhouse DB to point
    `IMS_DMS_*` at, set `IMS_DIRECTORY=ims` and follow the IMS-native directory steps below.

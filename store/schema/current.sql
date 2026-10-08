@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (41);
+insert into SCHEMA_INFO (VERSION) values (42);
 
 
 create table `EVENT` (
@@ -89,7 +89,7 @@ create table INCIDENT (
     -- field-report/visit assignment.
     `VERSION` integer not null default 1,
 
-    foreign key (`EVENT`) references `EVENT`(ID),
+    constraint `INCIDENT_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
 
     primary key (`EVENT`, NUMBER)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -102,8 +102,8 @@ create table INCIDENT__RANGER (
     RANGER_HANDLE   varchar(64) not null,
     ROLE            varchar(128),
 
-    foreign key (`EVENT`) references `EVENT`(ID),
-    foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
+    constraint `INCIDENT__RANGER_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
+    constraint `INCIDENT__RANGER_ibfk_2` foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
 
     -- FIXME: RANGER_HANDLE is an external non-primary key.
     -- Primary key is DMS Person ID.
@@ -115,7 +115,7 @@ create table INCIDENT__RANGER (
     -- MariaDB forces lower_case_table_names=2, and there a "create index" against a
     -- mixed-case table name leaves that table unreachable ("table doesn't exist")
     -- for the rest of the server's life, which broke seeding the dev stack.
-    key `INCIDENT__RANGER_EVENT_INCIDENT_NUMBER_index` (`EVENT`, INCIDENT_NUMBER)
+    key `INCIDENT__RANGER_EVENT_INCIDENT_NUMBER_RANGER_HANDLE_index` (`EVENT`, INCIDENT_NUMBER, RANGER_HANDLE)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table INCIDENT__LINKED_INCIDENT (
@@ -124,8 +124,10 @@ create table INCIDENT__LINKED_INCIDENT (
     EVENT_2             integer not null,
     INCIDENT_NUMBER_2   integer not null,
 
-    foreign key (EVENT_1, INCIDENT_NUMBER_1) references INCIDENT(`EVENT`, NUMBER),
-    foreign key (EVENT_2, INCIDENT_NUMBER_2) references INCIDENT(`EVENT`, NUMBER),
+    key `EVENT_2` (EVENT_2, INCIDENT_NUMBER_2),
+
+    constraint `INCIDENT__LINKED_INCIDENT_ibfk_1` foreign key (EVENT_1, INCIDENT_NUMBER_1) references INCIDENT(`EVENT`, NUMBER),
+    constraint `INCIDENT__LINKED_INCIDENT_ibfk_2` foreign key (EVENT_2, INCIDENT_NUMBER_2) references INCIDENT(`EVENT`, NUMBER),
 
     primary key (EVENT_1, INCIDENT_NUMBER_1, EVENT_2, INCIDENT_NUMBER_2)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -135,9 +137,11 @@ create table INCIDENT__INCIDENT_TYPE (
     INCIDENT_NUMBER integer not null,
     INCIDENT_TYPE   integer not null,
 
-    foreign key (`EVENT`) references `EVENT`(ID),
-    foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
-    foreign key (INCIDENT_TYPE) references INCIDENT_TYPE(ID),
+    key `INCIDENT_TYPE` (INCIDENT_TYPE),
+
+    constraint `INCIDENT__INCIDENT_TYPE_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
+    constraint `INCIDENT__INCIDENT_TYPE_ibfk_2` foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
+    constraint `INCIDENT__INCIDENT_TYPE_ibfk_3` foreign key (INCIDENT_TYPE) references INCIDENT_TYPE(ID),
 
     primary key (`EVENT`, INCIDENT_NUMBER, INCIDENT_TYPE)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -148,9 +152,11 @@ create table INCIDENT__REPORT_ENTRY (
     INCIDENT_NUMBER integer not null,
     REPORT_ENTRY    integer not null,
 
-    foreign key (`EVENT`) references `EVENT`(ID),
-    foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
-    foreign key (REPORT_ENTRY) references REPORT_ENTRY(ID),
+    key `REPORT_ENTRY` (REPORT_ENTRY),
+
+    constraint `INCIDENT__REPORT_ENTRY_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
+    constraint `INCIDENT__REPORT_ENTRY_ibfk_2` foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
+    constraint `INCIDENT__REPORT_ENTRY_ibfk_3` foreign key (REPORT_ENTRY) references REPORT_ENTRY(ID),
 
     primary key (`EVENT`, INCIDENT_NUMBER, REPORT_ENTRY)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -189,8 +195,10 @@ create table FIELD_REPORT (
     -- Optimistic-concurrency version counter; see INCIDENT.VERSION.
     `VERSION` integer not null default 1,
 
-    foreign key (`EVENT`) references `EVENT`(ID),
-    foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
+    key `EVENT` (`EVENT`, INCIDENT_NUMBER),
+
+    constraint `FIELD_REPORT_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
+    constraint `FIELD_REPORT_ibfk_2` foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
 
     primary key (`EVENT`, NUMBER)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -344,10 +352,12 @@ create table VISIT__RANGER (
     RANGER_HANDLE       varchar(64) not null,
     ROLE                varchar(128),
 
-    foreign key (`EVENT`) references `EVENT` (ID),
-    foreign key (`EVENT`, VISIT_NUMBER) references VISIT (`EVENT`, NUMBER),
+    constraint `VISIT__RANGER_ibfk_1` foreign key (`EVENT`) references `EVENT` (ID),
+    constraint `VISIT__RANGER_ibfk_2` foreign key (`EVENT`, VISIT_NUMBER) references VISIT (`EVENT`, NUMBER),
 
-    primary key (ID)
+    primary key (ID),
+
+    key `VISIT__RANGER_EVENT_VISIT_NUMBER_RANGER_HANDLE_index` (`EVENT`, VISIT_NUMBER, RANGER_HANDLE)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -393,8 +403,9 @@ create table DIRECTORY_PERSON__TEAM (
     TEAM_ID   bigint not null,
 
     primary key (PERSON_ID, TEAM_ID),
-    foreign key (PERSON_ID) references DIRECTORY_PERSON (ID) on delete cascade,
-    foreign key (TEAM_ID)   references DIRECTORY_TEAM (ID)   on delete cascade
+    key `TEAM_ID` (TEAM_ID),
+    constraint `DIRECTORY_PERSON__TEAM_ibfk_1` foreign key (PERSON_ID) references DIRECTORY_PERSON (ID) on delete cascade,
+    constraint `DIRECTORY_PERSON__TEAM_ibfk_2` foreign key (TEAM_ID)   references DIRECTORY_TEAM (ID)   on delete cascade
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table DIRECTORY_PERSON__POSITION (
@@ -402,6 +413,7 @@ create table DIRECTORY_PERSON__POSITION (
     POSITION_ID bigint not null,
 
     primary key (PERSON_ID, POSITION_ID),
-    foreign key (PERSON_ID)   references DIRECTORY_PERSON (ID)   on delete cascade,
-    foreign key (POSITION_ID) references DIRECTORY_POSITION (ID) on delete cascade
+    key `POSITION_ID` (POSITION_ID),
+    constraint `DIRECTORY_PERSON__POSITION_ibfk_1` foreign key (PERSON_ID)   references DIRECTORY_PERSON (ID)   on delete cascade,
+    constraint `DIRECTORY_PERSON__POSITION_ibfk_2` foreign key (POSITION_ID) references DIRECTORY_POSITION (ID) on delete cascade
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

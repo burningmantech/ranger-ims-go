@@ -80,13 +80,14 @@ services:
         condition: service_healthy
 
   ims-db:
-    image: "mariadb:10.5.29"
+    image: "mariadb:13.0.2"
     container_name: "ranger-ims-db"
     environment:
       MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"
       MARIADB_USER: "${IMS_DB_USER_NAME:-ims}"
       MARIADB_PASSWORD: "${IMS_DB_PASSWORD:-ims}"
       MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+      MARIADB_AUTO_UPGRADE: "1"
     ports:
       - "3306"
     volumes:
@@ -100,13 +101,14 @@ services:
       retries: 10
 
   clubhouse-db:
-    image: "mariadb:10.5.29"
+    image: "mariadb:13.0.2"
     container_name: "ranger-clubhouse-db"
     environment:
       MARIADB_DATABASE: "${IMS_DMS_DATABASE:-rangers}"
       MARIADB_USER: "${IMS_DMS_USERNAME:-clubhouseuser}"
       MARIADB_PASSWORD: "${IMS_DMS_PASSWORD:-clubhousepassword}"
       MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+      MARIADB_AUTO_UPGRADE: "1"
     ports:
       - "3306"
     volumes:

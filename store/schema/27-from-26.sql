@@ -54,8 +54,8 @@ create table STAY__RANGER (
     RANGER_HANDLE       varchar(64) not null,
     ROLE                varchar(128),
 
-    foreign key (`EVENT`) references `EVENT` (ID),
-    foreign key (`EVENT`, STAY_NUMBER) references STAY (`EVENT`, NUMBER),
+    constraint `STAY__RANGER_ibfk_1` foreign key (`EVENT`) references `EVENT` (ID),
+    constraint `STAY__RANGER_ibfk_2` foreign key (`EVENT`, STAY_NUMBER) references STAY (`EVENT`, NUMBER),
 
     primary key (ID)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

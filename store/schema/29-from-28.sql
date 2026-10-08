@@ -22,6 +22,17 @@ rename table STAY__RANGER to VISIT__RANGER;
 alter table VISIT__RANGER
     rename column STAY_NUMBER to VISIT_NUMBER;
 
+-- Since MariaDB 12.1, renaming a table no longer renames its STAY__RANGER_ibfk_N
+-- foreign keys to match, so do it by hand. A no-op on older MariaDB.
+alter table VISIT__RANGER
+    drop foreign key if exists STAY__RANGER_ibfk_1,
+    drop foreign key if exists STAY__RANGER_ibfk_2;
+alter table VISIT__RANGER
+    add constraint VISIT__RANGER_ibfk_1
+        foreign key if not exists (`EVENT`) references `EVENT` (ID),
+    add constraint VISIT__RANGER_ibfk_2
+        foreign key if not exists (`EVENT`, VISIT_NUMBER) references VISIT (`EVENT`, NUMBER);
+
 -- Safely rename the write_stays enum value to write_visits.
 alter table EVENT_ACCESS
     modify column MODE enum ('read', 'write', 'report', 'write_stays', 'write_visits') not null;

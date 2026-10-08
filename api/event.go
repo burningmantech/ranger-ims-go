@@ -110,6 +110,7 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 			MapURLRelease:        conv.NullFloatToTimePtr(eve.Event.MapUrlRelease),
 
 			NormalizeAddresses: &eve.Event.NormalizeAddresses,
+			IsActive:           &eve.Event.IsActive,
 		})
 	}
 
@@ -263,10 +264,27 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		}
 		updateParams.NormalizeAddresses = *editRequest.NormalizeAddresses
 	}
+	active := existingEventRow.Event.IsActive
+	if editRequest.IsActive != nil {
+		active = *editRequest.IsActive
+	}
+	if updateParams.IsGroup && active {
+		return nil, herr.BadRequest("An event group cannot be the active event", nil)
+	}
 
 	err = action.imsDBQ.UpdateEvent(req.Context(), action.imsDBQ, updateParams)
 	if err != nil {
 		return nil, herr.InternalServerError("Failed to update event", err).From("[UpdateEvent]")
+	}
+	if editRequest.IsActive != nil {
+		if *editRequest.IsActive {
+			err = action.imsDBQ.SetActiveEvent(req.Context(), action.imsDBQ, editRequest.ID)
+		} else {
+			err = action.imsDBQ.ClearActiveEvent(req.Context(), action.imsDBQ, editRequest.ID)
+		}
+		if err != nil {
+			return nil, herr.InternalServerError("Failed to set active event", err).From("[SetActiveEvent]")
+		}
 	}
 
 	return newEventID, nil

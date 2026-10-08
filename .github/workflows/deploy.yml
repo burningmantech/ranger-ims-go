@@ -37,7 +37,7 @@ jobs:
     steps:
 
       - name: Harden CI
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo: true
           egress-policy: block
@@ -85,7 +85,7 @@ jobs:
 
       - name: Fetch and update current task definition
         id: new-task-definition
-        uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1.9.0
+        uses: aws-actions/amazon-ecs-render-task-definition@8d79160660ad39c402a16e5fc7cd2a32e8f7d6b7 # v1.9.1
         with:
           task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_PRODUCTION }}"
           task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY_PRODUCTION }}"
@@ -117,7 +117,7 @@ jobs:
 
       - name: Fetch and update current task definition for training
         id: new-task-definition-training
-        uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1.9.0
+        uses: aws-actions/amazon-ecs-render-task-definition@8d79160660ad39c402a16e5fc7cd2a32e8f7d6b7 # v1.9.1
         with:
           task-definition-arn: "${{ env.AWS_ECS_TASK_DEFINITION_ARN_TRAINING }}"
           task-definition-family: "${{ env.AWS_ECS_TASK_DEFINITION_FAMILY_TRAINING }}"

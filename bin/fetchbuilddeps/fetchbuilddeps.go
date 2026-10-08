@@ -75,14 +75,14 @@ func main() {
 		))
 	}
 	// https://cdn.datatables.net/#Release
-	datatablesVersion := "3.0.4"
+	datatablesVersion := "3.1.3"
 	{
 		datatablesDir := mustMakeSubRoot(staticExtRoot, "datatables")
 		defer logClose(datatablesDir)
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.min.js",
 			"https://cdn.datatables.net/"+datatablesVersion+"/js/dataTables.min.js",
-			"sha384-i3qKUispup6yO0B16Bvnk2AmVi8O60Qww2omjtD9NHi1ns1H4jiz2EhYBjLew/9C",
+			"sha384-2VkhZZqhleNsGIa6GcWWRJn09k3lpejTs0B2LzDbeU/YSNfr6nKAnRTgasXvxWc3",
 		))
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.js",
@@ -110,26 +110,6 @@ func main() {
 			"https://cdn.jsdelivr.net/npm/flatpickr@"+flatpickrVersion+"/dist/flatpickr.min.js",
 			"sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6",
 		))
-		// g.Go(existOrFetch(groupCtx, flatpickrDir,
-		//	"globals.d.ts",
-		//	"https://cdn.jsdelivr.net/npm/flatpickr@"+flatpickrVersion+"/dist/types/globals.d.ts",
-		//	"sha384-TA24HjVnPU8dxXoGvs7n1PyoQFFF/ppuH52u2iMLnWbfGeoOSxGZRAOF3uEr6cOE",
-		// ))
-		// g.Go(existOrFetch(groupCtx, flatpickrDir,
-		//	"instance.d.ts",
-		//	"https://cdn.jsdelivr.net/npm/flatpickr@"+flatpickrVersion+"/dist/types/instance.d.ts",
-		//	"sha384-dLko9/zDaIIaqzd0pjE6fh1kcR1N5+5H2otCGvOJYgLP6g0hdNwjnaZJSWzMFLVT",
-		// ))
-		// g.Go(existOrFetch(groupCtx, flatpickrDir,
-		//	"locale.d.ts",
-		//	"https://cdn.jsdelivr.net/npm/flatpickr@"+flatpickrVersion+"/dist/types/locale.d.ts",
-		//	"sha384-jhXhYDt7UlyY46rKLm9W7Lua+EZAIX/p1aGWTFrxiUATcsK3y9kr+jaZAdWeVrTJ",
-		// ))
-		// g.Go(existOrFetch(groupCtx, flatpickrDir,
-		//	"options.d.ts",
-		//	"https://cdn.jsdelivr.net/npm/flatpickr@"+flatpickrVersion+"/dist/types/options.d.ts",
-		//	"sha384-OTMArpvPXF1868803gfjh2/UTzeTM6LkCPybyzqE9rgL570U8MjHEn/cGPcUKxO9",
-		// ))
 	}
 
 	err = g.Wait()

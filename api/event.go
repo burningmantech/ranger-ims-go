@@ -18,6 +18,7 @@ package api
 
 import (
 	"cmp"
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -327,6 +328,21 @@ func (action DeleteEvent) deleteEvent(req *http.Request) *herr.HTTPError {
 	}
 
 	ctx := req.Context()
+	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		return action.deleteEventRows(ctx, event.ID)
+	})
+	if errHTTP != nil {
+		return errHTTP.From("[deleteEventRows]")
+	}
+
+	// #nosec G706 // log injection
+	slog.Info("Deleted event", "eventName", event.Name, "id", event.ID)
+	return nil
+}
+
+// deleteEventRows deletes an event and everything belonging to it in one
+// transaction.
+func (action DeleteEvent) deleteEventRows(ctx context.Context, eventID int32) *herr.HTTPError {
 	txn, err := action.imsDBQ.BeginTx(ctx, nil)
 	if err != nil {
 		return herr.InternalServerError("Failed to begin transaction", err).From("[BeginTx]")
@@ -335,19 +351,19 @@ func (action DeleteEvent) deleteEvent(req *http.Request) *herr.HTTPError {
 
 	// These deletions are ordered so that no row is deleted before the rows
 	// holding foreign keys to it.
-	reportEntryIDs, err := action.imsDBQ.EventReportEntryIDs(ctx, txn, imsdb.EventReportEntryIDsParams{EventID: event.ID})
+	reportEntryIDs, err := action.imsDBQ.EventReportEntryIDs(ctx, txn, imsdb.EventReportEntryIDsParams{EventID: eventID})
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[EventReportEntryIDs]")
 	}
-	err = action.imsDBQ.DeleteEventIncidentReportEntries(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventIncidentReportEntries(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidentReportEntries]")
 	}
-	err = action.imsDBQ.DeleteEventFieldReportReportEntries(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventFieldReportReportEntries(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventFieldReportReportEntries]")
 	}
-	err = action.imsDBQ.DeleteEventVisitReportEntries(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventVisitReportEntries(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventVisitReportEntries]")
 	}
@@ -357,47 +373,47 @@ func (action DeleteEvent) deleteEvent(req *http.Request) *herr.HTTPError {
 			return herr.InternalServerError("Failed to delete event", err).From("[DeleteReportEntries]")
 		}
 	}
-	err = action.imsDBQ.DeleteEventIncidentRangers(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventIncidentRangers(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidentRangers]")
 	}
-	err = action.imsDBQ.DeleteEventIncidentIncidentTypes(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventIncidentIncidentTypes(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidentIncidentTypes]")
 	}
-	err = action.imsDBQ.DeleteEventLinkedIncidents(ctx, txn, imsdb.DeleteEventLinkedIncidentsParams{EventID: event.ID})
+	err = action.imsDBQ.DeleteEventLinkedIncidents(ctx, txn, imsdb.DeleteEventLinkedIncidentsParams{EventID: eventID})
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventLinkedIncidents]")
 	}
-	err = action.imsDBQ.DeleteEventVisitRangers(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventVisitRangers(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventVisitRangers]")
 	}
-	err = action.imsDBQ.DeleteEventVisits(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventVisits(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventVisits]")
 	}
-	err = action.imsDBQ.DeleteEventFieldReports(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventFieldReports(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventFieldReports]")
 	}
-	err = action.imsDBQ.DeleteEventIncidents(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventIncidents(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventIncidents]")
 	}
-	err = action.imsDBQ.DeleteEventAccessAll(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventAccessAll(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventAccessAll]")
 	}
-	err = action.imsDBQ.DeleteEventPlaces(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEventPlaces(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventPlaces]")
 	}
-	err = action.imsDBQ.DetachChildrenFromEventGroup(ctx, txn, sql.NullInt32{Int32: event.ID, Valid: true})
+	err = action.imsDBQ.DetachChildrenFromEventGroup(ctx, txn, sql.NullInt32{Int32: eventID, Valid: true})
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DetachChildrenFromEventGroup]")
 	}
-	err = action.imsDBQ.DeleteEvent(ctx, txn, event.ID)
+	err = action.imsDBQ.DeleteEvent(ctx, txn, eventID)
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEvent]")
 	}
@@ -405,8 +421,5 @@ func (action DeleteEvent) deleteEvent(req *http.Request) *herr.HTTPError {
 	if err != nil {
 		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
-
-	// #nosec G706 // log injection
-	slog.Info("Deleted event", "eventName", event.Name, "id", event.ID)
 	return nil
 }

@@ -452,6 +452,13 @@ where ID IN (
       and REPORT_ENTRY = ?
 );
 
+-- name: LockIncident :one
+select NUMBER from INCIDENT
+where
+    EVENT = ?
+    and NUMBER = ?
+for update;
+
 -- name: AttachRangerHandleToIncident :exec
 insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE, ROLE)
 values (?, ?, ?, ?);
@@ -651,6 +658,13 @@ from
 where
     sr.EVENT = ?
     and sr.VISIT_NUMBER = ?;
+
+-- name: LockVisit :one
+select NUMBER from VISIT
+where
+    EVENT = ?
+    and NUMBER = ?
+for update;
 
 -- name: AttachRangerToVisit :exec
 insert into VISIT__RANGER (EVENT, VISIT_NUMBER, RANGER_HANDLE, ROLE)

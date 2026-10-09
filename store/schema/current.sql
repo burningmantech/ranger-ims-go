@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (44);
+insert into SCHEMA_INFO (VERSION) values (45);
 
 
 create table `EVENT` (
@@ -117,7 +117,6 @@ create table INCIDENT__RANGER (
     RANGER_HANDLE   varchar(64) not null,
     ROLE            varchar(128),
 
-    constraint `INCIDENT__RANGER_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
     constraint `INCIDENT__RANGER_ibfk_2` foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
 
     -- FIXME: RANGER_HANDLE is an external non-primary key.
@@ -154,7 +153,6 @@ create table INCIDENT__INCIDENT_TYPE (
 
     key `INCIDENT_TYPE` (INCIDENT_TYPE),
 
-    constraint `INCIDENT__INCIDENT_TYPE_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
     constraint `INCIDENT__INCIDENT_TYPE_ibfk_2` foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
     constraint `INCIDENT__INCIDENT_TYPE_ibfk_3` foreign key (INCIDENT_TYPE) references INCIDENT_TYPE(ID),
 
@@ -169,7 +167,6 @@ create table INCIDENT__REPORT_ENTRY (
 
     key `REPORT_ENTRY` (REPORT_ENTRY),
 
-    constraint `INCIDENT__REPORT_ENTRY_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
     constraint `INCIDENT__REPORT_ENTRY_ibfk_2` foreign key (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),
     constraint `INCIDENT__REPORT_ENTRY_ibfk_3` foreign key (REPORT_ENTRY) references REPORT_ENTRY(ID),
 
@@ -224,7 +221,6 @@ create table FIELD_REPORT__REPORT_ENTRY (
     FIELD_REPORT_NUMBER    integer not null,
     REPORT_ENTRY           integer not null,
 
-    foreign key `FIELD_REPORT__REPORT_ENTRY_ibfk_1` (`EVENT`) references `EVENT`(ID),
     foreign key `FIELD_REPORT__REPORT_ENTRY___FIELD_REPORT_FK` (`EVENT`, FIELD_REPORT_NUMBER)
         references FIELD_REPORT(`EVENT`, NUMBER),
     foreign key `FR_REPORT_ENTRY_TO_REPORT_ENTRY` (REPORT_ENTRY)
@@ -351,7 +347,6 @@ create table VISIT__REPORT_ENTRY (
     VISIT_NUMBER        integer not null,
     REPORT_ENTRY        integer not null,
 
-    foreign key `VRE_TO_EVENT` (`EVENT`) references `EVENT`(ID),
     foreign key `VRE_TO_GUEST_VISIT` (`EVENT`, VISIT_NUMBER)
         references VISIT(`EVENT`, NUMBER),
     foreign key `VRE_TO_REPORT_ENTRY` (REPORT_ENTRY)
@@ -367,7 +362,6 @@ create table VISIT__RANGER (
     RANGER_HANDLE       varchar(64) not null,
     ROLE                varchar(128),
 
-    constraint `VISIT__RANGER_ibfk_1` foreign key (`EVENT`) references `EVENT` (ID),
     constraint `VISIT__RANGER_ibfk_2` foreign key (`EVENT`, VISIT_NUMBER) references VISIT (`EVENT`, NUMBER),
 
     primary key (ID),

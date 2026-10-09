@@ -420,37 +420,28 @@ where EVENT = ? and NUMBER = ?
 --
 
 -- name: SetIncidentReportEntryStricken :exec
-update REPORT_ENTRY
-set STRICKEN = ?
-where ID IN (
-    select REPORT_ENTRY
-    from INCIDENT__REPORT_ENTRY
-    where EVENT = ?
-        and INCIDENT_NUMBER = ?
-        and REPORT_ENTRY = ?
-);
+update REPORT_ENTRY re
+join INCIDENT__REPORT_ENTRY j on j.REPORT_ENTRY = re.ID
+set re.STRICKEN = ?
+where j.EVENT = ?
+    and j.INCIDENT_NUMBER = ?
+    and j.REPORT_ENTRY = ?;
 
 -- name: SetFieldReportReportEntryStricken :exec
-update REPORT_ENTRY
-set STRICKEN = ?
-where ID IN (
-    select REPORT_ENTRY
-    from FIELD_REPORT__REPORT_ENTRY
-    where EVENT = ?
-      and FIELD_REPORT_NUMBER = ?
-      and REPORT_ENTRY = ?
-);
+update REPORT_ENTRY re
+join FIELD_REPORT__REPORT_ENTRY j on j.REPORT_ENTRY = re.ID
+set re.STRICKEN = ?
+where j.EVENT = ?
+    and j.FIELD_REPORT_NUMBER = ?
+    and j.REPORT_ENTRY = ?;
 
 -- name: SetVisitReportEntryStricken :exec
-update REPORT_ENTRY
-set STRICKEN = ?
-where ID IN (
-    select REPORT_ENTRY
-    from VISIT__REPORT_ENTRY
-    where EVENT = ?
-      and VISIT_NUMBER = ?
-      and REPORT_ENTRY = ?
-);
+update REPORT_ENTRY re
+join VISIT__REPORT_ENTRY j on j.REPORT_ENTRY = re.ID
+set re.STRICKEN = ?
+where j.EVENT = ?
+    and j.VISIT_NUMBER = ?
+    and j.REPORT_ENTRY = ?;
 
 -- name: LockIncident :one
 select NUMBER from INCIDENT

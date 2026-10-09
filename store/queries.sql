@@ -27,17 +27,20 @@ set
 where ID = ?
 ;
 
--- Make the given event the only active one.
+-- name: ActiveEvent :one
+select `EVENT` from ACTIVE_EVENT where ID = 1;
+
 -- name: SetActiveEvent :exec
-update `EVENT`
-set IS_ACTIVE = (ID = sqlc.arg(id))
-where true
+update ACTIVE_EVENT
+set `EVENT` = ?
+where ID = 1
 ;
 
+-- Clear the active event, but only if it's the given one.
 -- name: ClearActiveEvent :exec
-update `EVENT`
-set IS_ACTIVE = false
-where ID = ?
+update ACTIVE_EVENT
+set `EVENT` = null
+where ID = 1 and `EVENT` = ?
 ;
 
 -- The DeleteEvent* queries below support full deletion of an Event and all

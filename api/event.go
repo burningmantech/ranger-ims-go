@@ -89,6 +89,11 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 			authorizedEvents = append(authorizedEvents, eve)
 		}
 	}
+	activeEventID, err := action.imsDBQ.ActiveEvent(req.Context(), action.imsDBQ)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to get active event", err).From("[ActiveEvent]")
+	}
+
 	isAdmin := globalPermissions&authz.GlobalAdministrateEvents != 0
 	now := time.Now()
 	resp := make(imsjson.Events, 0, len(authorizedEvents))
@@ -111,7 +116,7 @@ func (action GetEvents) getEvents(req *http.Request) (imsjson.Events, *herr.HTTP
 			MapURLRelease:        conv.NullFloatToTimePtr(eve.Event.MapUrlRelease),
 
 			NormalizeAddresses: &eve.Event.NormalizeAddresses,
-			IsActive:           &eve.Event.IsActive,
+			IsActive:           new(activeEventID.Valid && activeEventID.Int32 == eve.Event.ID),
 		})
 	}
 
@@ -265,9 +270,15 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		}
 		updateParams.NormalizeAddresses = *editRequest.NormalizeAddresses
 	}
-	active := existingEventRow.Event.IsActive
+	var active bool
 	if editRequest.IsActive != nil {
 		active = *editRequest.IsActive
+	} else {
+		activeEventID, err := action.imsDBQ.ActiveEvent(req.Context(), action.imsDBQ)
+		if err != nil {
+			return nil, herr.InternalServerError("Failed to get active event", err).From("[ActiveEvent]")
+		}
+		active = activeEventID.Valid && activeEventID.Int32 == editRequest.ID
 	}
 	if updateParams.IsGroup && active {
 		return nil, herr.BadRequest("An event group cannot be the active event", nil)
@@ -278,24 +289,13 @@ func (action EditEvent) editEvents(req *http.Request) (newEventID *int32, errHTT
 		return nil, herr.InternalServerError("Failed to update event", err).From("[UpdateEvent]")
 	}
 	if editRequest.IsActive != nil {
-		// SetActiveEvent writes every EVENT row, so it can deadlock with any
-		// concurrent event write. Each is a single idempotent statement, so a
-		// deadlock victim can just run again.
-		ctx := req.Context()
-		errHTTP := retryOnDeadlockErr(func() *herr.HTTPError {
-			var err error
-			if *editRequest.IsActive {
-				err = action.imsDBQ.SetActiveEvent(ctx, action.imsDBQ, editRequest.ID)
-			} else {
-				err = action.imsDBQ.ClearActiveEvent(ctx, action.imsDBQ, editRequest.ID)
-			}
-			if err != nil {
-				return herr.InternalServerError("Failed to set active event", err).From("[SetActiveEvent]")
-			}
-			return nil
-		})
-		if errHTTP != nil {
-			return nil, errHTTP
+		if *editRequest.IsActive {
+			err = action.imsDBQ.SetActiveEvent(req.Context(), action.imsDBQ, sql.NullInt32{Int32: editRequest.ID, Valid: true})
+		} else {
+			err = action.imsDBQ.ClearActiveEvent(req.Context(), action.imsDBQ, sql.NullInt32{Int32: editRequest.ID, Valid: true})
+		}
+		if err != nil {
+			return nil, herr.InternalServerError("Failed to set active event", err).From("[SetActiveEvent]")
 		}
 	}
 

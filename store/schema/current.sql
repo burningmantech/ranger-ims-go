@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (43);
+insert into SCHEMA_INFO (VERSION) values (44);
 
 
 create table `EVENT` (
@@ -26,14 +26,25 @@ create table `EVENT` (
     -- Whether to rewrite client-supplied addresses into canonical BRC form.
     NORMALIZE_ADDRESSES boolean not null default false,
 
-    -- Whether this is the active event, i.e. the one people most likely care
-    -- about. At most one event is active at a time.
-    IS_ACTIVE boolean not null default false,
-
     primary key (ID),
     unique key (NAME),
     foreign key `PARENT_GROUP_TO_PARENT`(PARENT_GROUP) references `EVENT`(ID)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- The active event, i.e. the one people most likely care about, or null if
+-- there is none. This always holds exactly one row, so that setting the
+-- active event writes only that row, not every row in EVENT.
+create table ACTIVE_EVENT (
+    ID      tinyint not null default 1,
+    `EVENT` integer,
+
+    primary key (ID),
+    constraint `ACTIVE_EVENT_SINGLE_ROW` check (ID = 1),
+    foreign key `ACTIVE_EVENT_TO_EVENT` (`EVENT`) references `EVENT`(ID) on delete set null
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+insert into ACTIVE_EVENT (ID, `EVENT`) values (1, null);
 
 
 create table INCIDENT_TYPE (

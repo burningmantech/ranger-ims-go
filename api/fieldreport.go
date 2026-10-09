@@ -79,19 +79,14 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 		storedFRs = []imsdb.FieldReport{fr}
 		entriesByFR[fr.Number] = entries
 	} else {
-		reportEntries, err := action.imsDBQ.FieldReports_ReportEntries(
-			req.Context(),
-			action.imsDBQ,
-			imsdb.FieldReports_ReportEntriesParams{
-				Event:     event.ID,
-				Generated: true,
-			},
-		)
-		if err != nil {
-			return resp, herr.InternalServerError("Failed to get FR report entries", err).From("[FieldReports_ReportEntries]")
+		if filter.match != nil {
+			// A search looks through every entry's text.
+			errHTTP = action.fetchAllEntries(req.Context(), event.ID, entriesByFR)
+		} else {
+			errHTTP = action.fetchListEntries(req.Context(), event.ID, entriesByFR)
 		}
-		for _, row := range reportEntries {
-			entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], row.ReportEntry)
+		if errHTTP != nil {
+			return resp, errHTTP.From("[fetchEntries]")
 		}
 
 		rows, err := action.imsDBQ.FieldReports(req.Context(), action.imsDBQ, event.ID)
@@ -121,6 +116,55 @@ func (action GetFieldReports) getFieldReports(req *http.Request) (imsjson.FieldR
 	}
 
 	return resp, nil
+}
+
+func (action GetFieldReports) fetchAllEntries(ctx context.Context, eventID int32, entriesByFR map[int32][]imsdb.ReportEntry) *herr.HTTPError {
+	reportEntries, err := action.imsDBQ.FieldReports_ReportEntries(
+		ctx,
+		action.imsDBQ,
+		imsdb.FieldReports_ReportEntriesParams{
+			Event:     eventID,
+			Generated: true,
+		},
+	)
+	if err != nil {
+		return herr.InternalServerError("Failed to get FR report entries", err).From("[FieldReports_ReportEntries]")
+	}
+	for _, row := range reportEntries {
+		entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], row.ReportEntry)
+	}
+	return nil
+}
+
+// fetchListEntries is fetchAllEntries without the text of most entries; see
+// GetIncidents.fetchListEntries.
+func (action GetFieldReports) fetchListEntries(ctx context.Context, eventID int32, entriesByFR map[int32][]imsdb.ReportEntry) *herr.HTTPError {
+	headers, err := action.imsDBQ.FieldReports_EntryHeaders(ctx, action.imsDBQ, eventID)
+	if err != nil {
+		return herr.InternalServerError("Failed to get FR report entries", err).From("[FieldReports_EntryHeaders]")
+	}
+	summaries, err := action.imsDBQ.FieldReports_SummaryEntries(ctx, action.imsDBQ, eventID)
+	if err != nil {
+		return herr.InternalServerError("Failed to get FR report entries", err).From("[FieldReports_SummaryEntries]")
+	}
+	summaryText := make(map[int32]string, len(summaries))
+	for _, row := range summaries {
+		summaryText[row.ID] = row.Text
+	}
+	for _, row := range headers {
+		entriesByFR[row.FieldReportNumber] = append(entriesByFR[row.FieldReportNumber], imsdb.ReportEntry{
+			ID:                       row.ID,
+			Author:                   row.Author,
+			Text:                     summaryText[row.ID],
+			Created:                  row.Created,
+			Generated:                false,
+			Stricken:                 false,
+			AttachedFile:             sql.NullString{},
+			AttachedFileOriginalName: sql.NullString{},
+			AttachedFileMediaType:    sql.NullString{},
+		})
+	}
+	return nil
 }
 
 // fieldReportToListItem slims a Field Report down for the Field Reports list.

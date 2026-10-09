@@ -82,26 +82,33 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.IncidentList
 	group, groupCtx := errgroup.WithContext(req.Context())
 
 	entriesByIncident := make(map[int32][]imsdb.ReportEntry)
-	group.Go(func() error {
-		reportEntries, err := action.imsDBQ.Incidents_ReportEntries(
-			groupCtx,
-			action.imsDBQ,
-			imsdb.Incidents_ReportEntriesParams{
-				Event:     event.ID,
-				Generated: true,
-			},
-		)
-		if err != nil {
-			return herr.InternalServerError("Failed to fetch Incident Report Entries", err).From("[Incidents_ReportEntries]")
-		}
-		for _, row := range reportEntries {
-			entriesByIncident[row.IncidentNumber] = append(
-				entriesByIncident[row.IncidentNumber],
-				row.ReportEntry,
+	if filter.match != nil {
+		// A search looks through every entry's text.
+		group.Go(func() error {
+			reportEntries, err := action.imsDBQ.Incidents_ReportEntries(
+				groupCtx,
+				action.imsDBQ,
+				imsdb.Incidents_ReportEntriesParams{
+					Event:     event.ID,
+					Generated: true,
+				},
 			)
-		}
-		return nil
-	})
+			if err != nil {
+				return herr.InternalServerError("Failed to fetch Incident Report Entries", err).From("[Incidents_ReportEntries]")
+			}
+			for _, row := range reportEntries {
+				entriesByIncident[row.IncidentNumber] = append(
+					entriesByIncident[row.IncidentNumber],
+					row.ReportEntry,
+				)
+			}
+			return nil
+		})
+	} else {
+		group.Go(func() error {
+			return action.fetchListEntries(groupCtx, event.ID, entriesByIncident)
+		})
+	}
 
 	rangersByIncident := make(map[int32][]imsdb.IncidentRanger)
 	group.Go(func() error {
@@ -155,6 +162,39 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.IncidentList
 	}
 
 	return resp, nil
+}
+
+// fetchListEntries fills entriesByIncident with what incidentToListItem needs
+// of the event's report entries, without the text of most of them. Only the
+// entry that stands in for a missing summary carries its text, so listSummary
+// skips the rest as blank.
+func (action GetIncidents) fetchListEntries(ctx context.Context, eventID int32, entriesByIncident map[int32][]imsdb.ReportEntry) error {
+	headers, err := action.imsDBQ.Incidents_EntryHeaders(ctx, action.imsDBQ, eventID)
+	if err != nil {
+		return herr.InternalServerError("Failed to fetch Incident Report Entries", err).From("[Incidents_EntryHeaders]")
+	}
+	summaries, err := action.imsDBQ.Incidents_SummaryEntries(ctx, action.imsDBQ, eventID)
+	if err != nil {
+		return herr.InternalServerError("Failed to fetch Incident Report Entries", err).From("[Incidents_SummaryEntries]")
+	}
+	summaryText := make(map[int32]string, len(summaries))
+	for _, row := range summaries {
+		summaryText[row.ID] = row.Text
+	}
+	for _, row := range headers {
+		entriesByIncident[row.IncidentNumber] = append(entriesByIncident[row.IncidentNumber], imsdb.ReportEntry{
+			ID:                       row.ID,
+			Author:                   "",
+			Text:                     summaryText[row.ID],
+			Created:                  row.Created,
+			Generated:                false,
+			Stricken:                 false,
+			AttachedFile:             sql.NullString{},
+			AttachedFileOriginalName: sql.NullString{},
+			AttachedFileMediaType:    sql.NullString{},
+		})
+	}
+	return nil
 }
 
 func (action GetIncidents) getIncidentListItem(ctx context.Context, event imsdb.Event, incidentNumber int32) (

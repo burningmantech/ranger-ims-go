@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (46);
+insert into SCHEMA_INFO (VERSION) values (47);
 
 
 -- Declare indexes inline in "create table" rather than as standalone "create
@@ -255,7 +255,8 @@ create table `ACTION_LOG` (
     `HTTP_STATUS`       smallint,
     `DURATION_MICROS`   bigint,
 
-    primary key (`ID`)
+    primary key (`ID`),
+    key `CREATED_AT` (`CREATED_AT`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -282,7 +283,8 @@ create table `ERROR_LOG` (
     `CLIENT_ADDRESS`    varchar(128),
     `DURATION_MICROS`   bigint,
 
-    primary key (`ID`)
+    primary key (`ID`),
+    key `CREATED_AT` (`CREATED_AT`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

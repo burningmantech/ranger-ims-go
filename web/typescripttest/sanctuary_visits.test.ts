@@ -288,5 +288,5 @@ test("the Go to... modal opens on the Visits list page's type", async (): Promis
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
     expect((document.getElementById("goto-kind-visit") as HTMLInputElement).checked).toBe(true);
-    expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("VS#");
+    expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("VS#");
 });

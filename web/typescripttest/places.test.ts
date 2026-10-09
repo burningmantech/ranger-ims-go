@@ -600,7 +600,7 @@ test("the Go to... modal defaults to Incident on the Places page, with a usable 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
     expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
-    expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("IMS#");
+    expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("IMS#");
     // Places is read-only, but the Go to... box is navigation, not editing, so
     // disableEditing() must leave it enabled.
     expect((document.getElementById("goto-number") as HTMLInputElement).disabled).toBe(false);

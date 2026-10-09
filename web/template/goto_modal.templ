@@ -17,36 +17,34 @@
 package template
 
 templ GoToModal() {
-<dialog class="ims-modal no-print" id="goToModal" aria-labelledby="goToModalLabel">
+<dialog class="ims-modal goto-modal no-print" id="goToModal" aria-label="Go to...">
   <div class="modal-content">
-    <div class="modal-header">
-      <p class="modal-title fs-5" id="goToModalLabel">Go to...</p>
-      <button type="button" class="btn-close" data-ims-close aria-label="Close" />
+    <div class="goto-header">
+      <span>Go to</span>
+      <select id="goto-event" class="form-select goto-event" aria-label="Event"></select>
+      <button type="button" class="btn-close ms-auto" data-ims-close aria-label="Close" tabindex="-1" />
     </div>
-    <div class="modal-body">
-      <select id="goto-event" class="form-select mb-2" aria-label="Event"></select>
-      <div id="goto-kind-group" class="btn-group w-100 mb-2" role="group" aria-label="Record type">
-        <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-incident"
-               value="incident" autocomplete="off" checked />
-        <label class="btn btn-outline-secondary" for="goto-kind-incident">Incident</label>
-        <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-field-report"
-               value="field_report" autocomplete="off" />
-        <label class="btn btn-outline-secondary" for="goto-kind-field-report">Field Report</label>
-        <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-visit"
-               value="visit" autocomplete="off" />
-        <label class="btn btn-outline-secondary" for="goto-kind-visit">Visit</label>
-      </div>
-      <div class="input-group">
-        <input id="goto-number" type="text" inputmode="numeric" autocomplete="off"
-               class="form-control" placeholder="Number" aria-label="Number"
-               aria-describedby="goto-preview" />
-        <button id="goto-go" type="button" class="btn btn-primary" disabled>Go</button>
-      </div>
-      <div id="goto-preview" class="form-text text-truncate" aria-live="polite"></div>
-      <p class="mt-2 mb-0 small text-body-secondary">
-        <kbd>Enter</kbd> to go there, <kbd><kbd class="modifier-key">Ctrl</kbd> <kbd>Enter</kbd></kbd> to open it in a new tab
-      </p>
+    <div id="goto-kind-group" class="goto-kinds" role="group" aria-label="Record type">
+      <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-incident"
+             value="incident" autocomplete="off" checked />
+      <label for="goto-kind-incident">Incident</label>
+      <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-field-report"
+             value="field_report" autocomplete="off" />
+      <label for="goto-kind-field-report">Field report</label>
+      <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-visit"
+             value="visit" autocomplete="off" />
+      <label for="goto-kind-visit">Visit</label>
     </div>
+    <label class="goto-number">
+      <span class="goto-hash" aria-hidden="true">#</span>
+      <input id="goto-number" type="text" inputmode="numeric" enterkeyhint="go" autocomplete="off"
+             aria-label="Number" aria-describedby="goto-preview" />
+    </label>
+    <div id="goto-preview" class="goto-preview text-truncate" aria-live="polite"></div>
+    <p class="goto-hints">
+      <span><kbd>↵</kbd> open</span>
+      <span><kbd><kbd class="modifier-key">Ctrl</kbd><kbd>↵</kbd></kbd> new tab</span>
+    </p>
   </div>
 </dialog>
 }

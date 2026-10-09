@@ -455,7 +455,8 @@ for update;
 
 -- name: AttachRangerHandleToIncident :exec
 insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE, ROLE)
-values (?, ?, ?, ?);
+values (?, ?, ?, ?)
+on duplicate key update ROLE = values(ROLE);
 
 -- name: DetachRangerHandleFromIncident :exec
 delete from INCIDENT__RANGER
@@ -662,7 +663,8 @@ for update;
 
 -- name: AttachRangerToVisit :exec
 insert into VISIT__RANGER (EVENT, VISIT_NUMBER, RANGER_HANDLE, ROLE)
-values (?, ?, ?, ?);
+values (?, ?, ?, ?)
+on duplicate key update ROLE = values(ROLE);
 
 -- name: DetachRangerFromVisit :exec
 delete from VISIT__RANGER

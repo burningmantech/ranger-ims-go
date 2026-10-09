@@ -23,7 +23,7 @@
 #    entrypoint only seeds an empty one, so delete it per (3) before trying again.
 #    Also note that macOS bind-mounts these data dirs off a case-insensitive
 #    filesystem, which makes MariaDB set lower_case_table_names=2; DDL that is fine
-#    in production can misbehave there (see INCIDENT__RANGER in store/schema/current.sql).
+#    in production can misbehave there (see the note atop store/schema/current.sql).
 
 services:
 

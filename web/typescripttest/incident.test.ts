@@ -1391,37 +1391,6 @@ test("Go to...'s Enter navigates, and Ctrl+Enter opens a new tab", async (): Pro
     });
 });
 
-test("Go to...'s Go button is disabled until a number is typed", async (): Promise<void> => {
-    await initIncidentPage(jumpRoutes);
-    const button = document.getElementById("goto-go") as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-
-    typeJumpNumber("5");
-    expect(button.disabled).toBe(false);
-
-    typeJumpNumber("");
-    expect(button.disabled).toBe(true);
-});
-
-test("Go to...'s Go button does what Enter does, and Ctrl/Cmd-click opens a new tab", async (): Promise<void> => {
-    await initIncidentPage(jumpRoutes);
-    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
-    const open = vi.spyOn(window, "open").mockImplementation((): null => null);
-    const button = document.getElementById("goto-go") as HTMLButtonElement;
-
-    typeJumpNumber("5");
-    button.click();
-    await vi.waitFor((): void => {
-        expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/incidents/5`);
-    });
-
-    typeJumpNumber("5");
-    button.dispatchEvent(new MouseEvent("click", { ctrlKey: true, bubbles: true }));
-    await vi.waitFor((): void => {
-        expect(open).toHaveBeenCalledWith(`/ims/app/events/${eventName}/incidents/5`, "_blank");
-    });
-});
-
 test("Go to...'s Enter opens a Field Report or Visit at its own URL", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
@@ -1473,12 +1442,12 @@ test("Go to... defaults to the page's kind and relabels the input on change", as
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
     // This page is an Incident, so that kind is selected and named.
     expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
-    expect(input.placeholder).toBe("IMS#");
+    expect(input.getAttribute("aria-label")).toBe("IMS#");
 
     selectGoToKind("field_report");
-    expect(input.placeholder).toBe("FR#");
+    expect(input.getAttribute("aria-label")).toBe("FR#");
     selectGoToKind("visit");
-    expect(input.placeholder).toBe("VS#");
+    expect(input.getAttribute("aria-label")).toBe("VS#");
 });
 
 test("Go to... offers every record type, even ones the user can't read here", async (): Promise<void> => {

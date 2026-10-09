@@ -585,3 +585,122 @@ kbd kbd {
 html:has(dialog:modal) {
   overflow: hidden;
 }
+
+/* The Ctrl/Cmd+K Go to... modal, laid out like a command palette. */
+.goto-modal {
+  --bs-modal-width: 380px;
+}
+
+.goto-modal > .modal-content {
+  padding: 1rem 1.25rem 0.75rem;
+  border-radius: 1rem;
+  box-shadow: var(--bs-box-shadow-lg);
+}
+
+.goto-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.goto-header .btn-close {
+  font-size: 0.7rem;
+}
+
+.goto-event {
+  width: auto;
+  field-sizing: content;
+  padding: 0.1rem 1.4rem 0.1rem 0.25rem;
+  font-weight: 700;
+  background-color: transparent;
+  background-position: right 0.25rem center;
+  background-size: 10px 8px;
+  border-color: transparent;
+}
+
+.goto-event:hover {
+  background-color: var(--bs-tertiary-bg);
+}
+
+.goto-kinds {
+  display: flex;
+  padding: 2px;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+}
+
+.goto-kinds > label {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  border-radius: calc(var(--bs-border-radius) - 2px);
+}
+
+.goto-kinds > label:hover {
+  background-color: var(--bs-tertiary-bg);
+}
+
+.goto-kinds > .btn-check:checked + label {
+  color: #fff;
+  background-color: var(--bs-primary);
+}
+
+.goto-kinds > .btn-check:focus-visible + label {
+  outline: 2px solid var(--bs-focus-ring-color);
+  outline-offset: 1px;
+}
+
+.goto-number {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  margin: 0.75rem 0 0.25rem;
+  font-family: var(--bs-font-monospace);
+  font-size: 2.75rem;
+  line-height: 1.2;
+  cursor: text;
+}
+
+.goto-hash {
+  color: var(--bs-secondary-color);
+}
+
+.goto-number > input {
+  /* Browsers without field-sizing get a fixed width that fits a few digits. */
+  width: 7ch;
+  field-sizing: content;
+  min-width: 1ch;
+  max-width: 10ch;
+  padding: 0;
+  font: inherit;
+  letter-spacing: 0.05em;
+  color: var(--bs-body-color);
+  caret-color: var(--bs-primary);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.goto-preview {
+  min-height: 1.5em;
+  font-size: 0.875rem;
+  text-align: center;
+  color: var(--bs-secondary-color);
+}
+
+.goto-hints {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+  padding-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+}

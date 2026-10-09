@@ -2210,7 +2210,6 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
     const eventSelect = typedElement("goto-event", HTMLSelectElement);
     const input = typedElement("goto-number", HTMLInputElement);
     const preview = typedElement("goto-preview", HTMLElement);
-    const goButton = typedElement("goto-go", HTMLButtonElement);
     const modal = dialogModal(modalEl);
 
     const kindRadios: Record<GoToKind, HTMLInputElement> = {
@@ -2346,18 +2345,10 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         preview.classList.toggle("text-danger", isError);
     }
 
-    // The Go button does the same thing as Enter, so it's only live once
-    // there's a number to go to.
-    function updateGoButton(): void {
-        goButton.disabled = input.value.trim() === "";
-    }
-
     // Point the input at the given kind, adjusting its label.
     function updateKindUI(kind: GoToKind): void {
         kindRadios[kind].checked = true;
-        const label = `${goToKindLabels[kind]}#`;
-        input.placeholder = label;
-        input.setAttribute("aria-label", label);
+        input.setAttribute("aria-label", `${goToKindLabels[kind]}#`);
     }
 
     // Resolves to the record, or to a message saying why there isn't one.
@@ -2460,7 +2451,6 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         eventSelect.value = event;
         input.value = "";
         updateKindUI(defaultKind());
-        updateGoButton();
         showPreview("", false);
         modal.show();
         input.focus();
@@ -2481,7 +2471,6 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         });
     }
     input.addEventListener("input", () => {
-        updateGoButton();
         clearTimeout(debounce);
         debounce = window.setTimeout(updatePreview, 250);
     });
@@ -2490,10 +2479,6 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
             e.preventDefault();
             void go(e.ctrlKey || e.metaKey);
         }
-    });
-    // A Ctrl/Cmd-click on Go opens the record in a new tab, like Ctrl/Cmd+Enter.
-    goButton.addEventListener("click", (e: MouseEvent): void => {
-        void go(e.ctrlKey || e.metaKey);
     });
 
     // Capture, so that no field's own key handling can swallow it first.

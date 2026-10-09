@@ -476,7 +476,7 @@ test("the Go to... modal opens on the Incidents list page's type", async (): Pro
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
     expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
-    expect((document.getElementById("goto-number") as HTMLInputElement).placeholder).toBe("IMS#");
+    expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("IMS#");
 });
 
 function typeFilterInput(): HTMLInputElement {

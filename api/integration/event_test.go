@@ -181,6 +181,24 @@ func TestActiveEvent(t *testing.T) {
 	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: firstID, IsActive: new(true)})
 	require.Equal(t, http.StatusBadRequest, status)
 	require.Contains(t, body, "cannot be the active event")
+
+	// Deleting the active event leaves no event active.
+	cfg := *shared.cfg
+	cfg.Core.EventDeletionEnabled = true
+	deletionAdmin := newCustomServer(t, &cfg, shared.imsDBQ, shared.userStore).admin(ctx)
+	status, body = editEventBody(ctx, t, apisAdmin, imsjson.Event{ID: secondID, IsActive: new(true)})
+	require.Equal(t, http.StatusNoContent, status, body)
+	resp = deletionAdmin.deleteEvent(ctx, secondName)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	events, resp = apisAdmin.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Nil(t, findEvent(events, secondID))
+	for _, e := range events {
+		require.False(t, *e.IsActive, "event %v", *e.Name)
+	}
 }
 
 func TestEventNormalizeAddresses(t *testing.T) {

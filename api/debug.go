@@ -29,6 +29,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/metrics"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -67,7 +68,15 @@ func (action GetBuildInfo) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		errHTTP.From("[getBuildInfo]").WriteResponse(w)
 		return
 	}
-	serverTimeInfo := fmt.Sprintf("Server started at: %v\nUptime: %v\n\n", serverStartTime, time.Since(serverStartTime))
+	schemaVersion := "unknown"
+	vers, err := action.imsDBQ.SchemaVersion(req.Context(), action.imsDBQ)
+	if err != nil {
+		slog.Error("Failed to read DB schema version", "error", err)
+	} else {
+		schemaVersion = strconv.Itoa(int(vers))
+	}
+	serverTimeInfo := fmt.Sprintf("Server started at: %v\nUptime: %v\nDatabase schema version: %v\n\n",
+		serverStartTime, time.Since(serverStartTime), schemaVersion)
 	finalRespText := serverTimeInfo + bi.String()
 	w.Header().Set("Cache-Control", "no-cache")
 	herr.WriteOKResponse(w, finalRespText)

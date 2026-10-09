@@ -42,7 +42,7 @@ async function initAdminDebugPage() {
         }
         if (url === url_debugBuildInfo) {
             return textResponse(
-                "go\tgo1.99\nbuild\tvcs.revision=abcdef0123456789\nbuild\tvcs.modified=true\n",
+                "Database schema version: 42\n\ngo\tgo1.99\nbuild\tvcs.revision=abcdef0123456789\nbuild\tvcs.modified=true\n",
             );
         }
         if (url === url_debugConfig) {
@@ -80,6 +80,7 @@ test("fetching build info shows the panel and a revision link to GitHub", async 
     expect(link.href).toBe("https://github.com/burningmantech/ranger-ims-go/tree/abcdef0123456789");
     expect(link.textContent).toContain("abcdef012345");
     expect(link.textContent).toContain("(dirty)");
+    expect(document.getElementById("build-info-p")!.textContent).toContain("The database schema version is 42");
 });
 
 test("fetching runtime metrics reveals the metrics panel", async (): Promise<void> => {

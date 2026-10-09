@@ -18,8 +18,11 @@ package api
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -224,6 +227,10 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		return nil
 	}
 
+	if !slices.ContainsFunc(entries, func(e imsdb.ReportEntry) bool { return e.ID == reportEntryId }) {
+		return herr.NotFound("There is no such Report Entry on this Field Report", nil)
+	}
+
 	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
 		txn, err := action.imsDBQ.Begin()
 		if err != nil {
@@ -231,16 +238,11 @@ func (action EditFieldReportReportEntry) editFieldReportEntry(req *http.Request)
 		}
 		defer rollback(txn)
 
-		err = action.imsDBQ.SetFieldReportReportEntryStricken(ctx, txn,
-			imsdb.SetFieldReportReportEntryStrickenParams{
-				Stricken:          *re.Stricken,
-				Event:             event.ID,
-				FieldReportNumber: fieldReportNumber,
-				ReportEntry:       reportEntryId,
-			},
+		err = action.imsDBQ.SetReportEntryStricken(ctx, txn,
+			imsdb.SetReportEntryStrickenParams{Stricken: *re.Stricken, ID: reportEntryId},
 		)
 		if err != nil {
-			return herr.InternalServerError("Error setting field report entry", err).From("[SetFieldReportReportEntryStricken]")
+			return herr.InternalServerError("Error setting field report entry", err).From("[SetReportEntryStricken]")
 		}
 		struckVerb := "Struck"
 		if !*re.Stricken {
@@ -316,6 +318,18 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		return nil
 	}
 
+	_, err = action.imsDBQ.IncidentHasReportEntry(ctx, action.imsDBQ, imsdb.IncidentHasReportEntryParams{
+		Event:          event.ID,
+		IncidentNumber: incidentNumber,
+		ReportEntry:    reportEntryId,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return herr.NotFound("There is no such Report Entry on this Incident", err).From("[IncidentHasReportEntry]")
+		}
+		return herr.InternalServerError("Failed to fetch Report Entry", err).From("[IncidentHasReportEntry]")
+	}
+
 	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
 		txn, err := action.imsDBQ.Begin()
 		if err != nil {
@@ -323,16 +337,11 @@ func (action EditIncidentReportEntry) editIncidentReportEntry(req *http.Request)
 		}
 		defer rollback(txn)
 
-		err = action.imsDBQ.SetIncidentReportEntryStricken(ctx, txn,
-			imsdb.SetIncidentReportEntryStrickenParams{
-				Stricken:       *re.Stricken,
-				Event:          event.ID,
-				IncidentNumber: incidentNumber,
-				ReportEntry:    reportEntryId,
-			},
+		err = action.imsDBQ.SetReportEntryStricken(ctx, txn,
+			imsdb.SetReportEntryStrickenParams{Stricken: *re.Stricken, ID: reportEntryId},
 		)
 		if err != nil {
-			return herr.InternalServerError("Error setting incident report entry", err).From("[SetIncidentReportEntryStricken]")
+			return herr.InternalServerError("Error setting incident report entry", err).From("[SetReportEntryStricken]")
 		}
 		struckVerb := "Struck"
 		if !*re.Stricken {
@@ -415,6 +424,18 @@ func (action EditVisitReportEntry) editVisitReportEntry(req *http.Request) *herr
 		return nil
 	}
 
+	_, err = action.imsDBQ.VisitHasReportEntry(ctx, action.imsDBQ, imsdb.VisitHasReportEntryParams{
+		Event:       event.ID,
+		VisitNumber: visitNumber,
+		ReportEntry: reportEntryId,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return herr.NotFound("There is no such Report Entry on this Visit", err).From("[VisitHasReportEntry]")
+		}
+		return herr.InternalServerError("Failed to fetch Report Entry", err).From("[VisitHasReportEntry]")
+	}
+
 	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
 		txn, err := action.imsDBQ.Begin()
 		if err != nil {
@@ -422,16 +443,11 @@ func (action EditVisitReportEntry) editVisitReportEntry(req *http.Request) *herr
 		}
 		defer rollback(txn)
 
-		err = action.imsDBQ.SetVisitReportEntryStricken(ctx, txn,
-			imsdb.SetVisitReportEntryStrickenParams{
-				Stricken:    *re.Stricken,
-				Event:       event.ID,
-				VisitNumber: visitNumber,
-				ReportEntry: reportEntryId,
-			},
+		err = action.imsDBQ.SetReportEntryStricken(ctx, txn,
+			imsdb.SetReportEntryStrickenParams{Stricken: *re.Stricken, ID: reportEntryId},
 		)
 		if err != nil {
-			return herr.InternalServerError("Error setting visit report entry", err).From("[SetVisitReportEntryStricken]")
+			return herr.InternalServerError("Error setting visit report entry", err).From("[SetReportEntryStricken]")
 		}
 		struckVerb := "Struck"
 		if !*re.Stricken {

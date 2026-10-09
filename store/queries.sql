@@ -292,6 +292,40 @@ where
     and ire.INCIDENT_NUMBER = ?
 ;
 
+-- The *_EntryHeaders queries return what an event-wide list needs from each
+-- report entry, which is everything but its text. Sending every entry's text
+-- in the event is otherwise most of a list request's cost, when all a list
+-- shows of it is the one entry that stands in for a missing summary, which the
+-- *_SummaryEntries queries fetch.
+
+-- name: Incidents_EntryHeaders :many
+select ire.INCIDENT_NUMBER, re.ID, re.CREATED
+from INCIDENT__REPORT_ENTRY ire
+    join REPORT_ENTRY re
+        on re.ID = ire.REPORT_ENTRY
+where ire.EVENT = ?;
+
+-- For each Incident with no summary, its first non-system entry with a
+-- nonblank line, i.e. what listSummary in api/listsearch.go would pick.
+-- name: Incidents_SummaryEntries :many
+select i.NUMBER, re.ID, re.TEXT
+from INCIDENT i
+    join REPORT_ENTRY re
+        on re.ID = (
+            select re2.ID
+            from INCIDENT__REPORT_ENTRY ire
+                join REPORT_ENTRY re2
+                    on re2.ID = ire.REPORT_ENTRY
+            where ire.EVENT = i.EVENT
+                and ire.INCIDENT_NUMBER = i.NUMBER
+                and not re2.GENERATED
+                and re2.TEXT regexp '[^\\r\\n]'
+            order by re2.CREATED, re2.ID
+            limit 1
+        )
+where i.EVENT = ?
+    and coalesce(i.SUMMARY, '') = '';
+
 -- name: IncidentTypes :many
 select sqlc.embed(it)
 from INCIDENT_TYPE it;
@@ -324,6 +358,34 @@ where
     irre.EVENT = ?
     and re.GENERATED <= ?
 ;
+
+-- See Incidents_EntryHeaders.
+-- name: FieldReports_EntryHeaders :many
+select frre.FIELD_REPORT_NUMBER, re.ID, re.AUTHOR, re.CREATED
+from FIELD_REPORT__REPORT_ENTRY frre
+    join REPORT_ENTRY re
+        on re.ID = frre.REPORT_ENTRY
+where frre.EVENT = ?;
+
+-- See Incidents_SummaryEntries.
+-- name: FieldReports_SummaryEntries :many
+select fr.NUMBER, re.ID, re.TEXT
+from FIELD_REPORT fr
+    join REPORT_ENTRY re
+        on re.ID = (
+            select re2.ID
+            from FIELD_REPORT__REPORT_ENTRY frre
+                join REPORT_ENTRY re2
+                    on re2.ID = frre.REPORT_ENTRY
+            where frre.EVENT = fr.EVENT
+                and frre.FIELD_REPORT_NUMBER = fr.NUMBER
+                and not re2.GENERATED
+                and re2.TEXT regexp '[^\\r\\n]'
+            order by re2.CREATED, re2.ID
+            limit 1
+        )
+where fr.EVENT = ?
+    and coalesce(fr.SUMMARY, '') = '';
 
 -- name: FieldReport_ReportEntries :many
 select
@@ -415,36 +477,29 @@ set INCIDENT_NUMBER = ?, VERSION = VERSION + 1
 where EVENT = ? and NUMBER = ?
 ;
 
---
--- The "stricken" queries seem bloated at first blush, because the whole
--- "where ID in (..." could just be "where ID =". What it's doing though is
--- ensuring that the provided eventID and incidentNumber actually align with
--- the reportEntryID in question, and that's important for authorization purposes.
---
+-- The *HasReportEntry queries check that a report entry belongs to the given
+-- record (a Field Report's handler checks the entries it already fetched)
+-- before SetReportEntryStricken changes it, which matters for
+-- authorization. Ownership never changes, so the check needs no lock, and the
+-- update then locks only the one REPORT_ENTRY row rather than a range of the
+-- join table, which the strike's own log entry insert could deadlock against.
 
--- name: SetIncidentReportEntryStricken :exec
-update REPORT_ENTRY re
-join INCIDENT__REPORT_ENTRY j on j.REPORT_ENTRY = re.ID
-set re.STRICKEN = ?
-where j.EVENT = ?
-    and j.INCIDENT_NUMBER = ?
-    and j.REPORT_ENTRY = ?;
+-- name: IncidentHasReportEntry :one
+select REPORT_ENTRY from INCIDENT__REPORT_ENTRY
+where EVENT = ?
+    and INCIDENT_NUMBER = ?
+    and REPORT_ENTRY = ?;
 
--- name: SetFieldReportReportEntryStricken :exec
-update REPORT_ENTRY re
-join FIELD_REPORT__REPORT_ENTRY j on j.REPORT_ENTRY = re.ID
-set re.STRICKEN = ?
-where j.EVENT = ?
-    and j.FIELD_REPORT_NUMBER = ?
-    and j.REPORT_ENTRY = ?;
+-- name: VisitHasReportEntry :one
+select REPORT_ENTRY from VISIT__REPORT_ENTRY
+where EVENT = ?
+    and VISIT_NUMBER = ?
+    and REPORT_ENTRY = ?;
 
--- name: SetVisitReportEntryStricken :exec
-update REPORT_ENTRY re
-join VISIT__REPORT_ENTRY j on j.REPORT_ENTRY = re.ID
-set re.STRICKEN = ?
-where j.EVENT = ?
-    and j.VISIT_NUMBER = ?
-    and j.REPORT_ENTRY = ?;
+-- name: SetReportEntryStricken :exec
+update REPORT_ENTRY
+set STRICKEN = ?
+where ID = ?;
 
 -- name: LockIncident :one
 select NUMBER from INCIDENT
@@ -686,6 +741,14 @@ where
     sre.EVENT = ?
     and sre.VISIT_NUMBER = ?
 ;
+
+-- See Incidents_EntryHeaders. The Visits list shows no entry text at all.
+-- name: Visits_EntryHeaders :many
+select vre.VISIT_NUMBER, re.CREATED
+from VISIT__REPORT_ENTRY vre
+    join REPORT_ENTRY re
+        on re.ID = vre.REPORT_ENTRY
+where vre.EVENT = ?;
 
 -- name: Visits_ReportEntries :many
 select

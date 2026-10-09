@@ -84,21 +84,25 @@ func (action GetVisits) getVisits(req *http.Request) (imsjson.VisitListItems, *h
 
 	entriesByVisit := make(map[int32][]imsdb.ReportEntry)
 	group.Go(func() error {
-		reportEntries, err := action.imsDBQ.Visits_ReportEntries(
-			groupCtx,
-			action.imsDBQ,
-			imsdb.Visits_ReportEntriesParams{
-				Event:     event.ID,
-				Generated: true,
-			},
-		)
+		// The Visits list shows no entry text, only when the last entry came.
+		headers, err := action.imsDBQ.Visits_EntryHeaders(groupCtx, action.imsDBQ, event.ID)
 		if err != nil {
-			return herr.InternalServerError("Failed to fetch Visit Report Entries", err).From("[Visits_ReportEntries]")
+			return herr.InternalServerError("Failed to fetch Visit Report Entries", err).From("[Visits_EntryHeaders]")
 		}
-		for _, row := range reportEntries {
+		for _, row := range headers {
 			entriesByVisit[row.VisitNumber] = append(
 				entriesByVisit[row.VisitNumber],
-				row.ReportEntry,
+				imsdb.ReportEntry{
+					ID:                       0,
+					Author:                   "",
+					Text:                     "",
+					Created:                  row.Created,
+					Generated:                false,
+					Stricken:                 false,
+					AttachedFile:             sql.NullString{},
+					AttachedFileOriginalName: sql.NullString{},
+					AttachedFileMediaType:    sql.NullString{},
+				},
 			)
 		}
 		return nil

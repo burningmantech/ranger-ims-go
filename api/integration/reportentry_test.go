@@ -295,3 +295,71 @@ func TestStrikeFieldReportEntryAllowedForAuthoringReporter(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.True(t, *fieldReport.ReportEntries[0].Stricken)
 }
+
+// Striking checks that the entry belongs to the record in the path, so an
+// entry can't be struck through some other record that the requestor may write.
+func TestStrikeReportEntryThroughOtherRecordIsNotFound(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	owner := apis.newIncidentSuccess(ctx, sampleIncident1(eventName))
+	other := apis.newIncidentSuccess(ctx, imsjson.Incident{Event: eventName})
+
+	incident, resp := apis.getIncident(ctx, eventName, owner)
+	require.NoError(t, resp.Body.Close())
+	require.NotEmpty(t, incident.ReportEntries)
+	entry := incident.ReportEntries[0]
+	entry.Stricken = new(true)
+
+	resp = apis.updateIncidentReportEntry(ctx, eventName, other, entry)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	incident, resp = apis.getIncident(ctx, eventName, owner)
+	require.NoError(t, resp.Body.Close())
+	require.False(t, *incident.ReportEntries[0].Stricken)
+
+	// Nor did the failed strike log anything on the other Incident.
+	otherIncident, resp := apis.getIncident(ctx, eventName, other)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, otherIncident.ReportEntries)
+
+	// The same entry through the Field Report and Visit routes is no better.
+	frNum := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{Event: eventName})
+	resp = apis.updateFieldReportReportEntry(ctx, eventName, frNum, entry)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestStrikeVisitReportEntryThroughOtherVisitIsNotFound(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
+
+	eventName := newEventWithVisitWriter(t, apisAdmin)
+	owner := apis.newVisitSuccess(ctx, imsjson.Visit{
+		Event:         eventName,
+		ReportEntries: []imsjson.ReportEntry{{Text: "an entry"}},
+	})
+	other := apis.newVisitSuccess(ctx, imsjson.Visit{Event: eventName})
+
+	visit, resp := apis.getVisit(ctx, eventName, owner)
+	require.NoError(t, resp.Body.Close())
+	require.NotEmpty(t, visit.ReportEntries)
+	entry := visit.ReportEntries[0]
+	entry.Stricken = new(true)
+
+	resp = apis.updateVisitReportEntry(ctx, eventName, other, entry)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	visit, resp = apis.getVisit(ctx, eventName, owner)
+	require.NoError(t, resp.Body.Close())
+	require.False(t, *visit.ReportEntries[0].Stricken)
+}

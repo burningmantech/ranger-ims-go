@@ -338,3 +338,117 @@ func TestListAndRecordReadsAreAudited(t *testing.T) {
 	require.Len(t, listReads, 1)
 	assert.Contains(t, listReads[0].RequestBody, "a secret search")
 }
+
+// The full lists build their items from report entries fetched without most
+// of their text, so check that they come out the same as the number= lookup,
+// which builds from the whole entries.
+func TestIncidentListMatchesNumberLookup(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	// No summary, and a first entry with only blank lines, so the summary
+	// comes from the second entry.
+	noSummary := apis.newIncidentSuccess(ctx, imsjson.Incident{
+		Event: eventName,
+		ReportEntries: []imsjson.ReportEntry{
+			{Text: "\r\n\n"},
+			{Text: "  Indented first line\nsecond line"},
+		},
+	})
+	// A summary change adds a system entry, which moves LastModified.
+	withSummary := apis.newIncidentSuccess(ctx, imsjson.Incident{
+		Event:         eventName,
+		Summary:       new("Own summary"),
+		ReportEntries: []imsjson.ReportEntry{{Text: "Not the summary"}},
+	})
+	noEntries := apis.newIncidentSuccess(ctx, imsjson.Incident{Event: eventName})
+
+	items, resp := apis.getIncidents(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, items, 3)
+
+	byNumber := make(map[int32]imsjson.IncidentListItem)
+	for _, item := range items {
+		byNumber[item.Number] = item
+	}
+	require.Contains(t, byNumber[noSummary].Summary, "Indented first line")
+	require.Equal(t, "Own summary", byNumber[withSummary].Summary)
+	require.Empty(t, byNumber[noEntries].Summary)
+
+	for _, num := range []int32{noSummary, withSummary, noEntries} {
+		single, resp := apis.queryIncidents(ctx, eventName, url.Values{"number": {conv.FormatInt(num)}})
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.Len(t, single, 1)
+		require.Equal(t, single[0], byNumber[num])
+	}
+}
+
+func TestFieldReportListMatchesNumberLookup(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	noSummary := apis.newFieldReportSuccess(ctx, imsjson.FieldReport{
+		Event: eventName,
+		ReportEntries: []imsjson.ReportEntry{
+			{Text: "\n"},
+			{Text: "The real first line\nand more"},
+		},
+	})
+	withSummary := apis.newFieldReportSuccess(ctx, sampleFieldReport1(eventName))
+
+	items, resp := apis.getFieldReports(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, items, 2)
+
+	byNumber := make(map[int32]imsjson.FieldReportListItem)
+	for _, item := range items {
+		byNumber[item.Number] = item
+	}
+	require.Equal(t, "The real first line", byNumber[noSummary].Summary)
+	require.Equal(t, "my summary!", byNumber[withSummary].Summary)
+	require.Equal(t, userAliceHandle, byNumber[noSummary].Author)
+
+	for _, num := range []int32{noSummary, withSummary} {
+		single, resp := apis.queryFieldReports(ctx, eventName, url.Values{"number": {conv.FormatInt(num)}})
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+		require.Len(t, single, 1)
+		require.Equal(t, single[0], byNumber[num])
+	}
+}
+
+func TestVisitListMatchesNumberLookup(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
+	eventName := newEventWithVisitWriter(t, apisAdmin)
+
+	num := apis.newVisitSuccess(ctx, imsjson.Visit{
+		Event:         eventName,
+		ReportEntries: []imsjson.ReportEntry{{Text: "Some entry"}},
+	})
+
+	items, resp := apis.getVisits(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, items, 1)
+
+	single, resp := apis.queryVisits(ctx, eventName, url.Values{"number": {conv.FormatInt(num)}})
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, single, 1)
+	require.Equal(t, single[0], items[0])
+}

@@ -185,9 +185,9 @@ func parseRangerRosterRequest(
 
 // lockRoster takes an exclusive lock on the roster's parent Incident or Visit
 // row, and must come first in the transaction. Without it, concurrent roster
-// writers deadlock on the shared locks their foreign keys take on that row and
-// on the roster table's index gaps, often enough that a burst of them could
-// exhaust the deadlock retries. With it, they simply queue.
+// writers deadlock on the shared locks their foreign keys take on that row,
+// often enough that a burst of them could exhaust the deadlock retries. With
+// it, they simply queue.
 func lockRoster(ctx context.Context, txn imsdb.DBTX, roster rangerRoster, rosterReq rangerRosterRequest) *herr.HTTPError {
 	err := roster.lock(ctx, txn, rosterReq.event.ID, rosterReq.number)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -264,13 +264,7 @@ func attachRanger(
 			logLine = fmt.Sprintf("Removed role for %v", rosterReq.rangerName)
 		}
 
-		// Detach first, so that attaching a Ranger who is already on the roster
-		// updates their role rather than failing.
-		err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
-		if err != nil {
-			return herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
-		}
-
+		// An upsert, so this also sets the role of a Ranger already on the roster.
 		err = roster.attach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName, newRole)
 		if err != nil {
 			return herr.InternalServerError(fmt.Sprintf("Failed to attach Ranger to %v", roster.noun), err).From("[attach]")

@@ -264,10 +264,10 @@ insert into INCIDENT__INCIDENT_TYPE (EVENT, INCIDENT_NUMBER, INCIDENT_TYPE)
 values  (1, 1, 1),
         (1, 1, 6);
 
-insert into INCIDENT__RANGER (ID, EVENT, INCIDENT_NUMBER, RANGER_HANDLE)
-values  (1, 1, 1, 'Hardware'),
-        (2, 1, 1, 'Defect'),
-        (4, 1, 2, 'Loosy');
+insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE)
+values  (1, 1, 'Hardware'),
+        (1, 1, 'Defect'),
+        (1, 2, 'Loosy');
 
 insert into INCIDENT__REPORT_ENTRY (EVENT, INCIDENT_NUMBER, REPORT_ENTRY)
 values  (1, 1, 1),

@@ -70,12 +70,7 @@ async function fetchBuildInfo(): Promise<void> {
     const link = document.createElement("a");
     link.text = `The server was built at revision ${ref.substring(0,12)} ${dirty ? " (dirty)" : ""}`;
     link.href = `https://github.com/burningmantech/ranger-ims-go/tree/${ref}`;
-    const schemaVersion = substringBetween(buildInfoText, "Database schema version: ", "\n");
-    el.buildInfoP.replaceChildren(
-        link,
-        document.createElement("br"),
-        `The database schema version is ${schemaVersion}`,
-    );
+    el.buildInfoP.replaceChildren(link);
     el.buildInfoDiv.style.display = "";
 }
 

@@ -2321,6 +2321,18 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         }
     }
 
+    // The app URL for an event's list of a kind.
+    function listURL(event: string, kind: GoToKind): string {
+        switch (kind) {
+            case "field_report":
+                return url_viewFieldReports.replace("<event_id>", encodeURIComponent(event));
+            case "visit":
+                return url_viewVisits.replace("<event_id>", encodeURIComponent(event));
+            case "incident":
+                return url_viewIncidents.replace("<event_id>", encodeURIComponent(event));
+        }
+    }
+
     // A one-line description of a looked-up record.
     function describe(kind: GoToKind, record: Incident|FieldReport|Visit): string {
         switch (kind) {
@@ -2411,6 +2423,16 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         const event = selectedEvent();
         const kind = selectedKind();
         const number = enteredNumber();
+        // With no number, go to the list of that kind instead.
+        if (event != null && input.value.trim() === "") {
+            const url = listURL(event, kind);
+            if (url === window.location.pathname && !newTab) {
+                modal.hide();
+                return;
+            }
+            navigate(url, newTab);
+            return;
+        }
         if (event == null || number == null) {
             await updatePreview();
             return;
@@ -2424,7 +2446,10 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
             showPreview(result, true);
             return;
         }
-        const url = viewURL(event, kind, number);
+        navigate(viewURL(event, kind, number), newTab);
+    }
+
+    function navigate(url: string, newTab: boolean): void {
         if (newTab) {
             // A window.open() made while the browser is still handling a Cmd/Ctrl
             // keypress opens a background tab, as a Cmd-click would. Opening from

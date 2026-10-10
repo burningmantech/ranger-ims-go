@@ -1421,6 +1421,27 @@ test("Go to...'s Enter on a missing number stays put and says so", async (): Pro
     expect(assign).not.toHaveBeenCalled();
 });
 
+test("Go to...'s Enter with no number goes to the list of that kind", async (): Promise<void> => {
+    await initIncidentPage(jumpRoutes);
+    const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
+    await vi.waitFor((): void => {
+        expect((document.getElementById("goto-event") as HTMLSelectElement).options.length).toBe(2);
+    });
+    const input = document.getElementById("goto-number") as HTMLInputElement;
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(assign).toHaveBeenLastCalledWith(`/ims/app/events/${eventName}/incidents`);
+
+    selectGoToKind("field_report");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(assign).toHaveBeenLastCalledWith(`/ims/app/events/${eventName}/field_reports`);
+
+    selectGoToKind("visit");
+    selectGoToEvent("2015");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(assign).toHaveBeenLastCalledWith("/ims/app/events/2015/visits");
+});
+
 test("Go to...'s Enter on the current Incident just closes the modal", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});

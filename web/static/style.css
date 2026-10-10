@@ -482,8 +482,7 @@ h1 {
   opacity: 1;
 }
 
-/* Keys draw as keycaps. A key combination is an outer kbd wrapping one kbd per
-   key, like <kbd><kbd>Ctrl</kbd> <kbd>k</kbd></kbd>, and draws no cap itself. */
+/* Keys draw as keycaps. A key combination shares one cap, like <kbd>Ctrl k</kbd>. */
 kbd {
   display: inline-block;
   padding: 0.05em 0.4em;
@@ -495,18 +494,6 @@ kbd {
   border-bottom-width: 2px;
   border-radius: 0.3rem;
   white-space: nowrap;
-}
-
-kbd:has(> kbd) {
-  padding: 0;
-  color: inherit;
-  background-color: transparent;
-  border: none;
-}
-
-kbd kbd {
-  padding: 0.05em 0.4em;
-  font-size: 1em;
 }
 
 /* The in-page replacement for window.alert/confirm/prompt; see showDialog. */
@@ -662,7 +649,7 @@ html:has(dialog:modal) {
   align-items: baseline;
   margin: 0.75rem 0 0.25rem;
   font-family: var(--bs-font-monospace);
-  font-size: 2.75rem;
+  font-size: 2.0rem;
   line-height: 1.2;
   cursor: text;
 }

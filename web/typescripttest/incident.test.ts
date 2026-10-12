@@ -1267,8 +1267,8 @@ function selectGoToEvent(event: string): HTMLSelectElement {
     return select;
 }
 
-function selectGoToKind(kind: string): HTMLInputElement {
-    const radio = document.getElementById(`goto-kind-${kind.replaceAll("_", "-")}`) as HTMLInputElement;
+function selectGoToResource(resource: string): HTMLInputElement {
+    const radio = document.getElementById(`goto-resource-${resource.replaceAll("_", "-")}`) as HTMLInputElement;
     radio.checked = true;
     radio.dispatchEvent(new Event("change", { bubbles: true }));
     return radio;
@@ -1343,13 +1343,13 @@ test("Go to... previews a Field Report and a Visit", async (): Promise<void> => 
     await initIncidentPage(jumpRoutes);
     const preview = document.getElementById("goto-preview")!;
 
-    selectGoToKind("field_report");
+    selectGoToResource("field_report");
     typeJumpNumber("5");
     await vi.waitFor((): void => {
         expect(preview.textContent).toBe("FR #5 (Tool): A field report");
     });
 
-    selectGoToKind("visit");
+    selectGoToResource("visit");
     typeJumpNumber("5");
     await vi.waitFor((): void => {
         expect(preview.textContent).toBe("VS #5: Stardust");
@@ -1366,7 +1366,7 @@ test("Go to... says so when the user can't access the typed record", async (): P
     await initIncidentPage(jumpRoutes);
     const preview = document.getElementById("goto-preview")!;
 
-    selectGoToKind("field_report");
+    selectGoToResource("field_report");
     typeJumpNumber("7");
     await vi.waitFor((): void => {
         expect(preview.textContent).toBe("You don't have access to FR #7");
@@ -1395,14 +1395,14 @@ test("Go to...'s Enter opens a Field Report or Visit at its own URL", async (): 
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
 
-    selectGoToKind("field_report");
+    selectGoToResource("field_report");
     const input = typeJumpNumber("5");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await vi.waitFor((): void => {
         expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/field_reports/5`);
     });
 
-    selectGoToKind("visit");
+    selectGoToResource("visit");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await vi.waitFor((): void => {
         expect(assign).toHaveBeenCalledWith(`/ims/app/events/${eventName}/visits/5`);
@@ -1421,7 +1421,7 @@ test("Go to...'s Enter on a missing number stays put and says so", async (): Pro
     expect(assign).not.toHaveBeenCalled();
 });
 
-test("Go to...'s Enter with no number goes to the list of that kind", async (): Promise<void> => {
+test("Go to...'s Enter with no number goes to the list of that resource", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const assign = vi.spyOn(window.location, "assign").mockImplementation((): void => {});
     await vi.waitFor((): void => {
@@ -1432,11 +1432,11 @@ test("Go to...'s Enter with no number goes to the list of that kind", async (): 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(assign).toHaveBeenLastCalledWith(`/ims/app/events/${eventName}/incidents`);
 
-    selectGoToKind("field_report");
+    selectGoToResource("field_report");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(assign).toHaveBeenLastCalledWith(`/ims/app/events/${eventName}/field_reports`);
 
-    selectGoToKind("visit");
+    selectGoToResource("visit");
     selectGoToEvent("2015");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(assign).toHaveBeenLastCalledWith("/ims/app/events/2015/visits");
@@ -1456,22 +1456,22 @@ test("Go to...'s Enter on the current Incident just closes the modal", async ():
     expect(assign).not.toHaveBeenCalled();
 });
 
-test("Go to... defaults to the page's kind and relabels the input on change", async (): Promise<void> => {
+test("Go to... defaults to the page's resource and relabels the input on change", async (): Promise<void> => {
     await initIncidentPage(jumpRoutes);
     const input = document.getElementById("goto-number") as HTMLInputElement;
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    // This page is an Incident, so that kind is selected and named.
-    expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
+    // This page is an Incident, so that resource is selected and named.
+    expect((document.getElementById("goto-resource-incident") as HTMLInputElement).checked).toBe(true);
     expect(input.getAttribute("aria-label")).toBe("IMS#");
 
-    selectGoToKind("field_report");
+    selectGoToResource("field_report");
     expect(input.getAttribute("aria-label")).toBe("FR#");
-    selectGoToKind("visit");
+    selectGoToResource("visit");
     expect(input.getAttribute("aria-label")).toBe("VS#");
 });
 
-test("Go to... offers every record type, even ones the user can't read here", async (): Promise<void> => {
+test("Go to... offers every resource, even ones the user can't read here", async (): Promise<void> => {
     serverEventAccess.readIncidents = false;
     serverEventAccess.writeFieldReports = false;
     serverEventAccess.readVisits = false;
@@ -1480,9 +1480,9 @@ test("Go to... offers every record type, even ones the user can't read here", as
     // Another event might allow them, so the modal doesn't check.
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
     expect(goToModal().open).toBe(true);
-    expect(document.getElementById("goto-kind-incident")!.classList.contains("d-none")).toBe(false);
-    expect(document.getElementById("goto-kind-field-report")!.classList.contains("d-none")).toBe(false);
-    expect(document.getElementById("goto-kind-visit")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-resource-incident")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-resource-field-report")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-resource-visit")!.classList.contains("d-none")).toBe(false);
 });
 
 test("Go to... lists the events in reverse name order, and starts on the page's event", async (): Promise<void> => {

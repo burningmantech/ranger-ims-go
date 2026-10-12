@@ -129,7 +129,7 @@ test("Ctrl+K on the home page opens Go to... on the active event", async (): Pro
     pressCtrlK();
     expect((document.getElementById("goToModal") as HTMLDialogElement).open).toBe(true);
     expect((document.getElementById("goto-event") as HTMLSelectElement).value).toBe("2024");
-    expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("goto-resource-incident") as HTMLInputElement).checked).toBe(true);
 });
 
 test("with no active event, Go to... on the home page starts on the most recently created event", async (): Promise<void> => {
@@ -166,7 +166,7 @@ test("Go to... on the home page looks up and opens a record in the chosen event"
     const select = document.getElementById("goto-event") as HTMLSelectElement;
     select.value = "2024";
     select.dispatchEvent(new Event("change", { bubbles: true }));
-    const visitRadio = document.getElementById("goto-kind-visit") as HTMLInputElement;
+    const visitRadio = document.getElementById("goto-resource-visit") as HTMLInputElement;
     visitRadio.checked = true;
     visitRadio.dispatchEvent(new Event("change", { bubbles: true }));
     const input = document.getElementById("goto-number") as HTMLInputElement;

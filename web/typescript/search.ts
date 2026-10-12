@@ -19,7 +19,7 @@
 import * as ims from "./ims.ts";
 
 interface SearchResult {
-    kind: string;
+    resource: string;
     event: string;
     event_id: number;
     number: number;
@@ -35,14 +35,14 @@ interface SearchResults {
     truncated: boolean;
 }
 
-const kindIncident = "incident";
-const kindFieldReport = "field_report";
-const kindVisit = "visit";
+const resourceIncident = "incident";
+const resourceFieldReport = "field_report";
+const resourceVisit = "visit";
 
-const kindLabels: Record<string, string> = {
-    [kindIncident]: "Incident",
-    [kindFieldReport]: "Field Report",
-    [kindVisit]: "Visit",
+const resourceLabels: Record<string, string> = {
+    [resourceIncident]: "Incident",
+    [resourceFieldReport]: "Field Report",
+    [resourceVisit]: "Visit",
 };
 
 const minQueryLength = 2;
@@ -71,9 +71,9 @@ const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     searchButton: ims.typedElement("search_button", HTMLButtonElement),
     searchSpinner: ims.typedElement("search_spinner", HTMLSpanElement),
-    showKind: ims.typedElement("show_kind", HTMLButtonElement),
-    ulShowKind: ims.typedElement("ul_show_kind", HTMLUListElement),
-    showKindToggleAll: ims.typedElement("show_kind_toggle_all", HTMLButtonElement),
+    showResource: ims.typedElement("show_resource", HTMLButtonElement),
+    ulShowResource: ims.typedElement("ul_show_resource", HTMLUListElement),
+    showResourceToggleAll: ims.typedElement("show_resource_toggle_all", HTMLButtonElement),
     showEvent: ims.typedElement("show_event", HTMLButtonElement),
     ulShowEvent: ims.typedElement("ul_show_event", HTMLUListElement),
     showEventToggleAll: ims.typedElement("show_event_toggle_all", HTMLButtonElement),
@@ -193,7 +193,7 @@ function isChecked(item: Element): boolean {
     return item.classList.contains("dropdown-item-checked");
 }
 
-let kindMenu: CheckMenu;
+let resourceMenu: CheckMenu;
 let eventMenu: CheckMenu;
 
 initSearchPage();
@@ -220,7 +220,7 @@ async function initSearchPage(): Promise<void> {
     // Searches only run when asked for, since each one is a real load on the
     // server. Edits to the form just keep the shareable URL current and note
     // that the results on screen no longer match the form.
-    kindMenu = new CheckMenu(el.showKind, el.ulShowKind, el.showKindToggleAll, "Types", formChanged);
+    resourceMenu = new CheckMenu(el.showResource, el.ulShowResource, el.showResourceToggleAll, "Resources", formChanged);
     eventMenu = new CheckMenu(el.showEvent, el.ulShowEvent, el.showEventToggleAll, "Events", formChanged);
     el.searchInput.addEventListener("input", formChanged);
 
@@ -228,9 +228,9 @@ async function initSearchPage(): Promise<void> {
     // can be shared and reloaded.
     const fragmentParams = ims.windowFragmentParams();
     el.searchInput.value = fragmentParams.get("q")??"";
-    const kinds = fragmentParams.get("kinds");
-    if (kinds != null) {
-        kindMenu.select(kinds.split(","));
+    const resources = fragmentParams.get("resources");
+    if (resources != null) {
+        resourceMenu.select(resources.split(","));
     }
     const events = fragmentParams.getAll("event");
     if (events.length > 0) {
@@ -298,8 +298,8 @@ function replaceWindowState(): void {
     if (el.searchInput.value) {
         newParams.push(["q", el.searchInput.value]);
     }
-    if (!kindMenu.allSelected()) {
-        newParams.push(["kinds", kindMenu.values().join(",")]);
+    if (!resourceMenu.allSelected()) {
+        newParams.push(["resources", resourceMenu.values().join(",")]);
     }
     if (!eventMenu.allSelected()) {
         for (const event of eventMenu.values()) {
@@ -317,8 +317,8 @@ function currentQuery(): {params: string}|{problem: string} {
     // A query enclosed in slashes, like /ab?c/, is a regular expression.
     const isRegex = rawQuery.length > 2 && rawQuery.startsWith("/") && rawQuery.endsWith("/");
     const query = isRegex ? rawQuery.slice(1, -1) : rawQuery;
-    if (kindMenu.values().length === 0) {
-        return {problem: "Select at least one record type to search."};
+    if (resourceMenu.values().length === 0) {
+        return {problem: "Select at least one resource to search."};
     }
     // An empty Event menu (e.g. the Events failed to load) leaves the search
     // to cover whatever the server allows.
@@ -333,8 +333,8 @@ function currentQuery(): {params: string}|{problem: string} {
     if (isRegex) {
         params.set("regex", "true");
     }
-    if (!kindMenu.allSelected()) {
-        params.set("kinds", kindMenu.values().join(","));
+    if (!resourceMenu.allSelected()) {
+        params.set("resources", resourceMenu.values().join(","));
     }
     // With every Event selected, send none, which also covers any Event
     // created since the page loaded.
@@ -412,12 +412,12 @@ async function doSearch(): Promise<void> {
 }
 
 function resultURL(hit: SearchResult): string {
-    switch (hit.kind) {
-        case kindFieldReport:
+    switch (hit.resource) {
+        case resourceFieldReport:
             return url_viewFieldReportNumber
                 .replace("<event_id>", hit.event)
                 .replace("<number>", hit.number.toString());
-        case kindVisit:
+        case resourceVisit:
             return url_viewVisitNumber
                 .replace("<event_id>", hit.event)
                 .replace("<number>", hit.number.toString());
@@ -435,7 +435,7 @@ function renderResults(hits: SearchResult[]): void {
         const row = rowFrag.querySelector("tr")!;
 
         row.getElementsByClassName("result-event")[0]!.textContent = hit.event;
-        row.getElementsByClassName("result-kind")[0]!.textContent = kindLabels[hit.kind]??hit.kind;
+        row.getElementsByClassName("result-resource")[0]!.textContent = resourceLabels[hit.resource]??hit.resource;
 
         const link: HTMLAnchorElement = row.querySelector(".result-number a")!;
         link.href = resultURL(hit);

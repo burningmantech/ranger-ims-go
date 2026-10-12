@@ -73,16 +73,16 @@ templ Search(deployment, versionName, versionRef string) {
       </div>
       <div class="col-sm-6 no-print">
         <button
-                id="show_kind"
+                id="show_resource"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
                 data-bs-toggle="dropdown"
                 data-bs-auto-close="outside"
         >
-          All Types
+          All Resources
         </button>
-        <ul id="ul_show_kind" class="dropdown-menu">
-          <li data-menu-filter-keep><button type="button" id="show_kind_toggle_all" class="dropdown-item">Select/Deselect All</button></li>
+        <ul id="ul_show_resource" class="dropdown-menu">
+          <li data-menu-filter-keep><button type="button" id="show_resource_toggle_all" class="dropdown-item">Select/Deselect All</button></li>
           <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="incident">Incidents</button></li>
           <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="field_report">Field Reports</button></li>
           <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="visit">Visits</button></li>
@@ -115,7 +115,7 @@ templ Search(deployment, versionName, versionRef string) {
       <thead>
       <tr>
         <th scope="col">Event</th>
-        <th scope="col">Type</th>
+        <th scope="col">Resource</th>
         <th scope="col">#</th>
         <th scope="col">Created</th>
         <th scope="col">Summary</th>
@@ -127,7 +127,7 @@ templ Search(deployment, versionName, versionRef string) {
     <template id="search_result_row_template">
       <tr>
         <td class="result-event"></td>
-        <td class="result-kind"></td>
+        <td class="result-resource"></td>
         <td class="result-number"><a></a></td>
         <td class="result-created"></td>
         <td class="result-summary"></td>

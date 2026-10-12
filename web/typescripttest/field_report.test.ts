@@ -579,6 +579,6 @@ test("the Go to... modal opens on this page's Field Report type", async (): Prom
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
-    expect((document.getElementById("goto-kind-field-report") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("goto-resource-field-report") as HTMLInputElement).checked).toBe(true);
     expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("FR#");
 });

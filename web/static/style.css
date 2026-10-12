@@ -611,14 +611,14 @@ html:has(dialog:modal) {
   background-color: var(--bs-tertiary-bg);
 }
 
-.goto-kinds {
+.goto-resources {
   display: flex;
   padding: 2px;
   border: var(--bs-border-width) solid var(--bs-border-color);
   border-radius: var(--bs-border-radius);
 }
 
-.goto-kinds > label {
+.goto-resources > label {
   flex: 1;
   padding: 0.3rem 0.5rem;
   font-size: 0.9rem;
@@ -629,16 +629,16 @@ html:has(dialog:modal) {
   border-radius: calc(var(--bs-border-radius) - 2px);
 }
 
-.goto-kinds > label:hover {
+.goto-resources > label:hover {
   background-color: var(--bs-tertiary-bg);
 }
 
-.goto-kinds > .btn-check:checked + label {
+.goto-resources > .btn-check:checked + label {
   color: #fff;
   background-color: var(--bs-primary);
 }
 
-.goto-kinds > .btn-check:focus-visible + label {
+.goto-resources > .btn-check:focus-visible + label {
   outline: 2px solid var(--bs-focus-ring-color);
   outline-offset: 1px;
 }

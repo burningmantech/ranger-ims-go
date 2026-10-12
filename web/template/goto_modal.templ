@@ -24,16 +24,16 @@ templ GoToModal() {
       <select id="goto-event" class="form-select goto-event" aria-label="Event"></select>
       <button type="button" class="btn-close ms-auto" data-ims-close aria-label="Close" tabindex="-1" />
     </div>
-    <div id="goto-kind-group" class="goto-kinds" role="group" aria-label="Record type">
-      <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-incident"
+    <div id="goto-resource-group" class="goto-resources" role="group" aria-label="Resource">
+      <input type="radio" class="btn-check" name="goto-resource" id="goto-resource-incident"
              value="incident" autocomplete="off" checked />
-      <label for="goto-kind-incident">Incident</label>
-      <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-field-report"
+      <label for="goto-resource-incident">Incident</label>
+      <input type="radio" class="btn-check" name="goto-resource" id="goto-resource-field-report"
              value="field_report" autocomplete="off" />
-      <label for="goto-kind-field-report">Field report</label>
-      <input type="radio" class="btn-check" name="goto-kind" id="goto-kind-visit"
+      <label for="goto-resource-field-report">Field Report</label>
+      <input type="radio" class="btn-check" name="goto-resource" id="goto-resource-visit"
              value="visit" autocomplete="off" />
-      <label for="goto-kind-visit">Visit</label>
+      <label for="goto-resource-visit">Visit</label>
     </div>
     <label class="goto-number">
       <span class="goto-hash" aria-hidden="true">#</span>

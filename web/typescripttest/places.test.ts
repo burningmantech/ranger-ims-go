@@ -599,12 +599,12 @@ test("the Go to... modal defaults to Incident on the Places page, with a usable 
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
 
-    expect((document.getElementById("goto-kind-incident") as HTMLInputElement).checked).toBe(true);
+    expect((document.getElementById("goto-resource-incident") as HTMLInputElement).checked).toBe(true);
     expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("IMS#");
     // Places is read-only, but the Go to... box is navigation, not editing, so
     // disableEditing() must leave it enabled.
     expect((document.getElementById("goto-number") as HTMLInputElement).disabled).toBe(false);
-    // The other record types stay selectable.
-    expect(document.getElementById("goto-kind-field-report")!.classList.contains("d-none")).toBe(false);
-    expect(document.getElementById("goto-kind-visit")!.classList.contains("d-none")).toBe(false);
+    // The other resources stay selectable.
+    expect(document.getElementById("goto-resource-field-report")!.classList.contains("d-none")).toBe(false);
+    expect(document.getElementById("goto-resource-visit")!.classList.contains("d-none")).toBe(false);
 });

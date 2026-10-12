@@ -60,7 +60,7 @@ async function initSettingsPage(): Promise<void> {
     if (preferredRowsPerPage) {
         el.preferredRowsPerPage.value = preferredRowsPerPage;
     }
-    el.preferredTheme.value = window.imsThemeSetting();
+    el.preferredTheme.value = window.imsEffectiveTheme();
     el.keyboardShortcuts.checked = ims.keyboardShortcutsEnabled();
 
     // Keep the select in step with the navbar's theme dropdown.
@@ -104,7 +104,7 @@ async function setPreferredRowsPerPage(el: HTMLSelectElement): Promise<void> {
 
 async function setPreferredTheme(el: HTMLSelectElement): Promise<void> {
     const theme = el.value;
-    if (theme === "auto" || theme === "light" || theme === "dark") {
+    if (theme === "light" || theme === "dark") {
         window.imsSetThemeSetting(theme);
         ims.controlHasSuccess(el);
     }

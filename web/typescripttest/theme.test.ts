@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-// Tests for theme.ts against the theme dropdown markup that Nav (nav.templ)
+// Tests for theme.ts against the theme toggle markup that Nav (nav.templ)
 // renders into every page. The login fixture is used as a representative page.
 
 import { beforeEach, expect, test, vi } from "vitest";
@@ -48,23 +48,57 @@ test("a stored theme preference wins over the media query", async (): Promise<vo
     expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
 });
 
-test("clicking the Dark theme button switches and persists the theme", async (): Promise<void> => {
+test("with no stored theme the toggle shows the resolved system theme", async (): Promise<void> => {
     await runThemeScript();
 
-    const darkButton = document.querySelector<HTMLButtonElement>('[data-bs-theme-value="dark"]')!;
-    darkButton.click();
+    // happy-dom's matchMedia does not match (prefers-color-scheme: dark), so
+    // the unchosen default resolves to light.
+    const themeToggle = document.querySelector<HTMLButtonElement>("#bd-theme")!;
+    const activeIcon = themeToggle.querySelector("use") as SVGUseElement;
+    expect(activeIcon.href.baseVal).toBe("#sun-fill");
+    expect(themeToggle.ariaLabel).toBe("Toggle theme (light)");
+});
+
+test("a stored auto preference (from older versions) still follows the system theme", async (): Promise<void> => {
+    localStorage.setItem("theme", "auto");
+    await runThemeScript();
+    expect(document.documentElement.dataset["bsTheme"]).toBe("light");
+});
+
+test("clicking the theme toggle switches to dark and persists the choice", async (): Promise<void> => {
+    await runThemeScript();
+
+    const themeToggle = document.querySelector<HTMLButtonElement>("#bd-theme")!;
+
+    // Starting from the unchosen default (resolved to light), clicking
+    // switches to dark.
+    themeToggle.click();
 
     expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
     expect(localStorage.getItem("theme")).toBe("dark");
 
-    // The dropdown reflects the active choice (markup from nav.templ).
-    expect(darkButton.classList.contains("active")).toBe(true);
-    expect(darkButton.ariaPressed).toBe("true");
-    const autoButton = document.querySelector<HTMLButtonElement>('[data-bs-theme-value="auto"]')!;
-    expect(autoButton.classList.contains("active")).toBe(false);
-    expect(autoButton.ariaPressed).toBe("false");
-
-    // The navbar icon switches to the dark-theme icon.
-    const activeIcon = document.querySelector(".theme-icon-active use") as SVGUseElement;
+    // The toggle icon and label switch to the dark theme.
+    const activeIcon = themeToggle.querySelector("use") as SVGUseElement;
     expect(activeIcon.href.baseVal).toBe("#moon-stars-fill");
+    expect(themeToggle.ariaLabel).toBe("Toggle theme (dark)");
+
+    // Clicking again switches back to light.
+    themeToggle.click();
+    expect(document.documentElement.dataset["bsTheme"]).toBe("light");
+    expect(localStorage.getItem("theme")).toBe("light");
+    expect(activeIcon.href.baseVal).toBe("#sun-fill");
+});
+
+test("clicking the theme toggle from a stored dark theme switches to light", async (): Promise<void> => {
+    localStorage.setItem("theme", "dark");
+    await runThemeScript();
+
+    const themeToggle = document.querySelector<HTMLButtonElement>("#bd-theme")!;
+    themeToggle.click();
+
+    expect(document.documentElement.dataset["bsTheme"]).toBe("light");
+    expect(localStorage.getItem("theme")).toBe("light");
+
+    const activeIcon = themeToggle.querySelector("use") as SVGUseElement;
+    expect(activeIcon.href.baseVal).toBe("#sun-fill");
 });

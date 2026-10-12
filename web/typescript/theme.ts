@@ -19,30 +19,37 @@
 // This file is loaded as a classic script rather than a module, so it can't be
 // imported from. Pages that offer their own theme control (the settings page)
 // use these window functions, and listen for the "ims:themechange" event to
-// follow along when the theme is changed from the navbar dropdown.
+// follow along when the theme is changed from the navbar toggle.
 interface Window {
     imsThemeSetting: () => ThemeSetting;
+    imsEffectiveTheme: () => ResolvedTheme;
     imsSetThemeSetting: (theme: ThemeSetting) => void;
 }
 interface DocumentEventMap {
     "ims:themechange": CustomEvent<ThemeSetting>;
 }
 window.imsThemeSetting = themeSetting;
+window.imsEffectiveTheme = (): ResolvedTheme => effectiveTheme(themeSetting());
 window.imsSetThemeSetting = chooseTheme;
 
 // Set the theme immediately, before the rest of the page loads, so that there's
-// no flickering. We'll then come back later to applyTheme, which sets the navbar
-// dropdown icons.
+// no flickering. We'll then come back later to applyTheme, which sets the
+// navbar toggle's icon.
 setTheme(themeSetting());
 document.addEventListener("DOMContentLoaded", applyTheme);
 
 //
-// Apply the HTML theme, light or dark or default.
+// Apply the HTML theme, light or dark.
+//
+// People who haven't made an explicit choice get "auto", which follows the
+// system preference. Auto isn't offered as a choice in the theme controls;
+// it's just the state before someone picks Light or Dark.
 //
 // Adapted from https://getbootstrap.com/docs/5.3/customize/color-modes/#javascript
 // Under Creative Commons Attribution 3.0 Unported License
 
 type ThemeSetting = "auto"|"light"|"dark";
+type ResolvedTheme = Exclude<ThemeSetting, "auto">;
 
 function asThemeSetting(value: string|null|undefined): ThemeSetting|null {
     if (value === "auto" || value === "light" || value === "dark") {
@@ -53,49 +60,34 @@ function asThemeSetting(value: string|null|undefined): ThemeSetting|null {
 function themeSetting(): ThemeSetting {
     return asThemeSetting(localStorage.getItem("theme")) ?? "auto";
 }
-function setTheme(theme: ThemeSetting): void {
-    let resolved: string = theme;
-    if (theme === "auto") {
-        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+function effectiveTheme(setting: ThemeSetting): ResolvedTheme {
+    if (setting !== "auto") {
+        return setting;
     }
-    document.documentElement.dataset["bsTheme"] = resolved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
-function chooseTheme(theme: ThemeSetting, focus: boolean = false): void {
+function setTheme(theme: ThemeSetting): void {
+    document.documentElement.dataset["bsTheme"] = effectiveTheme(theme);
+}
+function chooseTheme(theme: ThemeSetting): void {
     localStorage.setItem("theme", theme);
     setTheme(theme);
-    showActiveTheme(theme, focus);
+    updateThemeToggle(theme);
     document.dispatchEvent(new CustomEvent("ims:themechange", {detail: theme}));
 }
-function showActiveTheme(theme: ThemeSetting, focus: boolean = false): void {
-    const themeSwitcher: HTMLButtonElement|null = document.querySelector("#bd-theme");
+function updateThemeToggle(theme: ThemeSetting): void {
+    const themeToggle: HTMLButtonElement|null = document.querySelector("#bd-theme");
 
-    if (!themeSwitcher) {
+    if (!themeToggle) {
         return;
     }
 
-    const themeSwitcherText = document.querySelector("#bd-theme-text")!;
-    const activeThemeIcon = document.querySelector(".theme-icon-active use") as SVGUseElement;
-    const btnToActive: HTMLButtonElement = document.querySelector(`[data-bs-theme-value="${theme}"]`)!;
-    const svgOfActiveBtn: string = (btnToActive.querySelector("svg use") as SVGUseElement).href.baseVal;
-
-    for (const val of document.querySelectorAll("[data-bs-theme-value]")) {
-        val.classList.remove("active");
-        val.ariaPressed = "false";
-    }
-
-    btnToActive.classList.add("active");
-    btnToActive.ariaPressed = "true";
-    if (svgOfActiveBtn) {
-        activeThemeIcon.href.baseVal = svgOfActiveBtn;
-    }
-    if (themeSwitcherText) {
-        // Set theme switcher label
-        themeSwitcher.ariaLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset["bsThemeValue"]})`;
-    }
-
-    if (focus) {
-        themeSwitcher.focus();
-    }
+    // The toggle shows the theme that's active, which for the unchosen default
+    // is the one the system preference resolves to.
+    const shown: ResolvedTheme = effectiveTheme(theme);
+    const activeThemeIcon = themeToggle.querySelector("use") as SVGUseElement;
+    activeThemeIcon.href.baseVal = shown === "dark" ? "#moon-stars-fill" : "#sun-fill";
+    themeToggle.ariaLabel = `Toggle theme (${shown})`;
 }
 function applyTheme(): void {
     setTheme(themeSetting());
@@ -103,20 +95,19 @@ function applyTheme(): void {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (): void => {
         if (themeSetting() === "auto") {
             setTheme("auto");
+            // Keep the toggle's icon and label on the resolved theme.
+            updateThemeToggle("auto");
         }
     });
 
-    showActiveTheme(themeSetting());
+    updateThemeToggle(themeSetting());
 
-    for (const togEl of document.querySelectorAll("[data-bs-theme-value]")) {
-        const toggle = togEl as HTMLElement;
-        toggle.addEventListener("click", function(_e: MouseEvent): void {
-            const theme = asThemeSetting(toggle.dataset["bsThemeValue"]);
-            if (theme) {
-                chooseTheme(theme, true);
-            }
-        });
-    }
+    // The toggle switches between the two themes. When there's no explicit
+    // choice stored yet, clicking makes one.
+    const themeToggle: HTMLButtonElement|null = document.querySelector("#bd-theme");
+    themeToggle?.addEventListener("click", (): void => {
+        chooseTheme(effectiveTheme(themeSetting()) === "dark" ? "light" : "dark");
+    });
 
     // Switch to light mode for printing, then switch back afterward.
     window.addEventListener("beforeprint", (_event: Event): void => {

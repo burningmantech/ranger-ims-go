@@ -105,10 +105,12 @@ test("the stored theme is reflected into the color scheme select on load", async
     expect(select("preferred_theme").value).toBe("dark");
 });
 
-test("with no stored theme the color scheme select shows auto", async (): Promise<void> => {
+test("with no stored theme the color scheme select shows the resolved system theme", async (): Promise<void> => {
     await initSettingsPage();
 
-    expect(select("preferred_theme").value).toBe("auto");
+    // happy-dom's matchMedia does not match (prefers-color-scheme: dark), so
+    // the unchosen default resolves to light.
+    expect(select("preferred_theme").value).toBe("light");
 });
 
 test("choosing a color scheme applies and persists it", async (): Promise<void> => {
@@ -122,15 +124,16 @@ test("choosing a color scheme applies and persists it", async (): Promise<void> 
     expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
 });
 
-test("the color scheme select follows the navbar theme dropdown", async (): Promise<void> => {
+test("the color scheme select follows the navbar theme toggle", async (): Promise<void> => {
     await initSettingsPage();
-    // applyTheme wires up the navbar dropdown on DOMContentLoaded, which has
+    // applyTheme wires up the navbar toggle on DOMContentLoaded, which has
     // already fired for this document.
     document.dispatchEvent(new Event("DOMContentLoaded", { bubbles: true }));
 
-    document.querySelector<HTMLButtonElement>('[data-bs-theme-value="light"]')!.click();
+    document.querySelector<HTMLButtonElement>("#bd-theme")!.click();
 
-    expect(select("preferred_theme").value).toBe("light");
+    // The unchosen default resolves to light, so clicking switches to dark.
+    expect(select("preferred_theme").value).toBe("dark");
 });
 
 test("the visits status and rows-per-page selects persist their valid values", async (): Promise<void> => {

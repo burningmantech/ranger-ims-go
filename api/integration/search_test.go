@@ -82,23 +82,23 @@ func TestSearchAcrossEvents(t *testing.T) {
 		GuestPreferredName: new("Guesty " + token),
 	})
 
-	// Alice finds all four records, across both events and all three kinds.
+	// Alice finds all four records, across both events and all three resources.
 	results, resp := aliceUser.search(ctx, url.Values{"q": []string{token}})
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	assert.Len(t, results.Hits, 4)
 	assert.False(t, results.Truncated)
 
-	byKind := make(map[string]imsjson.SearchResult)
+	byResource := make(map[string]imsjson.SearchResult)
 	for _, hit := range results.Hits {
-		byKind[hit.Kind] = hit
+		byResource[hit.Resource] = hit
 	}
 
 	// Both incidents came back; spot-check the one that matched via report
 	// entry text, which must carry a snippet showing the match.
 	var incidentHits []imsjson.SearchResult
 	for _, hit := range results.Hits {
-		if hit.Kind == imsjson.SearchResultKindIncident {
+		if hit.Resource == imsjson.SearchResultResourceIncident {
 			incidentHits = append(incidentHits, hit)
 		}
 	}
@@ -116,12 +116,12 @@ func TestSearchAcrossEvents(t *testing.T) {
 		}
 	}
 
-	frHit := byKind[imsjson.SearchResultKindFieldReport]
+	frHit := byResource[imsjson.SearchResultResourceFieldReport]
 	assert.Equal(t, eventB, frHit.Event)
 	assert.Equal(t, fieldReportNumber, frHit.Number)
 	assert.Contains(t, frHit.Snippet, token)
 
-	visitHit := byKind[imsjson.SearchResultKindVisit]
+	visitHit := byResource[imsjson.SearchResultResourceVisit]
 	assert.Equal(t, eventA, visitHit.Event)
 	assert.Equal(t, visitNumber, visitHit.Number)
 	assert.Equal(t, "Guesty "+token, visitHit.Summary)
@@ -136,16 +136,16 @@ func TestSearchAcrossEvents(t *testing.T) {
 		}
 	}
 
-	// The kinds filter restricts which record types are searched.
+	// The resources filter restricts which resources are searched.
 	results, resp = aliceUser.search(ctx, url.Values{
-		"q":     []string{token},
-		"kinds": []string{imsjson.SearchResultKindIncident},
+		"q":         []string{token},
+		"resources": []string{imsjson.SearchResultResourceIncident},
 	})
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	assert.Len(t, results.Hits, 2)
 	for _, hit := range results.Hits {
-		assert.Equal(t, imsjson.SearchResultKindIncident, hit.Kind)
+		assert.Equal(t, imsjson.SearchResultResourceIncident, hit.Resource)
 	}
 
 	// The event filter restricts which Events are searched.
@@ -180,9 +180,9 @@ func TestSearchAcrossEvents(t *testing.T) {
 
 	// A small limit truncates results and says so.
 	results, resp = aliceUser.search(ctx, url.Values{
-		"q":     []string{token},
-		"kinds": []string{imsjson.SearchResultKindIncident},
-		"limit": []string{"1"},
+		"q":         []string{token},
+		"resources": []string{imsjson.SearchResultResourceIncident},
+		"limit":     []string{"1"},
 	})
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -240,17 +240,17 @@ func TestSearchRegexp(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.Len(t, results.Hits, 2)
 	for _, hit := range results.Hits {
-		switch hit.Kind {
-		case imsjson.SearchResultKindIncident:
+		switch hit.Resource {
+		case imsjson.SearchResultResourceIncident:
 			assert.Equal(t, incidentNumber, hit.Number)
 			assert.Equal(t, "Lost bicycle "+token, hit.Summary)
-		case imsjson.SearchResultKindFieldReport:
+		case imsjson.SearchResultResourceFieldReport:
 			assert.Equal(t, fieldReportNumber, hit.Number)
 			// The snippet comes from the matched report entry, located by the
 			// regexp rather than by literal search.
 			assert.Contains(t, hit.Snippet, token)
 		default:
-			t.Fatalf("unexpected kind %v in hit", hit.Kind)
+			t.Fatalf("unexpected resource %v in hit", hit.Resource)
 		}
 	}
 
@@ -274,9 +274,9 @@ func TestSearchRegexp(t *testing.T) {
 
 	// Alternation matches too.
 	results, resp = aliceUser.search(ctx, url.Values{
-		"q":     []string{"(zebra|bicycle) " + token},
-		"regex": []string{"true"},
-		"kinds": []string{imsjson.SearchResultKindIncident},
+		"q":         []string{"(zebra|bicycle) " + token},
+		"regex":     []string{"true"},
+		"resources": []string{imsjson.SearchResultResourceIncident},
 	})
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -338,7 +338,7 @@ func TestSearchFieldReportAuthor(t *testing.T) {
 	// hits from this test's own Event.
 	hitsInEvent := func(query url.Values) []imsjson.SearchResult {
 		t.Helper()
-		query.Set("kinds", imsjson.SearchResultKindFieldReport)
+		query.Set("resources", imsjson.SearchResultResourceFieldReport)
 		query.Set("limit", "1000")
 		results, resp := aliceUser.search(ctx, query)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -449,8 +449,8 @@ func TestSearchBadRequests(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
-	// Invalid kind
-	_, resp = aliceUser.search(ctx, url.Values{"q": []string{"abcd"}, "kinds": []string{"sandwich"}})
+	// Invalid resource
+	_, resp = aliceUser.search(ctx, url.Values{"q": []string{"abcd"}, "resources": []string{"sandwich"}})
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 

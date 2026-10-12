@@ -19,27 +19,27 @@ package json
 import "time"
 
 const (
-	SearchResultKindIncident    = "incident"
-	SearchResultKindFieldReport = "field_report"
-	SearchResultKindVisit       = "visit"
+	SearchResultResourceIncident    = "incident"
+	SearchResultResourceFieldReport = "field_report"
+	SearchResultResourceVisit       = "visit"
 )
 
 type SearchResults struct {
 	Hits []SearchResult `json:"hits"`
-	// Truncated indicates that at least one kind of record had more matches
+	// Truncated indicates that at least one resource had more matches
 	// than the requested limit, so some matches were omitted.
 	Truncated bool `json:"truncated"`
 }
 
 // SearchResult is one hit from cross-event search: an Incident, a Field
-// Report, or a Visit, as indicated by Kind.
+// Report, or a Visit, as indicated by Resource.
 type SearchResult struct {
-	Kind    string    `json:"kind"`
-	Event   string    `json:"event"`
-	EventID int32     `json:"event_id"`
-	Number  int32     `json:"number"`
-	Created time.Time `json:"created,omitzero"`
-	Summary string    `json:"summary,omitempty"`
+	Resource string    `json:"resource"`
+	Event    string    `json:"event"`
+	EventID  int32     `json:"event_id"`
+	Number   int32     `json:"number"`
+	Created  time.Time `json:"created,omitzero"`
+	Summary  string    `json:"summary,omitempty"`
 	// Snippet is an excerpt of a report entry that matched the search query,
 	// when the hit has such an entry.
 	Snippet string `json:"snippet,omitempty"`

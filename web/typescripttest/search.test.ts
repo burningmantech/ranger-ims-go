@@ -48,7 +48,7 @@ beforeEach((): void => {
     serverResults = {
         hits: [
             {
-                kind: "incident",
+                resource: "incident",
                 event: "2025",
                 event_id: 2,
                 number: 15,
@@ -57,7 +57,7 @@ beforeEach((): void => {
                 summary: "Dusty bike crash",
             },
             {
-                kind: "field_report",
+                resource: "field_report",
                 event: "2024",
                 event_id: 1,
                 number: 3,
@@ -67,7 +67,7 @@ beforeEach((): void => {
                 incident: 7,
             },
             {
-                kind: "visit",
+                resource: "visit",
                 event: "2024",
                 event_id: 1,
                 number: 9,
@@ -173,7 +173,7 @@ test("pressing Search fetches results and renders one row per hit", async (): Pr
     // A plain query is a literal search, not a regexp one.
     expect(searchCalls[0]).not.toContain("regex=");
 
-    // The incident row shows its event, kind, and summary, and its number
+    // The incident row shows its event, resource, and summary, and its number
     // links to the incident page.
     const incidentRow = resultRows()[0]!;
     const cells = Array.from(incidentRow.cells).map((c) => c.textContent);
@@ -236,7 +236,7 @@ test("editing the form after a search notes that the results are out of date", a
         expect(resultsInfo()).toBe("3 results");
     });
 
-    menuItem("ul_show_kind", "Visits").click();
+    menuItem("ul_show_resource", "Visits").click();
     expect(resultsInfo()).toContain("press Search");
     // The stale results themselves stay put.
     expect(resultRows().length).toBe(3);
@@ -280,21 +280,21 @@ test("starting a search abandons the one still running", async (): Promise<void>
 });
 
 test("search parameters are restored from the URL fragment on load", async (): Promise<void> => {
-    window.history.replaceState(null, "", "/ims/app/search#q=dusty&kinds=incident");
+    window.history.replaceState(null, "", "/ims/app/search#q=dusty&resources=incident");
 
     const { searchCalls } = await initSearchPage();
 
     expect(searchInput().value).toBe("dusty");
-    expect(isChecked(menuItem("ul_show_kind", "Incidents"))).toBe(true);
-    expect(isChecked(menuItem("ul_show_kind", "Field Reports"))).toBe(false);
-    expect(isChecked(menuItem("ul_show_kind", "Visits"))).toBe(false);
-    expect(menuLabel("show_kind")).toBe("Incidents");
+    expect(isChecked(menuItem("ul_show_resource", "Incidents"))).toBe(true);
+    expect(isChecked(menuItem("ul_show_resource", "Field Reports"))).toBe(false);
+    expect(isChecked(menuItem("ul_show_resource", "Visits"))).toBe(false);
+    expect(menuLabel("show_resource")).toBe("Incidents");
 
     await vi.waitFor((): void => {
         expect(searchCalls.length).toBe(1);
     });
     expect(searchCalls[0]).toContain("q=dusty");
-    expect(searchCalls[0]).toContain("kinds=incident");
+    expect(searchCalls[0]).toContain("resources=incident");
 });
 
 test("a too-short query does not hit the server and prompts for more input", async (): Promise<void> => {
@@ -310,17 +310,17 @@ test("a too-short query does not hit the server and prompts for more input", asy
     expect(resultRows().length).toBe(0);
 });
 
-test("unchecking every record type prompts to select one instead of searching", async (): Promise<void> => {
+test("unchecking every resource prompts to select one instead of searching", async (): Promise<void> => {
     const { searchCalls } = await initSearchPage();
 
     searchInput().value = "dusty";
     // Select/Deselect All, with everything checked, deselects everything.
-    (document.getElementById("show_kind_toggle_all") as HTMLButtonElement).click();
-    expect(menuLabel("show_kind")).toBe("Types (0)");
+    (document.getElementById("show_resource_toggle_all") as HTMLButtonElement).click();
+    expect(menuLabel("show_resource")).toBe("Resources (0)");
     clickSearch();
 
     await vi.waitFor((): void => {
-        expect(resultsInfo()).toContain("at least one record type");
+        expect(resultsInfo()).toContain("at least one resource");
     });
     expect(searchCalls.length).toBe(0);
 });
@@ -383,21 +383,21 @@ test("truncated results include a warning in the results info line", async (): P
     });
 });
 
-test("the Type menu narrows which record types are searched", async (): Promise<void> => {
+test("the Resource menu narrows which resources are searched", async (): Promise<void> => {
     const { searchCalls } = await initSearchPage();
 
-    expect(menuLabel("show_kind")).toBe("All Types");
+    expect(menuLabel("show_resource")).toBe("All Resources");
 
-    menuItem("ul_show_kind", "Visits").click();
-    expect(menuLabel("show_kind")).toBe("Types (2)");
-    expect(window.location.hash).toContain("kinds=incident%2Cfield_report");
+    menuItem("ul_show_resource", "Visits").click();
+    expect(menuLabel("show_resource")).toBe("Resources (2)");
+    expect(window.location.hash).toContain("resources=incident%2Cfield_report");
 
     searchInput().value = "dusty";
     clickSearch();
     await vi.waitFor((): void => {
         expect(searchCalls.length).toBe(1);
     });
-    expect(searchCalls[0]).toContain("kinds=incident%2Cfield_report");
+    expect(searchCalls[0]).toContain("resources=incident%2Cfield_report");
 });
 
 test("the Event menu lists Events in reverse name order, without groups, all selected", async (): Promise<void> => {

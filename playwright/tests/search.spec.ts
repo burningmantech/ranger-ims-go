@@ -25,10 +25,10 @@ import {baseURL, expect, test} from "./fixtures";
 
 const seededEvent = "2026";
 
-function resultRow(page: Page, kind: string, num: number): Locator {
+function resultRow(page: Page, resource: string, num: number): Locator {
   return page.locator("#search_results_table tbody tr")
     .filter({has: page.locator(".result-event", {hasText: new RegExp(`^${seededEvent}$`)})})
-    .filter({has: page.locator(".result-kind", {hasText: new RegExp(`^${kind}$`)})})
+    .filter({has: page.locator(".result-resource", {hasText: new RegExp(`^${resource}$`)})})
     .filter({has: page.locator(".result-number", {hasText: new RegExp(`^${num}$`)})});
 }
 
@@ -72,13 +72,13 @@ test("finds a visit by guest name", async ({page}) => {
     .toHaveAttribute("href", `/ims/app/events/${seededEvent}/visits/1`);
 });
 
-test("runs the search from the URL fragment, with its type filter", async ({page}) => {
+test("runs the search from the URL fragment, with its resource filter", async ({page}) => {
   // "Something happened" is in report entries on both Incident 1 and Field
   // Report 1, but the fragment limits the search to Field Reports.
-  await page.goto(`${baseURL}/ims/app/search#q=Something+happened&kinds=field_report`);
+  await page.goto(`${baseURL}/ims/app/search#q=Something+happened&resources=field_report`);
 
   await expect(page.locator("#search_input")).toHaveValue("Something happened");
-  await expect(page.locator("#show_kind")).toHaveText("Field Reports");
+  await expect(page.locator("#show_resource")).toHaveText("Field Reports");
   await expect(resultRow(page, "Field Report", 1)).toBeVisible();
   await expect(resultRow(page, "Incident", 1)).toHaveCount(0);
 });

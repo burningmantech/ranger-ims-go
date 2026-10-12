@@ -2157,14 +2157,14 @@ export function blockKeyboardShortcutFieldActive(): boolean {
     return active instanceof HTMLElement && active.isContentEditable;
 }
 
-// The kinds of records the Go to... modal can jump to. Each kind numbers its
+// The resources the Go to... modal can jump to. Each resource numbers its
 // records independently, so the number alone is ambiguous and the modal has a
-// type selector to go with it.
-type GoToKind = "incident"|"field_report"|"visit";
+// resource selector to go with it.
+type GoToResource = "incident"|"field_report"|"visit";
 
-const goToKinds: GoToKind[] = ["incident", "field_report", "visit"];
+const goToResources: GoToResource[] = ["incident", "field_report", "visit"];
 
-const goToKindLabels: Record<GoToKind, string> = {
+const goToResourceLabels: Record<GoToResource, string> = {
     incident: "IMS",
     field_report: "FR",
     visit: "VS",
@@ -2200,7 +2200,7 @@ function setupHelpModal(): void {
 // Ctrl/Cmd+K opens a modal for going to an Incident, Field Report, or Visit by
 // event and number. Unlike the single-key shortcuts, it works while typing in a
 // field, and it ignores the Settings switch, since WCAG 2.1.4 doesn't cover
-// modified keys. It offers every record type in every event without checking
+// modified keys. It offers every resource in every event without checking
 // what the user may read there; a lookup they can't make says so instead.
 function setupGoTo(events: Promise<EventData[]|null>): void {
     const modalEl = document.getElementById("goToModal");
@@ -2212,10 +2212,10 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
     const preview = typedElement("goto-preview", HTMLElement);
     const modal = dialogModal(modalEl);
 
-    const kindRadios: Record<GoToKind, HTMLInputElement> = {
-        incident: typedElement("goto-kind-incident", HTMLInputElement),
-        field_report: typedElement("goto-kind-field-report", HTMLInputElement),
-        visit: typedElement("goto-kind-visit", HTMLInputElement),
+    const resourceRadios: Record<GoToResource, HTMLInputElement> = {
+        incident: typedElement("goto-resource-incident", HTMLInputElement),
+        field_report: typedElement("goto-resource-field-report", HTMLInputElement),
+        visit: typedElement("goto-resource-visit", HTMLInputElement),
     };
 
     // The event to start on when the page has none: the active one, else the
@@ -2264,9 +2264,9 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         return eventSelect.value || null;
     }
 
-    // The kind to select when the modal opens: the kind for the page you're on
+    // The resource to select when the modal opens: the resource for the page you're on
     // (a record page or its list page), else Incident.
-    function defaultKind(): GoToKind {
+    function defaultResource(): GoToResource {
         const path = window.location.pathname;
         if (path.startsWith(urlReplace(url_viewFieldReports))) {
             return "field_report";
@@ -2277,17 +2277,17 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         return "incident";
     }
 
-    function selectedKind(): GoToKind {
-        return goToKinds.find((kind: GoToKind): boolean => kindRadios[kind].checked) ?? defaultKind();
+    function selectedResource(): GoToResource {
+        return goToResources.find((resource: GoToResource): boolean => resourceRadios[resource].checked) ?? defaultResource();
     }
 
     // The number of the record the page is currently showing, for the given
-    // event and kind.
-    function currentNumber(event: string, kind: GoToKind): number|null {
+    // event and resource.
+    function currentNumber(event: string, resource: GoToResource): number|null {
         if (event !== pathIds.eventName) {
             return null;
         }
-        switch (kind) {
+        switch (resource) {
             case "field_report":
                 return pathIds.fieldReportNumber;
             case "visit":
@@ -2297,9 +2297,9 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         }
     }
 
-    // The API URL that resolves an event, kind, and number to a record.
-    function apiURL(event: string, kind: GoToKind, number: number): string {
-        switch (kind) {
+    // The API URL that resolves an event, resource, and number to a record.
+    function apiURL(event: string, resource: GoToResource, number: number): string {
+        switch (resource) {
             case "field_report":
                 return url_fieldReport.replace("<event_id>", encodeURIComponent(event)).replace("<field_report_number>", number.toString());
             case "visit":
@@ -2309,9 +2309,9 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         }
     }
 
-    // The app URL for viewing an event, kind, and number.
-    function viewURL(event: string, kind: GoToKind, number: number): string {
-        switch (kind) {
+    // The app URL for viewing an event, resource, and number.
+    function viewURL(event: string, resource: GoToResource, number: number): string {
+        switch (resource) {
             case "field_report":
                 return url_viewFieldReportNumber.replace("<event_id>", encodeURIComponent(event)).replace("<number>", number.toString());
             case "visit":
@@ -2321,9 +2321,9 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         }
     }
 
-    // The app URL for an event's list of a kind.
-    function listURL(event: string, kind: GoToKind): string {
-        switch (kind) {
+    // The app URL for an event's list of a resource.
+    function listURL(event: string, resource: GoToResource): string {
+        switch (resource) {
             case "field_report":
                 return url_viewFieldReports.replace("<event_id>", encodeURIComponent(event));
             case "visit":
@@ -2334,8 +2334,8 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
     }
 
     // A one-line description of a looked-up record.
-    function describe(kind: GoToKind, record: Incident|FieldReport|Visit): string {
-        switch (kind) {
+    function describe(resource: GoToResource, record: Incident|FieldReport|Visit): string {
+        switch (resource) {
             case "field_report":
                 return fieldReportAsString(record as FieldReport);
             case "visit":
@@ -2357,31 +2357,31 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         preview.classList.toggle("text-danger", isError);
     }
 
-    // Point the input at the given kind, adjusting its label.
-    function updateKindUI(kind: GoToKind): void {
-        kindRadios[kind].checked = true;
-        input.setAttribute("aria-label", `${goToKindLabels[kind]}#`);
+    // Point the input at the given resource, adjusting its label.
+    function updateResourceUI(resource: GoToResource): void {
+        resourceRadios[resource].checked = true;
+        input.setAttribute("aria-label", `${goToResourceLabels[resource]}#`);
     }
 
     // Resolves to the record, or to a message saying why there isn't one.
-    function lookUp(event: string, kind: GoToKind, number: number): Promise<Incident|FieldReport|Visit|string> {
-        const key = `${event}:${kind}:${number}`;
+    function lookUp(event: string, resource: GoToResource, number: number): Promise<Incident|FieldReport|Visit|string> {
+        const key = `${event}:${resource}:${number}`;
         if (lookup?.key !== key) {
-            const result = fetchNoThrow<Incident|FieldReport|Visit>(apiURL(event, kind, number), null).then(({resp, json, err}) => {
+            const result = fetchNoThrow<Incident|FieldReport|Visit>(apiURL(event, resource, number), null).then(({resp, json, err}) => {
                 if (resp?.status === 404) {
-                    return `No ${goToKindLabels[kind]} #${number}`;
+                    return `No ${goToResourceLabels[resource]} #${number}`;
                 }
                 // E.g. someone who may only read their own Field Reports asking
                 // for someone else's.
                 if (resp?.status === 403) {
-                    return `You don't have access to ${goToKindLabels[kind]} #${number}`;
+                    return `You don't have access to ${goToResourceLabels[resource]} #${number}`;
                 }
                 if (err != null || json == null) {
                     // Don't hold on to a failure that retrying might fix.
                     if (lookup?.result === result) {
                         lookup = null;
                     }
-                    return `Couldn't look up ${goToKindLabels[kind]} #${number}: ${err}`;
+                    return `Couldn't look up ${goToResourceLabels[resource]} #${number}: ${err}`;
                 }
                 return json;
             });
@@ -2392,7 +2392,7 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
 
     async function updatePreview(): Promise<void> {
         const event = selectedEvent();
-        const kind = selectedKind();
+        const resource = selectedResource();
         const number = enteredNumber();
         if (event == null) {
             showPreview("", false);
@@ -2400,32 +2400,32 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         }
         if (number == null) {
             const typed = input.value.trim() !== "";
-            const label = goToKindLabels[kind];
+            const label = goToResourceLabels[resource];
             const article = /^[AEIOU]/.test(label) ? "an" : "a";
             showPreview(typed ? `Enter ${article} ${label} number` : "", typed);
             return;
         }
-        const result = await lookUp(event, kind, number);
+        const result = await lookUp(event, resource, number);
         // A slow response for an earlier selection mustn't replace the current
         // one's preview.
-        if (selectedEvent() !== event || selectedKind() !== kind || enteredNumber() !== number) {
+        if (selectedEvent() !== event || selectedResource() !== resource || enteredNumber() !== number) {
             return;
         }
         if (typeof result === "string") {
             showPreview(result, true);
         } else {
-            showPreview(describe(kind, result), false);
+            showPreview(describe(resource, result), false);
         }
     }
 
     async function go(newTab: boolean): Promise<void> {
         clearTimeout(debounce);
         const event = selectedEvent();
-        const kind = selectedKind();
+        const resource = selectedResource();
         const number = enteredNumber();
-        // With no number, go to the list of that kind instead.
+        // With no number, go to the list of that resource instead.
         if (event != null && input.value.trim() === "") {
-            const url = listURL(event, kind);
+            const url = listURL(event, resource);
             if (url === window.location.pathname && !newTab) {
                 modal.hide();
                 return;
@@ -2437,16 +2437,16 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
             await updatePreview();
             return;
         }
-        if (number === currentNumber(event, kind) && !newTab) {
+        if (number === currentNumber(event, resource) && !newTab) {
             modal.hide();
             return;
         }
-        const result = await lookUp(event, kind, number);
+        const result = await lookUp(event, resource, number);
         if (typeof result === "string") {
             showPreview(result, true);
             return;
         }
-        navigate(viewURL(event, kind, number), newTab);
+        navigate(viewURL(event, resource, number), newTab);
     }
 
     function navigate(url: string, newTab: boolean): void {
@@ -2475,7 +2475,7 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         lookup = null;
         eventSelect.value = event;
         input.value = "";
-        updateKindUI(defaultKind());
+        updateResourceUI(defaultResource());
         showPreview("", false);
         modal.show();
         input.focus();
@@ -2485,12 +2485,12 @@ function setupGoTo(events: Promise<EventData[]|null>): void {
         clearTimeout(debounce);
         void updatePreview();
     });
-    for (const kind of goToKinds) {
-        kindRadios[kind].addEventListener("change", (): void => {
-            if (!kindRadios[kind].checked) {
+    for (const resource of goToResources) {
+        resourceRadios[resource].addEventListener("change", (): void => {
+            if (!resourceRadios[resource].checked) {
                 return;
             }
-            updateKindUI(kind);
+            updateResourceUI(resource);
             clearTimeout(debounce);
             void updatePreview();
         });

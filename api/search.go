@@ -62,14 +62,14 @@ const (
 	searchDefaultLimit  = 200
 	searchMaxLimit      = 1000
 	// searchQueryTimeout is absurdly long, because sometimes cold search queries in AWS take over 20 seconds.
-	searchQueryTimeout   = 50 * time.Second
-	searchSlowThreshold  = 2 * time.Second
-	searchSnippetPrefix  = 40
-	searchSnippetMaxLen  = 200
-	searchSnippetMarker  = "..."
-	searchAllResultKinds = imsjson.SearchResultKindIncident + "," +
-		imsjson.SearchResultKindFieldReport + "," +
-		imsjson.SearchResultKindVisit
+	searchQueryTimeout  = 50 * time.Second
+	searchSlowThreshold = 2 * time.Second
+	searchSnippetPrefix = 40
+	searchSnippetMaxLen = 200
+	searchSnippetMarker = "..."
+	searchAllResources  = imsjson.SearchResultResourceIncident + "," +
+		imsjson.SearchResultResourceFieldReport + "," +
+		imsjson.SearchResultResourceVisit
 )
 
 func (action GetSearch) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -108,21 +108,21 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		}
 	}
 
-	kinds := req.Form.Get("kinds")
-	if kinds == "" {
-		kinds = searchAllResultKinds
+	resources := req.Form.Get("resources")
+	if resources == "" {
+		resources = searchAllResources
 	}
 	var searchIncidents, searchFieldReports, searchVisits bool
-	for kind := range strings.SplitSeq(kinds, ",") {
-		switch strings.TrimSpace(kind) {
-		case imsjson.SearchResultKindIncident:
+	for resource := range strings.SplitSeq(resources, ",") {
+		switch strings.TrimSpace(resource) {
+		case imsjson.SearchResultResourceIncident:
 			searchIncidents = true
-		case imsjson.SearchResultKindFieldReport:
+		case imsjson.SearchResultResourceFieldReport:
 			searchFieldReports = true
-		case imsjson.SearchResultKindVisit:
+		case imsjson.SearchResultResourceVisit:
 			searchVisits = true
 		default:
-			return resp, herr.BadRequest("The 'kinds' parameter must be a comma-separated subset of "+searchAllResultKinds, nil)
+			return resp, herr.BadRequest("The 'resources' parameter must be a comma-separated subset of "+searchAllResources, nil)
 		}
 	}
 
@@ -239,7 +239,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		}
 		for _, row := range rows {
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
-				Kind:     imsjson.SearchResultKindIncident,
+				Resource: imsjson.SearchResultResourceIncident,
 				Event:    row.EventName,
 				EventID:  row.Event,
 				Number:   row.Number,
@@ -266,7 +266,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		}
 		for _, row := range rows {
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
-				Kind:     imsjson.SearchResultKindFieldReport,
+				Resource: imsjson.SearchResultResourceFieldReport,
 				Event:    row.EventName,
 				EventID:  row.Event,
 				Number:   row.Number,
@@ -297,7 +297,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 				summary = row.GuestLegalName.String
 			}
 			resp.Hits = append(resp.Hits, imsjson.SearchResult{
-				Kind:     imsjson.SearchResultKindVisit,
+				Resource: imsjson.SearchResultResourceVisit,
 				Event:    row.EventName,
 				EventID:  row.Event,
 				Number:   row.Number,
@@ -312,7 +312,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 
 	// Newest first, by the same (Event, Number) ordering the Search* queries
 	// use to pick their rows, so that what the client sees is ordered the same
-	// way the results were selected. Ties between the three kinds keep the
+	// way the results were selected. Ties between the three resources keep the
 	// order they were appended in, since the sort is stable.
 	slices.SortStableFunc(resp.Hits, func(a, b imsjson.SearchResult) int {
 		return cmp.Or(

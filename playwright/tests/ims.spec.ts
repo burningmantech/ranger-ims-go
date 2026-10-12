@@ -203,16 +203,16 @@ test.describe("logged out", (): void => {
 test("themes", async ({ page }) => {
   await page.goto("http://localhost:8080/ims/app/");
 
+  // The toggle starts on light (Playwright's browsers report a light
+  // prefers-color-scheme), so the first click switches to dark.
   await maybeOpenNav(page);
-  await page.getByTitle("Color scheme").getByRole("button").click();
-  await page.getByRole("button", { name: "Dark" }).click();
+  await page.getByTitle("Color scheme").click();
   expect(await page.locator("html").getAttribute("data-bs-theme")).toEqual("dark");
 
   await page.reload();
   expect(await page.locator("html").getAttribute("data-bs-theme")).toEqual("dark");
   await maybeOpenNav(page);
-  await page.getByTitle("Color scheme").getByRole("button").click();
-  await page.getByRole("button", { name: "Light" }).click();
+  await page.getByTitle("Color scheme").click();
   expect(await page.locator("html").getAttribute("data-bs-theme")).toEqual("light");
 
   await page.reload();

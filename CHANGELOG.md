@@ -20,6 +20,12 @@ This page accounts for changes up until:
 https://github.com/burningmantech/ranger-ims-go/commit/ea01f62
 -->
 
+## 2026-10
+
+### Changed
+
+- Replaced the top bar's color scheme dropdown with a single button that toggles between the light and dark themes, and dropped the Auto option from the color scheme controls. IMS follows the device's light/dark setting until an explicit Light or Dark choice is made.
+
 ## 2026-09
 
 ### Changed

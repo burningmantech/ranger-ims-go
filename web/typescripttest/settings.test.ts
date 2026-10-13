@@ -190,3 +190,60 @@ test("? reopens the help dialog while focus lingers on its Close button", async 
     pressKey(closeButton, "?");
     expect(helpModal().open).toBe(true);
 });
+
+test("choosing the default visits status and rows per page clears those stored preferences", async (): Promise<void> => {
+    localStorage.setItem("preferred_visits_status", "all");
+    localStorage.setItem("preferred_table_rows_per_page", "100");
+    await initSettingsPage();
+
+    const visitsSelect = select("preferred_visits_status");
+    visitsSelect.value = "none";
+    change(visitsSelect);
+    expect(localStorage.getItem("preferred_visits_status")).toBeNull();
+
+    const rowsSelect = select("preferred_rows_per_page");
+    rowsSelect.value = "none";
+    change(rowsSelect);
+    expect(localStorage.getItem("preferred_table_rows_per_page")).toBeNull();
+});
+
+test("the single-key shortcuts checkbox turns them off and on, and says so", async (): Promise<void> => {
+    await initSettingsPage();
+    const checkbox = document.getElementById("keyboard_shortcuts") as HTMLInputElement;
+    const announced = (): string => document.getElementById("aria_live")!.textContent ?? "";
+    expect(checkbox.checked).toBe(true);
+
+    checkbox.checked = false;
+    change(checkbox);
+    expect(localStorage.getItem("keyboard_shortcuts_enabled")).toBe("false");
+    await vi.waitFor((): void => {
+        expect(announced()).toBe("Single-key shortcuts off");
+    });
+
+    checkbox.checked = true;
+    change(checkbox);
+    expect(localStorage.getItem("keyboard_shortcuts_enabled")).toBeNull();
+    await vi.waitFor((): void => {
+        expect(announced()).toBe("Single-key shortcuts on");
+    });
+});
+
+test("an unauthenticated visitor is sent to the login page", async (): Promise<void> => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockFetch((url) => {
+        if (url === url_auth) {
+            return jsonResponse({ authenticated: false });
+        }
+        if (url === url_events || url === url_logout) {
+            return jsonResponse([]);
+        }
+        return undefined;
+    });
+    // @ts-expect-error TS2306: theme.ts is intentionally not a module.
+    await import("../typescript/theme.ts");
+    await import("../typescript/settings.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
+});

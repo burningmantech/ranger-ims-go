@@ -20,7 +20,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem } from "./helpers.ts";
+import { createdRow, jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/sanctuary_visits.ts");
 
@@ -293,4 +293,63 @@ test("the Go to... modal opens on the Visits list page's type", async (): Promis
 
     expect((document.getElementById("goto-resource-visit") as HTMLInputElement).checked).toBe(true);
     expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("VS#");
+});
+
+test("an unauthenticated visitor is sent to the login page", async (): Promise<void> => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockFetch((url, init) => {
+        if (url === `/ims/api/auth?event_id=${eventName}`) {
+            return jsonResponse({ authenticated: false });
+        }
+        if (url === url_logout) {
+            return new Response(null, { status: 204 });
+        }
+        return visitRoutes(url, init);
+    });
+    await import("../typescript/sanctuary_visits.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
+});
+
+test("a failure to load the table is shown", async (): Promise<void> => {
+    await initVisitsPage((url, init) => url === visitsUrl ? problemResponse("database is down", 500) : visitRoutes(url, init));
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Failed to load table: database is down (HTTP 500)");
+    });
+});
+
+test("clicking a row opens it, in a new tab with a modifier key or the middle button", async (): Promise<void> => {
+    await initVisitsPage();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const rowUrl = `/ims/app/events/${eventName}/visits/2`;
+    const row = createdRow({ number: 2 });
+
+    row.dispatchEvent(new MouseEvent("click", { ctrlKey: true }));
+    expect(open).toHaveBeenLastCalledWith(rowUrl);
+    row.dispatchEvent(new MouseEvent("auxclick", { button: 1 }));
+    expect(open).toHaveBeenCalledTimes(2);
+    // A right click is left for the context menu.
+    row.dispatchEvent(new MouseEvent("auxclick", { button: 2 }));
+    expect(open).toHaveBeenCalledTimes(2);
+
+    // A click on a link inside the row is left to the link.
+    const link = document.createElement("a");
+    row.firstElementChild!.append(link);
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    expect(open).toHaveBeenCalledTimes(2);
+
+    row.dispatchEvent(new MouseEvent("click"));
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(window.location.pathname).toBe(rowUrl);
+});
+
+test("a search in the URL fragment is run when the page loads", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits#q=wallet`);
+    await initVisitsPage();
+
+    expect((document.getElementById("search_input") as HTMLInputElement).value).toBe("wallet");
+    expect(MockDataTable.lastInstance!.lastSearch![0]).toBe("wallet");
 });

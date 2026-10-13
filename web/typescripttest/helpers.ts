@@ -337,6 +337,16 @@ interface DataTableOptions {
     createdRow?: (row: HTMLElement, data: any, index: number) => void;
 }
 
+// Build a table row the way DataTables would, passing it through the page's
+// createdRow hook, so that a test can click on it.
+export function createdRow(data: unknown): HTMLTableRowElement {
+    const row = document.createElement("tr");
+    row.append(document.createElement("td"));
+    document.body.append(row);
+    MockDataTable.lastInstance!.options.createdRow!(row, data, 0);
+    return row;
+}
+
 // A minimal stand-in for the DataTables grid that the list pages (incidents,
 // field_reports, sanctuary_visits, places) construct as a classic-script
 // dependency. It captures the options the page passes, runs the ajax data

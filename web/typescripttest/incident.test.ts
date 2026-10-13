@@ -1668,3 +1668,485 @@ test("a broadcast for an unattached field report doesn't fetch it in full", asyn
     expect(requestsMatching(mock, /\/field_reports\/8$/)).toEqual([]);
     channel.close();
 });
+
+function errorText(): string {
+    return document.getElementById("error_text")!.textContent ?? "";
+}
+
+// Routes for a page opened on incidents/new, whose first edit creates #42.
+function newIncidentRoutes(url: string, init?: RequestInit): Response | undefined {
+    if (url.startsWith(`/ims/api/events/${eventName}/incidents/42/rangers/`)) {
+        return new Response(null, { status: 204 });
+    }
+    if (url === `/ims/api/events/${eventName}/incidents/42/attachments`) {
+        return new Response(null, { status: 200 });
+    }
+    return incidentRoutes(url, init);
+}
+
+// Routes for a page opened on incidents/new, where creating the incident fails.
+function failedCreateRoutes(url: string, init?: RequestInit): Response | undefined {
+    if (url === `/ims/api/events/${eventName}/incidents` && init?.body != null) {
+        return problemResponse("can't create", 500);
+    }
+    return incidentRoutes(url, init);
+}
+
+test("an unauthenticated visitor is sent to the login page", async (): Promise<void> => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockFetch((url, init) => {
+        if (url === `/ims/api/auth?event_id=${eventName}`) {
+            return jsonResponse({ authenticated: false });
+        }
+        if (url === url_logout) {
+            return new Response(null, { status: 204 });
+        }
+        return incidentRoutes(url, init);
+    });
+    await import("../typescript/incident.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
+});
+
+test("an incident that fails to load shows the error, and the page stays read-only", async (): Promise<void> => {
+    vi.spyOn(console, "error").mockImplementation((): void => {});
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    mockFetch((url, init) => url === `/ims/api/events/${eventName}/incidents/1` && init?.body == null
+        ? problemResponse("no such incident", 404)
+        : incidentRoutes(url, init));
+    await import("../typescript/incident.ts");
+
+    await vi.waitFor((): void => {
+        expect(errorText()).toContain("Incident failed to load");
+    });
+    expect((document.getElementById("incident_summary") as HTMLInputElement).disabled).toBe(true);
+});
+
+test("a personnel load failure leaves the roster as bare handles", async (): Promise<void> => {
+    serverIncident.rangers = [{ handle: "Tool" }, { role: "no handle" }, { handle: "Hot Slots" }];
+    await initIncidentPage((url, init) => url === `/ims/api/personnel?event_id=${eventName}`
+        ? problemResponse("directory down", 503)
+        : incidentRoutes(url, init));
+
+    const items = [...document.querySelectorAll<HTMLElement>("#incident_rangers_list li")];
+    expect(items.map(li => li.dataset["rangerHandle"])).toEqual(["Hot Slots", "Tool"]);
+    expect(items.map(li => li.querySelector("span")!.textContent)).toEqual(["Hot Slots", "Tool"]);
+    expect(items[0]!.querySelector("a")).toBeNull();
+});
+
+test("failures to load the field reports, visits, and places are logged", async (): Promise<void> => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation((): void => {});
+    await initIncidentPage((url, init) => {
+        if (init?.body == null && (
+            url === `/ims/api/events/${eventName}/field_reports` ||
+            url === `/ims/api/events/${eventName}/visits` ||
+            url === `/ims/api/events/${eventName}/places?exclude_external_data=true`)) {
+            return problemResponse("database on fire", 500);
+        }
+        return incidentRoutes(url, init);
+    });
+
+    expect(consoleError).toHaveBeenCalledWith("Failed to load field reports: database on fire (HTTP 500)");
+    expect(consoleError).toHaveBeenCalledWith("Failed to load visits: database on fire (HTTP 500)");
+    expect(consoleError).toHaveBeenCalledWith("Failed to load places: database on fire (HTTP 500)");
+    expect(document.querySelectorAll("#attached_field_reports li[data-fr-number], #attached_field_reports li[data-visit-number]").length).toBe(0);
+});
+
+test("an attached visit that fails to load is left off the list", async (): Promise<void> => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation((): void => {});
+    await initIncidentPage((url, init) => url === `/ims/api/events/${eventName}/visits/2` && init?.body == null
+        ? problemResponse("gone", 500)
+        : incidentRoutes(url, init));
+
+    expect(consoleError).toHaveBeenCalledWith("Failed to load attached visit 2: gone (HTTP 500)");
+    expect(document.querySelector('#attached_field_reports li[data-visit-number="2"]')).toBeNull();
+    expect(document.querySelector('#attached_field_reports li[data-fr-number="7"]')).not.toBeNull();
+});
+
+test("leaving with an unsent report entry asks the browser to confirm", async (): Promise<void> => {
+    await initIncidentPage();
+
+    const clean = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(clean);
+    expect(clean.defaultPrevented).toBe(false);
+
+    (document.getElementById("report_entry_add") as HTMLTextAreaElement).value = "half a thought";
+    const dirty = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(dirty);
+    expect(dirty.defaultPrevented).toBe(true);
+});
+
+test("the n shortcut opens a new incident in another tab", async (): Promise<void> => {
+    await initIncidentPage();
+    const opened = { focus: vi.fn() };
+    const open = vi.spyOn(window, "open").mockReturnValue(opened as unknown as Window);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "n", bubbles: true }));
+
+    expect(open).toHaveBeenCalledWith("./new", "_blank");
+    expect(opened.focus).toHaveBeenCalled();
+});
+
+test("the incident type info link opens the type descriptions", async (): Promise<void> => {
+    await initIncidentPage();
+
+    const link = document.getElementById("show-incident-type-info")!;
+    const click = new MouseEvent("click", { cancelable: true });
+    link.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect((document.getElementById("incidentTypeInfoModal") as HTMLDialogElement).open).toBe(true);
+    expect(document.getElementById("incident-type-info")!.textContent).toContain("A lost child");
+});
+
+test("linked incidents are sorted by event, then by number", async (): Promise<void> => {
+    serverIncident.linked_incidents = [
+        { event_id: eventId, event_name: eventName, number: 9 },
+        { event_id: 2, event_name: "2015", number: 4 },
+        { event_id: eventId, event_name: eventName, number: 3 },
+    ];
+    await initIncidentPage();
+
+    const linked = [...document.querySelectorAll<HTMLElement>("#linked_incidents [data-incident-number]")]
+        .map(li => `${li.dataset["eventName"]}#${li.dataset["incidentNumber"]}`);
+    expect(linked).toEqual(["2015#4", "2025#3", "2025#9"]);
+});
+
+test("choosing a mutant vehicle place gives its name an MV suffix", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    const option = document.querySelector<HTMLOptionElement>('option[data-type="MV"]')!;
+    const name = document.getElementById("incident_location_name") as HTMLInputElement;
+    name.value = option.value;
+    await page.editLocationName();
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+        { location: { name: "Disco Bus (MV)" }, number: 1 },
+    ]);
+});
+
+test("a failed place choice marks the location name field", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url === "/ims/api/events/2025/incidents/1" && init?.body != null
+        ? problemResponse("nope", 500)
+        : incidentRoutes(url, init));
+
+    const name = document.getElementById("incident_location_name") as HTMLInputElement;
+    name.value = "Camp Friendly (5:00 & C)";
+    await page.editLocationName();
+
+    expect(name.classList.contains("is-invalid")).toBe(true);
+    expect(errorText()).toContain("Failed to apply edit");
+});
+
+test("editing the location description posts it", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    const description = document.getElementById("incident_location_description") as HTMLTextAreaElement;
+    description.value = "near the porta-potties";
+    change(description);
+
+    await vi.waitFor((): void => {
+        expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+            { location: { description: "near the porta-potties" }, number: 1 },
+        ]);
+    });
+});
+
+test("re-picking the started time already stored sends nothing", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+
+    const fp = MockFlatpickr.instances.find((f: MockFlatpickr): boolean => f.input.id === "started_datetime")!;
+    fp.setDate(new Date("2025-08-25T10:00:00Z"), true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);
+});
+
+//
+// Rangers, types, and links: failures and stray controls
+//
+
+test("a failed Ranger addition marks the add field and re-enables it", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url.startsWith("/ims/api/events/2025/incidents/1/rangers/") && init?.body != null
+        ? problemResponse("nope", 500)
+        : incidentRoutes(url, init));
+
+    const rangerAdd = document.getElementById("ranger_add") as HTMLInputElement;
+    rangerAdd.value = "Tulsa";
+    await page.addRanger();
+
+    expect(rangerAdd.classList.contains("is-invalid")).toBe(true);
+    expect(rangerAdd.disabled).toBe(false);
+    expect(rangerAdd.value).toBe("");
+});
+
+test("a failed role edit marks the role field", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url.startsWith("/ims/api/events/2025/incidents/1/rangers/") && init?.body != null
+        ? problemResponse("nope", 500)
+        : incidentRoutes(url, init));
+
+    const roleInput = document.querySelector<HTMLInputElement>('#incident_rangers_list li[data-ranger-handle="Tool"] input')!;
+    roleInput.value = "medic";
+    await page.setRangerRole(roleInput);
+
+    expect(roleInput.classList.contains("is-invalid")).toBe(true);
+});
+
+test("Ranger, type, and link controls outside any row send nothing", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    const mock = await initIncidentPage();
+    mock.mockClear();
+
+    const wrapper = document.createElement("div");
+    const button = document.createElement("button");
+    wrapper.append(button);
+    document.body.append(wrapper);
+    await page.removeRanger(button);
+    await page.removeIncidentType(button);
+    await page.unlinkIncident(button);
+    const input = document.createElement("input");
+    wrapper.append(input);
+    await page.setRangerRole(input);
+
+    expect(mock.mock.calls).toEqual([]);
+});
+
+test("a failed type removal reloads the incident and shows the error", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url.includes("/incident_types/") && init?.method === "DELETE"
+        ? problemResponse("type is stuck", 500)
+        : incidentRoutes(url, init));
+
+    const junkLi = document.querySelector<HTMLLIElement>('#incident_types_list li[data-incident-type-id="1"]')!;
+    await page.removeIncidentType(junkLi.querySelector("button")!);
+
+    expect(errorText()).toContain("Failed to remove incident type: type is stuck (HTTP 500)");
+    expect(document.querySelector('#incident_types_list li[data-incident-type-id="1"]')).not.toBeNull();
+});
+
+test("a failed type addition shows the error and marks the add field", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url.includes("/incident_types/") && init?.body != null
+        ? problemResponse("type refused", 500)
+        : incidentRoutes(url, init));
+
+    const typeAdd = document.getElementById("incident_type_add") as HTMLInputElement;
+    typeAdd.value = "Lost Child";
+    await page.addIncidentType();
+
+    expect(errorText()).toContain("Failed to add incident type: type refused (HTTP 500)");
+    expect(typeAdd.classList.contains("is-invalid")).toBe(true);
+    expect(typeAdd.value).toBe("");
+    expect(typeAdd.disabled).toBe(false);
+});
+
+test("a failed link shows the error and marks the link field", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url.includes("/linked_incidents/") && init?.body != null
+        ? problemResponse("link refused", 500)
+        : incidentRoutes(url, init));
+
+    const input = document.getElementById("linked_incident_add") as HTMLInputElement;
+    input.value = "2015#2";
+    await page.linkIncident(input);
+
+    expect(errorText()).toContain("Failed to link incident: link refused (HTTP 500)");
+    expect(input.classList.contains("is-invalid")).toBe(true);
+    expect(input.value).toBe("");
+});
+
+test("a failed unlink shows the error and keeps the link", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url.includes("/linked_incidents/") && init?.method === "DELETE"
+        ? problemResponse("unlink refused", 500)
+        : incidentRoutes(url, init));
+
+    const linkedLi = document.querySelector<HTMLElement>('#linked_incidents [data-incident-number="5"]')!;
+    await page.unlinkIncident(linkedLi.querySelector("button")!);
+
+    expect(errorText()).toContain("Failed to unlink incident: unlink refused (HTTP 500)");
+    expect(document.querySelector('#linked_incidents [data-incident-number="5"]')).not.toBeNull();
+});
+
+test("a failed field report attachment shows the error and marks the dropdown", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    await initIncidentPage((url, init) => url.startsWith("/ims/api/events/2025/field_reports/8?action=attach")
+        ? problemResponse("attach refused", 500)
+        : incidentRoutes(url, init));
+
+    const select = document.getElementById("attached_field_report_add") as HTMLSelectElement;
+    select.value = "FR#8";
+    await page.attachFieldReport();
+
+    expect(errorText()).toContain("Failed to attach: attach refused (HTTP 500)");
+    expect(select.classList.contains("is-invalid")).toBe(true);
+});
+
+test("a failed field report detachment shows the error", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    await initIncidentPage((url, init) => url.startsWith("/ims/api/events/2025/field_reports/7?action=detach")
+        ? problemResponse("detach refused", 500)
+        : incidentRoutes(url, init));
+
+    const frLi = document.querySelector<HTMLLIElement>('#attached_field_reports li[data-fr-number="7"]')!;
+    await page.detachFieldReport(frLi.querySelector("button")!);
+
+    expect(errorText()).toContain("Failed to detach field report detach refused (HTTP 500)");
+    expect(document.querySelector('#attached_field_reports li[data-fr-number="7"]')).not.toBeNull();
+});
+
+//
+// A new incident: sub-resources create the incident first
+//
+
+test("adding a Ranger to a new incident creates it first", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    const mock = await initIncidentPage(newIncidentRoutes);
+
+    const rangerAdd = document.getElementById("ranger_add") as HTMLInputElement;
+    rangerAdd.value = "Tulsa";
+    await page.addRanger();
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents")).toEqual([{ state: "new", priority: 3 }]);
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/42/rangers/Tulsa")).toEqual([{ handle: "Tulsa" }]);
+});
+
+test("adding a type to a new incident creates it first", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    const mock = await initIncidentPage(newIncidentRoutes);
+
+    const typeAdd = document.getElementById("incident_type_add") as HTMLInputElement;
+    typeAdd.value = "Lost Child";
+    await page.addIncidentType();
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents").length).toBe(1);
+    expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
+        { method: "POST", url: "/ims/api/events/2025/incidents/42/incident_types/2" },
+    ]);
+});
+
+test("attaching a field report to a new incident creates it first", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    const mock = await initIncidentPage(newIncidentRoutes);
+
+    const select = document.getElementById("attached_field_report_add") as HTMLSelectElement;
+    select.value = "FR#8";
+    await page.attachFieldReport();
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents").length).toBe(1);
+    expect(mock.mock.calls.some(([url]) =>
+        url === "/ims/api/events/2025/field_reports/8?action=attach&incident=42")).toBe(true);
+});
+
+test("linking from a new incident creates it first", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    const mock = await initIncidentPage(newIncidentRoutes);
+
+    const input = document.getElementById("linked_incident_add") as HTMLInputElement;
+    input.value = "2015#2";
+    await page.linkIncident(input);
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents").length).toBe(1);
+    expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
+        { method: "POST", url: "/ims/api/events/2025/incidents/42/linked_incidents/2015/2" },
+    ]);
+});
+
+test("attaching a file to a new incident creates it first", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    const mock = await initIncidentPage(newIncidentRoutes);
+    const uploads = mockXHR((url) =>
+        url === "/ims/api/events/2025/incidents/42/attachments" ? new Response(null, { status: 204 }) : undefined);
+
+    await page.attachFile();
+
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents").length).toBe(1);
+    expect(uploads.map(u => u.url)).toEqual(["/ims/api/events/2025/incidents/42/attachments"]);
+});
+
+test("when a new incident can't be created, nothing is attached to it", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    const mock = await initIncidentPage(failedCreateRoutes);
+    const uploads = mockXHR(() => new Response(null, { status: 204 }));
+
+    const rangerAdd = document.getElementById("ranger_add") as HTMLInputElement;
+    rangerAdd.value = "Tulsa";
+    await page.addRanger();
+    const typeAdd = document.getElementById("incident_type_add") as HTMLInputElement;
+    typeAdd.value = "Lost Child";
+    await page.addIncidentType();
+    const select = document.getElementById("attached_field_report_add") as HTMLSelectElement;
+    select.value = "FR#8";
+    await page.attachFieldReport();
+    const linkInput = document.getElementById("linked_incident_add") as HTMLInputElement;
+    linkInput.value = "2015#2";
+    await page.linkIncident(linkInput);
+    await page.attachFile();
+
+    expect(errorText()).toContain("Failed to apply edit: can't create (HTTP 500)");
+    expect(typeAdd.classList.contains("is-invalid")).toBe(true);
+    expect(mock.mock.calls.some(([url]) =>
+        /\/(rangers|incident_types|linked_incidents)\/|action=attach/.test(url))).toBe(false);
+    expect(uploads).toEqual([]);
+});
+
+//
+// Attachments and broadcasts
+//
+
+test("a picked file is sent as the attachment, and a second upload cancels the first's revert", async (): Promise<void> => {
+    await initIncidentPage();
+    const uploads = mockXHR(() => new Response(null, { status: 204 }));
+    const fileInput = document.getElementById("attach_file_input") as HTMLInputElement;
+    const file = new File(["hello"], "hello.txt", { type: "text/plain" });
+    Object.defineProperty(fileInput, "files", { configurable: true, value: [file] });
+    const button = document.getElementById("attach_file") as HTMLInputElement;
+
+    vi.useFakeTimers();
+    try {
+        await page.attachFile();
+        expect(button.value).toBe("Uploaded ✓");
+        vi.advanceTimersByTime(1500);
+        await page.attachFile();
+        // The first upload's revert would have fired by now, had it not been cancelled.
+        vi.advanceTimersByTime(1000);
+        expect(button.value).toBe("Uploaded ✓");
+        vi.advanceTimersByTime(1000);
+        expect(button.value).toBe("Attach file");
+    } finally {
+        vi.useRealTimers();
+    }
+
+    expect(uploads.length).toBe(2);
+    expect(uploads[0]!.body!.getAll("imsAttachment")).toEqual([file]);
+});
+
+test("a broadcast for a new field report adds it to the top of the attach dropdown", async (): Promise<void> => {
+    await initIncidentPage();
+    serverFieldReports.push({ number: 10, incident: null, summary: "Brand new FR", report_entries: [] });
+
+    const channel = new BroadcastChannel("field_report_update");
+    channel.postMessage({ event_id: eventId, field_report_number: 10 });
+
+    await vi.waitFor((): void => {
+        expect(document.querySelector('#attached_field_report_add option[value="FR#10"]')).not.toBeNull();
+    });
+    const frOptions = [...document.querySelectorAll<HTMLOptionElement>("#attached_field_report_add option")]
+        .map(o => o.value).filter(v => v.startsWith("FR#"));
+    expect(frOptions[0]).toBe("FR#10");
+    channel.close();
+});
+
+test("a broadcast for a new visit adds it to the top of the attach dropdown", async (): Promise<void> => {
+    await initIncidentPage();
+    serverVisits.push({ number: 4, incident: null, guest_preferred_name: "Newcomer", report_entries: [] });
+
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 4 });
+
+    await vi.waitFor((): void => {
+        expect(document.querySelector('#attached_field_report_add option[value="VS#4"]')).not.toBeNull();
+    });
+    const visitOptions = [...document.querySelectorAll<HTMLOptionElement>("#attached_field_report_add option")]
+        .map(o => o.value).filter(v => v.startsWith("VS#"));
+    expect(visitOptions[0]).toBe("VS#4");
+    channel.close();
+});

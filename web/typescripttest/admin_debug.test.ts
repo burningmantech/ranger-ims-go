@@ -25,12 +25,15 @@ import { jsonResponse, loadFixture, mockFetch, waitForPageInit } from "./helpers
 beforeEach((): void => {
     vi.resetModules();
     loadFixture("admin_debug.html");
+    buildInfo = "Database schema version: 42\n\ngo\tgo1.99\nbuild\tvcs.revision=abcdef0123456789\nbuild\tvcs.modified=true\n";
 });
 
 // Build info comes back as plain text from the server's debug endpoint.
 function textResponse(body: string): Response {
     return new Response(body, { status: 200, headers: { "content-type": "text/plain" } });
 }
+
+let buildInfo: string;
 
 async function initAdminDebugPage() {
     const mock = mockFetch((url, init) => {
@@ -41,9 +44,7 @@ async function initAdminDebugPage() {
             return jsonResponse([]);
         }
         if (url === url_debugBuildInfo) {
-            return textResponse(
-                "Database schema version: 42\n\ngo\tgo1.99\nbuild\tvcs.revision=abcdef0123456789\nbuild\tvcs.modified=true\n",
-            );
+            return textResponse(buildInfo);
         }
         if (url === url_debugConfig) {
             return textResponse("Core\n    JWTSecret = [\u{1F910}\u{1F910}]\n");
@@ -125,4 +126,51 @@ test("performing GC posts to the GC endpoint and reveals its panel", async (): P
     // GC is a mutation, so it's sent with a request body.
     const gcCall = mock.mock.calls.find(([url]) => url === url_debugGC)!;
     expect(gcCall[1]!.body).toBeDefined();
+});
+
+test("build info ending on the revision still links to it, without a dirty flag", async (): Promise<void> => {
+    buildInfo = "go\tgo1.99\nbuild\tvcs.modified=false\nbuild\tvcs.revision=0123456789abcdef";
+    await initAdminDebugPage();
+
+    document.getElementById("show-build-info")!.click();
+
+    const link = await vi.waitFor((): HTMLAnchorElement => {
+        const link = document.querySelector<HTMLAnchorElement>("#build-info-p a");
+        expect(link).not.toBeNull();
+        return link!;
+    });
+    expect(link.href).toBe("https://github.com/burningmantech/ranger-ims-go/tree/0123456789abcdef");
+    expect(link.textContent).not.toContain("(dirty)");
+});
+
+test("build info without a revision links to the repository's tree root", async (): Promise<void> => {
+    buildInfo = "go\tgo1.99\n";
+    await initAdminDebugPage();
+
+    document.getElementById("show-build-info")!.click();
+
+    const link = await vi.waitFor((): HTMLAnchorElement => {
+        const link = document.querySelector<HTMLAnchorElement>("#build-info-p a");
+        expect(link).not.toBeNull();
+        return link!;
+    });
+    expect(link.href).toBe("https://github.com/burningmantech/ranger-ims-go/tree/");
+});
+
+test("an unauthenticated visitor is sent to the login page", async (): Promise<void> => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockFetch((url) => {
+        if (url === url_auth) {
+            return jsonResponse({ authenticated: false });
+        }
+        if (url === url_events || url === url_logout) {
+            return jsonResponse([]);
+        }
+        return undefined;
+    });
+    await import("../typescript/admin_debug.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
 });

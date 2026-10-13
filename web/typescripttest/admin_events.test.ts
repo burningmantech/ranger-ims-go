@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { answerDialog, change, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { answerDialog, change, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/admin_events.ts");
 
@@ -31,17 +31,26 @@ interface AccessLike {
     description?: string|null;
     pending?: boolean|null;
     expired?: boolean|null;
-    debug_info?: {known_target?: boolean|null; matches_users?: string[]|null}|null;
+    debug_info?: {
+        known_target?: boolean|null;
+        matches_users?: string[]|null;
+        matches_all_users?: boolean|null;
+        matches_no_one?: boolean|null;
+    }|null;
 }
 
 let serverEvents: ims.EventData[];
 let serverACL: Record<string, Partial<Record<string, AccessLike[]>>>;
 let serverAuth: object;
+// Consulted before the fake server's normal routes, so that a test can fail
+// one of them.
+let routeOverride: FetchHandler;
 
 beforeEach((): void => {
     vi.resetModules();
     loadFixture("admin_events.html");
     serverAuth = { authenticated: true, user: "Tester", admin: true };
+    routeOverride = (): undefined => undefined;
     serverEvents = [
         { id: 1, name: "2025" },
     ];
@@ -63,10 +72,16 @@ beforeEach((): void => {
     };
 });
 
-// Import admin_events.ts with a fake server behind it, and wait for the page
-// to finish drawing the event access cards.
-async function initAdminEventsPage() {
-    const mock = mockFetch((url, init) => {
+// Install a fake server behind fetch, without loading the page.
+function mockServer() {
+    return mockFetch((url, init) => {
+        const overridden = routeOverride(url, init);
+        if (overridden != null) {
+            return overridden;
+        }
+        if (url === url_logout) {
+            return new Response(null, { status: 204 });
+        }
         if (url === url_auth && init?.body == null) {
             return jsonResponse(serverAuth);
         }
@@ -90,6 +105,12 @@ async function initAdminEventsPage() {
         }
         return undefined;
     });
+}
+
+// Import admin_events.ts with a fake server behind it, and wait for the page
+// to finish drawing the event access cards.
+async function initAdminEventsPage() {
+    const mock = mockServer();
     page = await import("../typescript/admin_events.ts");
     await vi.waitFor((): void => {
         expect(eventCards().length).toBeGreaterThan(0);
@@ -734,4 +755,863 @@ test("the delete button DELETEs the event after confirmation", async (): Promise
     await vi.waitFor((): void => {
         expect(mock.mock.calls.find(deleteCall)).toBeDefined();
     });
+});
+
+// Find the most recent POST to the events endpoint and return its parsed body.
+async function lastEventsPost(mock: ReturnType<typeof mockFetch>): Promise<Record<string, unknown>> {
+    const call = await vi.waitFor(() => {
+        const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+        expect(call).toBeDefined();
+        return call;
+    });
+    return JSON.parse(call![1]!.body as string);
+}
+
+function aclPosts(mock: ReturnType<typeof mockFetch>): unknown[] {
+    return mock.mock.calls.filter(([url, init]) => url === url_acl && init?.body != null);
+}
+
+// Let any listener-started async work run, for tests that check nothing was sent.
+async function settle(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function openEditModal(card: HTMLElement): void {
+    (card.querySelector(".show-edit-modal") as HTMLButtonElement).click();
+}
+
+function cardNamed(name: string): HTMLElement {
+    const card = eventCards().find(c => c.dataset["eventName"] === name);
+    expect(card).toBeDefined();
+    return card!;
+}
+
+test("an unauthenticated visitor is sent to the login page", async (): Promise<void> => {
+    serverAuth = { authenticated: false };
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockServer();
+    await import("../typescript/admin_events.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
+    expect(eventCards()).toEqual([]);
+});
+
+test("a failure to load the events is reported, and no cards are drawn", async (): Promise<void> => {
+    vi.spyOn(console, "error").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_events + "?include_groups=true" && init?.body == null
+        ? problemResponse("database is down", 500)
+        : undefined;
+    mockServer();
+    await import("../typescript/admin_events.ts");
+
+    expect(await answerDialog("ok")).toContain("Failed to load events: database is down");
+    await settle();
+    expect(eventCards()).toEqual([]);
+});
+
+test("a failure to load the access control list is reported, and no cards are drawn", async (): Promise<void> => {
+    vi.spyOn(console, "error").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_acl && init?.body == null
+        ? problemResponse("no ACL for you", 500)
+        : undefined;
+    mockServer();
+    await import("../typescript/admin_events.ts");
+
+    expect(await answerDialog("ok")).toContain("Failed to load access control list: no ACL for you");
+    await settle();
+    expect(eventCards()).toEqual([]);
+});
+
+test("the access targets fill the typeahead, with an onduty: entry per position", async (): Promise<void> => {
+    await initAdminEventsPage();
+
+    const options = [...document.querySelectorAll<HTMLOptionElement>("#access_target_list option")].map(o => o.value);
+    expect(options).toEqual(["*", "person:Tool", "position:007", "onduty:007", "team:Council"]);
+});
+
+test("without access targets, the page still works, and unknown expressions go unquestioned", async (): Promise<void> => {
+    vi.spyOn(console, "error").mockImplementation((): void => {});
+    routeOverride = (url) => url === url_accessTargets ? problemResponse("nope", 500) : undefined;
+    const mock = await initAdminEventsPage();
+
+    expect(document.querySelectorAll("#access_target_list option").length).toBe(0);
+
+    const addInput = grantBlocks(eventCards()[0]!)[0]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "person:Nobody";
+    change(addInput);
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    expect(body["2025"]!["readers"]!.map(a => a.expression)).toEqual(["person:Tool", "person:Nobody"]);
+    expect(document.querySelector("dialog.ims-dialog[open]")).toBeNull();
+});
+
+test("adding an expression that matches no known target asks first, and declining sends nothing", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const addInput = grantBlocks(eventCards()[0]!)[0]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "person:Nobody";
+    change(addInput);
+
+    expect(await answerDialog("cancel")).toContain("'person:Nobody' does not match any known person");
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+    expect(addInput.value).toBe("");
+});
+
+test("adding an expression that matches no known target can be confirmed", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const addInput = grantBlocks(eventCards()[0]!)[0]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "person:Nobody";
+    change(addInput);
+    await answerDialog("ok");
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    expect(body["2025"]!["readers"]!.map(a => a.expression)).toEqual(["person:Tool", "person:Nobody"]);
+});
+
+test("adding a double wildcard warns that it does nothing", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const addInput = grantBlocks(eventCards()[0]!)[0]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "**";
+    change(addInput);
+
+    expect(await answerDialog("cancel")).toContain("Double-wildcard '**' ACLs are no longer supported");
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+});
+
+test("adding an expression with no known prefix warns that it looks invalid", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const addInput = grantBlocks(eventCards()[0]!)[0]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "Hubcap";
+    change(addInput);
+
+    expect(await answerDialog("cancel")).toContain("'Hubcap' does not look like a valid ACL expression");
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+});
+
+test("a blank who is ignored", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const addInput = grantBlocks(eventCards()[0]!)[0]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "   ";
+    change(addInput);
+
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+    expect(document.querySelector("dialog.ims-dialog[open]")).toBeNull();
+});
+
+test("a failed who addition is reported and marks the add field", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_acl && init?.body != null
+        ? problemResponse("ACL write failed", 500)
+        : undefined;
+    await initAdminEventsPage();
+
+    const addInput = grantBlocks(eventCards()[0]!)[0]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "team:Council";
+    change(addInput);
+
+    expect(await answerDialog("ok")).toContain("Failed to edit ACL");
+    await vi.waitFor((): void => {
+        expect(addInput.classList.contains("is-invalid")).toBe(true);
+    });
+});
+
+test("adding a who puts focus back on that grant's add field", async (): Promise<void> => {
+    await initAdminEventsPage();
+
+    const addInput = grantBlocks(eventCards()[0]!)[1]!.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "team:Council";
+    change(addInput);
+
+    // The page redraws after the post, so the focused field is the writer
+    // grant's fresh add field.
+    await vi.waitFor((): void => {
+        const writer = grantBlocks(eventCards()[0]!)[1]!;
+        expect(document.activeElement).toBe(writer.querySelector(".who_add"));
+    });
+});
+
+test("each interval status gets its own badge, and an invalid interval counts as an issue", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:Tool", validity: "always", pending: true, debug_info: { known_target: true } },
+        ],
+        writers: [
+            { expression: "person:Tool", validity: "always", expired: true, debug_info: { known_target: true } },
+        ],
+        reporters: [
+            { expression: "person:Tool", validity: "always", pending: true, expired: true, debug_info: { known_target: true } },
+        ],
+        visit_writers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+        ],
+    };
+    await initAdminEventsPage();
+
+    const card = eventCards()[0]!;
+    const badges = grantBlocks(card).map(g => g.querySelector(".grant_interval_badge") as HTMLElement);
+    expect(badges.map(b => b.textContent)).toEqual(["Pending", "Expired", "Invalid interval", ""]);
+    expect(badges.map(b => b.classList.contains("d-none"))).toEqual([false, false, false, true]);
+    expect(card.querySelector(".rule_count")!.textContent).toBe("4 grants · 4 expressions");
+    expect(card.querySelector(".issue_count")!.textContent).toBe("1 issue");
+});
+
+test("grants at one level are ordered always before on-site, then by date", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:A", validity: "onsite", debug_info: { known_target: true } },
+            { expression: "person:B", validity: "always", not_before: "2025-08-25T00:00:00Z", debug_info: { known_target: true } },
+            { expression: "person:C", validity: "always", not_before: "2025-08-20T00:00:00Z", not_after: "2025-09-01T00:00:00Z", debug_info: { known_target: true } },
+            { expression: "person:D", validity: "always", not_before: "2025-08-20T00:00:00Z", not_after: "2025-08-30T00:00:00Z", debug_info: { known_target: true } },
+        ],
+    };
+    await initAdminEventsPage();
+
+    const order = grantBlocks(eventCards()[0]!).map(g => g.querySelector(".who_expression")!.textContent);
+    expect(order).toEqual(["person:D", "person:C", "person:B", "person:A"]);
+});
+
+test("an empty event's card starts collapsed and counts no grants", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025" }, { id: 2, name: "2026" }];
+    await initAdminEventsPage();
+
+    const card = cardNamed("2026");
+    expect(card.querySelector(".rule_count")!.textContent).toBe("0 grants · 0 expressions");
+    expect((card.querySelector(".access_rules_collapse") as HTMLElement).hidden).toBe(true);
+    expect(cardNamed("2025").querySelector(".rule_count")!.textContent).toBe("2 grants · 2 expressions");
+});
+
+test("a card header is marked stuck while it's pinned to the top of the window", async (): Promise<void> => {
+    const callbacks: IntersectionObserverCallback[] = [];
+    vi.stubGlobal("IntersectionObserver", class {
+        constructor(cb: IntersectionObserverCallback) {
+            callbacks.push(cb);
+        }
+        observe(): void {}
+    });
+    await initAdminEventsPage();
+
+    const header = eventCards()[0]!.querySelector(".card-header") as HTMLElement;
+    const fire = (ratio: number, top: number): void => {
+        callbacks.at(-1)!([{ intersectionRatio: ratio, boundingClientRect: { top } } as IntersectionObserverEntry],
+            {} as IntersectionObserver);
+    };
+    fire(0.9, 0);
+    expect(header.classList.contains("is-stuck")).toBe(true);
+    fire(1, 0);
+    expect(header.classList.contains("is-stuck")).toBe(false);
+    // Partly hidden off the bottom of the window isn't stuck.
+    fire(0.5, 500);
+    expect(header.classList.contains("is-stuck")).toBe(false);
+});
+
+//
+// Event groups
+//
+
+function setUpGroups(): void {
+    serverEvents = [
+        { id: 4, name: "Loose" },
+        { id: 2, name: "2024", parent_group: 1 },
+        { id: 1, name: "Group", is_group: true },
+        { id: 3, name: "2025", parent_group: 1 },
+    ];
+    serverACL = {
+        "Group": {
+            readers: [
+                { expression: "*", validity: "always", debug_info: { known_target: true, matches_all_users: true } },
+            ],
+        },
+        "2025": {
+            writers: [
+                {
+                    expression: "person:Tool",
+                    validity: "onsite",
+                    pending: true,
+                    debug_info: { known_target: true, matches_users: ["Tool"] },
+                },
+                {
+                    expression: "position:Nobody",
+                    validity: "always",
+                    expired: true,
+                    debug_info: { known_target: false, matches_no_one: true },
+                },
+                {
+                    expression: "team:Weird",
+                    validity: "always",
+                    pending: true,
+                    expired: true,
+                    debug_info: { known_target: true, matches_users: ["A", "B"] },
+                },
+                // A rule the server sent without debug info is left out of the explanation.
+                { expression: "team:Council", validity: "always" },
+            ],
+        },
+    };
+}
+
+test("a group's card comes before its children's, which name the group they extend", async (): Promise<void> => {
+    setUpGroups();
+    await initAdminEventsPage();
+
+    expect(eventCards().map(c => c.querySelector(".event_name")!.textContent)).toEqual([
+        "Group (Group)",
+        "2025 (extends Group)",
+        "2024 (extends Group)",
+        "Loose",
+    ]);
+});
+
+test("explaining a group lists its child events", async (): Promise<void> => {
+    setUpGroups();
+    await initAdminEventsPage();
+
+    (cardNamed("Group").querySelector(".explain_button") as HTMLButtonElement).click();
+
+    expect(document.querySelector("#explainModal .modal-title")!.textContent).toBe("Current permissions for Group");
+    const body = document.querySelector("#explainModal .modal-body")!.textContent!;
+    expect(body).toContain("Read all:\n    * (always)\n        ALL authenticated users");
+    expect(body).toContain("This is an event group");
+    expect(body).toContain("    2025\n");
+    expect(body).toContain("    2024\n");
+    expect(body).not.toContain("Loose");
+});
+
+test("explaining a child event describes each rule, plus what it inherits from its group", async (): Promise<void> => {
+    setUpGroups();
+    await initAdminEventsPage();
+
+    (cardNamed("2025").querySelector(".explain_button") as HTMLButtonElement).click();
+
+    const body = document.querySelector("#explainModal .modal-body")!.textContent!;
+    expect(body).toContain("person:Tool (onsite) (pending)\n        Tool");
+    expect(body).toContain("position:Nobody (always) (unknown target) (expired)\n        NO users");
+    expect(body).toContain("team:Weird (always) (invalid interval)\n        A\n        B");
+    expect(body).not.toContain("team:Council");
+    expect(body).toContain('Inherited from parent group "Group":\nRead all:');
+});
+
+test("explaining an event with no rules says so", async (): Promise<void> => {
+    setUpGroups();
+    serverACL["Group"] = {};
+    await initAdminEventsPage();
+
+    (cardNamed("Loose").querySelector(".explain_button") as HTMLButtonElement).click();
+    expect(document.querySelector("#explainModal .modal-body")!.textContent).toBe("No permissions");
+
+    (cardNamed("2024").querySelector(".explain_button") as HTMLButtonElement).click();
+    expect(document.querySelector("#explainModal .modal-body")!.textContent)
+        .toBe('No permissions\n\nInherited from parent group "Group":\nNo permissions');
+});
+
+test("the edit modal shows a child event's parent group, and disables it for a group", async (): Promise<void> => {
+    setUpGroups();
+    await initAdminEventsPage();
+
+    const parentInput = document.getElementById("edit_parent_group") as HTMLInputElement;
+
+    openEditModal(cardNamed("2025"));
+    expect(document.querySelector("#editEventModal .modal-title")!.textContent).toBe("2025");
+    expect(parentInput.disabled).toBe(false);
+    expect(parentInput.value).toBe("Group");
+
+    openEditModal(cardNamed("Group"));
+    expect(parentInput.disabled).toBe(true);
+    expect((document.getElementById("edit_map_url") as HTMLInputElement).disabled).toBe(true);
+});
+
+test("setting a parent group posts the group's id", async (): Promise<void> => {
+    setUpGroups();
+    const mock = await initAdminEventsPage();
+
+    openEditModal(cardNamed("Loose"));
+    const parentInput = document.getElementById("edit_parent_group") as HTMLInputElement;
+    parentInput.value = "Group";
+    change(parentInput);
+
+    expect(await lastEventsPost(mock)).toEqual({ id: 4, name: null, parent_group: 1 });
+    await vi.waitFor((): void => {
+        expect(parentInput.classList.contains("is-valid")).toBe(true);
+    });
+});
+
+test("clearing a parent group posts a zero group id", async (): Promise<void> => {
+    setUpGroups();
+    const mock = await initAdminEventsPage();
+
+    openEditModal(cardNamed("2025"));
+    const parentInput = document.getElementById("edit_parent_group") as HTMLInputElement;
+    parentInput.value = "";
+    change(parentInput);
+
+    expect(await lastEventsPost(mock)).toEqual({ id: 3, name: null, parent_group: 0 });
+});
+
+test("a parent group name that matches no event is refused without posting", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    setUpGroups();
+    const mock = await initAdminEventsPage();
+
+    openEditModal(cardNamed("Loose"));
+    const parentInput = document.getElementById("edit_parent_group") as HTMLInputElement;
+    parentInput.value = "Not A Group";
+    change(parentInput);
+
+    expect(await answerDialog("ok")).toBe("No group by that name");
+    await vi.waitFor((): void => {
+        expect(parentInput.classList.contains("is-invalid")).toBe(true);
+    });
+    expect(mock.mock.calls.find(([url, init]) => url === url_events && init?.body != null)).toBeUndefined();
+});
+
+test("a failed parent group edit is reported", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    setUpGroups();
+    routeOverride = (url, init) => url === url_events && init?.body != null
+        ? problemResponse("can't nest groups", 400)
+        : undefined;
+    await initAdminEventsPage();
+
+    openEditModal(cardNamed("Loose"));
+    const parentInput = document.getElementById("edit_parent_group") as HTMLInputElement;
+    parentInput.value = "Group";
+    change(parentInput);
+
+    expect(await answerDialog("ok")).toBe("Failed to edit event: can't nest groups (HTTP 400)");
+    await vi.waitFor((): void => {
+        expect(parentInput.classList.contains("is-invalid")).toBe(true);
+    });
+});
+
+//
+// Fixing an unknown who
+//
+
+function setUpUnknownWho(): void {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:Tool", validity: "always", debug_info: { known_target: true } },
+            { expression: "person:Tol", validity: "always", description: "typo'd", debug_info: { known_target: false } },
+        ],
+    };
+}
+
+function unknownChip(): HTMLElement {
+    const chip = eventCards()[0]!.querySelector<HTMLElement>(".who-chip.who-unknown");
+    expect(chip).not.toBeNull();
+    return chip!;
+}
+
+test("fixing an unknown who replaces its expression, keeping the grant's terms", async (): Promise<void> => {
+    setUpUnknownWho();
+    const mock = await initAdminEventsPage();
+
+    const chip = unknownChip();
+    (chip.querySelector(".who_fix") as HTMLButtonElement).click();
+    const fixInput = chip.querySelector(".who_fix_input") as HTMLInputElement;
+    expect(fixInput.classList.contains("d-none")).toBe(false);
+    expect(chip.querySelector(".who_expression")!.classList.contains("d-none")).toBe(true);
+    expect(fixInput.value).toBe("person:Tol");
+
+    fixInput.value = "person:Tool";
+    change(fixInput);
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    expect(body["2025"]!["readers"]).toEqual([
+        { expression: "person:Tool", validity: "always", not_before: null, not_after: null, description: "typo'd" },
+    ]);
+});
+
+test("leaving an unknown who's expression unchanged sends nothing", async (): Promise<void> => {
+    setUpUnknownWho();
+    const mock = await initAdminEventsPage();
+
+    const chip = unknownChip();
+    (chip.querySelector(".who_fix") as HTMLButtonElement).click();
+    change(chip.querySelector(".who_fix_input") as HTMLInputElement);
+
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+    // The redraw puts the chip back the way it was.
+    expect(unknownChip().querySelector(".who_fix_input")!.classList.contains("d-none")).toBe(true);
+});
+
+test("declining the warning about a fixed expression sends nothing", async (): Promise<void> => {
+    setUpUnknownWho();
+    const mock = await initAdminEventsPage();
+
+    const chip = unknownChip();
+    (chip.querySelector(".who_fix") as HTMLButtonElement).click();
+    const fixInput = chip.querySelector(".who_fix_input") as HTMLInputElement;
+    fixInput.value = "person:StillWrong";
+    change(fixInput);
+
+    expect(await answerDialog("cancel")).toContain("'person:StillWrong' does not match any known person");
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+});
+
+test("a failed fix is reported and marks the fix field", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    setUpUnknownWho();
+    routeOverride = (url, init) => url === url_acl && init?.body != null
+        ? problemResponse("ACL write failed", 500)
+        : undefined;
+    await initAdminEventsPage();
+
+    const chip = unknownChip();
+    (chip.querySelector(".who_fix") as HTMLButtonElement).click();
+    const fixInput = chip.querySelector(".who_fix_input") as HTMLInputElement;
+    fixInput.value = "person:Tool";
+    change(fixInput);
+
+    expect(await answerDialog("ok")).toContain("Failed to edit ACL");
+    await vi.waitFor((): void => {
+        expect(fixInput.classList.contains("is-invalid")).toBe(true);
+    });
+});
+
+//
+// Editing grant terms
+//
+
+test("an unparseable not-before date is flagged without posting", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const reader = grantBlocks(eventCards()[0]!)[0]!;
+    (reader.querySelector(".grant_edit_terms") as HTMLButtonElement).click();
+    const notBefore = reader.querySelector(".grant_not_before") as HTMLInputElement;
+    notBefore.value = "the day after tomorrow";
+    (reader.querySelector(".grant_apply_terms") as HTMLButtonElement).click();
+
+    await settle();
+    expect(notBefore.classList.contains("is-invalid")).toBe(true);
+    expect(aclPosts(mock)).toEqual([]);
+});
+
+test("an out-of-range not-after date is flagged without posting", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const reader = grantBlocks(eventCards()[0]!)[0]!;
+    (reader.querySelector(".grant_edit_terms") as HTMLButtonElement).click();
+    const notAfter = reader.querySelector(".grant_not_after") as HTMLInputElement;
+    notAfter.value = "2025-13-01";
+    (reader.querySelector(".grant_apply_terms") as HTMLButtonElement).click();
+
+    await settle();
+    expect(notAfter.classList.contains("is-invalid")).toBe(true);
+    expect(aclPosts(mock)).toEqual([]);
+});
+
+test("applying unchanged terms just leaves edit mode", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const reader = grantBlocks(eventCards()[0]!)[0]!;
+    (reader.querySelector(".grant_edit_terms") as HTMLButtonElement).click();
+    expect(reader.querySelector(".grant_terms_edit")!.classList.contains("d-none")).toBe(false);
+    (reader.querySelector(".grant_apply_terms") as HTMLButtonElement).click();
+
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+    const redrawn = grantBlocks(eventCards()[0]!)[0]!;
+    expect(redrawn.querySelector(".grant_terms_edit")!.classList.contains("d-none")).toBe(true);
+});
+
+test("cancelling a terms edit puts the grant back as it was", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const reader = grantBlocks(eventCards()[0]!)[0]!;
+    (reader.querySelector(".grant_edit_terms") as HTMLButtonElement).click();
+    (reader.querySelector(".grant_level") as HTMLSelectElement).value = "writers";
+    (reader.querySelector(".grant_cancel_terms") as HTMLButtonElement).click();
+
+    await settle();
+    expect(aclPosts(mock)).toEqual([]);
+    const redrawn = grantBlocks(eventCards()[0]!)[0]!;
+    expect(redrawn.querySelector(".grant_level_badge")!.textContent).toBe("Read all");
+    expect(redrawn.querySelector(".grant_terms_edit")!.classList.contains("d-none")).toBe(true);
+});
+
+test("changing a grant's validity rewrites only that grant's whos within its level", async (): Promise<void> => {
+    serverACL["2025"] = {
+        readers: [
+            { expression: "person:Tool", validity: "onsite", debug_info: { known_target: true } },
+            { expression: "person:Hubcap", validity: "onsite", debug_info: { known_target: true } },
+            { expression: "team:Council", validity: "always", debug_info: { known_target: true } },
+        ],
+    };
+    const mock = await initAdminEventsPage();
+
+    // The always grant sorts first, so the on-site one is second.
+    const onsite = grantBlocks(eventCards()[0]!)[1]!;
+    expect(whoChips(onsite).length).toBe(2);
+    (onsite.querySelector(".grant_edit_terms") as HTMLButtonElement).click();
+    (onsite.querySelector(".grant_validity") as HTMLSelectElement).value = "always";
+    (onsite.querySelector(".grant_apply_terms") as HTMLButtonElement).click();
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    expect(Object.keys(body["2025"]!)).toEqual(["readers"]);
+    expect(body["2025"]!["readers"]!.map(a => [a.expression, a.validity])).toEqual([
+        ["team:Council", "always"],
+        ["person:Tool", "always"],
+        ["person:Hubcap", "always"],
+    ]);
+});
+
+//
+// Draft grants
+//
+
+function newDraft(): HTMLElement {
+    (eventCards()[0]!.querySelector(".new_grant_button") as HTMLButtonElement).click();
+    const drafts = eventCards()[0]!.querySelectorAll<HTMLElement>(".grant-draft");
+    return drafts[drafts.length - 1]!;
+}
+
+test("a new draft grant starts in edit mode, with focus on its add field", async (): Promise<void> => {
+    await initAdminEventsPage();
+
+    const draft = newDraft();
+    expect(draft.querySelector(".grant_terms_edit")!.classList.contains("d-none")).toBe(false);
+    expect(draft.querySelector(".grant_edit_terms")!.classList.contains("d-none")).toBe(true);
+    expect(draft.querySelector(".grant_remove_draft")!.classList.contains("d-none")).toBe(false);
+    expect(document.activeElement).toBe(draft.querySelector(".who_add"));
+});
+
+test("removing one draft grant keeps the others", async (): Promise<void> => {
+    await initAdminEventsPage();
+
+    newDraft();
+    newDraft();
+    expect(eventCards()[0]!.querySelectorAll(".grant-draft").length).toBe(2);
+
+    (eventCards()[0]!.querySelector(".grant-draft .grant_remove_draft") as HTMLButtonElement).click();
+    expect(eventCards()[0]!.querySelectorAll(".grant-draft").length).toBe(1);
+    (eventCards()[0]!.querySelector(".grant-draft .grant_remove_draft") as HTMLButtonElement).click();
+    expect(eventCards()[0]!.querySelectorAll(".grant-draft").length).toBe(0);
+});
+
+test("a draft grant's terms carry into the rule its first who creates", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const draft = newDraft();
+    const validity = draft.querySelector(".grant_validity") as HTMLSelectElement;
+    validity.value = "onsite";
+    change(validity);
+    const notBefore = draft.querySelector(".grant_not_before") as HTMLInputElement;
+    notBefore.value = "2025-08-20";
+    change(notBefore);
+    const notAfter = draft.querySelector(".grant_not_after") as HTMLInputElement;
+    notAfter.value = "Mon 2025-09-01 @ 18:00";
+    change(notAfter);
+    const description = draft.querySelector(".grant_description") as HTMLInputElement;
+    description.value = "Temple crew";
+    change(description);
+
+    const addInput = draft.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "team:Council";
+    change(addInput);
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    expect(body["2025"]!["readers"]!.at(-1)).toEqual({
+        expression: "team:Council",
+        validity: "onsite",
+        not_before: new Date(2025, 7, 20).toISOString(),
+        not_after: new Date(2025, 8, 1, 18, 0).toISOString(),
+        description: "Temple crew",
+    });
+    // The draft has become a real grant.
+    await vi.waitFor((): void => {
+        expect(eventCards()[0]!.querySelectorAll(".grant-draft").length).toBe(0);
+    });
+});
+
+test("an unparseable date on a draft grant is flagged and left out of its terms", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const draft = newDraft();
+    const notBefore = draft.querySelector(".grant_not_before") as HTMLInputElement;
+    notBefore.value = "soon";
+    change(notBefore);
+    expect(notBefore.classList.contains("is-invalid")).toBe(true);
+    const notAfter = draft.querySelector(".grant_not_after") as HTMLInputElement;
+    notAfter.value = "2025-02-30 25:00";
+    change(notAfter);
+    expect(notAfter.classList.contains("is-invalid")).toBe(true);
+
+    const addInput = draft.querySelector(".who_add") as HTMLInputElement;
+    addInput.value = "team:Council";
+    change(addInput);
+
+    const body = await vi.waitFor(() => lastACLPost(mock));
+    const added = body["2025"]!["readers"]!.at(-1)!;
+    expect(added.not_before).toBe(null);
+    expect(added.not_after).toBe(null);
+});
+
+//
+// Adding events
+//
+
+test("adding an event posts it, clears the field, and draws its card expanded", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const addEvent = document.getElementById("event_add") as HTMLInputElement;
+    addEvent.value = " 2026 ";
+    serverEvents.push({ id: 2, name: "2026" });
+    change(addEvent);
+
+    expect(await lastEventsPost(mock)).toEqual({ id: 0, name: "2026", is_group: false });
+    await vi.waitFor((): void => {
+        expect(addEvent.value).toBe("");
+    });
+    expect((cardNamed("2026").querySelector(".access_rules_collapse") as HTMLElement).hidden).toBe(false);
+});
+
+test("adding an event group posts it as a group", async (): Promise<void> => {
+    const mock = await initAdminEventsPage();
+
+    const addGroup = document.getElementById("event_add_group") as HTMLInputElement;
+    addGroup.value = "Burns";
+    change(addGroup);
+
+    expect(await lastEventsPost(mock)).toEqual({ id: 0, name: "Burns", is_group: true });
+});
+
+test("a failed event addition is reported and marks the field", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_events && init?.body != null
+        ? problemResponse("event already exists", 409)
+        : undefined;
+    await initAdminEventsPage();
+
+    const addEvent = document.getElementById("event_add") as HTMLInputElement;
+    addEvent.value = "2025";
+    change(addEvent);
+
+    expect(await answerDialog("ok")).toBe("Failed to add event: event already exists (HTTP 409)");
+    await vi.waitFor((): void => {
+        expect(addEvent.classList.contains("is-invalid")).toBe(true);
+    });
+    expect(addEvent.value).toBe("2025");
+});
+
+//
+// Edit modal settings
+//
+
+test("the edit modal shows the event's map URL, and editing it posts the change", async (): Promise<void> => {
+    serverEvents = [{ id: 1, name: "2025", map_url: "https://example.com/old.pdf" }];
+    const mock = await initAdminEventsPage();
+
+    openEditModal(eventCards()[0]!);
+    const mapURL = document.getElementById("edit_map_url") as HTMLInputElement;
+    expect(mapURL.disabled).toBe(false);
+    expect(mapURL.value).toBe("https://example.com/old.pdf");
+
+    mapURL.value = "https://example.com/new.pdf";
+    change(mapURL);
+
+    expect(await lastEventsPost(mock)).toEqual({ id: 1, name: null, map_url: "https://example.com/new.pdf" });
+    await vi.waitFor((): void => {
+        expect(mapURL.classList.contains("is-valid")).toBe(true);
+    });
+});
+
+test("a failed map URL edit is reported and marks the field", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_events && init?.body != null
+        ? problemResponse("bad URL", 400)
+        : undefined;
+    await initAdminEventsPage();
+
+    openEditModal(eventCards()[0]!);
+    const mapURL = document.getElementById("edit_map_url") as HTMLInputElement;
+    mapURL.value = "nonsense";
+    change(mapURL);
+
+    expect(await answerDialog("ok")).toBe("Failed to edit event: bad URL (HTTP 400)");
+    await vi.waitFor((): void => {
+        expect(mapURL.classList.contains("is-invalid")).toBe(true);
+    });
+});
+
+test("a failed active setting edit is reported and marks the checkbox", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_events && init?.body != null
+        ? problemResponse("nope", 500)
+        : undefined;
+    await initAdminEventsPage();
+
+    openEditModal(eventCards()[0]!);
+    const isActive = document.getElementById("edit_is_active") as HTMLInputElement;
+    isActive.checked = true;
+    change(isActive);
+
+    expect(await answerDialog("ok")).toBe("Failed to edit event: nope (HTTP 500)");
+    await vi.waitFor((): void => {
+        expect(isActive.classList.contains("is-invalid")).toBe(true);
+    });
+});
+
+test("a failed address normalization edit is reported and marks the checkbox", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_events && init?.body != null
+        ? problemResponse("nope", 500)
+        : undefined;
+    await initAdminEventsPage();
+
+    openEditModal(eventCards()[0]!);
+    const normalize = document.getElementById("edit_normalize_addresses") as HTMLInputElement;
+    normalize.checked = true;
+    change(normalize);
+
+    expect(await answerDialog("ok")).toBe("Failed to edit event: nope (HTTP 500)");
+    await vi.waitFor((): void => {
+        expect(normalize.classList.contains("is-invalid")).toBe(true);
+    });
+});
+
+test("a failed release time edit is reported and leaves the field as typed", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    routeOverride = (url, init) => url === url_events && init?.body != null
+        ? problemResponse("nope", 500)
+        : undefined;
+    await initAdminEventsPage();
+
+    openEditModal(eventCards()[0]!);
+    const artRelease = document.getElementById("edit_art_locations_release") as HTMLInputElement;
+    artRelease.value = "2025-08-24 15:00";
+    change(artRelease);
+
+    expect(await answerDialog("ok")).toBe("Failed to edit event: nope (HTTP 500)");
+    await vi.waitFor((): void => {
+        expect(artRelease.classList.contains("is-invalid")).toBe(true);
+    });
+    expect(artRelease.value).toBe("2025-08-24 15:00");
+});
+
+test("a failed event deletion is reported, and the modal stays open", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    serverAuth = { authenticated: true, user: "Tester", admin: true, event_deletion_allowed: true };
+    routeOverride = (_url, init) => init?.method === "DELETE" ? problemResponse("event in use", 409) : undefined;
+    await initAdminEventsPage();
+
+    openEditModal(eventCards()[0]!);
+    const modal = document.getElementById("editEventModal") as HTMLDialogElement;
+    expect(modal.open).toBe(true);
+    (document.getElementById("event_delete") as HTMLButtonElement).click();
+    await answerDialog("ok");
+
+    expect(await answerDialog("ok")).toBe("Failed to delete event: event in use (HTTP 409)");
+    expect(modal.open).toBe(true);
 });

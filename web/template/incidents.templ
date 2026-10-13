@@ -79,12 +79,12 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
                 id="show_state"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
+                popovertarget="show_state_menu"
         >
 
           <span class="selection">Open</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_state_menu" class="dropdown-menu" popover>
           <li id="show_state_all" title="New, dispatched, on-scene, on-hold, or closed">
             <button type="button" class="name dropdown-item" onclick="showState('all', true);">All States</button>
           </li>
@@ -107,12 +107,12 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
                 type="button"
                 title="Filter by last modified date"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
+                popovertarget="show_days_menu"
         >
 
           <span class="selection">All Days</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_days_menu" class="dropdown-menu" popover>
           <li id="show_days_all">
             <button type="button" class="name dropdown-item" onclick="showDays('all', true);">All Days</button>
           </li>
@@ -134,12 +134,11 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
                 id="show_type"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
-                data-bs-auto-close="outside"
+                popovertarget="ul_show_type"
         >
           Types
         </button>
-        <ul id="ul_show_type" class="dropdown-menu">
+        <ul id="ul_show_type" class="dropdown-menu" popover data-menu-stay-open>
           <li data-menu-filter-keep><button type="button" id="show_type_toggle_all" class="dropdown-item" onclick="toggleCheckAllTypes();">Select/Deselect All</button></li>
           <li><button type="button" id="show_blank_type" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true">(blank)</button></li>
           <li><button type="button" id="show_other_type" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" title="Show 'hidden' Incident Types">(other)</button></li>
@@ -154,12 +153,12 @@ templ Incidents(deployment, versionName, versionRef, eventName string) {
                 id="show_rows"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
+                popovertarget="show_rows_menu"
         >
 
           <span class="selection">All Rows</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_rows_menu" class="dropdown-menu" popover>
           <li id="show_rows_all">
             <button type="button" class="name dropdown-item" onclick="showRows('all', true);">All Rows</button>
           </li>

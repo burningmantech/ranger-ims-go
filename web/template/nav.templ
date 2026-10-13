@@ -113,7 +113,7 @@ templ navBar(eventName string) {
       IMS
 
     </a>
-    <button class="navbar-toggler collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+    <button class="navbar-toggler" type="button"
             aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"/>
     </button>
@@ -126,11 +126,10 @@ templ navBar(eventName string) {
         }
       >
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
-             aria-expanded="false">
+          <button type="button" class="nav-link dropdown-toggle" popovertarget="nav-events">
             <span id="nav-event-id" class="event-id">{ eventName }</span>
-          </a>
-          <ul id="nav-events" class="dropdown-menu">
+          </button>
+          <ul id="nav-events" class="dropdown-menu" popover>
             <li />
           </ul>
         </li>
@@ -206,11 +205,10 @@ templ navBar(eventName string) {
       <!-- Logged in: show user menu -->
       <ul class="navbar-nav if-logged-in hidden no-print">
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
-             aria-expanded="false">
+          <button type="button" class="nav-link dropdown-toggle" popovertarget="nav-user-menu">
             <span class="logged-in-user"/>
-          </a>
-          <ul class="dropdown-menu">
+          </button>
+          <ul id="nav-user-menu" class="dropdown-menu" popover>
             <li class="if-admin hidden"><a href="/ims/app/admin" class="dropdown-item">🛡️ Admin</a></li>
             <li><a href="/ims/app" class="dropdown-item">🏠 Home</a></li>
             <li><a href="/ims/app/search" class="dropdown-item">🔍 Search</a></li>

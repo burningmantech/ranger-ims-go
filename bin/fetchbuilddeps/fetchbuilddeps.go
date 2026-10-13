@@ -68,11 +68,6 @@ func main() {
 			"https://cdn.jsdelivr.net/npm/bootstrap@"+bootstrapVersion+"/dist/css/bootstrap.min.css",
 			"sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB",
 		))
-		g.Go(existOrFetch(groupCtx, bootstrapDir,
-			"bootstrap.bundle.min.js",
-			"https://cdn.jsdelivr.net/npm/bootstrap@"+bootstrapVersion+"/dist/js/bootstrap.bundle.min.js",
-			"sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI",
-		))
 	}
 	// https://cdn.datatables.net/#Release
 	datatablesVersion := "3.1.3"

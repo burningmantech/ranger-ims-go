@@ -380,6 +380,8 @@ function controlClear(element: HTMLElement) {
 export async function commonPageInit(): Promise<PageInitResult> {
     detectTouchDevice();
     setupHelpModal();
+    initNavbarToggler();
+    initPopoverMenus();
     trackUncommittedInput();
     let authInfo: AuthInfo|null = null;
     pathIds = idsFromPath();
@@ -553,8 +555,77 @@ export function selectOptionWithValue(select: HTMLSelectElement, value: string|n
     }
 }
 
-// addMenuFilter puts a type-to-filter search box at the top of a Bootstrap
-// dropdown menu, hiding the items whose text doesn't match. An <li> marked
+// initNavbarToggler makes the hamburger button show and hide the navbar's
+// contents on narrow screens. Bootstrap's navbar CSS does the rest: .show
+// displays the contents, and wider screens display them regardless.
+function initNavbarToggler(): void {
+    const toggler = document.querySelector<HTMLButtonElement>(".navbar-toggler");
+    const nav = document.getElementById("navbarSupportedContent");
+    if (toggler == null || nav == null) {
+        return;
+    }
+    toggler.addEventListener("click", (): void => {
+        const shown = nav.classList.toggle("show");
+        toggler.setAttribute("aria-expanded", shown.toString());
+    });
+}
+
+// initPopoverMenus wires up the dropdown menus built on the Popover API: a
+// <button popovertarget=...> that toggles a <ul popover class="dropdown-menu">.
+// The browser already handles opening, Esc, and light dismiss. This anchors
+// each menu to its button, closes it once an item is picked (unless the menu
+// is marked data-menu-stay-open), and adds arrow-key movement between items.
+function initPopoverMenus(): void {
+    for (const toggle of document.querySelectorAll<HTMLButtonElement>("button[popovertarget]")) {
+        const menu = document.getElementById(toggle.getAttribute("popovertarget")!);
+        if (menu == null || !menu.classList.contains("dropdown-menu")) {
+            continue;
+        }
+        // Name the anchor explicitly, since the implicit one that popovertarget
+        // sets up doesn't apply when we call showPopover ourselves.
+        const anchorName = `--menu-${menu.id}`;
+        toggle.style.setProperty("anchor-name", anchorName);
+        menu.style.setProperty("position-anchor", anchorName);
+
+        // Includes the box that addMenuFilter adds.
+        const focusables = (): HTMLElement[] =>
+            [...menu.querySelectorAll<HTMLElement>(":scope > li:not(.d-none) > :is(.dropdown-item, input)")];
+
+        toggle.addEventListener("keydown", (e: KeyboardEvent): void => {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                if (!menu.matches(":popover-open")) {
+                    menu.showPopover();
+                }
+                focusables()[0]?.focus();
+            }
+        });
+        menu.addEventListener("keydown", (e: KeyboardEvent): void => {
+            // The filter box handles its own arrow keys (see addMenuFilter).
+            if (e.target instanceof HTMLInputElement || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) {
+                return;
+            }
+            const items = focusables();
+            const i = items.indexOf(document.activeElement as HTMLElement);
+            const next = items[e.key === "ArrowDown" ? i + 1 : i - 1];
+            if (i >= 0 && next != null) {
+                e.preventDefault();
+                next.focus();
+            }
+        });
+        if (!menu.hasAttribute("data-menu-stay-open")) {
+            menu.addEventListener("click", (e: MouseEvent): void => {
+                if ((e.target as Element).closest(".dropdown-item")) {
+                    menu.hidePopover();
+                }
+            });
+        }
+    }
+}
+
+// addMenuFilter puts a type-to-filter search box at the top of a popover
+// dropdown menu (see initPopoverMenus), hiding the items whose text doesn't
+// match. An <li> marked
 // data-menu-filter-keep is never hidden. onFilter hears each new query, e.g.
 // for relabeling a "select all" item while only some items are showing.
 export function addMenuFilter(
@@ -596,9 +667,8 @@ export function addMenuFilter(
     input.addEventListener("input", applyFilter);
     input.addEventListener("keydown", (e: KeyboardEvent): void => {
         if (e.key === "ArrowDown") {
-            // Bootstrap's own arrow-key navigation ignores keys typed in an
-            // input, so step into the list by hand. Land on the first match
-            // rather than on an always-shown item like "select all".
+            // Land on the first match rather than on an always-shown item
+            // like "select all".
             const matches = filterableItems().filter(i => !i.parentElement!.classList.contains("d-none"));
             const first = input.value ? matches[0] : visibleItems()[0];
             if (first) {
@@ -611,27 +681,33 @@ export function addMenuFilter(
             if (matches.length === 1) {
                 matches[0]!.click();
             }
-        }
-    });
-    // Bootstrap's handler (delegated from the document) would wrap ArrowUp on
-    // the first item around to the last one; send it back to the input instead.
-    menu.addEventListener("keydown", (e: KeyboardEvent): void => {
-        if (e.key === "ArrowUp" && e.target === visibleItems()[0]) {
+        } else if (e.key === "Escape") {
+            // A search box with text in it takes Esc for clearing itself, so
+            // the popover wouldn't close. Close it in one press, as Bootstrap
+            // did, which clears the filter anyway. Safari doesn't focus a
+            // clicked button, so there'd be no focus for the popover to restore.
             e.preventDefault();
-            e.stopPropagation();
-            input.focus();
+            menu.hidePopover();
+            toggle.focus();
         }
     });
-    toggle.addEventListener("shown.bs.dropdown", (): void => {
+    const onShown = (): void => {
         // On a phone, focusing would pop up the keyboard over the menu.
         if (!document.documentElement.classList.contains("touch")) {
             input.focus();
         }
-    });
-    toggle.addEventListener("hidden.bs.dropdown", (): void => {
+    };
+    const onHidden = (): void => {
         if (input.value !== "") {
             input.value = "";
             applyFilter();
+        }
+    };
+    menu.addEventListener("toggle", (e: Event): void => {
+        if ((e as ToggleEvent).newState === "open") {
+            onShown();
+        } else {
+            onHidden();
         }
     });
     return input;

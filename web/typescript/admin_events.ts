@@ -360,34 +360,27 @@ function eventCard(event: ims.EventData): DocumentFragment {
         show(card.querySelector(".active_badge") as HTMLElement);
     }
 
-    // Wire up the collapsible grant list, restoring this event's expansion state.
+    // Wire up the collapsible grant list, restoring this event's expansion
+    // state, so that a redraw after a rule edit leaves the card as it was.
+    // This isn't a <details>, since its header holds other buttons, which
+    // can't be nested in a <summary>.
     const collapse = card.querySelector(".access_rules_collapse") as HTMLElement;
     collapse.id = `access_rules_collapse_${event.id}`;
     const collapseToggle = card.querySelector(".access_collapse_toggle") as HTMLButtonElement;
-    collapseToggle.setAttribute("data-bs-target", `#${collapse.id}`);
     collapseToggle.setAttribute("aria-controls", collapse.id);
-    const chevron = card.querySelector(".access_collapse_chevron") as HTMLElement;
-    const expanded = expandedEvents.has(event.name);
-    collapseToggle.setAttribute("aria-expanded", expanded.toString());
-    chevron.textContent = expanded ? "▾" : "▸";
-    if (expanded) {
-        collapse.classList.add("show");
-    }
-    // Track expansion on the "show"/"hide" events, which fire as soon as the
-    // toggle is clicked. The after-animation "shown"/"hidden" events may never
-    // fire if a rule edit redraws the cards mid-transition, and this set must
-    // be current by then for the redrawn card to stay expanded.
-    collapse.addEventListener("show.bs.collapse", (): void => {
-        expandedEvents.add(event.name);
-        collapseToggle.setAttribute("aria-expanded", "true");
-        chevron.textContent = "▾";
-    });
-    collapse.addEventListener("hide.bs.collapse", (): void => {
-        expandedEvents.delete(event.name);
-        collapseToggle.setAttribute("aria-expanded", "false");
-        chevron.textContent = "▸";
-    });
-    // Let a click anywhere else on the header toggle the collapse too, leaving
+    const setExpanded = (expanded: boolean): void => {
+        collapse.hidden = !expanded;
+        collapseToggle.setAttribute("aria-expanded", expanded.toString());
+        if (expanded) {
+            expandedEvents.add(event.name);
+        } else {
+            expandedEvents.delete(event.name);
+        }
+    };
+    setExpanded(expandedEvents.has(event.name));
+    collapseToggle.addEventListener("click", (): void =>
+        setExpanded(collapseToggle.getAttribute("aria-expanded") !== "true"));
+    // Let a click anywhere else on the header toggle the grant list too, leaving
     // the header's buttons (event name toggle, Explain, Edit) to handle their own clicks.
     const cardHeader = card.querySelector(".card-header") as HTMLElement;
     cardHeader.addEventListener("click", (e: MouseEvent): void => {

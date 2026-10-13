@@ -76,12 +76,11 @@ templ Search(deployment, versionName, versionRef string) {
                 id="show_resource"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
-                data-bs-auto-close="outside"
+                popovertarget="ul_show_resource"
         >
           All Resources
         </button>
-        <ul id="ul_show_resource" class="dropdown-menu">
+        <ul id="ul_show_resource" class="dropdown-menu" popover data-menu-stay-open>
           <li data-menu-filter-keep><button type="button" id="show_resource_toggle_all" class="dropdown-item">Select/Deselect All</button></li>
           <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="incident">Incidents</button></li>
           <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked" aria-pressed="true" data-value="field_report">Field Reports</button></li>
@@ -92,12 +91,11 @@ templ Search(deployment, versionName, versionRef string) {
                 id="show_event"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
-                data-bs-auto-close="outside"
+                popovertarget="ul_show_event"
         >
           All Events
         </button>
-        <ul id="ul_show_event" class="dropdown-menu">
+        <ul id="ul_show_event" class="dropdown-menu" popover data-menu-stay-open>
           <li data-menu-filter-keep><button type="button" id="show_event_toggle_all" class="dropdown-item">Select/Deselect All</button></li>
           <template id="show_event_template">
             <li><button type="button" class="dropdown-item dropdown-item-checkable dropdown-item-checked"

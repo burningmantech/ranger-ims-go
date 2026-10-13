@@ -353,13 +353,9 @@ test("a new field report opens the instructions for a Ranger without incident ac
     window.history.replaceState(null, "", `/ims/app/events/${eventName}/field_reports/new`);
     serverEventAccess.readIncidents = false;
     serverEventAccess.writeIncidents = false;
-    const instructions = document.getElementById("fr-instructions")!;
-    const clicked = vi.fn();
-    instructions.addEventListener("click", clicked);
-
     await initFieldReportPage();
 
-    expect(clicked).toHaveBeenCalledOnce();
+    expect((document.getElementById("verboseInstructions") as HTMLDetailsElement).open).toBe(true);
 });
 
 test("creating a field report without a number in the response flags the field", async (): Promise<void> => {

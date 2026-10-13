@@ -65,11 +65,11 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
                 type="button"
                 title="Filter by last modified date"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
+                popovertarget="show_days_menu"
         >
           <span class="selection">All Days</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_days_menu" class="dropdown-menu" popover>
           <li id="show_days_all">
             <button type="button" class="name dropdown-item" onclick="frShowDays('all', true);">All Days</button>
           </li>
@@ -91,11 +91,11 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
                 id="show_rows"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
+                popovertarget="show_rows_menu"
         >
           <span class="selection">All Rows</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_rows_menu" class="dropdown-menu" popover>
           <li id="show_rows_all">
             <button type="button" class="name dropdown-item" onclick="frShowRows('all', true);">All Rows</button>
           </li>

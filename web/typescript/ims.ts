@@ -1112,6 +1112,8 @@ export function renderDate(date: string|undefined, type: string, _incidentOrFROr
         case "display":
             const dateSpan = document.createElement("span");
             dateSpan.title = fullDate;
+            // The <br> makes this two lines; keep "Mon, 6/08" from wrapping into a third.
+            dateSpan.classList.add("text-nowrap");
             dateSpan.append(shortDate.format(d), document.createElement("br"), shortTime.format(d));
             return dateSpan;
         case "filter":

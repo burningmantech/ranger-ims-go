@@ -729,6 +729,7 @@ test("renderDate shows a short date and time, with the full date on hover", (): 
     expect(span.title).toBe(ims.longFormatDate(millis));
     expect(span.textContent).toBe(ims.shortDate.format(millis) + ims.shortTime.format(millis));
     expect(span.querySelector("br")).not.toBeNull();
+    expect(span.classList.contains("text-nowrap")).toBe(true);
 
     expect(ims.renderDate(iso, "filter", {})).toBe(`${ims.shortDate.format(millis)} ${ims.shortTime.format(millis)}`);
     expect(ims.renderDate(iso, "sort", {})).toBe(millis);

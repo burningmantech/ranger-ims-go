@@ -18,12 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        updateTable: (el: HTMLElement) => Promise<void>;
-    }
-}
-
 //
 // Filters
 //
@@ -57,7 +51,9 @@ async function initAdminErrorLogsPage(): Promise<void> {
         return;
     }
 
-    window.updateTable = updateTable;
+    for (const input of [el.filterMinTime, el.filterMaxTime, el.filterUserName, el.filterPath]) {
+        input.addEventListener("change", updateTable);
+    }
 
     const weekAgo: Date = new Date();
     weekAgo.setDate(new Date().getDate() - 7);
@@ -246,7 +242,7 @@ function renderStatus(status: number|null, type: string, _data: any): string|num
     return undefined;
 }
 
-async function updateTable(_el: HTMLElement): Promise<void> {
+async function updateTable(): Promise<void> {
     updateFilters();
     errorLogsTable!.ajax.reload();
     errorLogsTable!.draw();

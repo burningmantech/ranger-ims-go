@@ -183,16 +183,16 @@ templ Places(deployment, versionName, versionRef, eventName string) {
         </button>
         <ul id="show_rows_menu" class="dropdown-menu" popover>
           <li id="show_rows_all">
-            <button type="button" class="name dropdown-item" onclick="destShowRows('all', true);">All Rows</button>
+            <button type="button" class="name dropdown-item" data-value="all">All Rows</button>
           </li>
           <li id="show_rows_25">
-            <button type="button" class="name dropdown-item" onclick="destShowRows('25', true);">25 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="25">25 Rows</button>
           </li>
           <li id="show_rows_50">
-            <button type="button" class="name dropdown-item" onclick="destShowRows('50', true);">50 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="50">50 Rows</button>
           </li>
           <li id="show_rows_100">
-            <button type="button" class="name dropdown-item" onclick="destShowRows('100', true);">100 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="100">100 Rows</button>
           </li>
           <li class="border-top">
             <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
@@ -208,19 +208,19 @@ templ Places(deployment, versionName, versionRef, eventName string) {
         </button>
         <ul id="show_type_menu" class="dropdown-menu" popover>
           <li id="show_type_all">
-            <button type="button" class="name dropdown-item" onclick="destShowType('all', true);">All Types</button>
+            <button type="button" class="name dropdown-item" data-value="all">All Types</button>
           </li>
           <li id="show_type_camp">
-            <button type="button" class="name dropdown-item" onclick="destShowType('camp', true);">Camp</button>
+            <button type="button" class="name dropdown-item" data-value="camp">Camp</button>
           </li>
           <li id="show_type_art">
-            <button type="button" class="name dropdown-item" onclick="destShowType('art', true);">Art</button>
+            <button type="button" class="name dropdown-item" data-value="art">Art</button>
           </li>
           <li id="show_type_mv">
-            <button type="button" class="name dropdown-item" onclick="destShowType('mv', true);">Mutant Vehicle</button>
+            <button type="button" class="name dropdown-item" data-value="mv">Mutant Vehicle</button>
           </li>
           <li id="show_type_other">
-            <button type="button" class="name dropdown-item" onclick="destShowType('other', true);">Other</button>
+            <button type="button" class="name dropdown-item" data-value="other">Other</button>
           </li>
         </ul>
         <a id="map-link" href="#" target="_blank" rel="noopener" class="link-body-emphasis ms-2 no-print d-none" title="Event map" tabindex="-1">

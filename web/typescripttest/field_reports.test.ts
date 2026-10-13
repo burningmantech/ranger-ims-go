@@ -20,7 +20,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockDataTable, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem } from "./helpers.ts";
+
+let page: typeof import("../typescript/field_reports.ts");
 
 const eventName = "2025";
 const eventId = 1;
@@ -79,7 +81,7 @@ function frRoutes(url: string, init?: RequestInit): Response | undefined {
 async function initFieldReportsPage(handler: (url: string, init?: RequestInit) => Response | undefined = frRoutes) {
     MockDataTable.lastInstance = null;
     const mock = mockFetch(handler);
-    await import("../typescript/field_reports.ts");
+    page = await import("../typescript/field_reports.ts");
     // The page has no loading overlay; init has settled once the table is
     // constructed (authorized) or the authorization error is shown.
     await vi.waitFor((): void => {
@@ -102,11 +104,13 @@ test("page init loads the event's field reports into the table", async (): Promi
 
 test("the show-rows and show-days controls are wired and reflect the default selection", async (): Promise<void> => {
     await initFieldReportsPage();
-
-    expect(window.frShowRows).toBeTypeOf("function");
-    expect(window.frShowDays).toBeTypeOf("function");
     // init applies the default filters, which fills in the dropdown labels.
     expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).not.toBe("");
+
+    pickMenuItem("show_rows_menu", "50");
+    expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).toBe("50 Rows");
+    pickMenuItem("show_days_menu", "1");
+    expect(document.getElementById("show_days")!.querySelector(".selection")!.textContent).toBe("Last 2 Days");
 });
 
 test("a viewer without field-report read access sees an authorization error", async (): Promise<void> => {
@@ -181,7 +185,7 @@ test("the modification-date filter passes everything until a window is set", asy
     expect(table.fixedSearch("modification_date", 1)).toBe(true);
 
     // Restrict to the last day: the year-2000 report is filtered out.
-    window.frShowDays(1, false);
+    page.frShowDays(1, false);
     expect(table.fixedSearch("modification_date", 0)).toBe(true);
     expect(table.fixedSearch("modification_date", 1)).toBe(false);
 });
@@ -197,7 +201,7 @@ test("the modification-date filter goes by last modification, not creation", asy
         expect(table.data().length).toBe(2);
     });
 
-    window.frShowDays(1, false);
+    page.frShowDays(1, false);
     // Created long ago, but a report entry lands within the window.
     expect(table.fixedSearch("modification_date", 0)).toBe(true);
 });
@@ -205,18 +209,18 @@ test("the modification-date filter goes by last modification, not creation", asy
 test("show* controls update the dropdown labels and the URL hash", async (): Promise<void> => {
     await initFieldReportsPage();
 
-    window.frShowDays(1, true);
+    pickMenuItem("show_days_menu", "1");
     expect(document.getElementById("show_days")!.querySelector(".selection")!.textContent).not.toBe("");
     expect(window.location.hash).toContain("days=1");
 
-    window.frShowRows("50", true);
+    pickMenuItem("show_rows_menu", "50");
     expect(window.location.hash).toContain("rows=50");
     expect(MockDataTable.lastInstance!.pageLen).toBe(50);
 });
 
 test("'all' rows sets the page length to unlimited", async (): Promise<void> => {
     await initFieldReportsPage();
-    window.frShowRows("all", false);
+    page.frShowRows("all", false);
     expect(MockDataTable.lastInstance!.pageLen).toBe(-1);
 });
 

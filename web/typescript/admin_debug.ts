@@ -18,14 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        fetchBuildInfo: (el: HTMLElement) => Promise<void>;
-        fetchRuntimeMetrics: (el: HTMLElement) => Promise<void>;
-        fetchConfig: (el: HTMLElement) => Promise<void>;
-        performGC: (el: HTMLElement) => Promise<void>;
-    }
-}
 //
 // Initialize UI
 //
@@ -51,10 +43,10 @@ async function initAdminDebugPage(): Promise<void> {
         return;
     }
 
-    window.fetchBuildInfo = fetchBuildInfo;
-    window.fetchRuntimeMetrics = fetchRuntimeMetrics;
-    window.fetchConfig = fetchConfig;
-    window.performGC = performGC;
+    ims.typedElement("show-build-info", HTMLButtonElement).addEventListener("click", fetchBuildInfo);
+    ims.typedElement("show-config", HTMLButtonElement).addEventListener("click", fetchConfig);
+    ims.typedElement("perform-gc", HTMLButtonElement).addEventListener("click", performGC);
+    ims.typedElement("show-metrics", HTMLButtonElement).addEventListener("click", fetchRuntimeMetrics);
 }
 
 async function fetchBuildInfo(): Promise<void> {

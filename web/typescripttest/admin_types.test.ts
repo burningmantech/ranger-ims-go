@@ -19,7 +19,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { answerDialog, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
+import { answerDialog, change, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
+
+let page: typeof import("../typescript/admin_types.ts");
 
 let serverTypes: ims.IncidentType[];
 
@@ -72,7 +74,7 @@ function typesRoutes(url: string, init?: RequestInit): Response | undefined {
 // finish drawing the incident types list.
 async function initAdminTypesPage(handler: FetchHandler = typesRoutes) {
     const mock = mockFetch(handler);
-    await import("../typescript/admin_types.ts");
+    page = await import("../typescript/admin_types.ts");
     await vi.waitFor((): void => {
         expect(typeList().length).toBeGreaterThan(0);
     });
@@ -121,58 +123,51 @@ test("the page shows the logged-in admin user and enables editing", async (): Pr
     });
 });
 
-test("createIncidentType posts the new type and redraws the list", async (): Promise<void> => {
+test("adding a type posts the new type and redraws the list", async (): Promise<void> => {
     const mock = await initAdminTypesPage();
 
-    // admintypes.templ wires the Add input with onchange="createIncidentType(this)".
     const addInput = document.querySelector<HTMLInputElement>("#incident_types .card-footer input")!;
-    expect(addInput.getAttribute("onchange")).toBe("createIncidentType(this)");
-
     addInput.value = "Stuck Vehicle";
-    await window.createIncidentType(addInput);
+    change(addInput);
 
-    const postCall = mock.mock.calls.find(
-        ([url, init]) => url === url_incidentTypes && init?.body != null,
-    )!;
-    expect(JSON.parse(postCall[1]!.body as string)).toEqual({ name: "Stuck Vehicle" });
-
-    // The input is cleared and the list now includes the new type.
-    expect(addInput.value).toBe("");
+    // The list comes to include the new type, and the input is cleared.
     await vi.waitFor((): void => {
         const names = typeList().map((li) => li.querySelector(".type-name")!.textContent);
         expect(names).toContain("Stuck Vehicle");
     });
+    expect(addInput.value).toBe("");
+    const postCall = mock.mock.calls.find(
+        ([url, init]) => url === url_incidentTypes && init?.body != null,
+    )!;
+    expect(JSON.parse(postCall[1]!.body as string)).toEqual({ name: "Stuck Vehicle" });
 });
 
 test("hiding a visible type posts hidden=true and redraws it as hidden", async (): Promise<void> => {
     const mock = await initAdminTypesPage();
 
-    // The "Active" badge in type_li_template is wired to hideIncidentType(this).
     const activeBadge = typeList()[0]!.querySelector<HTMLButtonElement>(".badge-visible")!;
-    expect(activeBadge.getAttribute("onclick")).toBe("hideIncidentType(this)");
 
     mock.mockClear();
-    await window.hideIncidentType(activeBadge);
+    activeBadge.click();
 
-    expect(editsSent(mock)).toContainEqual({ id: 1, hidden: true });
     await vi.waitFor((): void => {
         expect(typeList()[0]!.classList.contains("item-hidden")).toBe(true);
     });
+    expect(editsSent(mock)).toContainEqual({ id: 1, hidden: true });
 });
 
 test("showing a hidden type posts hidden=false and redraws it as visible", async (): Promise<void> => {
     const mock = await initAdminTypesPage();
 
     const hiddenBadge = typeList()[1]!.querySelector<HTMLButtonElement>(".badge-hidden")!;
-    expect(hiddenBadge.getAttribute("onclick")).toBe("showIncidentType(this)");
 
     mock.mockClear();
-    await window.showIncidentType(hiddenBadge);
+    hiddenBadge.click();
 
-    expect(editsSent(mock)).toContainEqual({ id: 2, hidden: false });
     await vi.waitFor((): void => {
         expect(typeList()[1]!.classList.contains("item-visible")).toBe(true);
     });
+    expect(editsSent(mock)).toContainEqual({ id: 2, hidden: false });
 });
 
 // The handlers find the type by walking up to the <li>, so a detached button
@@ -182,8 +177,8 @@ test("show and hide do nothing for a button outside any type row", async (): Pro
 
     const orphan = document.createElement("button");
     mock.mockClear();
-    await window.hideIncidentType(orphan);
-    await window.showIncidentType(orphan);
+    await page.hideIncidentType(orphan);
+    await page.showIncidentType(orphan);
 
     expect(editsSent(mock)).toEqual([]);
 });
@@ -206,18 +201,17 @@ test("renaming a type from the modal posts the new name and redraws", async (): 
 
     typeList()[0]!.querySelector<HTMLButtonElement>(".show-edit-modal")!.click();
     const nameField = document.getElementById("edit_incident_type_name") as HTMLInputElement;
-    expect(nameField.getAttribute("onchange")).toBe("setIncidentTypeName(this);");
 
     mock.mockClear();
     nameField.value = "Abandoned Property";
-    await window.setIncidentTypeName(nameField);
+    change(nameField);
 
-    expect(editsSent(mock)).toContainEqual({ id: 1, name: "Abandoned Property" });
-    expect(nameField.classList.contains("is-valid")).toBe(true);
     await vi.waitFor((): void => {
         const names = typeList().map((li) => li.querySelector(".type-name")!.textContent);
         expect(names).toContain("Abandoned Property");
     });
+    expect(editsSent(mock)).toContainEqual({ id: 1, name: "Abandoned Property" });
+    expect(nameField.classList.contains("is-valid")).toBe(true);
 });
 
 test("editing a type's description from the modal posts it and redraws", async (): Promise<void> => {
@@ -226,19 +220,18 @@ test("editing a type's description from the modal posts it and redraws", async (
     typeList()[0]!.querySelector<HTMLButtonElement>(".show-edit-modal")!.click();
     const descriptionField =
         document.getElementById("edit_incident_type_description") as HTMLTextAreaElement;
-    expect(descriptionField.getAttribute("onchange")).toBe("setIncidentTypeDescription(this);");
 
     mock.mockClear();
     descriptionField.value = "Property left unattended";
-    await window.setIncidentTypeDescription(descriptionField);
+    change(descriptionField);
 
-    expect(editsSent(mock)).toContainEqual({ id: 1, description: "Property left unattended" });
-    expect(descriptionField.classList.contains("is-valid")).toBe(true);
     await vi.waitFor((): void => {
         const descriptions = typeList()
             .map((li) => li.querySelector(".type-description")!.textContent);
         expect(descriptions).toContain("Property left unattended");
     });
+    expect(editsSent(mock)).toContainEqual({ id: 1, description: "Property left unattended" });
+    expect(descriptionField.classList.contains("is-valid")).toBe(true);
 });
 
 // A blank name would be rejected by the server, so the page doesn't send it.
@@ -253,9 +246,9 @@ test("a blank name or description in the modal sends nothing", async (): Promise
 
     mock.mockClear();
     nameField.value = "   ";
-    await window.setIncidentTypeName(nameField);
+    await page.setIncidentTypeName(nameField);
     descriptionField.value = "";
-    await window.setIncidentTypeDescription(descriptionField);
+    await page.setIncidentTypeDescription(descriptionField);
 
     expect(editsSent(mock)).toEqual([]);
 });
@@ -268,7 +261,7 @@ test("modal edits send nothing before a type has been loaded into it", async ():
     const nameField = document.getElementById("edit_incident_type_name") as HTMLInputElement;
     mock.mockClear();
     nameField.value = "Orphaned Rename";
-    await window.setIncidentTypeName(nameField);
+    await page.setIncidentTypeName(nameField);
 
     expect(editsSent(mock)).toEqual([]);
 });
@@ -284,7 +277,7 @@ test("a rejected rename marks the field invalid and leaves the list alone", asyn
     typeList()[0]!.querySelector<HTMLButtonElement>(".show-edit-modal")!.click();
     const nameField = document.getElementById("edit_incident_type_name") as HTMLInputElement;
     nameField.value = "Junk";
-    const done = window.setIncidentTypeName(nameField);
+    const done = page.setIncidentTypeName(nameField);
 
     expect(await answerDialog("ok")).toContain("That name is already taken");
     await done;
@@ -300,19 +293,7 @@ test("creating a type from a blank input sends nothing", async (): Promise<void>
     const addInput = document.querySelector<HTMLInputElement>("#incident_types .card-footer input")!;
     mock.mockClear();
     addInput.value = "   ";
-    await window.createIncidentType(addInput);
+    await page.createIncidentType(addInput);
 
-    expect(editsSent(mock)).toEqual([]);
-});
-
-// Deletion isn't built yet; the button says so rather than silently doing nothing.
-test("deleting a type reports that it is unimplemented", async (): Promise<void> => {
-    const mock = await initAdminTypesPage();
-
-    mock.mockClear();
-    const done = window.deleteIncidentType(typeList()[0]!);
-
-    expect(await answerDialog("ok")).toContain("unimplemented");
-    await done;
     expect(editsSent(mock)).toEqual([]);
 });

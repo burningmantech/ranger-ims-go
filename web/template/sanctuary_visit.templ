@@ -61,7 +61,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               type="text"
               class="form-control form-control-sm"
               { NoAutofill()... }
-              onchange="editParentIncident()"
           />
         </div>
       </div>
@@ -126,7 +125,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="guest_preferred_name" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
-                    onchange="editGuestPreferredName()"
                 />
               </div>
             </div>
@@ -138,7 +136,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="guest_legal_name" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
-                    onchange="editGuestLegalName()"
                 />
               </div>
             </div>
@@ -149,7 +146,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="guest_description" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
-                    onchange="editGuestDescription()"
                 />
               </div>
             </div>
@@ -160,7 +156,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="guest_action_plan" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
-                    onchange="editGuestActionPlan()"
                 />
               </div>
             </div>
@@ -174,7 +169,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         type="button"
                         class="btn btn-sm btn-outline-secondary form-control-lite no-print"
                         title="Set the arrival time to right now"
-                        onclick="setArrivalTimeNow()"
                 >
                   Now
                 </button>
@@ -184,7 +178,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         class="btn btn-sm btn-outline-secondary form-control-lite no-print"
                         title="Clear the arrival time"
                         aria-label="Clear arrival time"
-                        onclick="clearArrivalTime()"
                 >
                   &times;
                 </button>
@@ -200,7 +193,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         type="button"
                         class="btn btn-sm btn-outline-secondary form-control-lite no-print"
                         title="Set the departure time to right now"
-                        onclick="setDepartureTimeNow()"
                 >
                   Now
                 </button>
@@ -210,7 +202,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         class="btn btn-sm btn-outline-secondary form-control-lite no-print"
                         title="Clear the departure time"
                         aria-label="Clear departure time"
-                        onclick="clearDepartureTime()"
                 >
                   &times;
                 </button>
@@ -238,7 +229,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editArrivalMethod()"
                 />
               </div>
             </div>
@@ -251,7 +241,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editArrivalState()"
                 />
               </div>
             </div>
@@ -263,7 +252,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="arrival_reason"
                     class="form-control form-control-sm"
                     rows="1"
-                    onchange="editArrivalReason()"
                 ></textarea>
               </div>
             </div>
@@ -275,7 +263,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="arrival_belongings"
                     class="form-control form-control-sm"
                     rows="1"
-                    onchange="editArrivalBelongings()"
                 ></textarea>
               </div>
             </div>
@@ -288,7 +275,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editDepartureMethod()"
                 />
               </div>
             </div>
@@ -301,7 +287,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editDepartureState()"
                 />
               </div>
             </div>
@@ -337,7 +322,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         type="text"
                         class="form-control form-control-sm"
                         { NoAutofill()... }
-                        onchange="editGuestCampName()"
                 />
               </div>
             </div>
@@ -349,7 +333,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         type="text"
                         class="form-control form-control-sm"
                         { NoAutofill()... }
-                        onchange="editGuestCampAddress()"
                 />
               </div>
             </div>
@@ -362,7 +345,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         class="form-control form-control-sm"
                         aria-label="Additional location description"
                         { NoAutofill()... }
-                        onchange="editGuestCampDescription()"
                 />
               </div>
             </div>
@@ -375,7 +357,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                         class="form-control form-control-sm"
                         aria-label="Guest camp contact information"
                         { NoAutofill()... }
-                        onchange="editGuestCampContacts()"
                 />
               </div>
             </div>
@@ -400,7 +381,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="resource_sitter" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
-                    onchange="editResourceSitter()"
                 />
               </div>
             </div>
@@ -411,7 +391,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     id="resource_bed_id" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
-                    onchange="editResourceBedID()"
                 />
               </div>
             </div>
@@ -423,7 +402,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editResourceRest()"
                 />
               </div>
             </div>
@@ -435,7 +413,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editResourceClothes()"
                 />
               </div>
             </div>
@@ -447,7 +424,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editResourceFoodBev()"
                 />
               </div>
             </div>
@@ -459,7 +435,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editResourcePogs()"
                 />
               </div>
             </div>
@@ -471,7 +446,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
-                    onchange="editResourceOther()"
                 />
               </div>
             </div>
@@ -493,9 +467,9 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                 <li class="list-group-item flex-input-container ps-3 hidden">
                   <span><a href="#" tabindex="-1"></a></span>
                   <input aria-label="Description of Ranger role" type="text" class="form-control form-control-sm short-input auto-width hover-placeholder border-0"
-                      placeholder="Short description of role" onchange="setRangerRole(this)" maxlength="50"
+                      placeholder="Short description of role" maxlength="50"
                   />
-                  <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)" tabindex="-1" aria-label="Remove Ranger">
+                  <button class="badge btn btn-danger remove-badge float-end" tabindex="-1" aria-label="Remove Ranger">
                     X
                   </button>
                 </li>
@@ -510,7 +484,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                       list="ranger_handles"
                       { NoAutofill()... }
                       class="form-control form-control-sm auto-width"
-                      onchange="addRanger()"
               />
               <datalist id="ranger_handles">
                 <option value=""></option>
@@ -529,7 +502,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
         </summary>
         <div id="report_entry_well" class="accordion-body">
           <label class="control-label">
-            <input id="history_checkbox" type="checkbox" onchange="toggleShowHistory()"/>
+            <input id="history_checkbox" type="checkbox"/>
             Show history and stricken
           </label>
         <div id="report_entries"></div>
@@ -538,7 +511,6 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                   aria-label="New report entry text"
                   class="form-control no-print"
                   placeholder="Press &quot;a&quot; to add report text"
-                  onchange="reportEntryEdited()"
           ></textarea>
           <div class="d-flex justify-content-between">
             <button
@@ -546,19 +518,17 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                     aria-label="Submit report entry"
                     type="submit"
                     class="btn btn-default btn-sm btn-block my-1 disabled no-print float-start"
-                    onclick="submitReportEntry()"
             >
               Add Entry <kbd><span class="modifier-key">Ctrl</span> Enter</kbd>
             </button>
             <!-- File attachment -->
             <label class="input-group-text hidden" for="attach_file_input">Attach file</label>
-            <input type="file" class="form-control hidden" id="attach_file_input" name="filename" onchange="attachFile();" />
+            <input type="file" class="form-control hidden" id="attach_file_input" name="filename" />
             <input
                     id="attach_file"
                     type="button"
                     class="btn btn-default btn-sm btn-block btn-secondary my-1 form-control-lite no-print hidden"
                     value="Attach file"
-                    onclick="document.getElementById('attach_file_input').click();"
             />
           </div>
         </div>

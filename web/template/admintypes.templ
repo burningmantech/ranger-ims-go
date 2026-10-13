@@ -43,11 +43,11 @@ templ AdminTypes(deployment, versionName, versionRef string) {
         <div class="modal-body row">
           <div class="input-group mb-3">
             <label for="edit_incident_type_name" class="control-label input-group-text">Name</label>
-            <input id="edit_incident_type_name" type="text" class="form-control form-control-sm" onchange="setIncidentTypeName(this);" />
+            <input id="edit_incident_type_name" type="text" class="form-control form-control-sm" />
           </div>
           <div class="input-group mb-3">
             <label for="edit_incident_type_description" class="control-label input-group-text">Description</label>
-            <textarea id="edit_incident_type_description" type="text" class="form-control form-control-sm" onchange="setIncidentTypeDescription(this);"></textarea>
+            <textarea id="edit_incident_type_description" type="text" class="form-control form-control-sm"></textarea>
           </div>
         </div>
       </div>
@@ -61,12 +61,10 @@ templ AdminTypes(deployment, versionName, versionRef string) {
         <ul class="list-group list-group-small list-group-flush card-body">
           <template id="type_li_template">
             <li class="list-group-item ps-3" data-incident-type-id="">
-              <button class="badge btn btn-primary float-end badge-visible"
-                  onclick="hideIncidentType(this)">
+              <button class="badge btn btn-primary float-end badge-visible">
                 Active
               </button>
-              <button class="badge btn btn-warning float-end badge-hidden"
-                  onclick="showIncidentType(this)">
+              <button class="badge btn btn-warning float-end badge-hidden">
                 Hidden
               </button>
               <button class="show-edit-modal badge btn btn-primary float-end me-2">
@@ -80,11 +78,11 @@ templ AdminTypes(deployment, versionName, versionRef string) {
         <div class="card-footer">
           <label>Add:</label>
           <input
+              id="new_incident_type"
               class="form-control auto-width"
               type="text" inputmode="verbatim"
               disabled=""
               placeholder="Chooch"
-              onchange="createIncidentType(this)"
           />
         </div>
       </div>

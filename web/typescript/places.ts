@@ -18,13 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        destShowRows: (rowsToShow: string, replaceState: boolean)=>void;
-        destShowType: (typeToShow: string, replaceState: boolean)=>void;
-    }
-}
-
 let placesTable: ims.DataTablesTable|null = null;
 
 const _destSearchDelayMs = 250;
@@ -75,8 +68,8 @@ async function initPlacesPage(): Promise<void> {
         return;
     }
 
-    window.destShowRows = destShowRows;
-    window.destShowType = destShowType;
+    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => destShowRows(rows, true));
+    ims.onMenuPick(ims.typedElement("show_type_menu", HTMLUListElement), (type: string): void => destShowType(type, true));
 
     const eventDatas = await initResult.eventDatas;
     ims.setupMapLink(el.mapLink, eventDatas);
@@ -596,7 +589,7 @@ function destInitSearch() {
 // Show rows button handling
 //
 
-function destShowRows(rowsToShow: string, replaceState: boolean) {
+export function destShowRows(rowsToShow: string, replaceState: boolean) {
     const id = rowsToShow;
     _destShowRows = rowsToShow;
 

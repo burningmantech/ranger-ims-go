@@ -39,20 +39,6 @@ interface Directory {
     positions: DirectoryGroup[];
 }
 
-declare global {
-    interface Window {
-        createPerson: (el: HTMLInputElement)=>Promise<void>;
-        createTeam: (el: HTMLInputElement)=>Promise<void>;
-        createPosition: (el: HTMLInputElement)=>Promise<void>;
-        setPersonHandle: (el: HTMLInputElement)=>Promise<void>;
-        setPersonEmail: (el: HTMLInputElement)=>Promise<void>;
-        setPersonActive: (el: HTMLInputElement)=>Promise<void>;
-        setPersonOnsite: (el: HTMLInputElement)=>Promise<void>;
-        setPersonPassword: (el: HTMLElement)=>Promise<void>;
-        deletePerson: (el: HTMLElement)=>Promise<void>;
-    }
-}
-
 const el = {
     personsTbody: ims.typedElement("persons_tbody", HTMLElement),
     personRowTemplate: ims.typedElement("person_row_template", HTMLTemplateElement),
@@ -67,6 +53,11 @@ const el = {
     editPersonTeams: ims.typedElement("edit_person_teams", HTMLElement),
     editPersonPositions: ims.typedElement("edit_person_positions", HTMLElement),
     editPersonPassword: ims.typedElement("edit_person_password", HTMLInputElement),
+    editPersonPasswordSave: ims.typedElement("edit_person_password_save", HTMLButtonElement),
+    editPersonDelete: ims.typedElement("edit_person_delete", HTMLButtonElement),
+    newPerson: ims.typedElement("new_person", HTMLInputElement),
+    newTeam: ims.typedElement("new_team", HTMLInputElement),
+    newPosition: ims.typedElement("new_position", HTMLInputElement),
 };
 
 const editPersonModal = ims.dialogModal(el.editPersonModal);
@@ -80,15 +71,15 @@ async function initAdminDirectoryPage(): Promise<void> {
         return;
     }
 
-    window.createPerson = createPerson;
-    window.createTeam = createTeam;
-    window.createPosition = createPosition;
-    window.setPersonHandle = setPersonHandle;
-    window.setPersonEmail = setPersonEmail;
-    window.setPersonActive = setPersonActive;
-    window.setPersonOnsite = setPersonOnsite;
-    window.setPersonPassword = setPersonPassword;
-    window.deletePerson = deletePerson;
+    el.newPerson.addEventListener("change", (): Promise<void> => createPerson(el.newPerson));
+    el.newTeam.addEventListener("change", (): Promise<void> => createTeam(el.newTeam));
+    el.newPosition.addEventListener("change", (): Promise<void> => createPosition(el.newPosition));
+    el.editPersonHandle.addEventListener("change", (): Promise<void> => setPersonHandle(el.editPersonHandle));
+    el.editPersonEmail.addEventListener("change", (): Promise<void> => setPersonEmail(el.editPersonEmail));
+    el.editPersonActive.addEventListener("change", (): Promise<void> => setPersonActive(el.editPersonActive));
+    el.editPersonOnsite.addEventListener("change", (): Promise<void> => setPersonOnsite(el.editPersonOnsite));
+    el.editPersonPasswordSave.addEventListener("click", (): Promise<void> => setPersonPassword(el.editPersonPasswordSave));
+    el.editPersonDelete.addEventListener("click", deletePerson);
 
     await loadAndDrawDirectory();
     ims.hideLoadingOverlay();
@@ -292,7 +283,7 @@ function modalPersonID(): number|null {
     return ims.parseInt10(el.editPersonModal.dataset["personId"]);
 }
 
-async function setPersonHandle(sender: HTMLInputElement): Promise<void> {
+export async function setPersonHandle(sender: HTMLInputElement): Promise<void> {
     const id = modalPersonID();
     if (id == null || !sender.value) {
         return;
@@ -300,7 +291,7 @@ async function setPersonHandle(sender: HTMLInputElement): Promise<void> {
     await sendPersonFromControl(sender, {id: id, handle: sender.value});
 }
 
-async function setPersonEmail(sender: HTMLInputElement): Promise<void> {
+export async function setPersonEmail(sender: HTMLInputElement): Promise<void> {
     const id = modalPersonID();
     if (id == null) {
         return;
@@ -308,7 +299,7 @@ async function setPersonEmail(sender: HTMLInputElement): Promise<void> {
     await sendPersonFromControl(sender, {id: id, email: sender.value});
 }
 
-async function setPersonActive(sender: HTMLInputElement): Promise<void> {
+export async function setPersonActive(sender: HTMLInputElement): Promise<void> {
     const id = modalPersonID();
     if (id == null) {
         return;
@@ -316,7 +307,7 @@ async function setPersonActive(sender: HTMLInputElement): Promise<void> {
     await sendPersonFromControl(sender, {id: id, active: sender.checked});
 }
 
-async function setPersonOnsite(sender: HTMLInputElement): Promise<void> {
+export async function setPersonOnsite(sender: HTMLInputElement): Promise<void> {
     const id = modalPersonID();
     if (id == null) {
         return;
@@ -349,7 +340,7 @@ async function setPersonMemberships(kind: "team"|"position"): Promise<void> {
     await loadAndDrawDirectory();
 }
 
-async function setPersonPassword(sender: HTMLElement): Promise<void> {
+export async function setPersonPassword(sender: HTMLElement): Promise<void> {
     const id = modalPersonID();
     if (id == null || !el.editPersonPassword.value) {
         return;
@@ -367,7 +358,7 @@ async function setPersonPassword(sender: HTMLElement): Promise<void> {
     ims.controlHasSuccess(sender);
 }
 
-async function deletePerson(_sender: HTMLElement): Promise<void> {
+export async function deletePerson(): Promise<void> {
     const id = modalPersonID();
     if (id == null) {
         return;

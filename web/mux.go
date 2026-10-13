@@ -54,6 +54,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	}
 
 	deployment := string(cfg.Core.Deployment)
+	csp := contentSecurityPolicy(template.ImportMapHash(versionRef))
 	mux.Handle("GET /ims/static/ext/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
@@ -73,46 +74,47 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		),
 	)
 	mux.Handle("GET /ims/app",
-		AdaptTempl(template.Root(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Root(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin",
-		AdaptTempl(template.AdminRoot(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminRoot(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin/actionlogs",
-		AdaptTempl(template.AdminActionLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminActionLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin/errorlogs",
-		AdaptTempl(template.AdminErrorLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminErrorLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin/events",
-		AdaptTempl(template.AdminEvents(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminEvents(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin/types",
-		AdaptTempl(template.AdminTypes(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminTypes(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin/debug",
-		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin/directory",
-		AdaptTempl(template.AdminDirectory(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminDirectory(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/admin/places",
-		AdaptTempl(template.AdminPlaces(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.AdminPlaces(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/settings",
-		AdaptTempl(template.Settings(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Settings(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/help",
-		AdaptTempl(template.Help(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Help(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/app/search",
-		AdaptTempl(template.Search(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Search(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.HandleFunc("GET /ims/app/events/{eventName}/places",
 		func(w http.ResponseWriter, r *http.Request) {
 			AdaptTempl(
 				template.Places(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
+				csp,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -121,6 +123,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			AdaptTempl(
 				template.FieldReports(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
+				csp,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -129,6 +132,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			AdaptTempl(
 				template.FieldReport(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
+				csp,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -137,6 +141,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			AdaptTempl(
 				template.Incidents(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
+				csp,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -145,6 +150,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			AdaptTempl(
 				template.Incident(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
+				csp,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -153,6 +159,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			AdaptTempl(
 				template.SanctuaryVisits(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
+				csp,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -161,6 +168,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 			AdaptTempl(
 				template.SanctuaryVisit(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
+				csp,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -172,7 +180,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	)
 
 	mux.Handle("GET /ims/auth/login",
-		AdaptTempl(template.Login(deployment, versionName, versionRef), cfg.Core.CacheControlLong),
+		AdaptTempl(template.Login(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
 	)
 	mux.Handle("GET /ims/auth/logout",
 		Adapt(
@@ -215,14 +223,35 @@ func CacheControl(maxAge time.Duration) Adapter {
 	}
 }
 
-// DenyCrossOriginFraming stops other origins from putting IMS pages in a
-// frame. The access token cookie is SameSite=Strict, but a sibling subdomain
-// counts as the same site, so a page framed there would be signed in, and
-// could be overlaid to trick a Ranger into clicking something.
-func DenyCrossOriginFraming() Adapter {
+// contentSecurityPolicy lets IMS pages run only IMS's own script files, plus
+// the import map, allowed by its hash. Every event handler is attached from
+// those files, so the policy forbids inline handler attributes too, which
+// leaves an HTML injection with no way to run script.
+//
+// Inline styles stay allowed, since templates, flatpickr, and DataTables all
+// set them, and they can't run script.
+//
+// frame-ancestors stops other origins from putting IMS pages in a frame. The
+// access token cookie is SameSite=Strict, but a sibling subdomain counts as
+// the same site, so a page framed there would be signed in, and could be
+// overlaid to trick a Ranger into clicking something.
+func contentSecurityPolicy(importMapHash string) string {
+	return strings.Join([]string{
+		"default-src 'self'",
+		"script-src 'self' " + importMapHash,
+		"style-src 'self' 'unsafe-inline'",
+		"img-src 'self' data:",
+		"object-src 'none'",
+		"base-uri 'none'",
+		"form-action 'self'",
+		"frame-ancestors 'self'",
+	}, "; ")
+}
+
+func ContentSecurityPolicy(csp string) Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+			w.Header().Set("Content-Security-Policy", csp)
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -267,8 +296,8 @@ func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
 	return handler
 }
 
-func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, adapters ...Adapter) http.Handler {
-	adapters = append(adapters, CacheControl(cacheControlLong), DenyCrossOriginFraming(), SameOriginReferrer())
+func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, csp string, adapters ...Adapter) http.Handler {
+	adapters = append(adapters, CacheControl(cacheControlLong), ContentSecurityPolicy(csp), SameOriginReferrer())
 	return Adapt(
 		func(w http.ResponseWriter, req *http.Request) {
 			err := comp.Render(req.Context(), w)

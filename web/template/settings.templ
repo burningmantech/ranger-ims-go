@@ -45,7 +45,6 @@ templ Settings(deployment, versionName, versionRef string) {
     <select
       id="preferred_state"
       class="form-control form-select form-select-sm"
-      onchange="setPreferredState(this)"
       style="max-width: 150px;"
     >
       <option value="none" selected>Use Default</option>
@@ -64,7 +63,6 @@ templ Settings(deployment, versionName, versionRef string) {
     <select
       id="preferred_visits_status"
       class="form-control form-select form-select-sm"
-      onchange="setPreferredVisitsStatus(this)"
       style="max-width: 150px;"
     >
       <option value="none" selected>Use Default</option>
@@ -81,7 +79,6 @@ templ Settings(deployment, versionName, versionRef string) {
     <select
       id="preferred_rows_per_page"
       class="form-control form-select form-select-sm"
-      onchange="setPreferredRowsPerPage(this)"
       style="max-width: 150px;"
     >
       <option value="none" selected>Use Default</option>
@@ -105,7 +102,6 @@ templ Settings(deployment, versionName, versionRef string) {
     <select
       id="preferred_theme"
       class="form-control form-select form-select-sm"
-      onchange="setPreferredTheme(this)"
       style="max-width: 150px;"
     >
       <option value="light" selected>Light</option>
@@ -123,7 +119,6 @@ templ Settings(deployment, versionName, versionRef string) {
       type="checkbox"
       id="keyboard_shortcuts"
       checked
-      onchange="setKeyboardShortcuts(this)"
       aria-describedby="keyboard_shortcuts_help"
     />
     <label class="form-check-label" for="keyboard_shortcuts">Single-key shortcuts</label>

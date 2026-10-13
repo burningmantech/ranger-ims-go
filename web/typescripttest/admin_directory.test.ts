@@ -18,7 +18,9 @@
 // admin page (admindirectory.templ).
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { answerDialog, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
+import { answerDialog, change, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
+
+let page: typeof import("../typescript/admin_directory.ts");
 
 interface ServerPerson {
     id?: number;
@@ -138,7 +140,7 @@ function directoryRoutes(url: string, init?: RequestInit): Response | undefined 
 // page to finish drawing the persons table.
 async function initAdminDirectoryPage(handler: FetchHandler = directoryRoutes) {
     const mock = mockFetch(handler);
-    await import("../typescript/admin_directory.ts");
+    page = await import("../typescript/admin_directory.ts");
     await vi.waitFor((): void => {
         expect(personRows().length).toBeGreaterThan(0);
     });
@@ -198,21 +200,20 @@ test("teams and positions are rendered from the group_li_template element", asyn
     expect(positionItems[0]!.classList.contains("item-hidden")).toBe(true);
 });
 
-test("createPerson posts the new person and redraws the table", async (): Promise<void> => {
+test("adding a person posts the new person and redraws the table", async (): Promise<void> => {
     const mock = await initAdminDirectoryPage();
 
     const addInput = document.querySelector<HTMLInputElement>("#directory_persons .card-footer input")!;
-    expect(addInput.getAttribute("onchange")).toBe("createPerson(this)");
-
     addInput.value = "Newbie";
-    await window.createPerson(addInput);
+    change(addInput);
 
+    await vi.waitFor((): void => {
+        expect(addInput.value).toBe("");
+    });
     const postCall = mock.mock.calls.find(
         ([url, init]) => url === url_directoryPersons && init?.body != null,
     )!;
     expect(JSON.parse(postCall[1]!.body as string)).toEqual({ handle: "Newbie" });
-
-    expect(addInput.value).toBe("");
     await vi.waitFor((): void => {
         const handles = personRows().map((row) => row.querySelector(".person-handle")!.textContent);
         expect(handles).toContain("Newbie");
@@ -240,20 +241,20 @@ test("the edit modal is populated from the person row's Edit button", async (): 
     expect(positionBox.checked).toBe(true);
 });
 
-test("createTeam posts the new team", async (): Promise<void> => {
+test("adding a team posts the new team", async (): Promise<void> => {
     const mock = await initAdminDirectoryPage();
 
     const addInput = document.querySelector<HTMLInputElement>("#directory_teams .card-footer input")!;
-    expect(addInput.getAttribute("onchange")).toBe("createTeam(this)");
-
     addInput.value = "Night Shift";
-    await window.createTeam(addInput);
+    change(addInput);
 
+    await vi.waitFor((): void => {
+        expect(addInput.value).toBe("");
+    });
     const postCall = mock.mock.calls.find(
         ([url, init]) => url === url_directoryTeams && init?.body != null,
     )!;
     expect(JSON.parse(postCall[1]!.body as string)).toEqual({ title: "Night Shift" });
-    expect(addInput.value).toBe("");
 });
 
 test("renaming a person from the modal posts the handle and redraws", async (): Promise<void> => {
@@ -261,14 +262,15 @@ test("renaming a person from the modal posts the handle and redraws", async (): 
     openPersonModal(0);
 
     const handleField = modalInput("edit_person_handle");
-    expect(handleField.getAttribute("onchange")).toBe("setPersonHandle(this);");
 
     mock.mockClear();
     handleField.value = "Defector";
-    await window.setPersonHandle(handleField);
+    change(handleField);
 
+    await vi.waitFor((): void => {
+        expect(handleField.classList.contains("is-valid")).toBe(true);
+    });
     expect(personEdits(mock)).toContainEqual({ id: 1, handle: "Defector" });
-    expect(handleField.classList.contains("is-valid")).toBe(true);
     await vi.waitFor((): void => {
         const handles = personRows().map((r) => r.querySelector(".person-handle")!.textContent);
         expect(handles).toContain("Defector");
@@ -283,7 +285,7 @@ test("a blank handle sends nothing", async (): Promise<void> => {
     const handleField = modalInput("edit_person_handle");
     mock.mockClear();
     handleField.value = "";
-    await window.setPersonHandle(handleField);
+    await page.setPersonHandle(handleField);
 
     expect(personEdits(mock)).toEqual([]);
 });
@@ -295,7 +297,7 @@ test("changing a person's email posts it", async (): Promise<void> => {
     const emailField = modalInput("edit_person_email");
     mock.mockClear();
     emailField.value = "defector@example.com";
-    await window.setPersonEmail(emailField);
+    await page.setPersonEmail(emailField);
 
     expect(personEdits(mock)).toContainEqual({ id: 1, email: "defector@example.com" });
 });
@@ -308,7 +310,7 @@ test("clearing a person's email posts an empty string", async (): Promise<void> 
     const emailField = modalInput("edit_person_email");
     mock.mockClear();
     emailField.value = "";
-    await window.setPersonEmail(emailField);
+    await page.setPersonEmail(emailField);
 
     expect(personEdits(mock)).toContainEqual({ id: 1, email: "" });
 });
@@ -322,7 +324,7 @@ test("deactivating a person posts active=false and redraws the row", async (): P
 
     mock.mockClear();
     activeBox.checked = false;
-    await window.setPersonActive(activeBox);
+    await page.setPersonActive(activeBox);
 
     expect(personEdits(mock)).toContainEqual({ id: 1, active: false });
     await vi.waitFor((): void => {
@@ -337,7 +339,7 @@ test("marking a person offsite posts onsite=false and redraws the row", async ()
     const onsiteBox = modalInput("edit_person_onsite");
     mock.mockClear();
     onsiteBox.checked = false;
-    await window.setPersonOnsite(onsiteBox);
+    await page.setPersonOnsite(onsiteBox);
 
     expect(personEdits(mock)).toContainEqual({ id: 1, onsite: false });
     await vi.waitFor((): void => {
@@ -387,12 +389,14 @@ test("setting a password posts it to that person's password endpoint and clears 
 
         const passwordField = modalInput("edit_person_password");
         const saveButton = document.getElementById("edit_person_password_save")!;
-        expect(saveButton.getAttribute("onclick")).toBe("setPersonPassword(this);");
 
         mock.mockClear();
         passwordField.value = "correct horse battery staple";
-        await window.setPersonPassword(saveButton);
+        saveButton.click();
 
+        await vi.waitFor((): void => {
+            expect(saveButton.classList.contains("is-valid")).toBe(true);
+        });
         const call = mock.mock.calls.find(
             ([url, init]) => url === "/ims/api/directory/persons/1/password" && init?.body != null)!;
         expect(call).toBeDefined();
@@ -411,7 +415,7 @@ test("an empty password sends nothing", async (): Promise<void> => {
     const saveButton = document.getElementById("edit_person_password_save")!;
     mock.mockClear();
     modalInput("edit_person_password").value = "";
-    await window.setPersonPassword(saveButton);
+    await page.setPersonPassword(saveButton);
 
     expect(mock.mock.calls.some(([url]) => (url as string).endsWith("/password"))).toBe(false);
 });
@@ -428,7 +432,7 @@ test("a rejected password keeps the field and reports the failure", async (): Pr
     const passwordField = modalInput("edit_person_password");
     const saveButton = document.getElementById("edit_person_password_save")!;
     passwordField.value = "hunter2";
-    const done = window.setPersonPassword(saveButton);
+    const done = page.setPersonPassword(saveButton);
 
     expect(await answerDialog("ok")).toContain("Password is too weak");
     await done;
@@ -442,7 +446,7 @@ test("deleting a person asks first, then DELETEs and redraws", async (): Promise
     openPersonModal(0);
 
     mock.mockClear();
-    const done = window.deletePerson(document.getElementById("edit_person_delete")!);
+    const done = page.deletePerson();
     expect(mock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
     await answerDialog("ok");
     await done;
@@ -460,7 +464,7 @@ test("declining the delete confirmation leaves the person alone", async (): Prom
     openPersonModal(0);
 
     mock.mockClear();
-    const done = window.deletePerson(document.getElementById("edit_person_delete")!);
+    const done = page.deletePerson();
     await answerDialog("cancel");
     await done;
 
@@ -474,31 +478,31 @@ test("modal handlers send nothing before a person has been loaded", async (): Pr
     const mock = await initAdminDirectoryPage();
 
     mock.mockClear();
-    await window.setPersonHandle(modalInput("edit_person_handle"));
-    await window.setPersonEmail(modalInput("edit_person_email"));
-    await window.setPersonActive(modalInput("edit_person_active"));
-    await window.setPersonOnsite(modalInput("edit_person_onsite"));
-    await window.setPersonPassword(document.getElementById("edit_person_password_save")!);
-    await window.deletePerson(document.getElementById("edit_person_delete")!);
+    await page.setPersonHandle(modalInput("edit_person_handle"));
+    await page.setPersonEmail(modalInput("edit_person_email"));
+    await page.setPersonActive(modalInput("edit_person_active"));
+    await page.setPersonOnsite(modalInput("edit_person_onsite"));
+    await page.setPersonPassword(document.getElementById("edit_person_password_save")!);
+    await page.deletePerson();
 
     expect(mock.mock.calls.filter(([, init]) => init?.body != null || init?.method === "DELETE"))
         .toEqual([]);
 });
 
-test("createPosition posts the new position", async (): Promise<void> => {
+test("adding a position posts the new position", async (): Promise<void> => {
     const mock = await initAdminDirectoryPage();
 
     const addInput = document.querySelector<HTMLInputElement>(
         "#directory_positions .card-footer input")!;
-    expect(addInput.getAttribute("onchange")).toBe("createPosition(this)");
-
     addInput.value = "Shiny Penny";
-    await window.createPosition(addInput);
+    change(addInput);
 
+    await vi.waitFor((): void => {
+        expect(addInput.value).toBe("");
+    });
     const call = mock.mock.calls.find(
         ([url, init]) => url === url_directoryPositions && init?.body != null)!;
     expect(JSON.parse(call[1]!.body as string)).toEqual({ title: "Shiny Penny" });
-    expect(addInput.value).toBe("");
 });
 
 test("deactivating a team posts active=false and redraws it as inactive", async (): Promise<void> => {
@@ -608,7 +612,7 @@ test("a failed person edit reports the failure and marks the control invalid", a
 
     const handleField = modalInput("edit_person_handle");
     handleField.value = "Slacker";
-    const done = window.setPersonHandle(handleField);
+    const done = page.setPersonHandle(handleField);
 
     expect(await answerDialog("ok")).toContain("That handle is already taken");
     await done;

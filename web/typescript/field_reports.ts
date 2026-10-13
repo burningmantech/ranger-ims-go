@@ -18,13 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        frShowDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
-        frShowRows: (rowsToShow: string, replaceState: boolean)=>void;
-    }
-}
-
 let fieldReportsTable: ims.DataTablesTable|null = null;
 
 const listSearch: ims.ListSearch = ims.newListSearch(url_fieldReports);
@@ -68,8 +61,8 @@ async function initFieldReportsPage(): Promise<void> {
         return;
     }
 
-    window.frShowDays = frShowDays;
-    window.frShowRows = frShowRows;
+    ims.onMenuPick(ims.typedElement("show_days_menu", HTMLUListElement), (days: string): void => frShowDays(days, true));
+    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => frShowRows(rows, true));
 
     ims.disableEditing();
     initFieldReportsTable();
@@ -413,7 +406,7 @@ function frInitSearch() {
 // Show days button handling
 //
 
-function frShowDays(daysBackToShow: number|string, replaceState: boolean): void {
+export function frShowDays(daysBackToShow: number|string, replaceState: boolean): void {
     const id: string = daysBackToShow.toString();
     _frShowDaysBack = daysBackToShow;
 
@@ -448,7 +441,7 @@ function frShowDays(daysBackToShow: number|string, replaceState: boolean): void 
 // Show rows button handling
 //
 
-function frShowRows(rowsToShow: string, replaceState: boolean) {
+export function frShowRows(rowsToShow: string, replaceState: boolean) {
     const id = rowsToShow.toString();
     _frShowRows = rowsToShow;
 

@@ -18,19 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        addEvent: (el: HTMLInputElement, type: "group"|"not-group")=>Promise<void>;
-        setParentGroup: (el: HTMLInputElement) => Promise<void>;
-        setMapURL: (el: HTMLInputElement) => Promise<void>;
-        setCampLocationsRelease: (el: HTMLInputElement) => Promise<void>;
-        setArtLocationsRelease: (el: HTMLInputElement) => Promise<void>;
-        setMapURLRelease: (el: HTMLInputElement) => Promise<void>;
-        setNormalizeAddresses: (el: HTMLInputElement) => Promise<void>;
-        setIsActive: (el: HTMLInputElement) => Promise<void>;
-    }
-}
-
 //
 // Initialize UI
 //
@@ -49,6 +36,8 @@ const el = {
     accessTargetList: ims.typedElement("access_target_list", HTMLDataListElement),
     eventDeleteWrapper: ims.typedElement("event_delete_wrapper", HTMLElement),
     eventDelete: ims.typedElement("event_delete", HTMLButtonElement),
+    eventAdd: ims.typedElement("event_add", HTMLInputElement),
+    eventAddGroup: ims.typedElement("event_add_group", HTMLInputElement),
 };
 
 const explainModal = ims.dialogModal(el.explainModal);
@@ -72,14 +61,21 @@ async function initAdminEventsPage(): Promise<void> {
           "setting IMS_EVENT_DELETION_ENABLED=true in the server configuration.";
     el.eventDelete.addEventListener("click", deleteEvent);
 
-    window.addEvent = addEvent;
-    window.setParentGroup = setParentGroup;
-    window.setMapURL = setMapURL;
-    window.setCampLocationsRelease = setCampLocationsRelease;
-    window.setArtLocationsRelease = setArtLocationsRelease;
-    window.setMapURLRelease = setMapURLRelease;
-    window.setNormalizeAddresses = setNormalizeAddresses;
-    window.setIsActive = setIsActive;
+    el.eventAdd.addEventListener("change", (): Promise<void> => addEvent(el.eventAdd, "not-group"));
+    el.eventAddGroup.addEventListener("change", (): Promise<void> => addEvent(el.eventAddGroup, "group"));
+    const modalSetters: [string, (input: HTMLInputElement) => Promise<void>][] = [
+        ["edit_parent_group", setParentGroup],
+        ["edit_map_url", setMapURL],
+        ["edit_is_active", setIsActive],
+        ["edit_normalize_addresses", setNormalizeAddresses],
+        ["edit_camp_locations_release", setCampLocationsRelease],
+        ["edit_art_locations_release", setArtLocationsRelease],
+        ["edit_map_url_release", setMapURLRelease],
+    ];
+    for (const [id, setter] of modalSetters) {
+        const input = ims.typedElement(id, HTMLInputElement);
+        input.addEventListener("change", (): Promise<void> => setter(input));
+    }
 
     const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     el.browserTz.textContent = browserTz;
@@ -1310,7 +1306,7 @@ async function setArtLocationsRelease(sender: HTMLInputElement): Promise<void> {
     await setReleaseTime(sender, "art_locations_release");
 }
 
-async function setMapURLRelease(sender: HTMLInputElement): Promise<void> {
+export async function setMapURLRelease(sender: HTMLInputElement): Promise<void> {
     await setReleaseTime(sender, "map_url_release");
 }
 

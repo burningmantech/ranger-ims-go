@@ -18,11 +18,15 @@ package web_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -73,7 +77,8 @@ func TestTemplEndpoints(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.Equalf(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"),
 			"Wrong content type for templ endpoint %v", endpoint)
-		require.Equalf(t, "frame-ancestors 'self'", resp.Header.Get("Content-Security-Policy"),
+		csp := resp.Header.Get("Content-Security-Policy")
+		require.Containsf(t, csp, "frame-ancestors 'self'",
 			"Templ endpoint %v may be framed by another origin", endpoint)
 		require.Equalf(t, "same-origin", resp.Header.Get("Referrer-Policy"),
 			"Templ endpoint %v may leak its referrer to other origins", endpoint)
@@ -81,7 +86,41 @@ func TestTemplEndpoints(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 		require.NoError(t, err)
 		require.Contains(t, string(bod), "IMS © Burning Man Project")
+		requireScriptsAllowedByCSP(t, endpoint, string(bod), csp)
 	}
+}
+
+var (
+	scriptElementRE   = regexp.MustCompile(`(?s)<script([^>]*)>(.*?)</script>`)
+	handlerAttrRE     = regexp.MustCompile(`(?i)<[^>]*\son[a-z]+\s*=`)
+	scriptSrcPolicyRE = regexp.MustCompile(`(?:^|;\s*)script-src ([^;]*)`)
+)
+
+// requireScriptsAllowedByCSP checks that the CSP would let a page's scripts
+// run, and that it wouldn't let anything else run: script-src may only allow
+// IMS's own files and hashes of inline scripts, and the page may have no
+// inline event handlers, since the CSP blocks those.
+func requireScriptsAllowedByCSP(t *testing.T, endpoint, page, csp string) {
+	t.Helper()
+	scriptSrc := scriptSrcPolicyRE.FindStringSubmatch(csp)
+	require.NotNilf(t, scriptSrc, "Templ endpoint %v has no script-src in its CSP", endpoint)
+	sources := strings.Fields(scriptSrc[1])
+	require.Equalf(t, "'self'", sources[0], "Templ endpoint %v script-src", endpoint)
+	for _, source := range sources[1:] {
+		require.Truef(t, strings.HasPrefix(source, "'sha256-"),
+			"Templ endpoint %v allows script source %v", endpoint, source)
+	}
+	for _, script := range scriptElementRE.FindAllStringSubmatch(page, -1) {
+		if strings.Contains(script[1], "src=") {
+			continue
+		}
+		sum := sha256.Sum256([]byte(script[2]))
+		hash := "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
+		require.Containsf(t, sources, hash,
+			"Templ endpoint %v has an inline script that its CSP blocks: %v", endpoint, script[0])
+	}
+	require.Emptyf(t, handlerAttrRE.FindAllString(page, -1),
+		"Templ endpoint %v has inline event handlers, which its CSP blocks", endpoint)
 }
 
 func TestRedirects(t *testing.T) {

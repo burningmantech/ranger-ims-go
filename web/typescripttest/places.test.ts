@@ -20,7 +20,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockDataTable, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem } from "./helpers.ts";
+
+let page: typeof import("../typescript/places.ts");
 
 const eventName = "2025";
 const eventId = 1;
@@ -80,7 +82,7 @@ function placesRoutes(url: string, init?: RequestInit): Response | undefined {
 async function initPlacesPage(handler: (url: string, init?: RequestInit) => Response | undefined = placesRoutes) {
     MockDataTable.lastInstance = null;
     const mock = mockFetch(handler);
-    await import("../typescript/places.ts");
+    page = await import("../typescript/places.ts");
     await vi.waitFor((): void => {
         const errored = !document.getElementById("error_info")!.classList.contains("hidden");
         expect(errored || MockDataTable.lastInstance != null).toBe(true);
@@ -106,9 +108,10 @@ test("page init flattens the categorized places into one tagged row list", async
 
 test("the show-rows control is wired and reflects the default selection", async (): Promise<void> => {
     await initPlacesPage();
-
-    expect(window.destShowRows).toBeTypeOf("function");
     expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).not.toBe("");
+
+    pickMenuItem("show_rows_menu", "50");
+    expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).toBe("50 Rows");
 });
 
 test("a viewer without incident-read or field-report-write access sees an authorization error", async (): Promise<void> => {
@@ -353,7 +356,7 @@ test("a place with no UID keys off its type and name", async (): Promise<void> =
 
 test("closing the modal drops the place from the URL hash but keeps the other state", async (): Promise<void> => {
     await initPlacesPage();
-    window.destShowType("camp", true);
+    pickMenuItem("show_type_menu", "camp");
     openPlace({ name: "Camp Friendly", type: "camp", external_data: { uid: "sf-1" } as ims.BMCamp });
     expect(placeParam()).not.toBeNull();
 
@@ -420,7 +423,7 @@ test("a place fragment naming a place that's no longer there reports it and clea
 test("destShowRows updates the dropdown label, page length, and URL hash", async (): Promise<void> => {
     await initPlacesPage();
 
-    window.destShowRows("50", true);
+    pickMenuItem("show_rows_menu", "50");
     expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).not.toBe("");
     expect(MockDataTable.lastInstance!.pageLen).toBe(50);
     expect(window.location.hash).toContain("rows=50");
@@ -428,15 +431,16 @@ test("destShowRows updates the dropdown label, page length, and URL hash", async
 
 test("destShowRows('all') sets the page length to unlimited", async (): Promise<void> => {
     await initPlacesPage();
-    window.destShowRows("all", false);
+    page.destShowRows("all", false);
     expect(MockDataTable.lastInstance!.pageLen).toBe(-1);
 });
 
 test("the show-type control is wired and reflects the default selection", async (): Promise<void> => {
     await initPlacesPage();
-
-    expect(window.destShowType).toBeTypeOf("function");
     expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("All Types");
+
+    pickMenuItem("show_type_menu", "camp");
+    expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("Camp");
 });
 
 test("destShowType filters the table to the chosen type and updates the label and URL hash", async (): Promise<void> => {
@@ -448,7 +452,7 @@ test("destShowType filters the table to the chosen type and updates the label an
     const rows = MockDataTable.lastInstance!.data() as ims.Place[];
     expect(rows.map(r => r.type)).toEqual(["art", "camp", "mv", "other"]);
 
-    window.destShowType("camp", true);
+    pickMenuItem("show_type_menu", "camp");
 
     expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("Camp");
     expect(window.location.hash).toContain("type=camp");
@@ -465,10 +469,10 @@ test("destShowType('all') passes every row and drops the type from the URL hash"
         expect(MockDataTable.lastInstance!.data().length).toBe(4);
     });
 
-    window.destShowType("mv", true);
+    pickMenuItem("show_type_menu", "mv");
     expect(window.location.hash).toContain("type=mv");
 
-    window.destShowType("all", true);
+    pickMenuItem("show_type_menu", "all");
     expect(document.getElementById("show_type")!.querySelector(".selection")!.textContent).toBe("All Types");
     expect(window.location.hash).not.toContain("type=");
     for (let i = 0; i < 4; i++) {

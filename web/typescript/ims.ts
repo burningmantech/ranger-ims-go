@@ -1542,6 +1542,17 @@ export async function submitReportEntry(): Promise<void> {
     reportEntryEdited();
 }
 
+// Wires up the report entry controls that the Incident, Field Report, and
+// Visit pages share.
+export function initReportEntryControls(attachFile: ()=>Promise<void>): void {
+    typedElement("history_checkbox", HTMLInputElement).addEventListener("change", toggleShowHistory);
+    typedElement("report_entry_add", HTMLTextAreaElement).addEventListener("change", reportEntryEdited);
+    typedElement("report_entry_submit", HTMLButtonElement).addEventListener("click", submitReportEntry);
+    const fileInput = typedElement("attach_file_input", HTMLInputElement);
+    fileInput.addEventListener("change", attachFile);
+    typedElement("attach_file", HTMLInputElement).addEventListener("click", (): void => fileInput.click());
+}
+
 //
 // Generated history display
 //
@@ -2684,6 +2695,16 @@ export function typedElement<T>(
     }
     assertInstanceof(elementOrId, type, message);
     return elementOrId;
+}
+
+// Calls onPick with the data-value of whichever item in the menu is clicked.
+export function onMenuPick(menu: HTMLElement, onPick: (value: string)=>void): void {
+    menu.addEventListener("click", (e: MouseEvent): void => {
+        const item = (e.target as Element).closest<HTMLElement>("[data-value]");
+        if (item != null && menu.contains(item)) {
+            onPick(item.dataset["value"]!);
+        }
+    });
 }
 
 //

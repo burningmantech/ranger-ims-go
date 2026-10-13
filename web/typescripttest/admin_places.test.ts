@@ -20,7 +20,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { answerDialog, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { answerDialog, change, jsonResponse, loadFixture, mockFetch, waitForPageInit } from "./helpers.ts";
+
+let page: typeof import("../typescript/admin_places.ts");
 
 const placesUrl = url_places.replace("<event_id>", "2025");
 const importUrl = url_placesImport.replace("<event_id>", "2025");
@@ -62,10 +64,8 @@ async function initAdminPlacesPage(placesHandler: (init?: RequestInit) => Respon
         }
         return undefined;
     });
-    await import("../typescript/admin_places.ts");
-    await vi.waitFor((): void => {
-        expect(window.loadPlaces).toBeTypeOf("function");
-    });
+    page = await import("../typescript/admin_places.ts");
+    await waitForPageInit();
     return mock;
 }
 
@@ -113,7 +113,7 @@ test("loading places with no event selected fetches nothing", async (): Promise<
     const mock = await initAdminPlacesPage();
     await eventSelect();
 
-    await window.loadPlaces();
+    await page.loadPlaces();
 
     expect(mock.mock.calls.some(([url]) => url === placesUrl)).toBe(false);
 });
@@ -142,7 +142,7 @@ test("loading places fills each JSON textarea and its count label", async (): Pr
     }));
 
     (await eventSelect()).value = "2025";
-    await window.loadPlaces();
+    await page.loadPlaces();
 
     expect(JSON.parse(field("art-data").value)).toEqual([{ name: "Temple", location_string: "9:00" }]);
     expect(document.getElementById("art-data-label")!.textContent).toBe("Art JSON Data (1)");
@@ -216,7 +216,7 @@ test("a successful save reloads just that field from the server", async (): Prom
     });
 
     (await eventSelect()).value = "2025";
-    await window.loadPlaces();
+    await page.loadPlaces();
     // A pending edit in another field must survive the art save.
     field("camp-data").value = "pending edit";
     field("art-data").value = JSON.stringify([{ name: "Whatever", location_string: "6:00" }]);
@@ -357,7 +357,7 @@ test("the year inputs are prefilled from the selected event name", async (): Pro
     await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
 
     (await eventSelect()).value = "2024";
-    await window.loadPlaces();
+    await page.loadPlaces();
 
     expect(yearInput("camp").value).toBe("2024");
     expect(yearInput("art").value).toBe("2024");
@@ -369,7 +369,7 @@ test("an event name with no year in it prefills the current year", async (): Pro
     await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
 
     (await eventSelect()).value = "Training";
-    await window.loadPlaces();
+    await page.loadPlaces();
 
     expect(yearInput("camp").value).toBe(new Date().getFullYear().toString());
 });
@@ -387,7 +387,7 @@ test("importing camps posts the place type and year, then reloads just that fiel
     }));
 
     (await eventSelect()).value = "2025";
-    await window.loadPlaces();
+    await page.loadPlaces();
     // An unsaved edit in another field must survive the camp import.
     field("art-data").value = "pending edit";
     yearInput("camp").value = "2019";
@@ -424,7 +424,7 @@ test("the import confirmation names what it's about to delete, and declining sen
     }));
 
     (await eventSelect()).value = "2025";
-    await window.loadPlaces();
+    await page.loadPlaces();
 
     importButton("camp").click();
 
@@ -453,7 +453,7 @@ test("importing with an empty year surfaces an error and sends nothing", async (
     const mock = await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
 
     (await eventSelect()).value = "2025";
-    await window.loadPlaces();
+    await page.loadPlaces();
     yearInput("camp").value = "";
 
     importButton("camp").click();
@@ -474,7 +474,7 @@ test("a failed import surfaces the server's message and re-enables the button", 
     await initAdminPlacesPage(() => jsonResponse({ art: [], camp: [], mv: [], other: [] }));
 
     (await eventSelect()).value = "2025";
-    await window.loadPlaces();
+    await page.loadPlaces();
     yearInput("camp").value = "1999";
 
     importButton("camp").click();
@@ -494,11 +494,12 @@ test("selecting an event writes the event_id query param", async (): Promise<voi
 
     const select = await eventSelect();
     select.value = "2025";
-    // What the select's onchange handler does.
-    await window.loadPlaces();
+    change(select);
 
+    await vi.waitFor((): void => {
+        expect(window.location.search).toBe("?event_id=2025");
+    });
     expect(window.location.pathname).toBe(adminPlacesPath);
-    expect(window.location.search).toBe("?event_id=2025");
 });
 
 test("clearing the event selection drops the event_id query param", async (): Promise<void> => {
@@ -510,7 +511,7 @@ test("clearing the event selection drops the event_id query param", async (): Pr
         expect(select.value).toBe("2025");
     });
     select.value = "";
-    await window.loadPlaces();
+    await page.loadPlaces();
 
     // No dangling "?" left on the URL.
     expect(window.location.search).toBe("");

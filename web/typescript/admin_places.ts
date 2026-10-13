@@ -18,12 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        loadPlaces: () => Promise<void>;
-    }
-}
-
 //
 // Initialize UI
 //
@@ -142,7 +136,7 @@ async function initAdminPlacesPage(): Promise<void> {
         await ims.redirectToLogin();
         return;
     }
-    window.loadPlaces = loadPlaces;
+    el.eventName.addEventListener("change", loadPlaces);
     placesImportAllowed = initResult.authInfo.places_import_allowed??false;
     for (const field of fields) {
         field.saveEl.addEventListener("click", async (): Promise<void> => {
@@ -242,7 +236,7 @@ async function save(field: PlaceField): Promise<void> {
     await fetchPlaces([field]);
 }
 
-async function loadPlaces(): Promise<void> {
+export async function loadPlaces(): Promise<void> {
     ims.clearErrorMessage();
     const eventName = el.eventName.value;
     setEventURLParam(eventName);

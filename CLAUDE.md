@@ -235,6 +235,11 @@ The web UI uses:
 - **templ** - Type-safe Go templates (`.templ` files generate `.go` files)
 - **TypeScript** - Compiled to JavaScript via tsc (in `web/typescript/`, output to `web/static/`)
 - Custom mux pattern similar to the API
+- A strict Content-Security-Policy (`contentSecurityPolicy` in `web/mux.go`): scripts run only from IMS's own
+  files, plus the import map by its hash. So templates carry no inline `on*=` handlers or `<script>` blocks; each
+  page module attaches its listeners with `addEventListener`, and parameterized menu items carry a `data-value`
+  (`ims.onMenuPick`). `TestTemplEndpoints` fails on an inline handler or an inline script the policy doesn't
+  allow, and the Playwright fixtures fail any test that logs a CSP violation
 
 ### Testing Strategy
 
@@ -299,8 +304,8 @@ soon as the directory cache refreshes.
   That doesn't cover GETs, so the cookie itself is also refused when `Sec-Fetch-Site` says the request
   came from another origin, including a same-site one
 - API responses are `Cache-Control: no-store` unless the handler sets its own (`NoStoreByDefault`), since a
-  cookie, unlike an `Authorization` header, doesn't keep shared caches from reusing a response. Web pages
-  send `frame-ancestors 'self'`
+  cookie, unlike an `Authorization` header, doesn't keep shared caches from reusing a response. Web pages'
+  CSP includes `frame-ancestors 'self'`
 
 ### Authorization
 

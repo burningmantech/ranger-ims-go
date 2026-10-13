@@ -19,7 +19,7 @@
 // selects and persists changes back to localStorage.
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { change, jsonResponse, loadFixture, mockFetch, waitForPageInit } from "./helpers.ts";
 
 beforeEach((): void => {
     // settings.ts looks up its elements and runs its init at import time, so
@@ -46,9 +46,7 @@ async function initSettingsPage() {
     // @ts-expect-error TS2306: theme.ts is intentionally not a module.
     await import("../typescript/theme.ts");
     await import("../typescript/settings.ts");
-    await vi.waitFor((): void => {
-        expect(window.setPreferredState).toBeTypeOf("function");
-    });
+    await waitForPageInit();
     return mock;
 }
 
@@ -81,7 +79,7 @@ test("choosing a valid incidents state persists it to localStorage", async (): P
 
     const stateSelect = select("preferred_state");
     stateSelect.value = "active";
-    await window.setPreferredState(stateSelect);
+    change(stateSelect);
 
     expect(localStorage.getItem("preferred_incidents_state")).toBe("active");
 });
@@ -92,7 +90,7 @@ test("choosing the default ('none') incidents state clears the stored preference
 
     const stateSelect = select("preferred_state");
     stateSelect.value = "none";
-    await window.setPreferredState(stateSelect);
+    change(stateSelect);
 
     expect(localStorage.getItem("preferred_incidents_state")).toBeNull();
 });
@@ -118,7 +116,7 @@ test("choosing a color scheme applies and persists it", async (): Promise<void> 
 
     const themeSelect = select("preferred_theme");
     themeSelect.value = "dark";
-    await window.setPreferredTheme(themeSelect);
+    change(themeSelect);
 
     expect(localStorage.getItem("theme")).toBe("dark");
     expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
@@ -141,12 +139,12 @@ test("the visits status and rows-per-page selects persist their valid values", a
 
     const visitsSelect = select("preferred_visits_status");
     visitsSelect.value = "all";
-    await window.setPreferredVisitsStatus(visitsSelect);
+    change(visitsSelect);
     expect(localStorage.getItem("preferred_visits_status")).toBe("all");
 
     const rowsSelect = select("preferred_rows_per_page");
     rowsSelect.value = "100";
-    await window.setPreferredRowsPerPage(rowsSelect);
+    change(rowsSelect);
     expect(localStorage.getItem("preferred_table_rows_per_page")).toBe("100");
 });
 

@@ -102,3 +102,61 @@ test("clicking the theme toggle from a stored dark theme switches to light", asy
     const activeIcon = themeToggle.querySelector("use") as SVGUseElement;
     expect(activeIcon.href.baseVal).toBe("#sun-fill");
 });
+
+// Stub matchMedia with a system preference that a test can flip, returning a
+// function that flips it and notifies the listeners, as the browser would.
+function stubSystemTheme(dark: boolean): (dark: boolean) => void {
+    const listeners: (() => void)[] = [];
+    vi.stubGlobal("matchMedia", (): object => ({
+        get matches(): boolean {
+            return dark;
+        },
+        addEventListener: (_type: string, listener: () => void): void => void listeners.push(listener),
+    }));
+    return (nowDark: boolean): void => {
+        dark = nowDark;
+        for (const listener of listeners) {
+            listener();
+        }
+    };
+}
+
+test("with no stored theme, the page follows a change in the system theme", async (): Promise<void> => {
+    const setSystemDark = stubSystemTheme(false);
+    await runThemeScript();
+    const themeToggle = document.querySelector<HTMLButtonElement>("#bd-theme")!;
+    expect(document.documentElement.dataset["bsTheme"]).toBe("light");
+
+    setSystemDark(true);
+
+    expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
+    expect(themeToggle.ariaLabel).toBe("Toggle theme (dark)");
+});
+
+test("a chosen theme ignores a change in the system theme", async (): Promise<void> => {
+    localStorage.setItem("theme", "light");
+    const setSystemDark = stubSystemTheme(false);
+    await runThemeScript();
+
+    setSystemDark(true);
+
+    expect(document.documentElement.dataset["bsTheme"]).toBe("light");
+});
+
+test("printing switches to the light theme, then back", async (): Promise<void> => {
+    localStorage.setItem("theme", "dark");
+    await runThemeScript();
+
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(document.documentElement.dataset["bsTheme"]).toBe("light");
+    window.dispatchEvent(new Event("afterprint"));
+    expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
+});
+
+test("a page without the navbar toggle still gets its theme", async (): Promise<void> => {
+    document.querySelector("#bd-theme")!.remove();
+    await runThemeScript();
+
+    (window as Window & { imsSetThemeSetting: (theme: string) => void }).imsSetThemeSetting("dark");
+    expect(document.documentElement.dataset["bsTheme"]).toBe("dark");
+});

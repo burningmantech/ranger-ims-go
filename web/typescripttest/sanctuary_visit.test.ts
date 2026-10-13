@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { change, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
+import { change, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/sanctuary_visit.ts");
 
@@ -712,4 +712,419 @@ test("the Go to... modal opens on this page's Visit type", async (): Promise<voi
 
     expect((document.getElementById("goto-resource-visit") as HTMLInputElement).checked).toBe(true);
     expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("VS#");
+});
+
+function errorText(): string {
+    return document.getElementById("error_text")!.textContent ?? "";
+}
+
+function postedBodies(mock: ReturnType<typeof mockFetch>, url: string): unknown[] {
+    return mock.mock.calls
+        .filter(([u, init]) => u === url && init?.body != null)
+        .map(([, init]) => JSON.parse(init!.body as string));
+}
+
+// Routes for a page opened on visits/new, where the first edit creates Visit #2.
+function newVisitRoutes(createResponse: () => Response) {
+    return (url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/auth?event_id=${eventName}`) {
+            return visitRoutes(url, init);
+        }
+        if (url === visitsUrl && init?.body != null) {
+            return createResponse();
+        }
+        return visitRoutes(url, init);
+    };
+}
+
+test("an unauthenticated visitor is sent to the login page", async (): Promise<void> => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockFetch((url, init) => {
+        if (url === `/ims/api/auth?event_id=${eventName}`) {
+            return jsonResponse({ authenticated: false });
+        }
+        if (url === url_logout) {
+            return new Response(null, { status: 204 });
+        }
+        return visitRoutes(url, init);
+    });
+    await import("../typescript/sanctuary_visit.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
+});
+
+test("a visit that fails to load shows the error, and the page stays read-only", async (): Promise<void> => {
+    vi.spyOn(console, "error").mockImplementation((): void => {});
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    mockFetch((url, init) => url === `${visitsUrl}/2` && init?.body == null
+        ? problemResponse("no such visit", 404)
+        : visitRoutes(url, init));
+    await import("../typescript/sanctuary_visit.ts");
+
+    await vi.waitFor((): void => {
+        expect(errorText()).toContain("Visit failed to load");
+    });
+    expect((document.getElementById("guest_preferred_name") as HTMLInputElement).disabled).toBe(true);
+});
+
+test("a viewer who can read but not write visits gets a read-only page", async (): Promise<void> => {
+    serverEventAccess.writeVisits = false;
+    serverEventAccess.attachFiles = false;
+    await initVisitPage();
+
+    expect((document.getElementById("guest_preferred_name") as HTMLInputElement).disabled).toBe(true);
+    expect(document.getElementById("attach_file")!.classList.contains("hidden")).toBe(true);
+});
+
+test("a personnel load failure is shown, and the roster lists handles without links", async (): Promise<void> => {
+    await initVisitPage((url, init) => url === `/ims/api/personnel?event_id=${eventName}`
+        ? problemResponse("directory down", 503)
+        : visitRoutes(url, init));
+
+    // Drawing the visit clears the error, so check what the roster fell back to.
+    const ranger = document.querySelector<HTMLElement>("#visit_rangers_list li")!;
+    expect(ranger.dataset["rangerHandle"]).toBe("Hot Slots");
+    expect(ranger.querySelector("span")!.textContent).toBe("Hot Slots");
+    expect(ranger.querySelector("a")).toBeNull();
+    // The add field offers no one but the blank option.
+    expect(document.querySelectorAll("#ranger_handles option").length).toBe(1);
+});
+
+test("the roster links known Rangers to the Clubhouse, sorted, with their roles", async (): Promise<void> => {
+    serverVisit.rangers = [
+        { handle: "Tool", role: "sitter" },
+        { handle: "Hot Slots" },
+        // An entry without a handle is skipped.
+        { role: "ghost" },
+        { handle: "Former Ranger" },
+    ];
+    await initVisitPage();
+
+    const items = [...document.querySelectorAll<HTMLElement>("#visit_rangers_list li")];
+    expect(items.map(li => li.dataset["rangerHandle"])).toEqual(["Former Ranger", "Hot Slots", "Tool"]);
+    expect(items[0]!.querySelector("span")!.textContent).toBe("Former Ranger");
+    const toolLink = items[2]!.querySelector("a")!;
+    expect(toolLink.textContent).toBe("Tool");
+    expect(toolLink.href).toMatch(/\/2$/);
+    expect(toolLink.target).toBe("_blank");
+    expect(items[2]!.querySelector("input")!.value).toBe("sitter");
+    expect(items[2]!.querySelector("input")!.ariaLabel).toBe("Ranger role for Tool");
+    expect(items[2]!.querySelector("button")!.ariaLabel).toBe("Remove Ranger Tool");
+
+    const options = [...document.querySelectorAll<HTMLOptionElement>("#ranger_handles option")].map(o => o.value);
+    expect(options).toEqual(["", "Hot Slots", "Tool"]);
+});
+
+test("the document title says whether the visit is current or past, and whose it is", async (): Promise<void> => {
+    await initVisitPage();
+    expect(document.getElementById("doc-title")!.textContent).toBe("Current Sanctuary Visit (Sparkle)");
+
+    const channel = new BroadcastChannel("visit_update");
+    serverVisit.guest_preferred_name = null;
+    serverVisit.departure_time = "2025-08-26T08:00:00Z";
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+    await vi.waitFor((): void => {
+        expect(document.getElementById("doc-title")!.textContent).toBe("Past Sanctuary Visit (Pat Doe)");
+    });
+    // The departure time's full date is there on hover.
+    expect((document.getElementById("alt_departure_time") as HTMLInputElement).title).toMatch(/2025-08-2\d/);
+
+    serverVisit.guest_legal_name = null;
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+    await vi.waitFor((): void => {
+        expect(document.getElementById("doc-title")!.textContent).toBe("Past Sanctuary Visit (no name)");
+    });
+    channel.close();
+});
+
+test("a broadcast about another visit, or another event, is ignored; an update-all isn't", async (): Promise<void> => {
+    const mock = await initVisitPage();
+    const visitLoads = (): number => mock.mock.calls.filter(([url, init]) => url === `${visitsUrl}/2` && init?.body == null).length;
+    const before = visitLoads();
+
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 3 });
+    channel.postMessage({ event_id: eventId + 1, visit_number: 2 });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(visitLoads()).toBe(before);
+
+    // Pages left over from earlier tests are listening too, so an update-all
+    // reloads more than once; only check that this page refreshed.
+    serverVisit.guest_preferred_name = "Refreshed";
+    channel.postMessage({ update_all: true });
+    await vi.waitFor((): void => {
+        expect(inputValue("guest_preferred_name")).toBe("Refreshed");
+    });
+    channel.close();
+});
+
+test("the parent incident field links to that incident", async (): Promise<void> => {
+    serverVisit.incident = 17;
+    await initVisitPage();
+
+    expect(inputValue("parent_incident")).toBe("17");
+    expect((document.getElementById("parent_incident_link") as HTMLAnchorElement).getAttribute("href"))
+        .toBe("/ims/app/events/2025/incidents/17");
+});
+
+test("printing retitles the page for a PDF filename, then puts the title back", async (): Promise<void> => {
+    await initVisitPage();
+    const displayTitle = document.title;
+
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(document.title).toBe("Visit-2025-2_Sparkle");
+    window.dispatchEvent(new Event("afterprint"));
+    expect(document.title).toBe(displayTitle);
+});
+
+test("leaving with an unsent report entry asks the browser to confirm", async (): Promise<void> => {
+    await initVisitPage();
+
+    const clean = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(clean);
+    expect(clean.defaultPrevented).toBe(false);
+
+    (document.getElementById("report_entry_add") as HTMLTextAreaElement).value = "half a thought";
+    const dirty = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(dirty);
+    expect(dirty.defaultPrevented).toBe(true);
+});
+
+test("keyboard shortcuts toggle history, jump to the entry box, and open a new visit", async (): Promise<void> => {
+    await initVisitPage();
+    const opened = { focus: vi.fn() };
+    const open = vi.spyOn(window, "open").mockReturnValue(opened as unknown as Window);
+
+    const checkbox = document.getElementById("history_checkbox") as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true }));
+    expect(checkbox.checked).toBe(true);
+
+    // A modifier makes it someone else's shortcut.
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "n", ctrlKey: true, bubbles: true }));
+    expect(open).not.toHaveBeenCalled();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "n", bubbles: true }));
+    expect(open).toHaveBeenCalledWith("./new", "_blank");
+    expect(opened.focus).toHaveBeenCalled();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+    expect(document.activeElement!.id).toBe("report_entry_add");
+
+    // Now that a field has focus, shortcuts are off.
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true }));
+    expect(checkbox.checked).toBe(true);
+});
+
+test("Alt+Enter in the entry box submits the entry", async (): Promise<void> => {
+    const mock = await initVisitPage();
+    const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
+
+    // With nothing typed, the submit button is disabled and Enter does nothing.
+    textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", altKey: true, bubbles: true }));
+    expect(postedBodies(mock, `${visitsUrl}/2`)).toEqual([]);
+
+    textarea.value = "guest is resting";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", altKey: true, bubbles: true }));
+
+    await vi.waitFor((): void => {
+        expect(postedBodies(mock, `${visitsUrl}/2`)).toEqual([
+            { report_entries: [{ text: "guest is resting", id: -1 }], number: 2 },
+        ]);
+    });
+});
+
+test("a failed edit is reported, and the field goes back to the server's value", async (): Promise<void> => {
+    const mock = await initVisitPage((url, init) => url === `${visitsUrl}/2` && init?.body != null
+        ? problemResponse("visit is locked", 409)
+        : visitRoutes(url, init));
+
+    const field = document.getElementById("guest_legal_name") as HTMLInputElement;
+    field.value = "Someone Else";
+    change(field);
+
+    await vi.waitFor((): void => {
+        expect(errorText()).toContain("Failed to apply edit: visit is locked (HTTP 409)");
+    });
+    expect(field.value).toBe("Pat Doe");
+    expect(postedBodies(mock, `${visitsUrl}/2`)).toEqual([{ guest_legal_name: "Someone Else", number: 2 }]);
+});
+
+//
+// A new visit
+//
+
+test("a new visit focuses the name field, and its first edit creates it, assuming arrival now", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits/new`);
+    const mock = await initVisitPage(newVisitRoutes(() =>
+        new Response(null, { status: 201, headers: { "IMS-Visit-Number": "2" } })));
+
+    expect(inputValue("visit_number")).toBe("(new)");
+    expect(document.getElementById("doc-title")!.textContent).toBe("New Sanctuary Visit");
+    expect(document.activeElement!.id).toBe("guest_preferred_name");
+
+    const before = Date.now();
+    const name = document.getElementById("guest_preferred_name") as HTMLInputElement;
+    name.value = "Sparkle";
+    name.blur();
+    change(name);
+
+    await vi.waitFor((): void => {
+        expect(inputValue("visit_number")).toBe("2");
+    });
+    const [created] = postedBodies(mock, visitsUrl) as { guest_preferred_name: string; arrival_time: string }[];
+    expect(created!.guest_preferred_name).toBe("Sparkle");
+    expect(Date.parse(created!.arrival_time)).toBeGreaterThanOrEqual(before);
+    expect(window.location.pathname).toBe(`/ims/app/events/${eventName}/visits/2`);
+});
+
+test("creating a visit without a number in the response shows an error", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits/new`);
+    await initVisitPage(newVisitRoutes(() => new Response(null, { status: 201 })));
+
+    const name = document.getElementById("guest_preferred_name") as HTMLInputElement;
+    name.value = "Sparkle";
+    await page.editGuestPreferredName();
+
+    expect(errorText()).toContain("No IMS-Visit-Number header provided");
+    expect(inputValue("visit_number")).toBe("(new)");
+});
+
+test("creating a visit with a non-integer number in the response shows an error", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits/new`);
+    await initVisitPage(newVisitRoutes(() =>
+        new Response(null, { status: 201, headers: { "IMS-Visit-Number": "two" } })));
+
+    const name = document.getElementById("guest_preferred_name") as HTMLInputElement;
+    name.value = "Sparkle";
+    await page.editGuestPreferredName();
+
+    expect(errorText()).toContain("Non-integer IMS-Visit-Number header provided");
+    expect(inputValue("visit_number")).toBe("(new)");
+});
+
+test("adding a Ranger to a new visit creates the visit first", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits/new`);
+    const mock = await initVisitPage(newVisitRoutes(() =>
+        new Response(null, { status: 201, headers: { "IMS-Visit-Number": "2" } })));
+
+    const addField = document.getElementById("ranger_add") as HTMLInputElement;
+    addField.value = "Tool";
+    await page.addRanger();
+
+    expect(postedBodies(mock, visitsUrl).length).toBe(1);
+    expect(postedBodies(mock, `${visitsUrl}/2/rangers/Tool`)).toEqual([{ handle: "Tool" }]);
+});
+
+test("a Ranger added to a new visit that can't be created isn't posted", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits/new`);
+    const mock = await initVisitPage(newVisitRoutes(() => problemResponse("nope", 500)));
+
+    const addField = document.getElementById("ranger_add") as HTMLInputElement;
+    addField.value = "Tool";
+    await page.addRanger();
+
+    expect(errorText()).toContain("Failed to apply edit");
+    expect(mock.mock.calls.some(([url]) => (url as string).includes("/rangers/"))).toBe(false);
+});
+
+test("attaching a file to a new visit creates the visit first", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits/new`);
+    const mock = await initVisitPage(newVisitRoutes(() =>
+        new Response(null, { status: 201, headers: { "IMS-Visit-Number": "2" } })));
+    const uploads = mockXHR((url) => url === `${visitsUrl}/2/attachments` ? new Response(null, { status: 204 }) : undefined);
+
+    await page.attachFile();
+
+    expect(postedBodies(mock, visitsUrl).length).toBe(1);
+    expect(uploads.map(u => u.url)).toEqual([`${visitsUrl}/2/attachments`]);
+});
+
+test("a file attached to a new visit that can't be created isn't uploaded", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/visits/new`);
+    await initVisitPage(newVisitRoutes(() => problemResponse("nope", 500)));
+    const uploads = mockXHR(() => new Response(null, { status: 204 }));
+
+    await page.attachFile();
+
+    expect(uploads).toEqual([]);
+    expect(errorText()).toContain("Failed to apply edit");
+});
+
+//
+// The Ranger roster
+//
+
+test("a Ranger's handle is matched regardless of case and surrounding space", async (): Promise<void> => {
+    const mock = await initVisitPage();
+
+    const addField = document.getElementById("ranger_add") as HTMLInputElement;
+    addField.value = "  tOOL ";
+    await page.addRanger();
+
+    expect(postedBodies(mock, `${visitsUrl}/2/rangers/Tool`)).toEqual([{ handle: "Tool" }]);
+    expect(addField.value).toBe("");
+    expect(addField.classList.contains("is-valid")).toBe(true);
+});
+
+test("adding a Ranger who's already on the visit sends nothing", async (): Promise<void> => {
+    const mock = await initVisitPage();
+
+    const addField = document.getElementById("ranger_add") as HTMLInputElement;
+    addField.value = "Hot Slots";
+    await page.addRanger();
+
+    expect(addField.value).toBe("");
+    expect(mock.mock.calls.some(([url]) => (url as string).includes("/rangers/"))).toBe(false);
+});
+
+test("a failed Ranger addition marks the add field and re-enables it", async (): Promise<void> => {
+    await initVisitPage((url, init) => url.startsWith(`${visitsUrl}/2/rangers/`) && init?.body != null
+        ? problemResponse("nope", 500)
+        : visitRoutes(url, init));
+
+    const addField = document.getElementById("ranger_add") as HTMLInputElement;
+    addField.value = "Tool";
+    await page.addRanger();
+
+    expect(addField.classList.contains("is-invalid")).toBe(true);
+    expect(addField.disabled).toBe(false);
+    expect(addField.value).toBe("");
+});
+
+test("a failed role edit marks the role field", async (): Promise<void> => {
+    await initVisitPage((url, init) => url.startsWith(`${visitsUrl}/2/rangers/`) && init?.body != null
+        ? problemResponse("nope", 500)
+        : visitRoutes(url, init));
+
+    const roleInput = document.querySelector<HTMLInputElement>("#visit_rangers_list li input")!;
+    roleInput.value = "sitter";
+    await page.setRangerRole(roleInput);
+
+    expect(roleInput.classList.contains("is-invalid")).toBe(true);
+});
+
+test("a role field outside any Ranger's row sends nothing", async (): Promise<void> => {
+    vi.spyOn(console, "log").mockImplementation((): void => {});
+    const mock = await initVisitPage();
+
+    const stray = document.createElement("input");
+    document.body.append(stray);
+    await page.setRangerRole(stray);
+
+    expect(mock.mock.calls.some(([url]) => (url as string).includes("/rangers/"))).toBe(false);
+});
+
+test("a remove button outside any Ranger's row sends nothing", async (): Promise<void> => {
+    const mock = await initVisitPage();
+
+    const wrapper = document.createElement("div");
+    const stray = document.createElement("button");
+    wrapper.append(stray);
+    await page.removeRanger(stray);
+
+    expect(mock.mock.calls.some(([url]) => (url as string).includes("/rangers/"))).toBe(false);
 });

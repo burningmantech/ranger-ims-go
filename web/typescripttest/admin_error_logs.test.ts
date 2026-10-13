@@ -22,7 +22,7 @@
 // options the page passes and runs the ajax source on draw/reload.
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { change, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { change, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
 
 interface AjaxCallback { (resp: { data: unknown[] }): void; }
 interface DataTableOptions {
@@ -121,18 +121,27 @@ beforeEach((): void => {
     loadFixture("admin_error_logs.html");
     MockDataTable.lastInstance = null;
     vi.stubGlobal("DataTable", MockDataTable);
+    authenticated = true;
+    logsFail = false;
 });
+
+let authenticated: boolean;
+// Whether the fake server fails the logs fetch.
+let logsFail: boolean;
 
 async function initErrorLogsPage(rows: unknown[] = []) {
     const mock = mockFetch((url, init) => {
         if (url === url_auth && init?.body == null) {
-            return jsonResponse({ authenticated: true, user: "Tester", admin: true });
+            return jsonResponse({ authenticated: authenticated, user: "Tester", admin: true });
         }
         if (url === url_events && init?.body == null) {
             return jsonResponse([]);
         }
+        if (url === url_logout) {
+            return new Response(null, { status: 204 });
+        }
         if (url.startsWith(url_errorlogs)) {
-            return jsonResponse(rows);
+            return logsFail ? problemResponse("logs unavailable", 500) : jsonResponse(rows);
         }
         return undefined;
     });
@@ -234,4 +243,77 @@ test("the status column renders the HTTP status", async (): Promise<void> => {
     const statusColumn = MockDataTable.lastInstance!.column("log_http_status")!;
     expect(statusColumn.render!(500, "display", {}) as string).toContain("500");
     expect(statusColumn.render!(503, "sort", {})).toBe(503);
+});
+
+test("an unauthenticated visitor is sent to the login page, and no table is built", async (): Promise<void> => {
+    authenticated = false;
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockFetch((url) => {
+        if (url === url_auth) {
+            return jsonResponse({ authenticated: false });
+        }
+        if (url === url_events || url === url_logout) {
+            return jsonResponse([]);
+        }
+        return undefined;
+    });
+    await import("../typescript/admin_error_logs.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
+    expect(MockDataTable.lastInstance).toBeNull();
+});
+
+test("a failure to load the logs is shown, and the table gets no rows", async (): Promise<void> => {
+    logsFail = true;
+    await initErrorLogsPage([{ id: 1 }]);
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Failed to load table: logs unavailable (HTTP 500)");
+    });
+    expect(MockDataTable.lastInstance!.lastData).toEqual([]);
+});
+
+test("a max-time filter bounds the fetch at that time", async (): Promise<void> => {
+    const mock = await initErrorLogsPage();
+
+    const maxTime = document.getElementById("filter_max_time") as HTMLInputElement;
+    maxTime.value = "2025-08-30 12:00:00";
+    change(maxTime);
+
+    await vi.waitFor((): void => {
+        const params = new URL(mock.mock.calls.at(-1)![0] as string, "https://localhost").searchParams;
+        expect(params.get("maxTimeUnixMs")).toBe(new Date("2025-08-30 12:00:00").getTime().toString());
+    });
+});
+
+test("the time column shows a local timestamp with the full date on hover, and sorts by instant", async (): Promise<void> => {
+    await initErrorLogsPage();
+
+    const timeColumn = MockDataTable.lastInstance!.column("log_time")!;
+    const instant = "2025-08-30T19:04:05Z";
+    const local = new Intl.DateTimeFormat("sv-SE", {
+        year: "numeric", month: "numeric", day: "numeric",
+        hour: "numeric", hour12: false, minute: "numeric", second: "numeric",
+    }).format(Date.parse(instant));
+
+    const cell = document.createElement("div");
+    cell.innerHTML = timeColumn.render!(instant, "display", {}) as string;
+    expect(cell.textContent).toBe(local);
+    expect(cell.querySelector("span")!.title).toMatch(/2025-08-3\d/);
+    expect(timeColumn.render!(instant, "filter", {})).toBe(local);
+    expect(timeColumn.render!(instant, "sort", {})).toBe(Date.parse(instant));
+    expect(timeColumn.render!(instant, "type", {})).toBe(Date.parse(instant));
+    expect(timeColumn.render!(instant, "export", {})).toBeUndefined();
+});
+
+test("a missing status renders blank and sorts as zero", async (): Promise<void> => {
+    await initErrorLogsPage();
+
+    const statusColumn = MockDataTable.lastInstance!.column("log_http_status")!;
+    expect(statusColumn.render!(null, "display", {})).toBe("");
+    expect(statusColumn.render!(null, "filter", {})).toBe("");
+    expect(statusColumn.render!(null, "type", {})).toBe(0);
+    expect(statusColumn.render!(500, "export", {})).toBeUndefined();
 });

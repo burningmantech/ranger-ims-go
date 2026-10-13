@@ -21,7 +21,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem } from "./helpers.ts";
+import { createdRow, jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/incidents.ts");
 
@@ -690,6 +690,135 @@ test("an incident update re-runs an active search", async (): Promise<void> => {
     channel.postMessage({ incident_number: 2, event_id: eventId });
     await vi.waitFor((): void => {
         expect(table.fixedSearch("query", 1)).toBe(true);
+    });
+    channel.close();
+});
+
+test("an unauthenticated visitor is sent to the login page", async (): Promise<void> => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
+    mockFetch((url, init) => {
+        if (url === `/ims/api/auth?event_id=${eventName}`) {
+            return jsonResponse({ authenticated: false });
+        }
+        if (url === url_logout) {
+            return new Response(null, { status: 204 });
+        }
+        return incidentsRoutes(url, init);
+    });
+    await import("../typescript/incidents.ts");
+
+    await vi.waitFor((): void => {
+        expect(replace).toHaveBeenCalledWith(expect.stringContaining(url_login));
+    });
+});
+
+test("a failure to load the table is shown", async (): Promise<void> => {
+    await initIncidentsPage((url, init) => url === incidentsUrl ? problemResponse("database is down", 500) : incidentsRoutes(url, init));
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Failed to load table: database is down (HTTP 500)");
+    });
+});
+
+test("clicking a row opens it, in a new tab with a modifier key or the middle button", async (): Promise<void> => {
+    await initIncidentsPage();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const rowUrl = `/ims/app/events/${eventName}/incidents/1`;
+    const row = createdRow({ number: 1 });
+
+    row.dispatchEvent(new MouseEvent("click", { ctrlKey: true }));
+    expect(open).toHaveBeenLastCalledWith(rowUrl);
+    row.dispatchEvent(new MouseEvent("auxclick", { button: 1 }));
+    expect(open).toHaveBeenCalledTimes(2);
+    // A right click is left for the context menu.
+    row.dispatchEvent(new MouseEvent("auxclick", { button: 2 }));
+    expect(open).toHaveBeenCalledTimes(2);
+
+    // A click on a link inside the row is left to the link.
+    const link = document.createElement("a");
+    row.firstElementChild!.append(link);
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    expect(open).toHaveBeenCalledTimes(2);
+
+    row.dispatchEvent(new MouseEvent("click"));
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(window.location.pathname).toBe(rowUrl);
+});
+
+test("a search in the URL fragment is run when the page loads", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/incidents#q=wallet`);
+    const mock = await initIncidentsPage();
+
+    expect((document.getElementById("search_input") as HTMLInputElement).value).toBe("wallet");
+    await vi.waitFor((): void => {
+        expect(mock.mock.calls.some(([url]) => url === `${incidentsUrl}?q=wallet`)).toBe(true);
+    });
+});
+
+function typeLabel(): string {
+    return document.getElementById("show_type")!.textContent ?? "";
+}
+
+test("type and state filters in the URL fragment are applied on load", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/incidents#type=2&state=all`);
+    await initIncidentsPage();
+
+    await vi.waitFor((): void => {
+        expect(typeLabel()).toBe("Lost Child");
+    });
+    expect(document.getElementById("show_state")!.querySelector(".selection")!.textContent).toBe("All States");
+});
+
+test("a lone blank-type filter in the URL fragment is labeled as such", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/incidents#type=(blank)`);
+    await initIncidentsPage();
+
+    await vi.waitFor((): void => {
+        expect(typeLabel()).toBe("(blank)");
+    });
+});
+
+test("a lone other-type filter in the URL fragment is labeled as such", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/incidents#type=(other)`);
+    await initIncidentsPage();
+
+    await vi.waitFor((): void => {
+        expect(typeLabel()).toBe("(other)");
+    });
+});
+
+test("several type filters in the URL fragment are counted, ignoring unknown types", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/incidents#type=1&type=(blank)&type=99&type=junk`);
+    await initIncidentsPage();
+
+    await vi.waitFor((): void => {
+        expect(typeLabel()).toBe("Types (2)");
+    });
+});
+
+test("an incident reader who can't write incidents gets a read-only page", async (): Promise<void> => {
+    serverEventAccess.writeIncidents = false;
+    await initIncidentsPage();
+
+    await vi.waitFor((): void => {
+        expect(document.documentElement.classList.contains("no-edit")).toBe(true);
+    });
+});
+
+test("a failure to refresh an updated incident's row is shown", async (): Promise<void> => {
+    vi.spyOn(console, "error").mockImplementation((): void => {});
+    await initIncidentsPage((url, init) => url === `${incidentsUrl}?number=1`
+        ? problemResponse("row went missing", 500)
+        : incidentsRoutes(url, init));
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    const channel = new BroadcastChannel("incident_update");
+    channel.postMessage({ incident_number: 1, event_id: eventId });
+    await vi.waitFor((): void => {
+        expect(document.getElementById("error_text")!.textContent).toContain("Failed to update Incident 1: row went missing (HTTP 500)");
     });
     channel.close();
 });

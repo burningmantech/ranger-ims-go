@@ -92,7 +92,7 @@ async function initFieldReportPage(): Promise<void> {
     if (fieldReport.number == null) {
         // assume that Rangers without Incident access ought to see the instructions by default
         if (!ims.eventAccess?.readIncidents && !ims.eventAccess?.writeIncidents) {
-            document.getElementById("fr-instructions")!.click();
+            (document.getElementById("verboseInstructions") as HTMLDetailsElement).open = true;
         }
         el.fieldReportSummary.focus();
     }

@@ -512,13 +512,18 @@ test("typing in the type filter box hides the types that don't match", async ():
     expect(document.getElementById("show_type_toggle_all")!.textContent).toBe("Select/Deselect All");
 });
 
+// happy-dom has no popover support, so fake the event that closing one fires.
+function closeTypeMenu(): void {
+    document.getElementById("ul_show_type")!.dispatchEvent(Object.assign(new Event("toggle"), {newState: "closed"}));
+}
+
 test("closing the type menu clears its filter", async (): Promise<void> => {
     await initIncidentsPage();
 
     typeFilterType("junk");
     expect(typeItemShown("2")).toBe(false);
 
-    document.getElementById("show_type")!.dispatchEvent(new Event("hidden.bs.dropdown"));
+    closeTypeMenu();
     expect(typeFilterInput().value).toBe("");
     expect(typeItemShown("2")).toBe(true);
 });
@@ -569,7 +574,7 @@ test("closing the type menu without picking anything restores all the checkmarks
     await initIncidentsPage();
 
     typeFilterType("lost");
-    document.getElementById("show_type")!.dispatchEvent(new Event("hidden.bs.dropdown"));
+    closeTypeMenu();
     for (const item of document.querySelectorAll("#ul_show_type .dropdown-item-checkable")) {
         expect(isChecked(item)).toBe(true);
     }

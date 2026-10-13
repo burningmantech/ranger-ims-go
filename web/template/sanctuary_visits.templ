@@ -61,11 +61,11 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
             id="show_status"
             type="button"
             class="btn btn-light btn-sm dropdown-toggle"
-            data-bs-toggle="dropdown"
+            popovertarget="show_status_menu"
         >
           <span class="selection">Current</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_status_menu" class="dropdown-menu" popover>
           <li id="show_status_all" title="All visits, including departed guests">
             <button type="button" class="name dropdown-item" onclick="showStatus('all', true);">All Statuses</button>
           </li>
@@ -81,12 +81,12 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
             id="show_rows"
             type="button"
             class="btn btn-light btn-sm dropdown-toggle"
-            data-bs-toggle="dropdown"
+            popovertarget="show_rows_menu"
         >
 
           <span class="selection">All Rows</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_rows_menu" class="dropdown-menu" popover>
           <li id="show_rows_all">
             <button type="button" class="name dropdown-item" onclick="showRows('all', true);">All Rows</button>
           </li>

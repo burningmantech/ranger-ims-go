@@ -399,24 +399,21 @@ function drawVisitFields(): void {
 // each redraw, so that a section someone deliberately closed stays closed.
 // Instructions is prose rather than data, so it's left alone.
 function expandSectionsWithData(): void {
-    for (const collapse of document.querySelectorAll<HTMLElement>(".accordion-collapse:not(.show)")) {
-        if (collapse.id === "collapse-instructions" || !sectionHasData(collapse)) {
+    for (const section of document.querySelectorAll<HTMLDetailsElement>("details.accordion-item:not([open])")) {
+        if (section.id === "collapse-instructions" || !sectionHasData(section)) {
             continue;
         }
-        collapse.classList.add("show");
-        const button = document.querySelector<HTMLElement>(`[data-bs-target="#${collapse.id}"]`);
-        button?.classList.remove("collapsed");
-        button?.setAttribute("aria-expanded", "true");
+        section.open = true;
     }
 }
 
-function sectionHasData(collapse: HTMLElement): boolean {
+function sectionHasData(section: HTMLElement): boolean {
     // The Rangers section's content is its roster; the "Add:" field below the
     // roster is a control, and an added Ranger needn't have a role filled in.
-    if (collapse.querySelector("#visit_rangers_list li") != null) {
+    if (section.querySelector("#visit_rangers_list li") != null) {
         return true;
     }
-    const fields = collapse.querySelectorAll<HTMLInputElement|HTMLTextAreaElement>(
+    const fields = section.querySelectorAll<HTMLInputElement|HTMLTextAreaElement>(
         "input:not(#ranger_add), textarea");
     return Array.from(fields).some((field): boolean => field.value !== "");
 }

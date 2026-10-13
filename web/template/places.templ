@@ -177,11 +177,11 @@ templ Places(deployment, versionName, versionRef, eventName string) {
                 id="show_rows"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
+                popovertarget="show_rows_menu"
         >
           <span class="selection">All Rows</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_rows_menu" class="dropdown-menu" popover>
           <li id="show_rows_all">
             <button type="button" class="name dropdown-item" onclick="destShowRows('all', true);">All Rows</button>
           </li>
@@ -202,11 +202,11 @@ templ Places(deployment, versionName, versionRef, eventName string) {
                 id="show_type"
                 type="button"
                 class="btn btn-light btn-sm dropdown-toggle"
-                data-bs-toggle="dropdown"
+                popovertarget="show_type_menu"
         >
           <span class="selection">All Types</span>
         </button>
-        <ul class="dropdown-menu">
+        <ul id="show_type_menu" class="dropdown-menu" popover>
           <li id="show_type_all">
             <button type="button" class="name dropdown-item" onclick="destShowType('all', true);">All Types</button>
           </li>

@@ -147,8 +147,8 @@ test("page init draws the visit's number, names, and arrival state from the API"
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
 });
 
-function expanded(collapseId: string): boolean {
-    return document.getElementById(collapseId)!.classList.contains("show");
+function expanded(sectionId: string): boolean {
+    return (document.getElementById(sectionId) as HTMLDetailsElement).open;
 }
 
 test("sections holding data start open, empty ones stay closed", async (): Promise<void> => {
@@ -163,11 +163,6 @@ test("sections holding data start open, empty ones stay closed", async (): Promi
     expect(expanded("collapse-camp")).toBe(false);
     // Instructions is prose, not data, so it stays shut regardless.
     expect(expanded("collapse-instructions")).toBe(false);
-
-    // An opened section's header button reflects the state too.
-    const button = document.querySelector("[data-bs-target=\"#collapse-arrival\"]")!;
-    expect(button.classList.contains("collapsed")).toBe(false);
-    expect(button.getAttribute("aria-expanded")).toBe("true");
 });
 
 test("a visit with nothing recorded leaves every collapsed section closed", async (): Promise<void> => {

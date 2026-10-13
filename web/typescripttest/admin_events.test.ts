@@ -128,7 +128,7 @@ test("event cards render their rules grouped into grant blocks", async (): Promi
     // No rules have issues, so the issue badge stays hidden. The event has
     // rules, though, so its grant list auto-expands.
     expect(card.querySelector(".issue_count")!.classList.contains("d-none")).toBe(true);
-    expect(card.querySelector(".access_rules_collapse")!.classList.contains("show")).toBe(true);
+    expect(!(card.querySelector(".access_rules_collapse") as HTMLElement).hidden).toBe(true);
 
     // Grants are drawn in access mode order: readers before writers.
     const grants = grantBlocks(card);
@@ -206,7 +206,7 @@ test("a rule with an unknown target is flagged and its event auto-expands", asyn
     const card = eventCards()[0]!;
     expect(card.querySelector(".issue_count")!.classList.contains("d-none")).toBe(false);
     expect(card.querySelector(".issue_count")!.textContent).toBe("1 issue");
-    expect(card.querySelector(".access_rules_collapse")!.classList.contains("show")).toBe(true);
+    expect(!(card.querySelector(".access_rules_collapse") as HTMLElement).hidden).toBe(true);
 
     const chip = whoChips(grantBlocks(card)[0]!)[0]!;
     expect(chip.classList.contains("who-unknown")).toBe(true);
@@ -510,24 +510,28 @@ test("the explain modal lists an expression under each mode it holds", async ():
     expect(body).toContain("person:Tool (onsite)");
 });
 
-test("clicking the card header toggles the collapse, except on its buttons", async (): Promise<void> => {
+test("clicking the card header toggles the grant list, except on its buttons", async (): Promise<void> => {
     await initAdminEventsPage();
 
     const card = eventCards()[0]!;
-    // Bootstrap's collapse plugin isn't loaded in these tests, so observe the
-    // delegated header click through the toggle button it forwards to.
-    const toggleClicks = vi.fn();
-    card.querySelector(".access_collapse_toggle")!.addEventListener("click", toggleClicks);
+    const toggle = card.querySelector(".access_collapse_toggle") as HTMLButtonElement;
+    const grantList = card.querySelector(".access_rules_collapse") as HTMLElement;
+    // The event has rules, so it starts expanded.
+    expect(grantList.hidden).toBe(false);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
 
     (card.querySelector(".card-header") as HTMLElement).click();
-    expect(toggleClicks).toHaveBeenCalledTimes(1);
+    expect(grantList.hidden).toBe(true);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
     (card.querySelector(".rule_count") as HTMLElement).click();
-    expect(toggleClicks).toHaveBeenCalledTimes(2);
+    expect(grantList.hidden).toBe(false);
+    toggle.click();
+    expect(grantList.hidden).toBe(true);
 
     // Clicks on the header's other buttons are left alone.
     (card.querySelector(".show-edit-modal") as HTMLButtonElement).click();
     (card.querySelector(".explain_button") as HTMLButtonElement).click();
-    expect(toggleClicks).toHaveBeenCalledTimes(2);
+    expect(grantList.hidden).toBe(true);
 });
 
 test("the edit modal shows the event's address normalization setting, and toggling it posts the change", async (): Promise<void> => {

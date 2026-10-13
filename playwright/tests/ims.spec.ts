@@ -654,16 +654,16 @@ test("field_reports", async ({ page, browser, authState, events }) => {
 // expandAccordion expands the named accordion section on a Sanctuary Visit
 // page, if it's collapsed. A click on the toggle can occasionally be lost
 // (e.g. when layout shifts between Playwright's hit-test and the event
-// dispatch), so check that the panel actually opened and retry otherwise.
+// dispatch), so check that the section actually opened and retry otherwise.
 async function expandAccordion(page: Page, name: string): Promise<void> {
-  const toggle = page.getByRole("button", {name: name});
-  const panelId = await toggle.getAttribute("aria-controls");
-  const panel = page.locator(`#${panelId}`);
+  const section = page.locator("details.accordion-item").filter({
+    has: page.getByRole("heading", {name: name, exact: true}),
+  });
   await expect(async (): Promise<void> => {
-    if (!await panel.isVisible()) {
-      await toggle.click({timeout: 2_000});
+    if ((await section.getAttribute("open")) == null) {
+      await section.locator("summary").click({timeout: 2_000});
     }
-    await expect(panel).toBeVisible({timeout: 2_000});
+    await expect(section).toHaveAttribute("open", {timeout: 2_000});
   }).toPass();
 }
 

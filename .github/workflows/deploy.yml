@@ -106,7 +106,7 @@ jobs:
             TASK_UPDATED=${{ steps.date.outputs.date }}
 
       - name: Update task definition and ECS service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2.6.3
+        uses: aws-actions/amazon-ecs-deploy-task-definition@a00d4d57ac0de1a99b39fe469f3d898d38717c2b # v2.6.4
         timeout-minutes: 12
         with:
           task-definition: "${{ steps.new-task-definition.outputs.task-definition }}"
@@ -138,7 +138,7 @@ jobs:
             TASK_UPDATED=${{ steps.date.outputs.date }}
 
       - name: Update task definition and ECS service for training
-        uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2.6.3
+        uses: aws-actions/amazon-ecs-deploy-task-definition@a00d4d57ac0de1a99b39fe469f3d898d38717c2b # v2.6.4
         timeout-minutes: 12
         with:
           task-definition: "${{ steps.new-task-definition-training.outputs.task-definition }}"

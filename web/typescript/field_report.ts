@@ -18,18 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        makeIncident: ()=>Promise<void>;
-        editSummary: ()=>Promise<void>;
-        toggleShowHistory: ()=>void;
-        reportEntryEdited: ()=>void;
-        submitReportEntry: ()=>void;
-        attachFile: ()=>void;
-        updateIncident: (el: HTMLInputElement) => void;
-    }
-}
-
 let fieldReport: ims.FieldReport|null = null;
 
 // Announces (to assistive tech) that someone else has changed this Field Report
@@ -72,13 +60,10 @@ async function initFieldReportPage(): Promise<void> {
         return;
     }
 
-    window.makeIncident = makeIncident;
-    window.editSummary = editSummary;
-    window.toggleShowHistory = ims.toggleShowHistory;
-    window.reportEntryEdited = ims.reportEntryEdited;
-    window.submitReportEntry = ims.submitReportEntry;
-    window.attachFile = attachFile;
-    window.updateIncident = updateIncident;
+    el.createIncident.addEventListener("click", makeIncident);
+    el.fieldReportSummary.addEventListener("change", editSummary);
+    el.incidentNumber.addEventListener("change", (): Promise<void> => updateIncident(el.incidentNumber));
+    ims.initReportEntryControls(attachFile);
 
     await loadAndDisplayFieldReport();
 
@@ -218,7 +203,7 @@ async function loadAndDisplayFieldReport(): Promise<void> {
     }
 }
 
-async function updateIncident(el: HTMLInputElement): Promise<void> {
+export async function updateIncident(el: HTMLInputElement): Promise<void> {
     // Only incident writers are allowed to attach/detach FRs from Incidents.
     if (!ims.eventAccess?.writeIncidents) {
         ims.controlHasError(el);
@@ -400,7 +385,7 @@ async function frSendEditsNow(edits: ims.FieldReport): Promise<{err:string|null}
 }
 ims.setSendEdits(frSendEdits);
 
-async function editSummary(): Promise<void> {
+export async function editSummary(): Promise<void> {
     await ims.editFromElement(el.fieldReportSummary, "summary");
 }
 
@@ -408,7 +393,7 @@ async function editSummary(): Promise<void> {
 // Make a new incident and attach this Field Report to it
 //
 
-async function makeIncident(): Promise<void> {
+export async function makeIncident(): Promise<void> {
     // Create the new incident
     const incidentsURL = ims.urlReplace(url_incidents);
 
@@ -468,7 +453,7 @@ ims.setOnStrikeSuccess(frOnStrikeSuccess);
 // stale revert from a previous one.
 let attachFileRevertTimeout: number|null = null;
 
-async function attachFile(): Promise<void> {
+export async function attachFile(): Promise<void> {
     if (attachFileRevertTimeout != null) {
         window.clearTimeout(attachFileRevertTimeout);
         attachFileRevertTimeout = null;

@@ -71,19 +71,19 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
         </button>
         <ul id="show_days_menu" class="dropdown-menu" popover>
           <li id="show_days_all">
-            <button type="button" class="name dropdown-item" onclick="frShowDays('all', true);">All Days</button>
+            <button type="button" class="name dropdown-item" data-value="all">All Days</button>
           </li>
           <li id="show_days_0">
-            <button type="button" class="name dropdown-item" onclick="frShowDays(0, true);">Today</button>
+            <button type="button" class="name dropdown-item" data-value="0">Today</button>
           </li>
           <li id="show_days_1">
-            <button type="button" class="name dropdown-item" onclick="frShowDays(1, true);">Last 2 Days</button>
+            <button type="button" class="name dropdown-item" data-value="1">Last 2 Days</button>
           </li>
           <li id="show_days_2">
-            <button type="button" class="name dropdown-item" onclick="frShowDays(2, true);">Last 3 Days</button>
+            <button type="button" class="name dropdown-item" data-value="2">Last 3 Days</button>
           </li>
           <li id="show_days_3">
-            <button type="button" class="name dropdown-item" onclick="frShowDays(3, true);">Last 4 Days</button>
+            <button type="button" class="name dropdown-item" data-value="3">Last 4 Days</button>
           </li>
         </ul>
         { }
@@ -97,16 +97,16 @@ templ FieldReports(deployment, versionName, versionRef, eventName string) {
         </button>
         <ul id="show_rows_menu" class="dropdown-menu" popover>
           <li id="show_rows_all">
-            <button type="button" class="name dropdown-item" onclick="frShowRows('all', true);">All Rows</button>
+            <button type="button" class="name dropdown-item" data-value="all">All Rows</button>
           </li>
           <li id="show_rows_25">
-            <button type="button" class="name dropdown-item" onclick="frShowRows('25', true);">25 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="25">25 Rows</button>
           </li>
           <li id="show_rows_50">
-            <button type="button" class="name dropdown-item" onclick="frShowRows('50', true);">50 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="50">50 Rows</button>
           </li>
           <li id="show_rows_100">
-            <button type="button" class="name dropdown-item" onclick="frShowRows('100', true);">100 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="100">100 Rows</button>
           </li>
           <li class="border-top">
             <a href="/ims/app/settings" class="name dropdown-item">Change default</a>

@@ -20,7 +20,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockDataTable, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem } from "./helpers.ts";
+
+let page: typeof import("../typescript/sanctuary_visits.ts");
 
 const eventName = "2025";
 const eventId = 1;
@@ -79,7 +81,7 @@ function visitRoutes(url: string, init?: RequestInit): Response | undefined {
 async function initVisitsPage(handler: (url: string, init?: RequestInit) => Response | undefined = visitRoutes) {
     MockDataTable.lastInstance = null;
     const mock = mockFetch(handler);
-    await import("../typescript/sanctuary_visits.ts");
+    page = await import("../typescript/sanctuary_visits.ts");
     await vi.waitFor((): void => {
         const errored = !document.getElementById("error_info")!.classList.contains("hidden");
         expect(errored || MockDataTable.lastInstance != null).toBe(true);
@@ -100,11 +102,13 @@ test("page init loads the event's visits into the table", async (): Promise<void
 
 test("the show-rows and show-status controls are wired and reflect the default selection", async (): Promise<void> => {
     await initVisitsPage();
-
-    expect(window.showRows).toBeTypeOf("function");
-    expect(window.showStatus).toBeTypeOf("function");
     expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).not.toBe("");
     expect(document.getElementById("show_status")!.querySelector(".selection")!.textContent).not.toBe("");
+
+    pickMenuItem("show_rows_menu", "50");
+    expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).toBe("50 Rows");
+    pickMenuItem("show_status_menu", "all");
+    expect(document.getElementById("show_status")!.querySelector(".selection")!.textContent).toBe("All Statuses");
 });
 
 test("a viewer without visit read access sees an authorization error", async (): Promise<void> => {
@@ -161,11 +165,11 @@ test("the status filter shows only current visits unless showing all", async ():
     });
 
     // data[0] has no departure_time (current); data[1] has one (departed).
-    window.showStatus("current", false);
+    page.showStatus("current", false);
     expect(table.fixedSearch("status", 0)).toBe(true);
     expect(table.fixedSearch("status", 1)).toBe(false);
 
-    window.showStatus("all", false);
+    page.showStatus("all", false);
     expect(table.fixedSearch("status", 0)).toBe(true);
     expect(table.fixedSearch("status", 1)).toBe(true);
 });
@@ -184,19 +188,19 @@ test("the modification-date filter passes everything when no window is set", asy
 test("show* controls update the dropdown labels and the URL hash", async (): Promise<void> => {
     await initVisitsPage();
 
-    window.showRows("50", true);
+    pickMenuItem("show_rows_menu", "50");
     expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).not.toBe("");
     expect(window.location.hash).toContain("rows=50");
     expect(MockDataTable.lastInstance!.pageLen).toBe(50);
 
-    window.showStatus("all", true);
+    pickMenuItem("show_status_menu", "all");
     expect(document.getElementById("show_status")!.querySelector(".selection")!.textContent).not.toBe("");
     expect(window.location.hash).toContain("status=all");
 });
 
 test("'all' rows sets the page length to unlimited", async (): Promise<void> => {
     await initVisitsPage();
-    window.showRows("all", false);
+    page.showRows("all", false);
     expect(MockDataTable.lastInstance!.pageLen).toBe(-1);
 });
 

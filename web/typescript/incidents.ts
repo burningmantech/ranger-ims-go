@@ -18,15 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        showState: (stateToShow: ims.IncidentsTableState, replaceState: boolean)=>void;
-        showDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
-        showRows: (rowsToShow: string, replaceState: boolean)=>void;
-        toggleCheckAllTypes: ()=>void;
-    }
-}
-
 // The DataTables object
 let incidentsTable: ims.DataTablesTable|null = null;
 
@@ -107,10 +98,14 @@ async function initIncidentsPage(): Promise<void> {
         return;
     }
 
-    window.showState = showState;
-    window.showDays = showDays;
-    window.showRows = showRows;
-    window.toggleCheckAllTypes = toggleCheckAllTypes;
+    ims.onMenuPick(ims.typedElement("show_state_menu", HTMLUListElement), (state: string): void => {
+        if (ims.isValidIncidentsTableState(state)) {
+            showState(state, true);
+        }
+    });
+    ims.onMenuPick(ims.typedElement("show_days_menu", HTMLUListElement), (days: string): void => showDays(days, true));
+    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => showRows(rows, true));
+    el.showTypeToggleAll.addEventListener("click", toggleCheckAllTypes);
 
     await initIncidentsTable();
 
@@ -668,7 +663,7 @@ function initSearch(): void {
 // Show state button handling
 //
 
-function showState(stateToShow: ims.IncidentsTableState, replaceState: boolean) {
+export function showState(stateToShow: ims.IncidentsTableState, replaceState: boolean) {
     const item = document.getElementById("show_state_" + stateToShow) as HTMLLIElement;
 
     // Get title from selected item
@@ -691,7 +686,7 @@ function showState(stateToShow: ims.IncidentsTableState, replaceState: boolean) 
 // Show days button handling
 //
 
-function showDays(daysBackToShow: number|string, replaceState: boolean): void {
+export function showDays(daysBackToShow: number|string, replaceState: boolean): void {
     const id: string = daysBackToShow.toString();
     _showDaysBack = daysBackToShow;
 

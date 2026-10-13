@@ -67,10 +67,10 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
         </button>
         <ul id="show_status_menu" class="dropdown-menu" popover>
           <li id="show_status_all" title="All visits, including departed guests">
-            <button type="button" class="name dropdown-item" onclick="showStatus('all', true);">All Statuses</button>
+            <button type="button" class="name dropdown-item" data-value="all">All Statuses</button>
           </li>
           <li id="show_status_current" title="Only visits where the guest has not departed">
-            <button type="button" class="name dropdown-item" onclick="showStatus('current', true);">Current</button>
+            <button type="button" class="name dropdown-item" data-value="current">Current</button>
           </li>
           <li class="border-top">
             <a href="/ims/app/settings" class="name dropdown-item">Change default</a>
@@ -88,16 +88,16 @@ templ SanctuaryVisits(deployment, versionName, versionRef, eventName string) {
         </button>
         <ul id="show_rows_menu" class="dropdown-menu" popover>
           <li id="show_rows_all">
-            <button type="button" class="name dropdown-item" onclick="showRows('all', true);">All Rows</button>
+            <button type="button" class="name dropdown-item" data-value="all">All Rows</button>
           </li>
           <li id="show_rows_25">
-            <button type="button" class="name dropdown-item" onclick="showRows('25', true);">25 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="25">25 Rows</button>
           </li>
           <li id="show_rows_50">
-            <button type="button" class="name dropdown-item" onclick="showRows('50', true);">50 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="50">50 Rows</button>
           </li>
           <li id="show_rows_100">
-            <button type="button" class="name dropdown-item" onclick="showRows('100', true);">100 Rows</button>
+            <button type="button" class="name dropdown-item" data-value="100">100 Rows</button>
           </li>
           <li class="border-top">
             <a href="/ims/app/settings" class="name dropdown-item">Change default</a>

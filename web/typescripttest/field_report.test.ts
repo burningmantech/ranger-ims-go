@@ -21,6 +21,8 @@ import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
 import { jsonResponse, loadFixture, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
 
+let page: typeof import("../typescript/field_report.ts");
+
 const eventName = "2025";
 const eventId = 1;
 const frUrl = `/ims/api/events/${eventName}/field_reports`;
@@ -91,7 +93,7 @@ function frRoutes(url: string, init?: RequestInit): Response | undefined {
 
 async function initFieldReportPage(handler: (url: string, init?: RequestInit) => Response | undefined = frRoutes) {
     const mock = mockFetch(handler);
-    await import("../typescript/field_report.ts");
+    page = await import("../typescript/field_report.ts");
     await vi.waitFor((): void => {
         expect(document.getElementById("loading-overlay")!.style.display).toBe("none");
     });
@@ -152,7 +154,7 @@ test("makeIncident creates an incident, attaches the report, and links it", asyn
 
     // After creation the reload should report the FR attached to incident 42.
     serverFieldReport.incident = 42;
-    await window.makeIncident();
+    await page.makeIncident();
 
     const incidentCreate = mock.mock.calls.find(([url, init]) =>
         url === `/ims/api/events/${eventName}/incidents` && init?.body != null)!;
@@ -170,7 +172,7 @@ test("updateIncident attaches the field report to a typed-in incident number", a
 
     const incidentInput = document.getElementById("incident_number") as HTMLInputElement;
     incidentInput.value = "13";
-    await window.updateIncident(incidentInput);
+    await page.updateIncident(incidentInput);
 
     expect(mock.mock.calls.some(([url, init]) =>
         url === `${frUrl}/7?action=attach&incident=13` && init?.body != null)).toBe(true);
@@ -239,7 +241,7 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
     try {
         // The synchronous prefix of attachFile disables the button and relabels
         // it before the upload is awaited.
-        const pending = window.attachFile();
+        const pending = page.attachFile();
         expect(button.disabled).toBe(true);
         expect(button.value).toBe("Uploading ...");
 
@@ -280,7 +282,7 @@ test("a failed attachment re-enables the button and surfaces the error", async (
         set: cleared,
     });
 
-    await window.attachFile();
+    await page.attachFile();
 
     // The button is left usable, keeps its default label (no success), and the
     // failure is shown to the user.
@@ -296,7 +298,7 @@ test("editing the summary sends the edit and reloads the field report", async ()
     const summary = document.getElementById("field_report_summary") as HTMLInputElement;
     summary.value = "Child found";
     serverFieldReport.summary = "Child found (as saved)";
-    await window.editSummary();
+    await page.editSummary();
 
     expect(postedBodies(mock, `${frUrl}/7`)).toEqual([{ summary: "Child found", number: 7 }]);
     expect(inputValue("field_report_summary")).toBe("Child found (as saved)");
@@ -313,7 +315,7 @@ test("a failed summary edit reloads the field report and shows the error", async
 
     const summary = document.getElementById("field_report_summary") as HTMLInputElement;
     summary.value = "Child found";
-    await window.editSummary();
+    await page.editSummary();
 
     expect(errorText()).toContain("Failed to apply edit");
     expect(errorText()).toContain("database on fire");
@@ -336,7 +338,7 @@ test("a new field report is created on the first edit and adopts the server's nu
 
     const summary = document.getElementById("field_report_summary") as HTMLInputElement;
     summary.value = "Lost child near center camp";
-    await window.editSummary();
+    await page.editSummary();
 
     // A new field report has no number to send yet.
     expect(postedBodies(mock, frUrl)).toEqual([{ summary: "Lost child near center camp" }]);
@@ -344,7 +346,7 @@ test("a new field report is created on the first edit and adopts the server's nu
     expect(window.location.pathname).toBe(`/ims/app/events/${eventName}/field_reports/7`);
     // Later edits go to the new field report rather than creating another.
     summary.value = "Child found";
-    await window.editSummary();
+    await page.editSummary();
     expect(postedBodies(mock, `${frUrl}/7`)).toEqual([{ summary: "Child found", number: 7 }]);
     expect(postedBodies(mock, frUrl)).toHaveLength(1);
 });
@@ -369,7 +371,7 @@ test("creating a field report without a number in the response flags the field",
 
     const summary = document.getElementById("field_report_summary") as HTMLInputElement;
     summary.value = "Lost child";
-    await window.editSummary();
+    await page.editSummary();
 
     expect(summary.classList.contains("is-invalid")).toBe(true);
     expect(inputValue("field_report_number")).toBe("(new)");
@@ -387,7 +389,7 @@ test("creating a field report with a non-integer number in the response flags th
 
     const summary = document.getElementById("field_report_summary") as HTMLInputElement;
     summary.value = "Lost child";
-    await window.editSummary();
+    await page.editSummary();
 
     expect(summary.classList.contains("is-invalid")).toBe(true);
     expect(inputValue("field_report_number")).toBe("(new)");
@@ -414,7 +416,7 @@ test("makeIncident reports a failure to create the incident", async (): Promise<
         return frRoutes(url, init);
     });
 
-    await window.makeIncident();
+    await page.makeIncident();
 
     expect(errorText()).toContain("Failed to create incident");
     expect(errorText()).toContain("no incidents today");
@@ -430,7 +432,7 @@ test("makeIncident reports a created incident with no number", async (): Promise
         return frRoutes(url, init);
     });
 
-    await window.makeIncident();
+    await page.makeIncident();
 
     expect(errorText()).toContain("no IMS Incident Number provided");
     expect(mock.mock.calls.some(([url]): boolean => url.includes("action=attach"))).toBe(false);
@@ -444,7 +446,7 @@ test("makeIncident reports a failure to attach the field report", async (): Prom
         return frRoutes(url, init);
     });
 
-    await window.makeIncident();
+    await page.makeIncident();
 
     expect(errorText()).toContain("Failed to attach field report");
     expect(errorText()).toContain("attach refused");
@@ -458,7 +460,7 @@ test("updateIncident detaches the field report when the number is cleared", asyn
     serverFieldReport.incident = null;
     const incidentInput = document.getElementById("incident_number") as HTMLInputElement;
     incidentInput.value = "";
-    await window.updateIncident(incidentInput);
+    await page.updateIncident(incidentInput);
 
     expect(mock.mock.calls.some(([url, init]) =>
         url === `${frUrl}/7?action=detach&incident=42` && init?.body != null)).toBe(true);
@@ -471,7 +473,7 @@ test("updateIncident rejects a non-numeric incident number", async (): Promise<v
 
     const incidentInput = document.getElementById("incident_number") as HTMLInputElement;
     incidentInput.value = "twelve";
-    await window.updateIncident(incidentInput);
+    await page.updateIncident(incidentInput);
 
     expect(incidentInput.classList.contains("is-invalid")).toBe(true);
     expect(mock).not.toHaveBeenCalled();
@@ -483,7 +485,7 @@ test("updateIncident refuses a user who can't write incidents", async (): Promis
 
     const incidentInput = document.getElementById("incident_number") as HTMLInputElement;
     incidentInput.value = "13";
-    await window.updateIncident(incidentInput);
+    await page.updateIncident(incidentInput);
 
     expect(incidentInput.classList.contains("is-invalid")).toBe(true);
     expect(mock.mock.calls.some(([url]): boolean => url.includes("action=attach"))).toBe(false);

@@ -19,7 +19,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { answerDialog, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
+import { answerDialog, change, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
+
+let page: typeof import("../typescript/incident.ts");
 
 const eventName = "2025";
 const eventId = 1;
@@ -247,7 +249,7 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
 // finish initializing (the loading overlay goes away at the end of init).
 async function initIncidentPage(handler: (url: string, init?: RequestInit) => Response | undefined = incidentRoutes) {
     const mock = mockFetch(handler);
-    await import("../typescript/incident.ts");
+    page = await import("../typescript/incident.ts");
     await vi.waitFor((): void => {
         expect(document.getElementById("loading-overlay")!.style.display).toBe("none");
     });
@@ -497,7 +499,7 @@ test("editing the summary sends the edit and reloads the incident", async (): Pr
 
     const summary = document.getElementById("incident_summary") as HTMLInputElement;
     summary.value = "Bigger dust storm";
-    await window.editIncidentSummary();
+    await page.editIncidentSummary();
 
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { summary: "Bigger dust storm", number: 1 },
@@ -511,7 +513,7 @@ test("editState warns when closing an incident that has no incident types", asyn
 
     const state = document.getElementById("incident_state") as HTMLSelectElement;
     state.value = "closed";
-    const done = window.editState();
+    const done = page.editState();
 
     expect(await answerDialog("ok")).toContain("Please add an incident type");
     await done;
@@ -538,7 +540,7 @@ test("choosing a known place fills the location name and address", async (): Pro
 
     const name = document.getElementById("incident_location_name") as HTMLInputElement;
     name.value = "Camp Friendly (5:00 & C)";
-    await window.editLocationName();
+    await page.editLocationName();
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { location: { name: "Camp Friendly", address: "5:00 & C" }, number: 1 },
     ]);
@@ -546,7 +548,7 @@ test("choosing a known place fills the location name and address", async (): Pro
     // Art places get an " (Art)" suffix on the name.
     mock.mockClear();
     name.value = "Trash Fence Gallery (Art) (11:30 & K)";
-    await window.editLocationName();
+    await page.editLocationName();
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { location: { name: "Trash Fence Gallery (Art)", address: "11:30 & K" }, number: 1 },
     ]);
@@ -554,7 +556,7 @@ test("choosing a known place fills the location name and address", async (): Pro
     // Free-form location names just edit location.name.
     mock.mockClear();
     name.value = "Somewhere odd";
-    await window.editLocationName();
+    await page.editLocationName();
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { location: { name: "Somewhere odd" }, number: 1 },
     ]);
@@ -562,7 +564,7 @@ test("choosing a known place fills the location name and address", async (): Pro
     mock.mockClear();
     const address = document.getElementById("incident_location_address") as HTMLInputElement;
     address.value = "9:00 & B";
-    await window.editLocationAddress();
+    await page.editLocationAddress();
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { location: { address: "9:00 & B" }, number: 1 },
     ]);
@@ -583,7 +585,7 @@ test("the location address input is rewritten with the server's normalized addre
     address.focus();
     address.value = "7+e";
     address.dispatchEvent(new Event("input", { bubbles: true }));
-    await window.editLocationAddress();
+    await page.editLocationAddress();
 
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { location: { address: "7+e" }, number: 1 },
@@ -596,7 +598,7 @@ test("addRanger fuzzy-matches handles and posts to the rangers endpoint", async 
 
     const rangerAdd = document.getElementById("ranger_add") as HTMLInputElement;
     rangerAdd.value = "  tULSa ";
-    await window.addRanger();
+    await page.addRanger();
 
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1/rangers/Tulsa")).toEqual([
         { handle: "Tulsa" },
@@ -607,13 +609,13 @@ test("addRanger fuzzy-matches handles and posts to the rangers endpoint", async 
     // A Ranger who is already on the incident isn't re-added.
     mock.mockClear();
     rangerAdd.value = "Hot Slots";
-    await window.addRanger();
+    await page.addRanger();
     expect(mock.mock.calls.length).toBe(0);
     expect(rangerAdd.value).toBe("");
 
     // Nor is a handle that doesn't exist.
     rangerAdd.value = "nobody";
-    await window.addRanger();
+    await page.addRanger();
     expect(mock.mock.calls.length).toBe(0);
 });
 
@@ -621,7 +623,7 @@ test("removeRanger and setRangerRole hit the per-Ranger endpoint", async (): Pro
     const mock = await initIncidentPage();
 
     const toolLi = document.querySelector<HTMLLIElement>('#incident_rangers_list li[data-ranger-handle="Tool"]')!;
-    window.removeRanger(toolLi.querySelector("button")!);
+    page.removeRanger(toolLi.querySelector("button")!);
     await vi.waitFor((): void => {
         const del = mock.mock.calls.find(
             ([url, init]): boolean =>
@@ -631,7 +633,7 @@ test("removeRanger and setRangerRole hit the per-Ranger endpoint", async (): Pro
 
     const roleInput = toolLi.querySelector("input")!;
     roleInput.value = "medic";
-    await window.setRangerRole(roleInput);
+    await page.setRangerRole(roleInput);
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1/rangers/Tool")).toEqual([
         { handle: "Tool", role: "medic" },
     ]);
@@ -643,7 +645,7 @@ test("addIncidentType and removeIncidentType hit the per-type endpoint", async (
 
     const typeAdd = document.getElementById("incident_type_add") as HTMLInputElement;
     typeAdd.value = " lost child ";
-    await window.addIncidentType();
+    await page.addIncidentType();
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
         { method: "POST", url: "/ims/api/events/2025/incidents/1/incident_types/2" },
     ]);
@@ -654,7 +656,7 @@ test("addIncidentType and removeIncidentType hit the per-type endpoint", async (
 
     mock.mockClear();
     const junkLi = document.querySelector<HTMLLIElement>('#incident_types_list li[data-incident-type-id="1"]')!;
-    await window.removeIncidentType(junkLi.querySelector("button")!);
+    await page.removeIncidentType(junkLi.querySelector("button")!);
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
         { method: "DELETE", url: "/ims/api/events/2025/incidents/1/incident_types/1" },
     ]);
@@ -664,9 +666,9 @@ test("addIncidentType and removeIncidentType hit the per-type endpoint", async (
     // nothing at all.
     mock.mockClear();
     typeAdd.value = "Lost Child";
-    await window.addIncidentType();
+    await page.addIncidentType();
     typeAdd.value = "no such type";
-    await window.addIncidentType();
+    await page.addIncidentType();
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([]);
 });
 
@@ -682,8 +684,8 @@ test("two rapid type removals both stick", async (): Promise<void> => {
     const lostChildX = list.querySelector<HTMLButtonElement>('li[data-incident-type-id="2"] button')!;
 
     // Both clicks land before either response is handled.
-    const first = window.removeIncidentType(junkX);
-    const second = window.removeIncidentType(lostChildX);
+    const first = page.removeIncidentType(junkX);
+    const second = page.removeIncidentType(lostChildX);
     await Promise.all([first, second]);
 
     expect(requestsMatching(mock, /\/incidents\/\d+\/incident_types\//)).toEqual([
@@ -694,20 +696,22 @@ test("two rapid type removals both stick", async (): Promise<void> => {
     expect(serverIncident.incident_type_ids).toEqual([]);
 });
 
-test("submitReportEntry posts the new entry and clears the textarea", async (): Promise<void> => {
+test("Add Entry posts the new entry and clears the textarea", async (): Promise<void> => {
     const mock = await initIncidentPage();
 
     const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
     const submit = document.getElementById("report_entry_submit")!;
     textarea.value = "saw a thing";
-    window.reportEntryEdited();
+    change(textarea);
     expect(submit.classList.contains("disabled")).toBe(false);
 
-    await window.submitReportEntry();
+    submit.click();
+    await vi.waitFor((): void => {
+        expect(textarea.value).toBe("");
+    });
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
         { report_entries: [{ text: "saw a thing", id: -1 }], number: 1 },
     ]);
-    expect(textarea.value).toBe("");
     expect(submit.classList.contains("disabled")).toBe(true);
 });
 
@@ -719,8 +723,9 @@ function pressEnterInEntryBox(modifiers: KeyboardEventInit): void {
 test("Cmd+Enter submits the entry on a Mac, and Ctrl+Enter doesn't", async (): Promise<void> => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     const mock = await initIncidentPage();
-    (document.getElementById("report_entry_add") as HTMLTextAreaElement).value = "saw a thing";
-    window.reportEntryEdited();
+    const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
+    textarea.value = "saw a thing";
+    change(textarea);
 
     const submit = document.getElementById("report_entry_submit")!;
 
@@ -740,8 +745,9 @@ test("Cmd+Enter submits the entry on a Mac, and Ctrl+Enter doesn't", async (): P
 test("Ctrl+Enter submits the entry off a Mac, and Cmd+Enter doesn't", async (): Promise<void> => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     const mock = await initIncidentPage();
-    (document.getElementById("report_entry_add") as HTMLTextAreaElement).value = "saw a thing";
-    window.reportEntryEdited();
+    const textarea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
+    textarea.value = "saw a thing";
+    change(textarea);
 
     const submit = document.getElementById("report_entry_submit")!;
 
@@ -779,14 +785,14 @@ test("attachFieldReport and detachFieldReport use the field report action URLs",
 
     const select = document.getElementById("attached_field_report_add") as HTMLSelectElement;
     select.value = "FR#8";
-    await window.attachFieldReport();
+    await page.attachFieldReport();
     const attach = mock.mock.calls.find(
         ([url]): boolean =>
             url === "/ims/api/events/2025/field_reports/8?action=attach&incident=1");
     expect(attach).toBeDefined();
 
     const frLi = document.querySelector<HTMLLIElement>('#attached_field_reports li[data-fr-number="7"]')!;
-    await window.detachFieldReport(frLi.querySelector("button")!);
+    await page.detachFieldReport(frLi.querySelector("button")!);
     const detach = mock.mock.calls.find(
         ([url]): boolean =>
             url === "/ims/api/events/2025/field_reports/7?action=detach&incident=1");
@@ -798,14 +804,14 @@ test("visits attach and detach through the visits endpoint", async (): Promise<v
 
     const select = document.getElementById("attached_field_report_add") as HTMLSelectElement;
     select.value = "VS#3";
-    await window.attachFieldReport();
+    await page.attachFieldReport();
     expect(postedBodies(mock, "/ims/api/events/2025/visits/3")).toEqual([
         { event: "2025", number: 3, incident: 1 },
     ]);
 
     mock.mockClear();
     const visitLi = document.querySelector<HTMLLIElement>('#attached_field_reports li[data-visit-number="2"]')!;
-    await window.detachFieldReport(visitLi.querySelector("button")!);
+    await page.detachFieldReport(visitLi.querySelector("button")!);
     expect(postedBodies(mock, "/ims/api/events/2025/visits/2")).toEqual([
         { event: "2025", number: 2, incident: 0 },
     ]);
@@ -816,7 +822,7 @@ test("linkIncident links incidents in other events and rejects bad input", async
 
     const input = document.getElementById("linked_incident_add") as HTMLInputElement;
     input.value = "2015#2";
-    await window.linkIncident(input);
+    await page.linkIncident(input);
     expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
         { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2015/2" },
     ]);
@@ -827,27 +833,27 @@ test("linkIncident links incidents in other events and rejects bad input", async
     // An unknown event name is an error and sends nothing.
     mock.mockClear();
     input.value = "nowhere#3";
-    await window.linkIncident(input);
+    await page.linkIncident(input);
     expect(mock.mock.calls.length).toBe(0);
     expect(document.getElementById("error_text")!.textContent).toContain("no Event for name 'nowhere'");
 
     // Linking the incident to itself is rejected.
     input.value = "1";
-    await window.linkIncident(input);
+    await page.linkIncident(input);
     expect(mock.mock.calls.length).toBe(0);
     expect(document.getElementById("error_text")!.textContent).toContain("No valid other incidents");
 
     // So is an incident number that isn't a number, rather than sending #0.
     mock.mockClear();
     input.value = "2015#abc";
-    await window.linkIncident(input);
+    await page.linkIncident(input);
     expect(mock.mock.calls.length).toBe(0);
     expect(document.getElementById("error_text")!.textContent).toContain("Invalid Incident number");
 
     // An emptied field is a cancel, not a request to link anything.
     mock.mockClear();
     input.value = "";
-    await window.linkIncident(input);
+    await page.linkIncident(input);
     expect(mock.mock.calls.length).toBe(0);
 });
 
@@ -856,7 +862,7 @@ test("a batched link input sends one request per entry, in order", async (): Pro
 
     const input = document.getElementById("linked_incident_add") as HTMLInputElement;
     input.value = "7, 2015#2, #9";
-    await window.linkIncident(input);
+    await page.linkIncident(input);
 
     expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
         { method: "POST", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/7" },
@@ -870,7 +876,7 @@ test("unlinkIncident removes just the one linked incident", async (): Promise<vo
     const mock = await initIncidentPage();
 
     const linkedLi = document.querySelector<HTMLElement>('#linked_incidents [data-incident-number="5"]')!;
-    await window.unlinkIncident(linkedLi.querySelector("button")!);
+    await page.unlinkIncident(linkedLi.querySelector("button")!);
     expect(requestsMatching(mock, /\/incidents\/\d+\/linked_incidents\//)).toEqual([
         { method: "DELETE", url: "/ims/api/events/2025/incidents/1/linked_incidents/2025/5" },
     ]);
@@ -886,8 +892,8 @@ test("a summary edit and a type removal don't conflict", async (): Promise<void>
     summary.value = "Bigger dust storm";
     const junkLi = document.querySelector<HTMLLIElement>('#incident_types_list li[data-incident-type-id="1"]')!;
     await Promise.all([
-        window.editIncidentSummary(),
-        window.removeIncidentType(junkLi.querySelector("button")!),
+        page.editIncidentSummary(),
+        page.removeIncidentType(junkLi.querySelector("button")!),
     ]);
 
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
@@ -908,7 +914,7 @@ test("a new incident is created on the first edit and adopts the server's number
 
     const summary = document.getElementById("incident_summary") as HTMLInputElement;
     summary.value = "Fresh incident";
-    await window.editIncidentSummary();
+    await page.editIncidentSummary();
 
     // Creation fills in the required state/priority fields.
     expect(postedBodies(mock, "/ims/api/events/2025/incidents")).toEqual([
@@ -1113,7 +1119,7 @@ test("a failed edit reloads the incident and shows the error", async (): Promise
 
     const summary = document.getElementById("incident_summary") as HTMLInputElement;
     summary.value = "Not a dust storm";
-    await window.editIncidentSummary();
+    await page.editIncidentSummary();
 
     expect(document.getElementById("error_text")!.textContent).toContain("Failed to apply edit");
     expect(summary.value).toBe("Dust storm");
@@ -1131,7 +1137,7 @@ test("creating an incident without a number in the response shows an error", asy
 
     const summary = document.getElementById("incident_summary") as HTMLInputElement;
     summary.value = "Fresh incident";
-    await window.editIncidentSummary();
+    await page.editIncidentSummary();
 
     expect(document.getElementById("error_text")!.textContent).toContain("No IMS-Incident-Number header provided");
     expect(inputValue("incident_number")).toBe("(new)");
@@ -1148,7 +1154,7 @@ test("creating an incident with a non-integer number in the response shows an er
 
     const summary = document.getElementById("incident_summary") as HTMLInputElement;
     summary.value = "Fresh incident";
-    await window.editIncidentSummary();
+    await page.editIncidentSummary();
 
     expect(document.getElementById("error_text")!.textContent).toContain("Non-integer IMS-Incident-Number header provided");
     expect(inputValue("incident_number")).toBe("(new)");
@@ -1206,9 +1212,6 @@ test("keyboard shortcuts toggle history and jump to the entry box", async (): Pr
     expect(checkbox.checked).toBe(false);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true }));
     expect(checkbox.checked).toBe(true);
-    // The checkbox's inline onchange doesn't run in happy-dom, so invoke it
-    // the way the page would.
-    window.toggleShowHistory();
     expect(document.getElementById("report_entries")!.classList.contains("hide-history")).toBe(false);
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
@@ -1581,7 +1584,7 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
     try {
         // The synchronous prefix of attachFile disables the button and relabels
         // it before the upload is awaited.
-        const pending = window.attachFile();
+        const pending = page.attachFile();
         expect(button.disabled).toBe(true);
         expect(button.value).toBe("Uploading ...");
 
@@ -1612,7 +1615,7 @@ test("a failed attachment re-enables the button and surfaces the error", async (
     mockXHR(() => undefined);
     const button = document.getElementById("attach_file") as HTMLInputElement;
 
-    await window.attachFile();
+    await page.attachFile();
 
     // The button is left usable, keeps its default label (no success), and the
     // failure is shown to the user.

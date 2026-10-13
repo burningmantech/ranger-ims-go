@@ -18,51 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        editParentIncident: () => void;
-
-        editGuestPreferredName: () => void;
-        editGuestLegalName: () => void;
-        editGuestDescription: () => void;
-        editGuestActionPlan: () => void;
-        editGuestCampName: () => void;
-        editGuestCampAddress: () => void;
-        editGuestCampDescription: () => void;
-        editGuestCampContacts: () => void;
-
-        setArrivalTimeNow: () => void;
-        clearArrivalTime: () => void;
-        setDepartureTimeNow: () => void;
-        clearDepartureTime: () => void;
-
-        editArrivalMethod: () => void;
-        editArrivalState: () => void;
-        editArrivalReason: () => void;
-        editArrivalBelongings: () => void;
-
-        editDepartureMethod: () => void;
-        editDepartureState: () => void;
-
-        editResourceSitter: () => void;
-        editResourceBedID: () => void;
-        editResourceRest: () => void;
-        editResourceClothes: () => void;
-        editResourcePogs: () => void;
-        editResourceFoodBev: () => void;
-        editResourceOther: () => void;
-
-        addRanger: () => void;
-        removeRanger: (el: HTMLElement)=>void;
-        setRangerRole: (el: HTMLInputElement)=>void;
-
-        toggleShowHistory: () => void;
-        reportEntryEdited: ()=>void;
-        submitReportEntry: ()=>void;
-        attachFile: () => void;
-    }
-}
-
 let visit: ims.Visit|null = null;
 
 // Announces (to assistive tech) that someone else has changed this Visit while
@@ -130,47 +85,39 @@ async function initSanctuaryVisitPage(): Promise<void> {
         return;
     }
 
-    // TODO: window assignments go here
-    window.editParentIncident = editParentIncident;
-
-    window.editGuestPreferredName = editGuestPreferredName;
-    window.editGuestLegalName = editGuestLegalName;
-    window.editGuestDescription = editGuestDescription;
-    window.editGuestActionPlan = editGuestActionPlan;
-    window.editGuestCampName = editGuestCampName;
-    window.editGuestCampAddress = editGuestCampAddress;
-    window.editGuestCampDescription = editGuestCampDescription;
-    window.editGuestCampContacts = editGuestCampContacts;
-
-    window.setArrivalTimeNow = setArrivalTimeNow;
-    window.clearArrivalTime = clearArrivalTime;
-    window.setDepartureTimeNow = setDepartureTimeNow;
-    window.clearDepartureTime = clearDepartureTime;
-
-    window.editArrivalMethod = editArrivalMethod;
-    window.editArrivalState = editArrivalState;
-    window.editArrivalReason = editArrivalReason;
-    window.editArrivalBelongings = editArrivalBelongings;
-
-    window.editDepartureMethod = editDepartureMethod;
-    window.editDepartureState = editDepartureState;
-
-    window.editResourceSitter = editResourceSitter;
-    window.editResourceBedID = editResourceBedID;
-    window.editResourceRest = editResourceRest;
-    window.editResourceClothes = editResourceClothes;
-    window.editResourcePogs = editResourcePogs;
-    window.editResourceFoodBev = editResourceFoodBev;
-    window.editResourceOther = editResourceOther;
-
-    window.addRanger = addRanger;
-    window.removeRanger = removeRanger;
-    window.setRangerRole = setRangerRole;
-
-    window.toggleShowHistory = ims.toggleShowHistory;
-    window.reportEntryEdited = ims.reportEntryEdited;
-    window.submitReportEntry = ims.submitReportEntry;
-    window.attachFile = attachFile;
+    const fieldEditors: [HTMLElement, () => Promise<void>][] = [
+        [el.parentIncident, editParentIncident],
+        [el.guestPreferredName, editGuestPreferredName],
+        [el.guestLegalName, editGuestLegalName],
+        [el.guestDescription, editGuestDescription],
+        [el.guestActionPlan, editGuestActionPlan],
+        [el.guestCampName, editGuestCampName],
+        [el.guestCampAddress, editGuestCampAddress],
+        [el.guestCampDescription, editGuestCampDescription],
+        [el.guestCampContacts, editGuestCampContacts],
+        [el.arrivalMethod, editArrivalMethod],
+        [el.arrivalState, editArrivalState],
+        [el.arrivalReason, editArrivalReason],
+        [el.arrivalBelongings, editArrivalBelongings],
+        [el.departureMethod, editDepartureMethod],
+        [el.departureState, editDepartureState],
+        [el.resourceSitter, editResourceSitter],
+        [el.resourceBedID, editResourceBedID],
+        [el.resourceRest, editResourceRest],
+        [el.resourceClothes, editResourceClothes],
+        [el.resourcePogs, editResourcePogs],
+        [el.resourceFoodBev, editResourceFoodBev],
+        [el.resourceOther, editResourceOther],
+        [el.addRanger, addRanger],
+    ];
+    for (const [field, editor] of fieldEditors) {
+        field.addEventListener("change", editor);
+    }
+    ims.typedElement("arrival_time_now", HTMLButtonElement).addEventListener("click", setArrivalTimeNow);
+    ims.typedElement("arrival_time_clear", HTMLButtonElement).addEventListener("click", clearArrivalTime);
+    ims.typedElement("departure_time_now", HTMLButtonElement).addEventListener("click", setDepartureTimeNow);
+    ims.typedElement("departure_time_clear", HTMLButtonElement).addEventListener("click", clearDepartureTime);
+    ims.initReportEntryControls(attachFile);
 
     // load everything from the APIs concurrently
     await Promise.all([
@@ -512,7 +459,7 @@ async function editParentIncident(): Promise<void> {
     await ims.editFromElement(el.parentIncident, "incident", transform);
 }
 
-async function editGuestPreferredName(): Promise<void> {
+export async function editGuestPreferredName(): Promise<void> {
     await ims.editFromElement(el.guestPreferredName, "guest_preferred_name");
 }
 
@@ -532,7 +479,7 @@ async function editGuestCampName(): Promise<void> {
     await ims.editFromElement(el.guestCampName, "guest_camp_name");
 }
 
-async function editGuestCampAddress(): Promise<void> {
+export async function editGuestCampAddress(): Promise<void> {
     // Blur the field first, so the refresh after the edit is allowed to
     // rewrite it with the server's normalized address (e.g. "7+e" becomes
     // "7:00 & E"). A focused field with uncommitted input isn't updated.
@@ -635,7 +582,7 @@ ims.setOnStrikeSuccess(onStrikeSuccess);
 // stale revert from a previous one.
 let attachFileRevertTimeout: number|null = null;
 
-async function attachFile(): Promise<void> {
+export async function attachFile(): Promise<void> {
     if (attachFileRevertTimeout != null) {
         window.clearTimeout(attachFileRevertTimeout);
         attachFileRevertTimeout = null;
@@ -701,7 +648,7 @@ function normalize(str: string): string {
     return str.toLowerCase().trim();
 }
 
-async function addRanger(): Promise<void> {
+export async function addRanger(): Promise<void> {
     let handle: string = el.addRanger.value;
 
     // make a copy of the rangers
@@ -771,7 +718,7 @@ async function addRanger(): Promise<void> {
     el.addRanger.focus();
 }
 
-async function removeRanger(sender: HTMLElement): Promise<void> {
+export async function removeRanger(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
     const rangerHandle = parent.dataset["rangerHandle"];
     if (!rangerHandle) {
@@ -791,7 +738,7 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
 }
 
 
-async function setRangerRole(sender: HTMLInputElement): Promise<void> {
+export async function setRangerRole(sender: HTMLInputElement): Promise<void> {
     const handle = sender.closest("li")?.dataset["rangerHandle"];
     if (!handle) {
         console.log("no Ranger handle for element");
@@ -853,9 +800,12 @@ function drawRangers() {
         const roleInput = rangerLi.querySelector("input")!;
         roleInput.ariaLabel = `Ranger role for ${handle}`;
         if (ranger.role) {
-            rangerLi.querySelector("input")!.value = ranger.role;
+            roleInput.value = ranger.role;
         }
-        rangerLi.querySelector("button")!.ariaLabel = `Remove Ranger ${handle}`;
+        roleInput.addEventListener("change", (): Promise<void> => setRangerRole(roleInput));
+        const removeButton = rangerLi.querySelector("button")!;
+        removeButton.ariaLabel = `Remove Ranger ${handle}`;
+        removeButton.addEventListener("click", (): Promise<void> => removeRanger(removeButton));
 
         rangersElement.append(rangerFragment);
     }

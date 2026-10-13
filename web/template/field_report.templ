@@ -60,7 +60,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
         <input
             id="incident_number" aria-label="IMS #" type="text" class="form-control form-control-static"
             { NoAutofill()... }
-            onchange="updateIncident(this);" readonly
+            readonly
         />
       </div>
     </div>
@@ -70,7 +70,6 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
             id="create_incident"
             class="py-1 btn btn-sm btn-warning hidden"
             title="Only click this if you're sure there is no preexisting incident for this FR. This only shows up because you have writeIncidents permission."
-            onclick="makeIncident()"
         >
           Create new incident from FR
         </button>
@@ -88,7 +87,6 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
                 id="field_report_summary" class="form-control"
                 type="text" inputmode="text"
                 { NoAutofill()... }
-                onchange="editSummary()"
         />
       </div>
     </div>
@@ -158,7 +156,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
         <h2 class="control-label card-header h6 mb-0">Details</h2>
         <div id="report_entry_well" class="card-body">
           <label class="control-label">
-            <input id="history_checkbox" type="checkbox" onchange="toggleShowHistory()"/>
+            <input id="history_checkbox" type="checkbox"/>
             Show history and stricken
           </label>
           <div id="report_entries"></div>
@@ -168,7 +166,6 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
                     aria-label="New report entry text"
                     class="form-control no-print"
                     placeholder="Press &quot;a&quot; to add report text"
-                    onchange="reportEntryEdited()"
             ></textarea>
             <div class="d-flex justify-content-between">
               <button
@@ -176,19 +173,17 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
                       aria-label="Submit report entry"
                       type="submit"
                       class="btn btn-default btn-sm my-1 btn-block disabled no-print"
-                      onclick="submitReportEntry()"
               >
                 Add Entry <kbd><span class="modifier-key">Ctrl</span> Enter</kbd>
               </button>
               <!-- File attachment -->
               <label class="input-group-text hidden" for="attach_file_input">Attach file</label>
-              <input type="file" class="form-control hidden" id="attach_file_input" name="filename" onchange="attachFile();" />
+              <input type="file" class="form-control hidden" id="attach_file_input" name="filename" />
               <input
                       id="attach_file"
                       type="button"
                       class="btn btn-default btn-sm btn-block btn-secondary my-1 form-control-lite no-print hidden"
                       value="Attach file"
-                      onclick="document.getElementById('attach_file_input').click();"
                />
             </div>
           </div>

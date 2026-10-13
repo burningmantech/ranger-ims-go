@@ -35,27 +35,27 @@ templ AdminDebug(deployment, versionName, versionRef string) {
 }
 
 <h2 class="h4">Server Info</h2>
-<p><button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Server Info</button></p>
+<p><button id="show-build-info" class="btn btn-sm btn-default btn-primary">Fetch Server Info</button></p>
 <div id="build-info-div" style="display:none;">
   <p id="build-info-p"></p>
   <pre id="build-info"></pre>
 </div>
 
 <h2 class="h4">Server Configuration</h2>
-<p><button id="show-config" onclick="fetchConfig()" class="btn btn-sm btn-default btn-primary">Fetch Server Configuration</button></p>
+<p><button id="show-config" class="btn btn-sm btn-default btn-primary">Fetch Server Configuration</button></p>
 <div id="config-div" style="display:none;">
   <p id="config-p">Secrets are redacted.</p>
   <pre id="config"></pre>
 </div>
 
 <h2 class="h4">Garbage Collection</h2>
-<p><button id="perform-gc" onclick="performGC()" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
+<p><button id="perform-gc" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
 <div id="gc-div" style="display:none;">
   <pre id="gc"></pre>
 </div>
 
 <h2 class="h4">Runtime Metrics</h2>
-<p><button id="show-metrics" onclick="fetchRuntimeMetrics()" class="btn btn-sm btn-default btn-primary">Fetch Runtime Metrics</button></p>
+<p><button id="show-metrics" class="btn btn-sm btn-default btn-primary">Fetch Runtime Metrics</button></p>
 <div id="runtime-metrics-div" style="display:none;">
   <p id="runtime-metrics-p"><a href="https://pkg.go.dev/runtime/metrics#hdr-Supported_metrics">See the metric definitions here</a></p>
   <pre id="runtime-metrics"></pre>

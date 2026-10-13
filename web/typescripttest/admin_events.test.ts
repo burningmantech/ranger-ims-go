@@ -19,7 +19,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { answerDialog, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { answerDialog, change, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+
+let page: typeof import("../typescript/admin_events.ts");
 
 interface AccessLike {
     expression: string;
@@ -88,7 +90,7 @@ async function initAdminEventsPage() {
         }
         return undefined;
     });
-    await import("../typescript/admin_events.ts");
+    page = await import("../typescript/admin_events.ts");
     await vi.waitFor((): void => {
         expect(eventCards().length).toBeGreaterThan(0);
     });
@@ -545,10 +547,13 @@ test("the edit modal shows the event's address normalization setting, and toggli
     expect(normalize.checked).toBe(true);
 
     normalize.checked = false;
-    await window.setNormalizeAddresses(normalize);
+    change(normalize);
 
-    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
-    expect(call).toBeDefined();
+    const call = await vi.waitFor(() => {
+        const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+        expect(call).toBeDefined();
+        return call;
+    });
     expect(JSON.parse(call![1]!.body as string)).toEqual({ id: 1, name: null, normalize_addresses: false });
 });
 
@@ -575,10 +580,13 @@ test("the edit modal shows whether the event is active, and toggling it posts th
     expect(isActive.checked).toBe(false);
 
     isActive.checked = true;
-    await window.setIsActive(isActive);
+    change(isActive);
 
-    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
-    expect(call).toBeDefined();
+    const call = await vi.waitFor(() => {
+        const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+        expect(call).toBeDefined();
+        return call;
+    });
     expect(JSON.parse(call![1]!.body as string)).toEqual({ id: 1, name: null, is_active: true });
 });
 
@@ -627,17 +635,22 @@ test("setting a release time posts the parsed time and reformats the field", asy
 
     const campRelease = document.getElementById("edit_camp_locations_release") as HTMLInputElement;
     campRelease.value = "2025-08-24 15:00";
-    await window.setCampLocationsRelease(campRelease);
+    change(campRelease);
 
-    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
-    expect(call).toBeDefined();
+    const call = await vi.waitFor(() => {
+        const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+        expect(call).toBeDefined();
+        return call;
+    });
     expect(JSON.parse(call![1]!.body as string)).toEqual({
         id: 1,
         name: null,
         camp_locations_release: new Date(2025, 7, 24, 15, 0).toISOString(),
     });
     // The admin gets to see how the server understood what they typed.
-    expect(campRelease.value).toBe("Sun 2025-08-24 @ 15:00");
+    await vi.waitFor((): void => {
+        expect(campRelease.value).toBe("Sun 2025-08-24 @ 15:00");
+    });
 });
 
 test("clearing a release time posts the zero time, which lifts the embargo", async (): Promise<void> => {
@@ -652,10 +665,13 @@ test("clearing a release time posts the zero time, which lifts the embargo", asy
 
     const artRelease = document.getElementById("edit_art_locations_release") as HTMLInputElement;
     artRelease.value = "";
-    await window.setArtLocationsRelease(artRelease);
+    change(artRelease);
 
-    const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
-    expect(call).toBeDefined();
+    const call = await vi.waitFor(() => {
+        const call = mock.mock.calls.findLast(([url, init]) => url === url_events && init?.body != null);
+        expect(call).toBeDefined();
+        return call;
+    });
     expect(JSON.parse(call![1]!.body as string)).toEqual({
         id: 1,
         name: null,
@@ -670,7 +686,7 @@ test("an unparseable release time posts nothing", async (): Promise<void> => {
 
     const mapRelease = document.getElementById("edit_map_url_release") as HTMLInputElement;
     mapRelease.value = "sometime next week";
-    await window.setMapURLRelease(mapRelease);
+    await page.setMapURLRelease(mapRelease);
 
     expect(mock.mock.calls.find(([url, init]) => url === url_events && init?.body != null)).toBeUndefined();
 });

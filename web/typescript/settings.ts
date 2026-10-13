@@ -18,16 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        setPreferredState: (el: HTMLSelectElement) => Promise<void>;
-        setPreferredVisitsStatus: (el: HTMLSelectElement) => Promise<void>;
-        setPreferredRowsPerPage: (el: HTMLSelectElement) => Promise<void>;
-        setPreferredTheme: (el: HTMLSelectElement) => Promise<void>;
-        setKeyboardShortcuts: (el: HTMLInputElement) => Promise<void>;
-    }
-}
-
 //
 // Initialize UI
 //
@@ -68,11 +58,11 @@ async function initSettingsPage(): Promise<void> {
         el.preferredTheme.value = e.detail;
     });
 
-    window.setPreferredState = setPreferredState;
-    window.setPreferredVisitsStatus = setPreferredVisitsStatus;
-    window.setPreferredRowsPerPage = setPreferredRowsPerPage;
-    window.setPreferredTheme = setPreferredTheme;
-    window.setKeyboardShortcuts = setKeyboardShortcuts;
+    el.preferredState.addEventListener("change", (): Promise<void> => setPreferredState(el.preferredState));
+    el.preferredVisitsStatus.addEventListener("change", (): Promise<void> => setPreferredVisitsStatus(el.preferredVisitsStatus));
+    el.preferredRowsPerPage.addEventListener("change", (): Promise<void> => setPreferredRowsPerPage(el.preferredRowsPerPage));
+    el.preferredTheme.addEventListener("change", (): Promise<void> => setPreferredTheme(el.preferredTheme));
+    el.keyboardShortcuts.addEventListener("change", (): Promise<void> => setKeyboardShortcuts(el.keyboardShortcuts));
 }
 
 async function setPreferredState(el: HTMLSelectElement): Promise<void> {

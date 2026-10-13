@@ -19,16 +19,11 @@ package template
 templ Head(title string, module string, usesDataTables bool, cacheVersion string) {
 {{
     v := cacheVersion[:8]
-    var esImports = map[string]any{
-        "imports": map[string]string{
-            "/ims/static/ims.js": "/ims/static/ims.js?v=" + v,
-        },
-    }
 }}
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    @templ.JSONScript("importmap", esImports).WithType("importmap")
+    @importMap(cacheVersion)
     <link rel="apple-touch-icon" sizes="180x180" href="/ims/static/logos/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/ims/static/logos/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/ims/static/logos/favicon-16x16.png">

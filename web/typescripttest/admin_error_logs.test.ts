@@ -22,7 +22,7 @@
 // options the page passes and runs the ajax source on draw/reload.
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { change, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
 
 interface AjaxCallback { (resp: { data: unknown[] }): void; }
 interface DataTableOptions {
@@ -138,7 +138,6 @@ async function initErrorLogsPage(rows: unknown[] = []) {
     });
     await import("../typescript/admin_error_logs.ts");
     await vi.waitFor((): void => {
-        expect(window.updateTable).toBeTypeOf("function");
         expect(MockDataTable.lastInstance).not.toBeNull();
     });
     return mock;
@@ -164,14 +163,14 @@ test("the path filter starts empty, unlike the action logs page", async (): Prom
     expect(params.get("path")).toBeNull();
 });
 
-test("updateTable folds the filter inputs into the query params and reloads", async (): Promise<void> => {
+test("changing a filter folds the filter inputs into the query params and reloads", async (): Promise<void> => {
     const mock = await initErrorLogsPage();
 
     (document.getElementById("filter_user_name") as HTMLInputElement).value = "Hubcap";
     (document.getElementById("filter_path") as HTMLInputElement).value = "/ims/api/events";
     (document.getElementById("filter_min_time") as HTMLInputElement).value = "";
 
-    await window.updateTable(document.body);
+    change(document.getElementById("filter_user_name")!);
 
     await vi.waitFor((): void => {
         const last = mock.mock.calls.at(-1)!;

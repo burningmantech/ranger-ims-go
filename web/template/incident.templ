@@ -78,7 +78,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <select
                   id="incident_state"
                   class="form-control form-select form-select-sm auto-width"
-                  onchange="editState()"
           >
             <option value="new">New</option>
             <option value="on_hold">On Hold</option>
@@ -109,7 +108,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 id="incident_summary" class="form-control form-control-sm"
                 type="text" inputmode="text"
                 { NoAutofill()... }
-                onchange="editIncidentSummary()"
         />
       </div>
     </div>
@@ -134,9 +132,9 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
               <li class="list-group-item flex-input-container ps-3 hidden">
                 <span><a href="#" tabindex="-1"></a></span>
                 <input aria-label="Description of Ranger role" type="text" class="form-control form-control-sm short-input auto-width hover-placeholder border-0"
-                    placeholder="Short description of role" onchange="setRangerRole(this)" maxlength="50"
+                    placeholder="Short description of role" maxlength="50"
                 />
-                <button class="badge btn btn-danger remove-badge float-end" onclick="removeRanger(this)" tabindex="-1" aria-label="Remove Ranger">
+                <button class="badge btn btn-danger remove-badge float-end" tabindex="-1" aria-label="Remove Ranger">
                   X
                 </button>
               </li>
@@ -151,7 +149,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     list="ranger_handles"
                     { NoAutofill()... }
                     class="form-control form-control-sm auto-width"
-                    onchange="addRanger()"
             />
             <datalist id="ranger_handles">
               <option value=""></option>
@@ -173,7 +170,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <ul id="incident_types_list" class="list-group list-group-flush list-group-small card-body">
             <template id="incident_types_li_template">
               <li class="list-group-item ps-3 hidden">
-                <button class="badge btn btn-danger remove-badge float-end" onclick="removeIncidentType(this)" aria-label="Remove Incident Type">
+                <button class="badge btn btn-danger remove-badge float-end" aria-label="Remove Incident Type">
                   X
                 </button>
               </li>
@@ -188,7 +185,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     list="incident_types"
                     { NoAutofill()... }
                     class="form-control form-control-sm auto-width"
-                    onchange="addIncidentType()"
             />
             <datalist id="incident_types">
               <option value=""/>
@@ -232,7 +228,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                           placeholder="Name of location"
                           list="places-list"
                           aria-label="Location name"
-                          onchange="editLocationName()"
                   />
                   <datalist id="places-list"></datalist>
                 </div>
@@ -247,7 +242,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                           { NoAutofill()... }
                           placeholder="Address of location"
                           aria-label="Location address"
-                          onchange="editLocationAddress();"
                   />
                 </div>
               </div>
@@ -260,7 +254,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                           { NoAutofill()... }
                           aria-label="Additional location description"
                           placeholder="Other identifying info"
-                          onchange="editLocationDescription()"
                   />
                 </div>
               </div>
@@ -279,8 +272,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <ul id="attached_field_reports" class="list-group list-group-small card-body list-group-flush">
             <template id="attached_field_report_li_template">
               <li class="list-group-item ps-3 hidden">
-                <button class="badge btn btn-danger remove-badge float-end"
-                        onclick="detachFieldReport(this)" aria-label="Detach">
+                <button class="badge btn btn-danger remove-badge float-end" aria-label="Detach">
                   X
                 </button>
               </li>
@@ -291,7 +283,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             <select
                     id="attached_field_report_add"
                     class="form-control form-control-sm"
-                    onchange="attachFieldReport()"
             >
               <option value=""/>
             </select>
@@ -303,8 +294,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <h2 class="control-label card-header h6 mb-0">Linked Incidents</h2>
           <ul id="linked_incidents" class="list-group list-group-small card-body list-group-flush">
             <li class="list-group-item ps-3 hidden">
-              <button class="badge btn btn-danger remove-badge float-end"
-                      onclick="unlinkIncident(this)" aria-label="Unlink Incident">
+              <button class="badge btn btn-danger remove-badge float-end" aria-label="Unlink Incident">
                   X
               </button>
             </li>
@@ -314,7 +304,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             <input
                     id="linked_incident_add"
                     class="form-control form-control-sm"
-                    onchange="linkIncident(this)"
                     { NoAutofill()... }
                     title="e.g., 123 (same event) or 2015#2 (different event) or 4,5,6 (link multiple at once)"
                     type="text"
@@ -332,7 +321,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <h2 class="control-label card-header h6 mb-0">Entries from Incident and attached Field Reports/Visits</h2>
           <div id="report_entry_well" class="card-body">
             <label class="control-label">
-              <input id="history_checkbox" type="checkbox" onchange="toggleShowHistory()"/>
+              <input id="history_checkbox" type="checkbox"/>
               Show history and stricken
             </label>
             <div id="report_entries"></div>
@@ -343,7 +332,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                     aria-label="New report entry text"
                     class="form-control no-print"
                     placeholder="Press &quot;a&quot; to add report text"
-                    onchange="reportEntryEdited()"
             ></textarea>
             <div class="d-flex justify-content-between">
               <button
@@ -351,19 +339,17 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                       aria-label="Submit report entry"
                       type="submit"
                       class="btn btn-default btn-sm btn-block my-1 disabled no-print float-start"
-                      onclick="submitReportEntry()"
               >
                 Add Entry <kbd><span class="modifier-key">Ctrl</span> Enter</kbd>
               </button>
               <!-- File attachment -->
               <label class="input-group-text hidden" for="attach_file_input">Attach file</label>
-              <input type="file" class="form-control hidden" id="attach_file_input" name="filename" onchange="attachFile();" />
+              <input type="file" class="form-control hidden" id="attach_file_input" name="filename" />
               <input
                       id="attach_file"
                       type="button"
                       class="btn btn-default btn-sm btn-block btn-secondary my-1 form-control-lite no-print hidden"
                       value="Attach file"
-                      onclick="document.getElementById('attach_file_input').click();"
               />
             </div>
           </div>

@@ -27,7 +27,7 @@ beforeEach((): void => {
     loadFixture("login.html");
 });
 
-// Import login.ts and wait for its init to attach the page's window functions.
+// Import login.ts, which attaches its event listeners before awaiting anything.
 async function initLoginPage(handler: FetchHandler) {
     const mock = mockFetch((url, init) => {
         // commonPageInit's auth check, a GET to url_auth.
@@ -37,9 +37,6 @@ async function initLoginPage(handler: FetchHandler) {
         return handler(url, init);
     });
     await import("../typescript/login.ts");
-    await vi.waitFor((): void => {
-        expect(window.login).toBeTypeOf("function");
-    });
     return mock;
 }
 
@@ -84,7 +81,9 @@ test("a successful login redirects to the app", async (): Promise<void> => {
     username.value = "ranger@example.com";
     password.value = "correct-password";
 
-    window.login();
+    document.getElementById("login_form")!.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+    );
 
     await vi.waitFor((): void => {
         expect(replace).toHaveBeenCalledWith(url_app);
@@ -98,23 +97,20 @@ test("a successful login redirects to the app", async (): Promise<void> => {
     });
 });
 
-test("the Show/Hide button toggles password visibility via its inline onclick handler", async (): Promise<void> => {
+test("the Show/Hide button toggles password visibility", async (): Promise<void> => {
     await initLoginPage(() => undefined);
 
-    // login.templ wires the button with onclick="toggleShowPassword()", so the
-    // function must exist on window under exactly that name.
     const button = document.getElementById("password_show_hide") as HTMLButtonElement;
-    expect(button.getAttribute("onclick")).toBe("toggleShowPassword()");
 
     const password = document.getElementById("password_input") as HTMLInputElement;
     expect(password.type).toBe("password");
     expect(button.textContent).toBe("Show");
 
-    window.toggleShowPassword();
+    button.click();
     expect(password.type).toBe("text");
     expect(button.textContent).toBe("Hide");
 
-    window.toggleShowPassword();
+    button.click();
     expect(password.type).toBe("password");
     expect(button.textContent).toBe("Show");
 });

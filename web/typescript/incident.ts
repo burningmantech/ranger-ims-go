@@ -19,30 +19,6 @@
 import * as ims from "./ims.ts";
 import {fetchPersonnel} from "./ims.ts";
 
-declare global {
-    interface Window {
-        editState: ()=>Promise<void>;
-        editIncidentSummary: ()=>Promise<void>;
-        editLocationName: ()=>Promise<void>;
-        editLocationAddress: ()=>Promise<void>;
-        editLocationDescription: ()=>Promise<void>;
-        removeRanger: (el: HTMLElement)=>void;
-        setRangerRole: (el: HTMLInputElement)=>void;
-        removeIncidentType: (el: HTMLElement)=>Promise<void>;
-        detachFieldReport: (el: HTMLElement)=>Promise<void>;
-        attachFieldReport: ()=>Promise<void>;
-        unlinkIncident: (el: HTMLElement)=>Promise<void>;
-        linkIncident: (el: HTMLInputElement)=>Promise<void>;
-        addRanger: ()=>void;
-        addIncidentType: ()=>Promise<void>;
-        attachFile: ()=>void;
-        drawMergedReportEntries: ()=>void;
-        toggleShowHistory: ()=>void;
-        reportEntryEdited: ()=>void;
-        submitReportEntry: ()=>void;
-    }
-}
-
 let incident: ims.Incident|null = null;
 
 // Announces (to assistive tech) that someone else has changed this Incident
@@ -93,6 +69,7 @@ const el = {
     attachedFieldReports: ims.typedElement("attached_field_reports", HTMLUListElement),
 
     linkedIncidents: ims.typedElement("linked_incidents", HTMLElement),
+    linkedIncidentAdd: ims.typedElement("linked_incident_add", HTMLInputElement),
 
     historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
     reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
@@ -118,25 +95,16 @@ async function initIncidentPage(): Promise<void> {
         return;
     }
 
-    window.editState = editState;
-    window.editIncidentSummary = editIncidentSummary;
-    window.editLocationName = editLocationName;
-    window.editLocationAddress = editLocationAddress;
-    window.editLocationDescription = editLocationDescription;
-    window.removeRanger = removeRanger;
-    window.setRangerRole = setRangerRole;
-    window.removeIncidentType = removeIncidentType;
-    window.detachFieldReport = detachFieldReport;
-    window.attachFieldReport = attachFieldReport;
-    window.unlinkIncident = unlinkIncident;
-    window.linkIncident = linkIncident;
-    window.addRanger = addRanger;
-    window.addIncidentType = addIncidentType;
-    window.attachFile = attachFile;
-    window.drawMergedReportEntries = drawMergedReportEntries;
-    window.toggleShowHistory = ims.toggleShowHistory;
-    window.reportEntryEdited= ims.reportEntryEdited;
-    window.submitReportEntry = ims.submitReportEntry;
+    el.incidentState.addEventListener("change", editState);
+    el.incidentSummary.addEventListener("change", editIncidentSummary);
+    el.locationName.addEventListener("change", editLocationName);
+    el.locationAddress.addEventListener("change", editLocationAddress);
+    el.locationDescription.addEventListener("change", editLocationDescription);
+    el.rangerAdd.addEventListener("change", addRanger);
+    el.incidentTypeAdd.addEventListener("change", addIncidentType);
+    el.attachedFieldReportAdd.addEventListener("change", attachFieldReport);
+    el.linkedIncidentAdd.addEventListener("change", (): Promise<void> => linkIncident(el.linkedIncidentAdd));
+    ims.initReportEntryControls(attachFile);
 
     // load everything from the APIs concurrently
     await Promise.all([
@@ -758,9 +726,12 @@ function drawRangers() {
         const roleInput = rangerLi.querySelector("input")!;
         roleInput.ariaLabel = `Ranger role for ${handle}`;
         if (ranger.role) {
-            rangerLi.querySelector("input")!.value = ranger.role;
+            roleInput.value = ranger.role;
         }
-        rangerLi.querySelector("button")!.ariaLabel = `Remove Ranger ${handle}`;
+        roleInput.addEventListener("change", (): Promise<void> => setRangerRole(roleInput));
+        const removeButton = rangerLi.querySelector("button")!;
+        removeButton.ariaLabel = `Remove Ranger ${handle}`;
+        removeButton.addEventListener("click", (): Promise<void> => removeRanger(removeButton));
 
         el.rangersList.append(rangerFragment);
     }
@@ -820,7 +791,9 @@ function drawIncidentTypes() {
             typeSpan.textContent = validType.name??"";
             item.append(typeSpan);
             item.dataset["incidentTypeId"] = (validType.id??-1).toString();
-            item.querySelector("button")!.ariaLabel = `Remove Incident Type ${validType.name??""}`;
+            const removeButton = item.querySelector("button")!;
+            removeButton.ariaLabel = `Remove Incident Type ${validType.name??""}`;
+            removeButton.addEventListener("click", (): Promise<void> => removeIncidentType(removeButton));
             el.incidentTypesList.append(fragment);
         }
     }
@@ -977,7 +950,9 @@ function drawAttachedFieldReportsVisits() {
         item.classList.remove("hidden");
         item.append(link);
         item.dataset["frNumber"] = report.number!.toString();
-        item.querySelector("button")!.ariaLabel = `Detach Field Report #${report.number}`;
+        const detachButton = item.querySelector("button")!;
+        detachButton.ariaLabel = `Detach Field Report #${report.number}`;
+        detachButton.addEventListener("click", (): Promise<void> => detachFieldReport(detachButton));
 
         el.attachedFieldReports.append(item);
     }
@@ -992,7 +967,9 @@ function drawAttachedFieldReportsVisits() {
         item.classList.remove("hidden");
         item.append(link);
         item.dataset["visitNumber"] = visit.number!.toString();
-        item.querySelector("button")!.ariaLabel = `Detach Visit #${visit.number}`;
+        const detachButton = item.querySelector("button")!;
+        detachButton.ariaLabel = `Detach Visit #${visit.number}`;
+        detachButton.addEventListener("click", (): Promise<void> => detachFieldReport(detachButton));
 
         el.attachedFieldReports.append(item);
     }
@@ -1040,8 +1017,9 @@ function drawLinkedIncidents(): void {
         item.dataset["eventId"] = linked.event_id?.toString();
         item.dataset["eventName"] = linked.event_name?.toString();
         item.dataset["incidentNumber"] = linked.number?.toString();
-        item.querySelector("button")!.ariaLabel =
-            `Unlink Incident ${linked.event_name??""} #${linked.number}`;
+        const unlinkButton = item.querySelector("button")!;
+        unlinkButton.ariaLabel = `Unlink Incident ${linked.event_name??""} #${linked.number}`;
+        unlinkButton.addEventListener("click", (): Promise<void> => unlinkIncident(unlinkButton));
 
         el.linkedIncidents.append(item);
     }
@@ -1194,7 +1172,7 @@ async function sendEditsNow(edits: ims.Incident): Promise<{err:string|null}> {
 }
 ims.setSendEdits(sendEdits);
 
-async function editState(): Promise<void> {
+export async function editState(): Promise<void> {
     if (el.incidentState.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
         await ims.alertDialog(
             "Closing out this incident?\n"+
@@ -1222,12 +1200,12 @@ async function setStartDatetime(selectedDates: Date[], _dateStr: string, sender:
     });
 }
 
-async function editIncidentSummary(): Promise<void> {
+export async function editIncidentSummary(): Promise<void> {
     await ims.editFromElement(el.incidentSummary, "summary");
 }
 
 
-async function editLocationName(): Promise<void> {
+export async function editLocationName(): Promise<void> {
     const place = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`) as HTMLOptionElement|null;
     if (place) {
         return await setLocationFromPlace(place);
@@ -1273,7 +1251,7 @@ async function setLocationFromPlace(knownLoc: HTMLOptionElement): Promise<void> 
     }
 }
 
-async function editLocationAddress(): Promise<void> {
+export async function editLocationAddress(): Promise<void> {
     // Blur the field first, so the refresh after the edit is allowed to
     // rewrite it with the server's normalized address (e.g. "7+e" becomes
     // "7:00 & E"). A focused field with uncommitted input isn't updated.
@@ -1285,7 +1263,7 @@ async function editLocationDescription(): Promise<void> {
     await ims.editFromElement(el.locationDescription, "location.description");
 }
 
-async function removeRanger(sender: HTMLElement): Promise<void> {
+export async function removeRanger(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
     const rangerHandle = parent.dataset["rangerHandle"];
     if (!rangerHandle) {
@@ -1304,7 +1282,7 @@ async function removeRanger(sender: HTMLElement): Promise<void> {
     });
 }
 
-async function setRangerRole(sender: HTMLInputElement): Promise<void> {
+export async function setRangerRole(sender: HTMLInputElement): Promise<void> {
     const handle = sender.closest("li")?.dataset["rangerHandle"];
     if (!handle) {
         console.log("no Ranger handle for element");
@@ -1336,7 +1314,7 @@ async function setRangerRole(sender: HTMLInputElement): Promise<void> {
 // this page last drew minus the one clicked. A recomputed list would be stale
 // the moment anything else changed the types — including a second X click that
 // hasn't redrawn yet, whose list would put the first click's type back.
-async function removeIncidentType(sender: HTMLElement): Promise<void> {
+export async function removeIncidentType(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
     const incidentTypeId = ims.parseInt10(parent.dataset["incidentTypeId"]);
     if (incidentTypeId == null) {
@@ -1395,7 +1373,7 @@ function normalize(str: string): string {
     return str.toLowerCase().trim();
 }
 
-async function addRanger(): Promise<void> {
+export async function addRanger(): Promise<void> {
     let handle: string = el.rangerAdd.value;
 
     // make a copy of the rangers
@@ -1466,7 +1444,7 @@ async function addRanger(): Promise<void> {
 }
 
 
-async function addIncidentType(): Promise<void> {
+export async function addIncidentType(): Promise<void> {
     let typeInput = el.incidentTypeAdd.value;
 
     const currentIncidentTypes = incident!.incident_type_ids??[];
@@ -1522,7 +1500,7 @@ async function addIncidentType(): Promise<void> {
 }
 
 
-async function detachFieldReport(sender: HTMLElement): Promise<void> {
+export async function detachFieldReport(sender: HTMLElement): Promise<void> {
     const parent: HTMLElement = sender.parentElement!;
     const frNumber = parent.dataset["frNumber"]||null;
     const visitNumber = parent.dataset["visitNumber"]||null;
@@ -1563,7 +1541,7 @@ async function detachFieldReport(sender: HTMLElement): Promise<void> {
 }
 
 
-async function attachFieldReport(): Promise<void> {
+export async function attachFieldReport(): Promise<void> {
     if (ims.pathIds.incidentNumber == null) {
         // Incident doesn't exist yet. Create it first.
         const {err} = await sendEdits({});
@@ -1613,7 +1591,7 @@ async function attachFieldReport(): Promise<void> {
 
 // Like removeIncidentType, this says "unlink this one Incident" rather than
 // replacing the whole list, so two rapid X clicks can't undo each other.
-async function unlinkIncident(sender: HTMLElement): Promise<void> {
+export async function unlinkIncident(sender: HTMLElement): Promise<void> {
     const parent = sender.parentElement as HTMLElement;
     const linkedEventName = parent.dataset["eventName"];
     const linkedIncidentNumber = ims.parseInt10(parent.dataset["incidentNumber"]);
@@ -1657,7 +1635,7 @@ async function setIncidentLink(
     return null;
 }
 
-async function linkIncident(input: HTMLInputElement): Promise<void> {
+export async function linkIncident(input: HTMLInputElement): Promise<void> {
     // Blurring the field after clearing it fires this handler with nothing to
     // do. Bail before the create below, so that doesn't conjure an Incident.
     if (!input.value.trim()) {
@@ -1771,7 +1749,7 @@ ims.setOnStrikeSuccess(onStrikeSuccess);
 // stale revert from a previous one.
 let attachFileRevertTimeout: number|null = null;
 
-async function attachFile(): Promise<void> {
+export async function attachFile(): Promise<void> {
     if (attachFileRevertTimeout != null) {
         window.clearTimeout(attachFileRevertTimeout);
         attachFileRevertTimeout = null;

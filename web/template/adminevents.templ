@@ -48,23 +48,23 @@ templ AdminEvents(deployment, versionName, versionRef string) {
         </div>
         <div class="input-group mb-3">
           <label for="edit_parent_group" class="control-label input-group-text">Parent Group</label>
-          <input id="edit_parent_group" type="text" class="form-control form-control-sm" onchange="setParentGroup(this);" />
+          <input id="edit_parent_group" type="text" class="form-control form-control-sm" />
         </div>
         <div class="input-group mb-3">
           <label for="edit_map_url" class="control-label input-group-text">Map URL</label>
-          <input id="edit_map_url" type="url" class="form-control form-control-sm" onchange="setMapURL(this);" placeholder="https://example.com/map.pdf" />
+          <input id="edit_map_url" type="url" class="form-control form-control-sm" placeholder="https://example.com/map.pdf" />
         </div>
         <div class="input-group mb-3" id="edit_is_active_group">
           <label for="edit_is_active" class="control-label input-group-text">Active Event</label>
           <div class="input-group-text">
-            <input id="edit_is_active" type="checkbox" class="form-check-input mt-0" onchange="setIsActive(this);" />
+            <input id="edit_is_active" type="checkbox" class="form-check-input mt-0" />
           </div>
           <span class="form-control form-control-sm text-smaller d-flex align-items-center">The event people most likely care about right now. Only one event can be active.</span>
         </div>
         <div class="input-group mb-3" id="edit_normalize_addresses_group">
           <label for="edit_normalize_addresses" class="control-label input-group-text">Normalize Addresses</label>
           <div class="input-group-text">
-            <input id="edit_normalize_addresses" type="checkbox" class="form-check-input mt-0" onchange="setNormalizeAddresses(this);" />
+            <input id="edit_normalize_addresses" type="checkbox" class="form-check-input mt-0" />
           </div>
           <span class="form-control form-control-sm text-smaller d-flex align-items-center">Rewrite addresses into BRC form, e.g. "7+e" becomes "7:00 &amp; E"</span>
         </div>
@@ -80,22 +80,19 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             <label for="edit_camp_locations_release" class="control-label input-group-text">Camp Locations Release</label>
             <input id="edit_camp_locations_release" type="text" class="form-control form-control-sm"
                    placeholder="No embargo"
-                   title="Camp Place locations are hidden from non-admins until this time."
-                   onchange="setCampLocationsRelease(this);" />
+                   title="Camp Place locations are hidden from non-admins until this time." />
           </div>
           <div class="input-group mb-3">
             <label for="edit_art_locations_release" class="control-label input-group-text">Art Locations Release</label>
             <input id="edit_art_locations_release" type="text" class="form-control form-control-sm"
                    placeholder="No embargo"
-                   title="Art Place locations are hidden from non-admins until this time."
-                   onchange="setArtLocationsRelease(this);" />
+                   title="Art Place locations are hidden from non-admins until this time." />
           </div>
           <div class="input-group mb-3">
             <label for="edit_map_url_release" class="control-label input-group-text">Map Link Release</label>
             <input id="edit_map_url_release" type="text" class="form-control form-control-sm"
                    placeholder="No embargo"
-                   title="The event's Map link is hidden from non-admins until this time."
-                   onchange="setMapURLRelease(this);" />
+                   title="The event's Map link is hidden from non-admins until this time." />
           </div>
         </div>
       </div>
@@ -260,7 +257,6 @@ templ AdminEvents(deployment, versionName, versionRef string) {
               disabled=""
               type="text" inputmode="verbatim"
               placeholder="Burn-A-Matic-3000"
-              onchange="addEvent(this, 'not-group')"
       />
     </div>
   </div>
@@ -273,7 +269,6 @@ templ AdminEvents(deployment, versionName, versionRef string) {
               disabled=""
               type="text" inputmode="verbatim"
               placeholder="Collection-of-Burns"
-              onchange="addEvent(this, 'group')"
       />
     </div>
   </div>

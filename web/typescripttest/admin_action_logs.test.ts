@@ -22,7 +22,7 @@
 // passes and runs the ajax source on draw/reload.
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { change, jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
 
 interface AjaxCallback { (resp: { data: unknown[] }): void; }
 interface DataTableOptions {
@@ -138,7 +138,6 @@ async function initActionLogsPage(rows: unknown[] = []) {
     });
     await import("../typescript/admin_action_logs.ts");
     await vi.waitFor((): void => {
-        expect(window.updateTable).toBeTypeOf("function");
         expect(MockDataTable.lastInstance).not.toBeNull();
     });
     return mock;
@@ -156,7 +155,7 @@ test("the table is fetched from the action logs endpoint with the default min-ti
     expect(params.get("minTimeUnixMs")).not.toBeNull();
 });
 
-test("updateTable folds the filter inputs into the query params and reloads", async (): Promise<void> => {
+test("changing a filter folds the filter inputs into the query params and reloads", async (): Promise<void> => {
     const mock = await initActionLogsPage();
 
     (document.getElementById("filter_user_name") as HTMLInputElement).value = "Hubcap";
@@ -164,7 +163,7 @@ test("updateTable folds the filter inputs into the query params and reloads", as
     (document.getElementById("filter_page") as HTMLInputElement).value = "/ims/app/events/2026/incidents";
     (document.getElementById("filter_min_time") as HTMLInputElement).value = "";
 
-    await window.updateTable(document.body);
+    change(document.getElementById("filter_user_name")!);
 
     await vi.waitFor((): void => {
         const last = mock.mock.calls.at(-1)!;

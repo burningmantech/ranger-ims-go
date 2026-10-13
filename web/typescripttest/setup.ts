@@ -48,6 +48,12 @@ Object.assign(globalThis, {
         new MockFlatpickr(selector, opts),
 });
 
+// happy-dom doesn't implement the Popover API. Dropdown menus hide themselves
+// when an item is picked, so picking one needs hidePopover to exist.
+if (!("hidePopover" in HTMLElement.prototype)) {
+    Object.assign(HTMLElement.prototype, { hidePopover(): void {} });
+}
+
 beforeEach((): void => {
     localStorage.clear();
     sessionStorage.clear();

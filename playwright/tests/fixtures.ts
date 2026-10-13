@@ -88,6 +88,20 @@ export const test = base.extend<{events: TestEvents}, {api: APIRequestContext; a
     await use(authState);
   },
 
+  // Fail any test whose pages trip the Content-Security-Policy, which would
+  // otherwise only show up as a control that silently does nothing. Every
+  // browser logs a violation to the console, each in its own words.
+  context: async ({context}, use): Promise<void> => {
+    const violations: string[] = [];
+    context.on("console", (msg): void => {
+      if (/content.security.policy/i.test(msg.text())) {
+        violations.push(`${msg.location().url}: ${msg.text()}`);
+      }
+    });
+    await use(context);
+    expect(violations, "CSP violations").toEqual([]);
+  },
+
   events: async ({api}, use): Promise<void> => {
     const events = new TestEvents(api);
     await use(events);

@@ -18,14 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        showDays: (daysBackToShow: number | string, replaceState: boolean)=>void;
-        showRows: (rowsToShow: string, replaceState: boolean)=>void;
-        showStatus: (statusToShow: string, replaceState: boolean)=>void;
-    }
-}
-
 let visitsTable: ims.DataTablesTable|null = null;
 
 let _showModifiedAfter: Date|null = null;
@@ -70,8 +62,8 @@ async function initSanctuaryVisitsPage(): Promise<void> {
         return;
     }
 
-    window.showRows = showRows;
-    window.showStatus = showStatus;
+    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => showRows(rows, true));
+    ims.onMenuPick(ims.typedElement("show_status_menu", HTMLUListElement), (status: string): void => showStatus(status, true));
 
     ims.disableEditing();
     initVisitsTable();
@@ -448,7 +440,7 @@ function renderString(data: string|null, type: ims.RenderType, _visit: ims.Visit
 // Show rows button handling
 //
 
-function showRows(rowsToShow: string, replaceState: boolean) {
+export function showRows(rowsToShow: string, replaceState: boolean) {
     const id = rowsToShow.toString();
     _showRows = rowsToShow;
 
@@ -477,7 +469,7 @@ function showRows(rowsToShow: string, replaceState: boolean) {
 // Show status button handling
 //
 
-function showStatus(statusToShow: string, replaceState: boolean): void {
+export function showStatus(statusToShow: string, replaceState: boolean): void {
     const item = document.getElementById("show_status_" + statusToShow) as HTMLLIElement;
     const selection = item.getElementsByClassName("name")[0]!.textContent;
     el.showStatusMenu.getElementsByClassName("selection")[0]!.textContent = selection;

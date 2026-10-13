@@ -20,7 +20,7 @@
 // demand.
 
 import { beforeEach, expect, test, vi } from "vitest";
-import { jsonResponse, loadFixture, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, mockFetch, waitForPageInit } from "./helpers.ts";
 
 beforeEach((): void => {
     vi.resetModules();
@@ -57,9 +57,7 @@ async function initAdminDebugPage() {
         return undefined;
     });
     await import("../typescript/admin_debug.ts");
-    await vi.waitFor((): void => {
-        expect(window.fetchBuildInfo).toBeTypeOf("function");
-    });
+    await waitForPageInit();
     return mock;
 }
 
@@ -70,9 +68,11 @@ test("fetching build info shows the panel and a revision link to GitHub", async 
     // The panel is hidden until the data is fetched.
     expect(div.style.display).toBe("none");
 
-    await window.fetchBuildInfo(document.body);
+    document.getElementById("show-build-info")!.click();
 
-    expect(div.style.display).toBe("");
+    await vi.waitFor((): void => {
+        expect(div.style.display).toBe("");
+    });
     expect(document.getElementById("build-info")!.textContent).toContain("vcs.revision=abcdef0123456789");
 
     // The summary line links to the built revision and flags a dirty tree.
@@ -88,9 +88,11 @@ test("fetching runtime metrics reveals the metrics panel", async (): Promise<voi
     const div = document.getElementById("runtime-metrics-div") as HTMLDivElement;
     expect(div.style.display).toBe("none");
 
-    await window.fetchRuntimeMetrics(document.body);
+    document.getElementById("show-metrics")!.click();
 
-    expect(div.style.display).toBe("");
+    await vi.waitFor((): void => {
+        expect(div.style.display).toBe("");
+    });
     expect(document.getElementById("runtime-metrics")!.textContent).toContain("goroutines");
 });
 
@@ -100,9 +102,11 @@ test("fetching the server config reveals the config panel", async (): Promise<vo
     const div = document.getElementById("config-div") as HTMLDivElement;
     expect(div.style.display).toBe("none");
 
-    await window.fetchConfig(document.body);
+    document.getElementById("show-config")!.click();
 
-    expect(div.style.display).toBe("");
+    await vi.waitFor((): void => {
+        expect(div.style.display).toBe("");
+    });
     expect(document.getElementById("config")!.textContent).toContain("JWTSecret");
 });
 
@@ -112,9 +116,11 @@ test("performing GC posts to the GC endpoint and reveals its panel", async (): P
     const div = document.getElementById("gc-div") as HTMLDivElement;
     expect(div.style.display).toBe("none");
 
-    await window.performGC(document.body);
+    document.getElementById("perform-gc")!.click();
 
-    expect(div.style.display).toBe("");
+    await vi.waitFor((): void => {
+        expect(div.style.display).toBe("");
+    });
     expect(document.getElementById("gc")!.textContent).toBe("GC complete");
     // GC is a mutation, so it's sent with a request body.
     const gcCall = mock.mock.calls.find(([url]) => url === url_debugGC)!;

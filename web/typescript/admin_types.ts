@@ -18,17 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        createIncidentType: (el: HTMLInputElement)=>Promise<void>;
-        deleteIncidentType: (el: HTMLElement)=>Promise<void>;
-        showIncidentType: (el: HTMLElement)=>Promise<void>;
-        hideIncidentType: (el: HTMLElement)=>Promise<void>;
-        setIncidentTypeName: (el: HTMLInputElement)=>Promise<void>;
-        setIncidentTypeDescription: (el: HTMLTextAreaElement)=>Promise<void>;
-    }
-}
-
 //
 // Initialize UI
 //
@@ -39,6 +28,7 @@ const el = {
     editIncidentTypeModal: ims.typedElement("editIncidentTypeModal", HTMLDialogElement),
     editIncidentTypeName: ims.typedElement("edit_incident_type_name", HTMLInputElement),
     editIncidentTypeDescription: ims.typedElement("edit_incident_type_description", HTMLTextAreaElement),
+    newIncidentType: ims.typedElement("new_incident_type", HTMLInputElement),
 };
 
 const editIncidentTypeModal = ims.dialogModal(el.editIncidentTypeModal);
@@ -52,12 +42,10 @@ async function initAdminTypesPage(): Promise<void> {
         return;
     }
 
-    window.createIncidentType = createIncidentType;
-    window.deleteIncidentType = deleteIncidentType;
-    window.showIncidentType = showIncidentType;
-    window.hideIncidentType = hideIncidentType;
-    window.setIncidentTypeName = setIncidentTypeName;
-    window.setIncidentTypeDescription = setIncidentTypeDescription;
+    el.newIncidentType.addEventListener("change", (): Promise<void> => createIncidentType(el.newIncidentType));
+    el.editIncidentTypeName.addEventListener("change", (): Promise<void> => setIncidentTypeName(el.editIncidentTypeName));
+    el.editIncidentTypeDescription.addEventListener("change",
+        (): Promise<void> => setIncidentTypeDescription(el.editIncidentTypeDescription));
 
     await loadAndDrawIncidentTypes();
     ims.hideLoadingOverlay();
@@ -115,6 +103,10 @@ function updateIncidentTypes(): void {
 
         entryItem.dataset["incidentTypeId"] = incidentType.id?.toString();
 
+        const hideButton: HTMLElement = entryItem.querySelector(".badge-visible")!;
+        hideButton.addEventListener("click", (): Promise<void> => hideIncidentType(hideButton));
+        const showButton: HTMLElement = entryItem.querySelector(".badge-hidden")!;
+        showButton.addEventListener("click", (): Promise<void> => showIncidentType(showButton));
         const showEditModal: HTMLElement = entryItem.querySelector(".show-edit-modal")!;
         showEditModal.addEventListener("click",
             function (_e: MouseEvent): void  {
@@ -130,7 +122,7 @@ function updateIncidentTypes(): void {
 }
 
 
-async function createIncidentType(sender: HTMLInputElement): Promise<void> {
+export async function createIncidentType(sender: HTMLInputElement): Promise<void> {
     // The server rejects a nameless type, and clearing this field and tabbing
     // out is a cancel, not a request to create one.
     if (!sender.value.trim()) {
@@ -144,12 +136,8 @@ async function createIncidentType(sender: HTMLInputElement): Promise<void> {
 }
 
 
-async function deleteIncidentType(_sender: HTMLElement): Promise<void> {
-    await ims.alertDialog("Remove unimplemented");
-}
 
-
-async function showIncidentType(sender: HTMLElement): Promise<void> {
+export async function showIncidentType(sender: HTMLElement): Promise<void> {
     const typeId = sender.closest("li")?.dataset["incidentTypeId"];
     if (!typeId) {
         return;
@@ -162,7 +150,7 @@ async function showIncidentType(sender: HTMLElement): Promise<void> {
 }
 
 
-async function hideIncidentType(sender: HTMLElement): Promise<void> {
+export async function hideIncidentType(sender: HTMLElement): Promise<void> {
     const typeId = sender.closest("li")?.dataset["incidentTypeId"];
     if (!typeId) {
         return;
@@ -174,7 +162,7 @@ async function hideIncidentType(sender: HTMLElement): Promise<void> {
     await loadAndDrawIncidentTypes();
 }
 
-async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
+export async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
     const id = ims.parseInt10(el.editIncidentTypeModal.dataset["incidentTypeId"]);
     if (id == null || !sender.value.trim()) {
         return;
@@ -191,7 +179,7 @@ async function setIncidentTypeName(sender: HTMLInputElement): Promise<void> {
     await loadAndDrawIncidentTypes();
 }
 
-async function setIncidentTypeDescription(sender: HTMLTextAreaElement): Promise<void> {
+export async function setIncidentTypeDescription(sender: HTMLTextAreaElement): Promise<void> {
     const id = ims.parseInt10(el.editIncidentTypeModal.dataset["incidentTypeId"]);
     if (id == null || !sender.value) {
         return;

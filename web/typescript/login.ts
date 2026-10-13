@@ -18,13 +18,6 @@
 
 import * as ims from "./ims.ts";
 
-declare global {
-    interface Window {
-        login: ()=>void;
-        toggleShowPassword: ()=>void;
-    }
-}
-
 //
 // Initialize UI
 //
@@ -40,8 +33,7 @@ const el = {
 initLoginPage();
 
 async function initLoginPage(): Promise<void> {
-    window.login = login;
-    window.toggleShowPassword = toggleShowPassword;
+    el.passwordShowHide.addEventListener("click", toggleShowPassword);
 
     // Attach this before awaiting anything. The form's inputs are usable as
     // soon as the HTML parses, and a submit that isn't intercepted here falls

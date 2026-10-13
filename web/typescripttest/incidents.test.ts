@@ -21,7 +21,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockDataTable, mockFetch } from "./helpers.ts";
+import { jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem } from "./helpers.ts";
+
+let page: typeof import("../typescript/incidents.ts");
 
 const eventName = "2025";
 const eventId = 1;
@@ -88,7 +90,7 @@ function incidentsRoutes(url: string, _init?: RequestInit): Response | undefined
 async function initIncidentsPage(handler: (url: string, init?: RequestInit) => Response | undefined = incidentsRoutes) {
     MockDataTable.lastInstance = null;
     const mock = mockFetch(handler);
-    await import("../typescript/incidents.ts");
+    page = await import("../typescript/incidents.ts");
     await vi.waitFor((): void => {
         const errored = !document.getElementById("error_info")!.classList.contains("hidden");
         expect(errored || MockDataTable.lastInstance != null).toBe(true);
@@ -110,15 +112,17 @@ test("page init loads the event's incidents into the table", async (): Promise<v
 test("the filter controls and per-type checkboxes are wired", async (): Promise<void> => {
     await initIncidentsPage();
 
-    expect(window.showState).toBeTypeOf("function");
-    expect(window.showDays).toBeTypeOf("function");
-    expect(window.showRows).toBeTypeOf("function");
-    expect(window.toggleCheckAllTypes).toBeTypeOf("function");
-
     // The type filter list gets one checkable entry per visible incident type.
     await vi.waitFor((): void => {
         expect(document.querySelectorAll("#ul_show_type button[data-incident-type-id]").length).toBe(2);
     });
+
+    pickMenuItem("show_state_menu", "active");
+    expect(document.getElementById("show_state")!.querySelector(".selection")!.textContent).toBe("Active");
+    pickMenuItem("show_days_menu", "1");
+    expect(document.getElementById("show_days")!.querySelector(".selection")!.textContent).toBe("Last 2 Days");
+    pickMenuItem("show_rows_menu", "50");
+    expect(document.getElementById("show_rows")!.querySelector(".selection")!.textContent).toBe("50 Rows");
 });
 
 test("a viewer with neither incident read nor field-report write access sees an authorization error", async (): Promise<void> => {
@@ -137,7 +141,7 @@ test("a field-report writer without incident access is redirected to the field r
     const replace = vi.spyOn(window.location, "replace").mockImplementation((): void => {});
 
     const mock = mockFetch(incidentsRoutes);
-    await import("../typescript/incidents.ts");
+    page = await import("../typescript/incidents.ts");
     await vi.waitFor((): void => {
         expect(replace).toHaveBeenCalled();
     });
@@ -199,22 +203,22 @@ test("the state filter shows open, active, on hold, and all states correctly", a
         expect(table.data().length).toBe(3);
     });
 
-    window.showState("open", false);
+    page.showState("open", false);
     expect(table.fixedSearch("state", 0)).toBe(true); // on_scene
     expect(table.fixedSearch("state", 1)).toBe(false); // closed hidden
     expect(table.fixedSearch("state", 2)).toBe(true); // on_hold still open
 
-    window.showState("active", false);
+    page.showState("active", false);
     expect(table.fixedSearch("state", 0)).toBe(true); // on_scene active
     expect(table.fixedSearch("state", 1)).toBe(false); // closed hidden
     expect(table.fixedSearch("state", 2)).toBe(false); // on_hold not active
 
-    window.showState("all", false);
+    page.showState("all", false);
     expect(table.fixedSearch("state", 0)).toBe(true);
     expect(table.fixedSearch("state", 1)).toBe(true);
     expect(table.fixedSearch("state", 2)).toBe(true);
 
-    window.showState("on_hold", false);
+    page.showState("on_hold", false);
     expect(table.fixedSearch("state", 0)).toBe(false); // on_scene hidden
     expect(table.fixedSearch("state", 1)).toBe(false); // closed hidden
     expect(table.fixedSearch("state", 2)).toBe(true); // on_hold only
@@ -229,12 +233,12 @@ test("toggling all types off then on drives the type filter", async (): Promise<
     expect(table.fixedSearch("type", 1)).toBe(true);
 
     // Uncheck all types: nothing matches.
-    window.toggleCheckAllTypes();
+    document.getElementById("show_type_toggle_all")!.click();
     expect(table.fixedSearch("type", 0)).toBe(false);
     expect(table.fixedSearch("type", 1)).toBe(false);
 
     // Re-check all types: everything matches again.
-    window.toggleCheckAllTypes();
+    document.getElementById("show_type_toggle_all")!.click();
     expect(table.fixedSearch("type", 0)).toBe(true);
     expect(table.fixedSearch("type", 1)).toBe(true);
 });
@@ -244,7 +248,7 @@ test("clicking a single type checkbox narrows the type filter", async (): Promis
     const table = MockDataTable.lastInstance!;
 
     // Start from a clean slate with nothing checked.
-    window.toggleCheckAllTypes();
+    document.getElementById("show_type_toggle_all")!.click();
     // Check only the "Junk" type (id 1), which is on incident[0] but not incident[1].
     const junk = document.querySelector('#ul_show_type button[data-incident-type-id="1"]') as HTMLElement;
     junk.click();
@@ -268,7 +272,7 @@ test("the days filter hides incidents not modified within the window", async ():
     expect(table.fixedSearch("modification_date", 1)).toBe(true);
 
     // Last day only: the year-2000 incident is filtered out.
-    window.showDays(1, false);
+    page.showDays(1, false);
     expect(table.fixedSearch("modification_date", 0)).toBe(true);
     expect(table.fixedSearch("modification_date", 1)).toBe(false);
 });
@@ -276,15 +280,15 @@ test("the days filter hides incidents not modified within the window", async ():
 test("show* controls update the dropdown labels and the URL hash", async (): Promise<void> => {
     await initIncidentsPage();
 
-    window.showState("all", true);
+    pickMenuItem("show_state_menu", "all");
     expect(document.getElementById("show_state")!.querySelector(".selection")!.textContent).toBe("All States");
     expect(window.location.hash).toContain("state=all");
 
-    window.showDays(1, true);
+    pickMenuItem("show_days_menu", "1");
     expect(document.getElementById("show_days")!.querySelector(".selection")!.textContent).not.toBe("");
     expect(window.location.hash).toContain("days=1");
 
-    window.showRows("50", true);
+    pickMenuItem("show_rows_menu", "50");
     expect(window.location.hash).toContain("rows=50");
 });
 
@@ -622,7 +626,7 @@ test("toggle-all acts on only the types the filter box leaves showing", async ()
 
     // Starting from all types, it selects just the matches.
     typeFilterType("lost");
-    window.toggleCheckAllTypes();
+    document.getElementById("show_type_toggle_all")!.click();
     expect(isChecked(lostChild)).toBe(true);
     expect(isChecked(junk)).toBe(false);
     expect(isChecked(document.getElementById("show_blank_type")!)).toBe(false);
@@ -630,7 +634,7 @@ test("toggle-all acts on only the types the filter box leaves showing", async ()
     expect(window.location.hash).not.toContain("type=1");
 
     // The matches are all checked now, so it unchecks them.
-    window.toggleCheckAllTypes();
+    document.getElementById("show_type_toggle_all")!.click();
     expect(isChecked(lostChild)).toBe(false);
 });
 

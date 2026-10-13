@@ -19,7 +19,9 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
+import { change, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR } from "./helpers.ts";
+
+let page: typeof import("../typescript/sanctuary_visit.ts");
 
 const eventName = "2025";
 const eventId = 1;
@@ -103,7 +105,7 @@ function visitRoutes(url: string, init?: RequestInit): Response | undefined {
 
 async function initVisitPage(handler: (url: string, init?: RequestInit) => Response | undefined = visitRoutes) {
     const mock = mockFetch(handler);
-    await import("../typescript/sanctuary_visit.ts");
+    page = await import("../typescript/sanctuary_visit.ts");
     await vi.waitFor((): void => {
         expect(document.getElementById("loading-overlay")!.style.display).toBe("none");
     });
@@ -114,25 +116,26 @@ function inputValue(id: string): string {
     return (document.getElementById(id) as HTMLInputElement).value;
 }
 
-// Types the given value into a field, runs its onchange handler, and returns the
-// JSON body of the resulting edit POST. Each field's handler maps one control to
-// one key in the visit payload, and that mapping is what these tests check.
-// The edit handlers are declared on Window as () => void, though each one is
-// async and returns a promise that awaiting here does wait on.
+// Types the given value into a field, fires its change event, and returns the
+// JSON body of the resulting edit POST. Each field's listener maps one control
+// to one key in the visit payload, and that mapping is what these tests check.
 async function editField(
     mock: ReturnType<typeof mockFetch>,
     id: string,
     value: string,
-    edit: () => void,
 ): Promise<Record<string, unknown>> {
     mock.mockClear();
-    (document.getElementById(id) as HTMLInputElement).value = value;
-    await edit();
-    const call = mock.mock.calls.find(
-        ([url, init]) => url === `${visitsUrl}/2` && init?.body != null);
-    if (call == null) {
-        throw new Error(`editing ${id} sent no edit request`);
-    }
+    const field = document.getElementById(id) as HTMLInputElement;
+    field.value = value;
+    change(field);
+    const call = await vi.waitFor(() => {
+        const call = mock.mock.calls.find(
+            ([url, init]) => url === `${visitsUrl}/2` && init?.body != null);
+        if (call == null) {
+            throw new Error(`editing ${id} sent no edit request`);
+        }
+        return call;
+    });
     return JSON.parse(call[1]!.body as string) as Record<string, unknown>;
 }
 
@@ -180,7 +183,7 @@ test("editing the guest's preferred name posts the change to the visit", async (
 
     const nameField = document.getElementById("guest_preferred_name") as HTMLInputElement;
     nameField.value = "Stardust";
-    await window.editGuestPreferredName();
+    await page.editGuestPreferredName();
 
     const editCall = mock.mock.calls.find(([url, init]) => url === `${visitsUrl}/2` && init?.body != null)!;
     expect(JSON.parse(editCall[1]!.body as string)).toMatchObject({ guest_preferred_name: "Stardust" });
@@ -191,7 +194,7 @@ test("adding a known ranger posts to that visit's ranger endpoint", async (): Pr
 
     const addField = document.getElementById("ranger_add") as HTMLInputElement;
     addField.value = "Tool";
-    await window.addRanger();
+    await page.addRanger();
 
     expect(mock.mock.calls.some(([url, init]) =>
         url === `${visitsUrl}/2/rangers/Tool` && init?.body != null)).toBe(true);
@@ -202,7 +205,7 @@ test("adding an unknown ranger makes no request and clears the field", async ():
 
     const addField = document.getElementById("ranger_add") as HTMLInputElement;
     addField.value = "Nonexistent Person";
-    await window.addRanger();
+    await page.addRanger();
 
     expect(addField.value).toBe("");
     expect(mock.mock.calls.some(([url]) => (url as string).includes("/rangers/"))).toBe(false);
@@ -245,7 +248,7 @@ test("attachFile shows an uploading state, posts the file, then confirms and rev
     try {
         // The synchronous prefix of attachFile disables the button and relabels
         // it before the upload is awaited.
-        const pending = window.attachFile();
+        const pending = page.attachFile();
         expect(button.disabled).toBe(true);
         expect(button.value).toBe("Uploading ...");
 
@@ -276,7 +279,7 @@ test("a failed attachment re-enables the button and surfaces the error", async (
     mockXHR(() => undefined);
     const button = document.getElementById("attach_file") as HTMLInputElement;
 
-    await window.attachFile();
+    await page.attachFile();
 
     // The button is left usable, keeps its default label (no success), and the
     // failure is shown to the user.
@@ -370,27 +373,24 @@ test("a broadcast redraw still updates a focused field the user hasn't typed in"
 test("editing each guest identity field posts its own key", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "guest_legal_name", "Pat Q. Doe", window.editGuestLegalName))
+    expect(await editField(mock, "guest_legal_name", "Pat Q. Doe"))
         .toMatchObject({ guest_legal_name: "Pat Q. Doe" });
-    expect(await editField(mock, "guest_description", "tall, red hat", window.editGuestDescription))
+    expect(await editField(mock, "guest_description", "tall, red hat"))
         .toMatchObject({ guest_description: "tall, red hat" });
-    expect(await editField(mock, "guest_action_plan", "rest, then campmates collect them",
-        window.editGuestActionPlan))
+    expect(await editField(mock, "guest_action_plan", "rest, then campmates collect them"))
         .toMatchObject({ guest_action_plan: "rest, then campmates collect them" });
 });
 
 test("editing each camp field posts its own key", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "guest_camp_name", "Camp Questionable", window.editGuestCampName))
+    expect(await editField(mock, "guest_camp_name", "Camp Questionable"))
         .toMatchObject({ guest_camp_name: "Camp Questionable" });
-    expect(await editField(mock, "guest_camp_address", "7:30 & E", window.editGuestCampAddress))
+    expect(await editField(mock, "guest_camp_address", "7:30 & E"))
         .toMatchObject({ guest_camp_address: "7:30 & E" });
-    expect(await editField(mock, "guest_camp_description", "big purple dome",
-        window.editGuestCampDescription))
+    expect(await editField(mock, "guest_camp_description", "big purple dome"))
         .toMatchObject({ guest_camp_description: "big purple dome" });
-    expect(await editField(mock, "guest_camp_contacts", "Moon Dog, tent 3",
-        window.editGuestCampContacts))
+    expect(await editField(mock, "guest_camp_contacts", "Moon Dog, tent 3"))
         .toMatchObject({ guest_camp_contacts: "Moon Dog, tent 3" });
 });
 
@@ -409,7 +409,7 @@ test("the camp address input is rewritten with the server's normalized address",
     address.focus();
     address.value = "7+e";
     address.dispatchEvent(new Event("input", { bubbles: true }));
-    await window.editGuestCampAddress();
+    await page.editGuestCampAddress();
 
     expect(address.value).toBe("7:00 & E");
 });
@@ -417,51 +417,48 @@ test("the camp address input is rewritten with the server's normalized address",
 test("editing each arrival field posts its own key", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "arrival_method", "walked in", window.editArrivalMethod))
+    expect(await editField(mock, "arrival_method", "walked in"))
         .toMatchObject({ arrival_method: "walked in" });
-    expect(await editField(mock, "arrival_state", "agitated", window.editArrivalState))
+    expect(await editField(mock, "arrival_state", "agitated"))
         .toMatchObject({ arrival_state: "agitated" });
-    expect(await editField(mock, "arrival_reason", "too much sun", window.editArrivalReason))
+    expect(await editField(mock, "arrival_reason", "too much sun"))
         .toMatchObject({ arrival_reason: "too much sun" });
-    expect(await editField(mock, "arrival_belongings", "backpack, water bottle",
-        window.editArrivalBelongings))
+    expect(await editField(mock, "arrival_belongings", "backpack, water bottle"))
         .toMatchObject({ arrival_belongings: "backpack, water bottle" });
 });
 
 test("editing each departure field posts its own key", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "departure_method", "left with campmate",
-        window.editDepartureMethod))
+    expect(await editField(mock, "departure_method", "left with campmate"))
         .toMatchObject({ departure_method: "left with campmate" });
-    expect(await editField(mock, "departure_state", "calm and oriented",
-        window.editDepartureState))
+    expect(await editField(mock, "departure_state", "calm and oriented"))
         .toMatchObject({ departure_state: "calm and oriented" });
 });
 
 test("editing each resource field posts its own key", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "resource_sitter", "Hot Slots", window.editResourceSitter))
+    expect(await editField(mock, "resource_sitter", "Hot Slots"))
         .toMatchObject({ resource_sitter: "Hot Slots" });
-    expect(await editField(mock, "resource_bed_id", "B4", window.editResourceBedID))
+    expect(await editField(mock, "resource_bed_id", "B4"))
         .toMatchObject({ resource_bed_id: "B4" });
-    expect(await editField(mock, "resource_rest", "two blankets", window.editResourceRest))
+    expect(await editField(mock, "resource_rest", "two blankets"))
         .toMatchObject({ resource_rest: "two blankets" });
-    expect(await editField(mock, "resource_clothes", "a jacket", window.editResourceClothes))
+    expect(await editField(mock, "resource_clothes", "a jacket"))
         .toMatchObject({ resource_clothes: "a jacket" });
-    expect(await editField(mock, "resource_pogs", "1 meal pog", window.editResourcePogs))
+    expect(await editField(mock, "resource_pogs", "1 meal pog"))
         .toMatchObject({ resource_pogs: "1 meal pog" });
-    expect(await editField(mock, "resource_food_bev", "electrolytes", window.editResourceFoodBev))
+    expect(await editField(mock, "resource_food_bev", "electrolytes"))
         .toMatchObject({ resource_food_bev: "electrolytes" });
-    expect(await editField(mock, "resource_other", "shower pog", window.editResourceOther))
+    expect(await editField(mock, "resource_other", "shower pog"))
         .toMatchObject({ resource_other: "shower pog" });
 });
 
 test("editing the parent incident sends the number as an integer", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "parent_incident", "17", window.editParentIncident))
+    expect(await editField(mock, "parent_incident", "17"))
         .toMatchObject({ incident: 17 });
 });
 
@@ -470,7 +467,7 @@ test("editing the parent incident sends the number as an integer", async (): Pro
 test("clearing the parent incident sends zero", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "parent_incident", "", window.editParentIncident))
+    expect(await editField(mock, "parent_incident", ""))
         .toMatchObject({ incident: 0 });
 });
 
@@ -480,7 +477,7 @@ test("clearing the parent incident sends zero", async (): Promise<void> => {
 test("a non-numeric parent incident sends an empty value, not a bad number", async (): Promise<void> => {
     const mock = await initVisitPage();
 
-    expect(await editField(mock, "parent_incident", "not a number", window.editParentIncident))
+    expect(await editField(mock, "parent_incident", "not a number"))
         .toMatchObject({ incident: "" });
 });
 
@@ -493,7 +490,7 @@ test("removing a ranger DELETEs that ranger's endpoint", async (): Promise<void>
     expect(removeButton.ariaLabel).toBe("Remove Ranger Hot Slots");
 
     mock.mockClear();
-    await window.removeRanger(removeButton);
+    await page.removeRanger(removeButton);
 
     expect(mock.mock.calls.some(([url, init]) =>
         url === `${visitsUrl}/2/rangers/Hot%20Slots` && init?.method === "DELETE")).toBe(true);
@@ -508,7 +505,7 @@ test("setting a ranger's role posts the handle and the role", async (): Promise<
 
     mock.mockClear();
     roleInput.value = "sitter";
-    await window.setRangerRole(roleInput);
+    await page.setRangerRole(roleInput);
 
     const call = mock.mock.calls.find(([url, init]) =>
         url === `${visitsUrl}/2/rangers/Hot%20Slots` && init?.body != null)!;
@@ -519,8 +516,8 @@ test("setting a ranger's role posts the handle and the role", async (): Promise<
     });
 });
 
-// The arrival/departure pickers post through flatpickr's onChange rather than an
-// inline onchange attribute, so these drive the picker instance directly.
+// The arrival/departure pickers post through flatpickr's onChange rather than a
+// change listener, so these drive the picker instance directly.
 function flatpickrFor(id: string): MockFlatpickr {
     const instance = MockFlatpickr.instances.find((fp): boolean => fp.input.id === id);
     if (instance == null) {
@@ -609,20 +606,12 @@ test("clearing the departure time posts the zero time value", async (): Promise<
     });
 });
 
-// Fixture pages load with JavaScript evaluation disabled, so a real click never
-// runs the inline onclick attribute. Call the function the attribute names,
-// which also checks that the template and the module agree on that name.
 function clickButton(id: string): void {
     const button = document.getElementById(id);
     if (!(button instanceof HTMLButtonElement)) {
         throw new Error(`no button element with id ${id}`);
     }
-    const handlerName = button.getAttribute("onclick")!.replace(/\(\)$/, "");
-    const handler = (window as unknown as Record<string, unknown>)[handlerName];
-    if (typeof handler !== "function") {
-        throw new Error(`button ${id} calls ${handlerName}(), which isn't defined on window`);
-    }
-    (handler as () => void)();
+    button.click();
 }
 
 test("the departure time's Now button posts the current time", async (): Promise<void> => {

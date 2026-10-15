@@ -46,7 +46,7 @@ func DefaultIMS() *IMSConfig {
 			LongTokenLifetime:    21 * 24 * time.Hour, // three weeks, to cover the entire ROC period
 			LongTokenUsers:       nil,
 			CacheControlShort:    20 * time.Minute,
-			CacheControlLong:     2 * time.Hour,
+			CacheControlLong:     8 * time.Hour,
 			MaxRequestBytes:      100 * mib,
 			ActionLogEnabled:     true,
 			ErrorLogEnabled:      true,

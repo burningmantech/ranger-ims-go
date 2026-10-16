@@ -41,14 +41,14 @@ templ AdminErrorLogs(deployment, versionName, versionRef string) {
     <div class="form-floating">
       <input id="filter_min_time" type="text" name="Minimum time"
              class="form-control fs-6"/>
-      <label for="filter_min_time">Minimum Time</label>
+      <label for="filter_min_time">Minimum Time ({ timeZone(ctx) })</label>
     </div>
   </div>
   <div class="col-md mb-2">
     <div class="form-floating">
       <input id="filter_max_time" type="text" name="Maximum time"
              class="form-control fs-6"/>
-      <label for="filter_max_time">Maximum Time</label>
+      <label for="filter_max_time">Maximum Time ({ timeZone(ctx) })</label>
     </div>
   </div>
 </div>

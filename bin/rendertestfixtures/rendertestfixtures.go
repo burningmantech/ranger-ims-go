@@ -39,6 +39,7 @@ func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
+	ctx = template.WithTimeZone(ctx, "America/Los_Angeles")
 
 	const deployment = "dev"
 	const versionName = "test-version"

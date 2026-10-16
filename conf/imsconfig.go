@@ -52,6 +52,7 @@ func DefaultIMS() *IMSConfig {
 			ErrorLogEnabled:      true,
 			EventDeletionEnabled: false,
 			InsecureCookies:      false,
+			TimeZone:             "America/Los_Angeles",
 		},
 		Store: DBStore{
 			Type: DBStoreTypeMaria,
@@ -144,6 +145,10 @@ func (c *IMSConfig) Validate() error {
 	}
 
 	// Assorted other validations
+	_, err := time.LoadLocation(c.Core.TimeZone)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("invalid time zone: %w", err))
+	}
 	if c.Core.TokenLifetime <= 0 {
 		errs = append(errs, errors.New("token lifetime must be positive"))
 	}
@@ -277,6 +282,20 @@ type ConfigCore struct {
 	// Secure, over plain HTTP. Only a dev deployment may turn this on, and only a
 	// local stack that browsers reach at http://localhost should.
 	InsecureCookies bool
+
+	// TimeZone is the IANA name of the time zone in which the web UI shows and
+	// takes every date and time, whatever zone the viewer's device is in.
+	TimeZone string
+}
+
+// Location is the time.Location for TimeZone, which Validate has already
+// confirmed loads.
+func (c ConfigCore) Location() *time.Location {
+	loc, err := time.LoadLocation(c.TimeZone)
+	if err != nil {
+		panic(fmt.Sprintf("unvalidated time zone %q: %v", c.TimeZone, err))
+	}
+	return loc
 }
 
 // BurningManAPI configures IMS's access to the public Burning Man API, which

@@ -295,11 +295,13 @@ test("page init draws the incident fields from the API", async (): Promise<void>
     expect(document.title).toBe("#1 Dust storm | 2025");
     expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
 
-    // The started datetime went into the flatpickr, and the timezone label is set.
+    // The started datetime went into the flatpickr, which shows 03:00, the time
+    // in Los Angeles, and the timezone label names that zone.
     const fp = MockFlatpickr.instances.find((f: MockFlatpickr): boolean => f.input.id === "started_datetime")!;
-    expect(fp.selectedDates[0]!.toISOString()).toBe("2025-08-25T10:00:00.000Z");
+    expect(fp.selectedDates[0]!.getTime()).toBe(new Date(2025, 7, 25, 3, 0).getTime());
     expect(fp.altInput.id).toBe("alt_started_datetime");
-    expect(document.getElementById("started_datetime_tz")!.textContent).not.toBe("");
+    expect(document.getElementById("started_datetime_tz")!.textContent).toBe("PDT");
+    expect(document.getElementById("started_datetime_tz")!.title).toContain("America/Los_Angeles");
 
     // attachFiles access unhides the attach button; the map link points at the
     // event's map URL.
@@ -526,7 +528,8 @@ test("picking a date in the started flatpickr sends the new time", async (): Pro
     const mock = await initIncidentPage();
 
     const fp = MockFlatpickr.instances.find((f: MockFlatpickr): boolean => f.input.id === "started_datetime")!;
-    fp.setDate(new Date("2025-08-26T12:00:00Z"), true);
+    // The calendar works in the browser's zone, so 05:00 on it is 05:00 in Los Angeles.
+    fp.setDate(new Date(2025, 7, 26, 5, 0), true);
 
     await vi.waitFor((): void => {
         expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
@@ -1858,7 +1861,8 @@ test("re-picking the started time already stored sends nothing", async (): Promi
     const mock = await initIncidentPage();
 
     const fp = MockFlatpickr.instances.find((f: MockFlatpickr): boolean => f.input.id === "started_datetime")!;
-    fp.setDate(new Date("2025-08-25T10:00:00Z"), true);
+    // 03:00 in Los Angeles, the stored 10:00Z.
+    fp.setDate(new Date(2025, 7, 25, 3, 0), true);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([]);

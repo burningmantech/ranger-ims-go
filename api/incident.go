@@ -550,6 +550,7 @@ type NewIncident struct {
 	userStore *directory.UserStore
 	es        *EventSourcerer
 	imsAdmins []string
+	timeZone  *time.Location
 }
 
 func (action NewIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -614,7 +615,7 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 	newIncident.Event = event.Name
 	newIncident.Number = newIncidentNumber
 
-	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, event.NormalizeAddresses)
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, event.NormalizeAddresses, action.timeZone)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[updateIncident]")
 	}
@@ -682,7 +683,7 @@ func rejectSetReplacement(newIncident imsjson.Incident) *herr.HTTPError {
 }
 
 func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
-	normalizeAddresses bool,
+	normalizeAddresses bool, timeZone *time.Location,
 ) *herr.HTTPError {
 	errHTTP := rejectSetReplacement(newIncident)
 	if errHTTP != nil {
@@ -690,7 +691,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 	}
 	for range maxCASAttempts {
 		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
-			return updateIncidentAttempt(ctx, imsDBQ, es, newIncident, author, normalizeAddresses)
+			return updateIncidentAttempt(ctx, imsDBQ, es, newIncident, author, normalizeAddresses, timeZone)
 		})
 		if errHTTP != nil {
 			return errHTTP.From("[updateIncidentAttempt]")
@@ -703,7 +704,7 @@ func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, 
 }
 
 func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
-	normalizeAddresses bool,
+	normalizeAddresses bool, timeZone *time.Location,
 ) (conflict bool, errHTTP *herr.HTTPError) {
 	storedIncidentRow, err := imsDBQ.Incident(ctx, imsDBQ,
 		imsdb.IncidentParams{
@@ -725,7 +726,7 @@ func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSour
 	}
 	defer rollback(txn)
 
-	update, logs := buildIncidentUpdate(storedIncident, newIncident, normalizeAddresses)
+	update, logs := buildIncidentUpdate(storedIncident, newIncident, normalizeAddresses, timeZone)
 
 	// A request that only appends report entries is applied without the guarded
 	// update below: appends can't lose data, so they must not conflict with
@@ -776,6 +777,7 @@ func updateIncidentAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSour
 // stored Incident, returning the update parameters along with change-log lines
 // describing each modified field.
 func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident, normalizeAddresses bool,
+	timeZone *time.Location,
 ) (imsdb.UpdateIncidentParams, []string) {
 	update := imsdb.UpdateIncidentParams{
 		Event:               stored.Event,
@@ -808,7 +810,7 @@ func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident, no
 	}
 	if !newIncident.Started.IsZero() {
 		update.Started = conv.TimeToFloat(newIncident.Started)
-		logs = append(logs, fmt.Sprintf("Changed start time: %v", newIncident.Started.In(time.UTC).Format(time.RFC3339)))
+		logs = append(logs, fmt.Sprintf("Changed start time: %v", logTime(newIncident.Started, timeZone)))
 	}
 	applyStringChange(&update.Summary, newIncident.Summary, "summary", &logs)
 	applyStringChange(&update.LocationName, newIncident.Location.Name, "location name", &logs)
@@ -833,6 +835,7 @@ type EditIncident struct {
 	userStore *directory.UserStore
 	es        *EventSourcerer
 	imsAdmins []string
+	timeZone  *time.Location
 }
 
 func (action EditIncident) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -868,7 +871,7 @@ func (action EditIncident) editIncident(req *http.Request) *herr.HTTPError {
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, event.NormalizeAddresses)
+	errHTTP = updateIncident(ctx, action.imsDBQ, action.es, newIncident, author, event.NormalizeAddresses, action.timeZone)
 	if errHTTP != nil {
 		return errHTTP.From("[updateIncident]")
 	}

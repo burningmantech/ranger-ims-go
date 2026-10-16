@@ -211,6 +211,8 @@ Key configuration concepts:
   or `noop` (testing only)
 - **DB store types**: `MariaDB` (persistent storage) or `noop` (no-op for testing only)
 - **Attachments stores**: `local` (filesystem) or `s3` (AWS S3)
+- **Time zone**: `IMS_TIME_ZONE` (default `America/Los_Angeles`) is the zone the web UI shows and takes every
+  date and time in, whatever the viewer's device is set to
 - **Burning Man API**: `IMS_BM_API_KEY` (and `IMS_BM_API_URL`, which defaults to the real
   host) enable the Places admin page's "Set from API" buttons. Both are optional; without a
   key that feature is switched off, and places must be pasted in by hand
@@ -235,6 +237,12 @@ The web UI uses:
 - **templ** - Type-safe Go templates (`.templ` files generate `.go` files)
 - **TypeScript** - Compiled to JavaScript via tsc (in `web/typescript/`, output to `web/static/`)
 - Custom mux pattern similar to the API
+- Every date and time is shown and edited in the server's `IMS_TIME_ZONE`, which pages get from a
+  `<meta name="ims-time-zone">` tag (`imsTimeZone()` in `ims.ts`). So format with the `ims.ts` helpers
+  (`zonedParts`, `dateISO`, `longFormatDate`, etc.), parse with `parseDateInput`/`zonedDate`, and never use
+  `Date`'s local getters/setters or an `Intl.DateTimeFormat` without that `timeZone`. flatpickr only knows
+  the browser's zone, so `newFlatpickr` feeds it stand-in Dates (`toPickerDate`/`fromPickerDate`) and hands
+  its `onChange` real instants. The Vitest and Playwright runs put the browser in Europe/Berlin to catch leaks
 - A strict Content-Security-Policy (`contentSecurityPolicy` in `web/mux.go`): scripts run only from IMS's own
   files, plus the import map by its hash. So templates carry no inline `on*=` handlers or `<script>` blocks; each
   page module attaches its listeners with `addEventListener`, and parameterized menu items carry a `data-value`

@@ -51,7 +51,7 @@ const minQueryLength = 2;
 // ("Y-m-d @ H:i"). Results span many years' Events, so unlike the per-event
 // tables, the year matters here.
 function formatCreated(d: Date): string {
-    return `${ims.localDateISO(d)} @ ${ims.localTimeHHMM(d)}`;
+    return `${ims.dateISO(d)} @ ${ims.timeHHMM(d)}`;
 }
 
 // Distinguishes the newest search request from any stale in-flight ones.

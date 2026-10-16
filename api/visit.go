@@ -311,6 +311,7 @@ type NewVisit struct {
 	userStore *directory.UserStore
 	es        *EventSourcerer
 	imsAdmins []string
+	timeZone  *time.Location
 }
 
 func (action NewVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -369,7 +370,7 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber int32, location 
 	newVisit.Event = event.Name
 	newVisit.Number = newVisitNumber
 
-	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, event.NormalizeAddresses)
+	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, event.NormalizeAddresses, action.timeZone)
 	if errHTTP != nil {
 		return 0, "", errHTTP.From("[updateVisit]")
 	}
@@ -378,11 +379,11 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber int32, location 
 }
 
 func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newVisit imsjson.Visit, author string,
-	normalizeAddresses bool,
+	normalizeAddresses bool, timeZone *time.Location,
 ) *herr.HTTPError {
 	for range maxCASAttempts {
 		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
-			return updateVisitAttempt(ctx, imsDBQ, es, newVisit, author, normalizeAddresses)
+			return updateVisitAttempt(ctx, imsDBQ, es, newVisit, author, normalizeAddresses, timeZone)
 		})
 		if errHTTP != nil {
 			return errHTTP.From("[updateVisitAttempt]")
@@ -395,7 +396,7 @@ func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, new
 }
 
 func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newVisit imsjson.Visit, author string,
-	normalizeAddresses bool,
+	normalizeAddresses bool, timeZone *time.Location,
 ) (conflict bool, errHTTP *herr.HTTPError) {
 	storedVisitRow, err := imsDBQ.Visit(ctx, imsDBQ,
 		imsdb.VisitParams{
@@ -417,7 +418,7 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 	}
 	defer rollback(txn)
 
-	update, logs, errHTTP := buildVisitUpdate(storedVisit, newVisit, normalizeAddresses)
+	update, logs, errHTTP := buildVisitUpdate(storedVisit, newVisit, normalizeAddresses, timeZone)
 	if errHTTP != nil {
 		return false, errHTTP.From("[buildVisitUpdate]")
 	}
@@ -473,11 +474,17 @@ func updateVisitAttempt(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcer
 // visitTimeLogValue renders an arrival or departure time for the change log. A
 // client clears one of these by sending the zero time, which must not reach the
 // log as a date in the year 1.
-func visitTimeLogValue(t *time.Time) string {
+func visitTimeLogValue(t *time.Time, timeZone *time.Location) string {
 	if t == nil || t.IsZero() {
 		return "(cleared)"
 	}
-	return t.In(time.UTC).Format(time.RFC3339)
+	return logTime(*t, timeZone)
+}
+
+// logTime renders a time for a change log entry, in the zone the web UI shows
+// times in, e.g. "2026-08-30 18:00:00 PDT".
+func logTime(t time.Time, timeZone *time.Location) string {
+	return t.In(timeZone).Format("2006-01-02 15:04:05 MST")
 }
 
 // buildVisitUpdate merges the client-provided fields of newVisit over the
@@ -485,6 +492,7 @@ func visitTimeLogValue(t *time.Time) string {
 // describing each modified field. It rejects updates that would put the
 // arrival time after the departure time.
 func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddresses bool,
+	timeZone *time.Location,
 ) (imsdb.UpdateVisitParams, []string, *herr.HTTPError) {
 	update := imsdb.UpdateVisitParams{
 		Event:                stored.Event,
@@ -545,7 +553,7 @@ func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddre
 
 	if newVisit.ArrivalTime != nil {
 		update.ArrivalTime = conv.TimeToNullFloat(*newVisit.ArrivalTime)
-		logs = append(logs, fmt.Sprintf("Changed ArrivalTime: %v", visitTimeLogValue(newVisit.ArrivalTime)))
+		logs = append(logs, fmt.Sprintf("Changed ArrivalTime: %v", visitTimeLogValue(newVisit.ArrivalTime, timeZone)))
 	}
 	applyStringChange(&update.ArrivalMethod, newVisit.ArrivalMethod, "ArrivalMethod", &logs)
 	applyStringChange(&update.ArrivalState, newVisit.ArrivalState, "ArrivalState", &logs)
@@ -554,7 +562,7 @@ func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddre
 
 	if newVisit.DepartureTime != nil {
 		update.DepartureTime = conv.TimeToNullFloat(*newVisit.DepartureTime)
-		logs = append(logs, fmt.Sprintf("Changed DepartureTime: %v", visitTimeLogValue(newVisit.DepartureTime)))
+		logs = append(logs, fmt.Sprintf("Changed DepartureTime: %v", visitTimeLogValue(newVisit.DepartureTime, timeZone)))
 	}
 
 	// Both times are applied before this check, so that a request setting arrival
@@ -589,6 +597,7 @@ type EditVisit struct {
 	userStore *directory.UserStore
 	es        *EventSourcerer
 	imsAdmins []string
+	timeZone  *time.Location
 }
 
 func (action EditVisit) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -624,7 +633,7 @@ func (action EditVisit) editVisit(req *http.Request) *herr.HTTPError {
 
 	author := jwtCtx.Claims.RangerHandle()
 
-	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, event.NormalizeAddresses)
+	errHTTP = updateVisit(ctx, action.imsDBQ, action.es, newVisit, author, event.NormalizeAddresses, action.timeZone)
 	if errHTTP != nil {
 		return errHTTP.From("[updateVisit]")
 	}

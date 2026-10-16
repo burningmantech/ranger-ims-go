@@ -57,7 +57,7 @@ async function initAdminErrorLogsPage(): Promise<void> {
 
     const weekAgo: Date = new Date();
     weekAgo.setDate(new Date().getDate() - 7);
-    el.filterMinTime.value = nerdDateTime.format(weekAgo);
+    el.filterMinTime.value = ims.nerdDateTime(weekAgo);
     updateFilters();
 
     errorLogsTable = new DataTable("#error_logs_table", {
@@ -250,12 +250,12 @@ async function updateTable(): Promise<void> {
 
 function updateFilters(): void {
     if (el.filterMinTime.value) {
-        filterMinTime = new Date(el.filterMinTime.value);
+        filterMinTime = ims.parseDateInput(el.filterMinTime.value) ?? null;
     } else {
         filterMinTime = null;
     }
     if (el.filterMaxTime.value) {
-        filterMaxTime = new Date(el.filterMaxTime.value);
+        filterMaxTime = ims.parseDateInput(el.filterMaxTime.value) ?? null;
     } else {
         filterMaxTime = null;
     }
@@ -263,16 +263,6 @@ function updateFilters(): void {
     filterPath = el.filterPath.value ? el.filterPath.value : null;
 }
 
-const nerdDateTime: Intl.DateTimeFormat = new Intl.DateTimeFormat("sv-SE", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    hour12: false,
-    minute: "numeric",
-    second: "numeric",
-    // timeZone not specified; will use user's timezone
-});
 
 function renderDate(date: string, type: string, _incident: any): string|number|undefined {
     const d = Date.parse(date);
@@ -281,10 +271,10 @@ function renderDate(date: string, type: string, _incident: any): string|number|u
         case "display":
             const sp = document.createElement("span");
             sp.title = fullDate;
-            sp.textContent = nerdDateTime.format(d);
+            sp.textContent = ims.nerdDateTime(d);
             return sp.outerHTML;
         case "filter":
-            return nerdDateTime.format(d);
+            return ims.nerdDateTime(d);
         case "type":
         case "sort":
             return d;

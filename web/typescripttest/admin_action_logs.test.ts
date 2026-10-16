@@ -294,19 +294,18 @@ test("a max-time filter bounds the fetch at that time", async (): Promise<void> 
 
     await vi.waitFor((): void => {
         const params = new URL(mock.mock.calls.at(-1)![0] as string, "https://localhost").searchParams;
-        expect(params.get("maxTimeUnixMs")).toBe(new Date("2025-08-30 12:00:00").getTime().toString());
+        // Noon in Los Angeles.
+        expect(params.get("maxTimeUnixMs")).toBe(Date.parse("2025-08-30T19:00:00Z").toString());
     });
 });
 
-test("the time column shows a local timestamp with the full date on hover, and sorts by instant", async (): Promise<void> => {
+test("the time column shows a timestamp in IMS's time zone with the full date on hover, and sorts by instant", async (): Promise<void> => {
     await initActionLogsPage();
 
     const timeColumn = MockDataTable.lastInstance!.column("log_time")!;
     const instant = "2025-08-30T19:04:05Z";
-    const local = new Intl.DateTimeFormat("sv-SE", {
-        year: "numeric", month: "numeric", day: "numeric",
-        hour: "numeric", hour12: false, minute: "numeric", second: "numeric",
-    }).format(Date.parse(instant));
+    // In IMS's time zone, not the device's.
+    const local = "2025-08-30 12:04:05";
 
     const cell = document.createElement("div");
     cell.innerHTML = timeColumn.render!(instant, "display", {}) as string;

@@ -404,15 +404,15 @@ test("incidents", async ({ page, browser, authState, events }) => {
       // The earlier edits (rangers, location) each trigger a refresh that
       // redraws the started-time field, and one of those can clobber the value
       // typed here before it's committed, making the page save the clobbered
-      // value (or nothing). Retry until a save with the intended date (2025,
-      // in whatever UTC day the local-time string lands on) is observed.
+      // value (or nothing). Retry until a save with the intended time is
+      // observed: 22:11 in Los Angeles, IMS's time zone, whatever the browser's is.
       await expect(async (): Promise<void> => {
         await altStartedDatetime.clear();
         await altStartedDatetime.fill(altStartedDateTimeStr);
         const responsePromise = incidentPage.waitForResponse(response =>
             response.url().includes(`/ims/api/events/${eventName}/incidents/`)
             && response.request().method() === "POST"
-            && (response.request().postData() ?? "").includes('"started":"2025-01-2'),
+            && (response.request().postData() ?? "").includes('"started":"2025-01-28T06:11:00.000Z"'),
             {timeout: 3000},
         );
         await altStartedDatetime.press("Tab");
@@ -844,7 +844,9 @@ test("sanctuary_visits", async ({ browser, authState, events }) => {
         // fillDatetime fills a flatpickr-backed datetime field and commits it
         // with Tab, retrying until a save with the intended date is observed
         // (as with the datetime field in the incidents test).
-        async function fillDatetime(field: Locator, value: string, jsonField: string): Promise<void> {
+        // The time is typed in Los Angeles time, IMS's time zone, and expectedISO
+        // is that instant in UTC.
+        async function fillDatetime(field: Locator, value: string, jsonField: string, expectedISO: string): Promise<void> {
           await expect(field).toBeVisible();
           await expect(async (): Promise<void> => {
             await field.clear();
@@ -853,7 +855,7 @@ test("sanctuary_visits", async ({ browser, authState, events }) => {
                 response.url().includes(`/ims/api/events/${eventName}/visits/`)
                 && response.request().method() === "POST"
                 && response.ok()
-                && (response.request().postData() ?? "").includes(`"${jsonField}":"2025-01-2`),
+                && (response.request().postData() ?? "").includes(`"${jsonField}":"${expectedISO}"`),
                 {timeout: 3000},
             );
             // focus anywhere else, so that the field's onchange fires
@@ -864,8 +866,8 @@ test("sanctuary_visits", async ({ browser, authState, events }) => {
 
         // The departure time may not precede the arrival time, so move the
         // arrival time to the past first.
-        await fillDatetime(visitPage.locator("#alt_arrival_time"), "Mon 2025-01-27 @ 10:00", "arrival_time");
-        await fillDatetime(visitPage.locator("#alt_departure_time"), "Mon 2025-01-27 @ 11:11", "departure_time");
+        await fillDatetime(visitPage.locator("#alt_arrival_time"), "Mon 2025-01-27 @ 10:00", "arrival_time", "2025-01-27T18:00:00.000Z");
+        await fillDatetime(visitPage.locator("#alt_departure_time"), "Mon 2025-01-27 @ 11:11", "departure_time", "2025-01-27T19:11:00.000Z");
         await expect(visitPage.locator("#doc-title")).toHaveText(`Past Sanctuary Visit (${guestName})`);
 
         // the departed visit is hidden from the default "Current" view...

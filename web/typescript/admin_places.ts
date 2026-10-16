@@ -257,7 +257,7 @@ export async function loadPlaces(): Promise<void> {
 // current year. The admin can always type something else.
 function setYearInputs(eventName: string): void {
     const fromName: RegExpMatchArray|null = eventName.match(/(?:^|\D)(\d{4})(?:\D|$)/);
-    const year: string = fromName?.[1] ?? new Date().getFullYear().toString();
+    const year: string = fromName?.[1] ?? ims.zonedParts(Date.now()).year.toString();
     for (const field of fields) {
         if (field.apiImport) {
             field.apiImport.yearEl.value = year;

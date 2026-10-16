@@ -19,7 +19,7 @@
 // one tagged row list; a stand-in DataTable (MockDataTable) captures those rows.
 
 import { beforeEach, expect, test, vi } from "vitest";
-import type * as ims from "../typescript/ims.ts";
+import * as ims from "../typescript/ims.ts";
 import { jsonResponse, loadFixture, MockDataTable, mockFetch, pickMenuItem } from "./helpers.ts";
 
 let page: typeof import("../typescript/places.ts");
@@ -542,8 +542,8 @@ test("no embargo notice shows when every release time has passed", async (): Pro
 });
 
 test("the embargo notice gives one line per embargoed thing, with its release time", async (): Promise<void> => {
-    const campRelease = new Date(2030, 7, 21, 18, 0);
-    const artRelease = new Date(2030, 7, 22, 12, 0);
+    const campRelease = ims.zonedDate(2030, 8, 21, 18, 0);
+    const artRelease = ims.zonedDate(2030, 8, 22, 12, 0);
     serverEvents = [{
         id: eventId, name: eventName,
         camp_locations_release: campRelease.toISOString(),
@@ -567,7 +567,7 @@ test("the embargo notice covers an embargoed map, and skips things that are rele
         id: eventId, name: eventName,
         map_url: "https://map.example/2025",
         camp_locations_release: past,
-        map_url_release: new Date(2030, 7, 21, 18, 0).toISOString(),
+        map_url_release: ims.zonedDate(2030, 8, 21, 18, 0).toISOString(),
     }];
     await initPlacesPage();
 
@@ -580,8 +580,8 @@ test("admins are told when the embargoed data becomes visible to everyone else",
     serverAdmin = true;
     serverEvents = [{
         id: eventId, name: eventName,
-        camp_locations_release: new Date(2030, 7, 21, 18, 0).toISOString(),
-        map_url_release: new Date(2030, 7, 21, 18, 0).toISOString(),
+        camp_locations_release: ims.zonedDate(2030, 8, 21, 18, 0).toISOString(),
+        map_url_release: ims.zonedDate(2030, 8, 21, 18, 0).toISOString(),
     }];
     await initPlacesPage();
 

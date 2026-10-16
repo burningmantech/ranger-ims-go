@@ -55,6 +55,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 
 	deployment := string(cfg.Core.Deployment)
 	csp := contentSecurityPolicy(template.ImportMapHash(versionRef))
+	timeZone := cfg.Core.TimeZone
 	mux.Handle("GET /ims/static/ext/",
 		Adapt(
 			http.StripPrefix("/ims/", http.FileServerFS(StaticFS)).ServeHTTP,
@@ -74,40 +75,40 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		),
 	)
 	mux.Handle("GET /ims/app",
-		AdaptTempl(template.Root(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.Root(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin",
-		AdaptTempl(template.AdminRoot(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminRoot(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/actionlogs",
-		AdaptTempl(template.AdminActionLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminActionLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/errorlogs",
-		AdaptTempl(template.AdminErrorLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminErrorLogs(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/events",
-		AdaptTempl(template.AdminEvents(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminEvents(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/types",
-		AdaptTempl(template.AdminTypes(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminTypes(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/debug",
-		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/directory",
-		AdaptTempl(template.AdminDirectory(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminDirectory(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/places",
-		AdaptTempl(template.AdminPlaces(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.AdminPlaces(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/settings",
-		AdaptTempl(template.Settings(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.Settings(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/help",
-		AdaptTempl(template.Help(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.Help(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/search",
-		AdaptTempl(template.Search(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.Search(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.HandleFunc("GET /ims/app/events/{eventName}/places",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -115,6 +116,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 				template.Places(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 				csp,
+				timeZone,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -124,6 +126,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 				template.FieldReports(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 				csp,
+				timeZone,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -133,6 +136,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 				template.FieldReport(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 				csp,
+				timeZone,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -142,6 +146,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 				template.Incidents(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 				csp,
+				timeZone,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -151,6 +156,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 				template.Incident(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 				csp,
+				timeZone,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -160,6 +166,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 				template.SanctuaryVisits(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 				csp,
+				timeZone,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -169,6 +176,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 				template.SanctuaryVisit(deployment, versionName, versionRef, r.PathValue("eventName")),
 				cfg.Core.CacheControlLong,
 				csp,
+				timeZone,
 			).ServeHTTP(w, r)
 		},
 	)
@@ -180,7 +188,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	)
 
 	mux.Handle("GET /ims/auth/login",
-		AdaptTempl(template.Login(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp),
+		AdaptTempl(template.Login(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/auth/logout",
 		Adapt(
@@ -296,11 +304,11 @@ func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
 	return handler
 }
 
-func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, csp string, adapters ...Adapter) http.Handler {
+func AdaptTempl(comp templ.Component, cacheControlLong time.Duration, csp, timeZone string, adapters ...Adapter) http.Handler {
 	adapters = append(adapters, CacheControl(cacheControlLong), ContentSecurityPolicy(csp), SameOriginReferrer())
 	return Adapt(
 		func(w http.ResponseWriter, req *http.Request) {
-			err := comp.Render(req.Context(), w)
+			err := comp.Render(template.WithTimeZone(req.Context(), timeZone), w)
 			if err != nil {
 				slog.Error("Failed to render template", "error", err)
 				herr.InternalServerError("Failed to parse template", err).From("[Render]").WriteResponse(w)

@@ -24,6 +24,8 @@ https://github.com/burningmantech/ranger-ims-go/commit/ea01f62
 
 ### Changed
 
+- Every date and time in the web UI is now shown and edited in IMS's time zone, set by the new `IMS_TIME_ZONE` (default `America/Los_Angeles`), rather than the time zone of each viewer's device. System entries recording a changed start, arrival, or departure time use that zone too, instead of UTC.
+
 - Replaced the top bar's color scheme dropdown with a single button that toggles between the light and dark themes, and dropped the Auto option from the color scheme controls. IMS follows the device's light/dark setting until an explicit Light or Dark choice is made.
 
 ## 2026-09

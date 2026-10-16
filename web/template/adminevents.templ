@@ -73,8 +73,8 @@ templ AdminEvents(deployment, versionName, versionRef string) {
             Burning Man doesn't publish camp and art placement until shortly before the event.
             Until a release time below arrives, only IMS admins see the data it covers; everyone
             else sees blank locations, and the Map link stays hidden. An empty field means no
-            embargo. Type a time like <strong id="edit_date_format_example"></strong>, in your time
-            zone (<span id="edit_browser_tz"></span>), and clear the field to lift the embargo.
+            embargo. Type a time like <strong id="edit_date_format_example"></strong>, in IMS's time
+            zone ({ timeZone(ctx) }), and clear the field to lift the embargo.
           </p>
           <div class="input-group mb-3">
             <label for="edit_camp_locations_release" class="control-label input-group-text">Camp Locations Release</label>
@@ -130,7 +130,7 @@ templ AdminEvents(deployment, versionName, versionRef string) {
           <li><strong>onduty:Operations Manager</strong> - grants access to Rangers currently on-duty for the provided position</li>
           <li><strong>team:Council</strong></li>
         </ul>
-        <p>Each grant is valid either <strong>Always</strong> (all year long) or only <strong>On-Site</strong> (valid only when a matching Ranger is marked "on-site" in Clubhouse). Use a grant's date fields to set a <strong>not-after</strong> time, after which it stops granting access, and/or a <strong>not-before</strong> time, before which it does not yet grant access. Type a time like <strong id="date_format_example"></strong> and clear the field to remove it. Times are in your time zone (<span id="browser_tz"></span>). Each grant also has an optional <strong>description</strong> &mdash; a note explaining the grant's purpose or reasoning &mdash; shared by every target in the grant; editing it via "Edit terms" updates them all at once.</p>
+        <p>Each grant is valid either <strong>Always</strong> (all year long) or only <strong>On-Site</strong> (valid only when a matching Ranger is marked "on-site" in Clubhouse). Use a grant's date fields to set a <strong>not-after</strong> time, after which it stops granting access, and/or a <strong>not-before</strong> time, before which it does not yet grant access. Type a time like <strong id="date_format_example"></strong> and clear the field to remove it. Times are in IMS's time zone ({ timeZone(ctx) }). Each grant also has an optional <strong>description</strong> &mdash; a note explaining the grant's purpose or reasoning &mdash; shared by every target in the grant; editing it via "Edit terms" updates them all at once.</p>
         <p>A target with an unknown person, position, or team name is flagged in red as an "Unknown target", and the event's header shows a count of such issues. Use the target's "Fix" button to correct a typo. Click "Explain" to see which Rangers currently match each grant, based on Clubhouse position/team mappings, validity rules, and expiration times.</p>
         <p>One event can be marked <strong>active</strong>, via its "Edit Event" button, to flag it as the one people most likely care about: it's happening soon, is happening now, or happened most recently. Making an event active makes every other event inactive.</p>
       </div>
@@ -194,14 +194,14 @@ templ AdminEvents(deployment, versionName, versionRef string) {
               class="grant_not_before form-control form-control-sm auto-width"
               type="text"
               aria-label="Not before time"
-              title="Not before: the grant does not take effect until this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
+              title="Not before: the grant does not take effect until this time (IMS's time zone). E.g. Sun 2026-08-23 @ 12:00"
               placeholder="Not before"
           />
           <input
               class="grant_not_after form-control form-control-sm auto-width"
               type="text"
               aria-label="Not after time"
-              title="Not after: the grant stops granting access after this time (your browser's time zone). E.g. Sun 2026-08-23 @ 12:00"
+              title="Not after: the grant stops granting access after this time (IMS's time zone). E.g. Sun 2026-08-23 @ 12:00"
               placeholder="Not after"
           />
           <input

@@ -93,7 +93,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <label class="control-label input-group-text" for="alt_started_datetime">Started</label>
           <input id="started_datetime" type="text" class="form-control" />
           <span id="started_datetime_tz" class="control-follow-text input-group-text"
-              title="This datetime must be edited in your computer's local time zone."
+              title={ "This datetime is in IMS's time zone, " + timeZone(ctx) + "." }
           ></span>
         </div>
       </div>

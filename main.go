@@ -16,7 +16,12 @@
 
 package main
 
-import "github.com/burningmantech/ranger-ims-go/cmd"
+import (
+	// The Docker image's Alpine base has no zoneinfo, so IMS_TIME_ZONE needs its own.
+	_ "time/tzdata"
+
+	"github.com/burningmantech/ranger-ims-go/cmd"
+)
 
 func main() {
 	cmd.Execute()

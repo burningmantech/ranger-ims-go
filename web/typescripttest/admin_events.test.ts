@@ -18,7 +18,7 @@
 // admin page (adminevents.templ).
 
 import { beforeEach, expect, test, vi } from "vitest";
-import type * as ims from "../typescript/ims.ts";
+import * as ims from "../typescript/ims.ts";
 import { answerDialog, change, type FetchHandler, jsonResponse, loadFixture, mockFetch, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/admin_events.ts");
@@ -316,7 +316,7 @@ test("editing a grant's not-before date posts the parsed time for its whos", asy
     const rule = body["2025"]!["readers"]![0]!;
     expect(rule.expression).toBe("person:Tool");
     // The typed local time is serialized as a UTC ISO instant.
-    expect(rule.not_before).toBe(new Date(2025, 7, 24, 12, 0).toISOString());
+    expect(rule.not_before).toBe(ims.zonedDate(2025, 8, 24, 12, 0).toISOString());
 });
 
 test("clearing a grant's date field posts a null time for its whos", async (): Promise<void> => {
@@ -633,8 +633,8 @@ test("the edit modal shows the event's release times, blank where there's no emb
     serverEvents = [{
         id: 1,
         name: "2025",
-        camp_locations_release: new Date(2025, 7, 20, 9, 0).toISOString(),
-        map_url_release: new Date(2025, 7, 22, 18, 30).toISOString(),
+        camp_locations_release: ims.zonedDate(2025, 8, 20, 9, 0).toISOString(),
+        map_url_release: ims.zonedDate(2025, 8, 22, 18, 30).toISOString(),
     }];
     await initAdminEventsPage();
 
@@ -666,7 +666,7 @@ test("setting a release time posts the parsed time and reformats the field", asy
     expect(JSON.parse(call![1]!.body as string)).toEqual({
         id: 1,
         name: null,
-        camp_locations_release: new Date(2025, 7, 24, 15, 0).toISOString(),
+        camp_locations_release: ims.zonedDate(2025, 8, 24, 15, 0).toISOString(),
     });
     // The admin gets to see how the server understood what they typed.
     await vi.waitFor((): void => {
@@ -678,7 +678,7 @@ test("clearing a release time posts the zero time, which lifts the embargo", asy
     serverEvents = [{
         id: 1,
         name: "2025",
-        art_locations_release: new Date(2025, 7, 20, 9, 0).toISOString(),
+        art_locations_release: ims.zonedDate(2025, 8, 20, 9, 0).toISOString(),
     }];
     const mock = await initAdminEventsPage();
 
@@ -1425,8 +1425,8 @@ test("a draft grant's terms carry into the rule its first who creates", async ()
     expect(body["2025"]!["readers"]!.at(-1)).toEqual({
         expression: "team:Council",
         validity: "onsite",
-        not_before: new Date(2025, 7, 20).toISOString(),
-        not_after: new Date(2025, 8, 1, 18, 0).toISOString(),
+        not_before: ims.zonedDate(2025, 8, 20).toISOString(),
+        not_after: ims.zonedDate(2025, 9, 1, 18, 0).toISOString(),
         description: "Temple crew",
     });
     // The draft has become a real grant.

@@ -168,10 +168,90 @@ test("newListSearch ignores a search that a later one overtook", async (): Promi
     expect(search.matches(1)).toBe(false);
 });
 
-test("localDateISO and localTimeHHMM format in local time", (): void => {
-    const d = new Date(2026, 7, 30, 9, 5);
-    expect(ims.localDateISO(d)).toBe("2026-08-30");
-    expect(ims.localTimeHHMM(d)).toBe("09:05");
+// vitest.config.ts runs the tests in Europe/Berlin, while IMS's time zone is
+// America/Los_Angeles, so these all catch a date shown in the device's zone.
+
+test("dates format in IMS's time zone, not the device's", (): void => {
+    // 18:05 in Berlin, and 09:05 in Los Angeles.
+    const d = new Date("2026-08-30T16:05:30Z");
+    expect(ims.imsTimeZone()).toBe("America/Los_Angeles");
+    expect(ims.dateISO(d)).toBe("2026-08-30");
+    expect(ims.timeHHMM(d)).toBe("09:05");
+    expect(ims.nerdDateTime(d)).toBe("2026-08-30 09:05:30");
+    expect(ims.formatDateShort(d)).toBe("Sun 2026-08-30 @ 09:05");
+    expect(ims.longFormatDate(d)).toBe("Sun, 2026-08-30 at 09:05:30 PDT");
+    expect(ims.shortTime(d)).toBe("09:05");
+    expect(ims.tzShortName(d)).toBe("PDT");
+    expect(ims.tzShortName(new Date("2026-01-15T12:00:00Z"))).toBe("PST");
+
+    // Late evening in Los Angeles is already the next day in UTC and Berlin.
+    const evening = new Date("2026-08-31T05:30:00Z");
+    expect(ims.dateISO(evening)).toBe("2026-08-30");
+    expect(ims.zonedParts(evening)).toEqual({
+        year: 2026, month: 8, day: 30, hour: 22, minute: 30, second: 0, weekday: "Sun",
+    });
+});
+
+test("zonedDate finds the instant of a wall-clock time in IMS's time zone", (): void => {
+    expect(ims.zonedDate(2026, 8, 30, 9, 5).toISOString()).toBe("2026-08-30T16:05:00.000Z");
+    expect(ims.zonedDate(2026, 1, 15, 12, 0).toISOString()).toBe("2026-01-15T20:00:00.000Z");
+    // Midnight is the default.
+    expect(ims.zonedDate(2026, 8, 30).toISOString()).toBe("2026-08-30T07:00:00.000Z");
+    // Fields roll over, so day 0 is the last day of the month before.
+    expect(ims.zonedDate(2026, 9, 0).toISOString()).toBe("2026-08-31T07:00:00.000Z");
+
+    // On the day DST ends, 01:30 happens twice; it's the first one, in PDT.
+    expect(ims.zonedDate(2026, 11, 1, 1, 30).toISOString()).toBe("2026-11-01T08:30:00.000Z");
+    // Either side of the change.
+    expect(ims.zonedDate(2026, 11, 1, 0, 30).toISOString()).toBe("2026-11-01T07:30:00.000Z");
+    expect(ims.zonedDate(2026, 11, 1, 3, 0).toISOString()).toBe("2026-11-01T11:00:00.000Z");
+    expect(ims.zonedDate(2026, 3, 8, 3, 0).toISOString()).toBe("2026-03-08T10:00:00.000Z");
+    expect(ims.zonedDate(2026, 3, 8, 1, 0).toISOString()).toBe("2026-03-08T09:00:00.000Z");
+});
+
+test("parseDateInput reads wall-clock times in IMS's time zone", (): void => {
+    expect(ims.parseDateInput("Sun 2026-08-23 @ 12:00")?.toISOString()).toBe("2026-08-23T19:00:00.000Z");
+    expect(ims.parseDateInput("2026-08-23 12:00")?.toISOString()).toBe("2026-08-23T19:00:00.000Z");
+    expect(ims.parseDateInput("2026-08-23 12:00:30")?.toISOString()).toBe("2026-08-23T19:00:30.000Z");
+    expect(ims.parseDateInput("2026-8-3")?.toISOString()).toBe("2026-08-03T07:00:00.000Z");
+    // It round-trips the formats IMS shows.
+    const d = new Date("2026-08-30T16:05:30Z");
+    expect(ims.parseDateInput(ims.nerdDateTime(d))?.toISOString()).toBe("2026-08-30T16:05:30.000Z");
+    expect(ims.parseDateInput(ims.formatDateShort(d))?.toISOString()).toBe("2026-08-30T16:05:00.000Z");
+
+    expect(ims.parseDateInput("")).toBeNull();
+    expect(ims.parseDateInput("   ")).toBeNull();
+    expect(ims.parseDateInput("next tuesday")).toBeUndefined();
+    expect(ims.parseDateInput("2026-13-01")).toBeUndefined();
+    expect(ims.parseDateInput("2026-08-23 24:00")).toBeUndefined();
+});
+
+test("startOfDay gives midnight in IMS's time zone", (): void => {
+    vi.useFakeTimers();
+    // Still the 29th in Los Angeles, but the 30th in Berlin.
+    vi.setSystemTime(new Date("2026-08-30T05:00:00Z"));
+    expect(ims.startOfDay(0).toISOString()).toBe("2026-08-29T07:00:00.000Z");
+    expect(ims.startOfDay(1).toISOString()).toBe("2026-08-28T07:00:00.000Z");
+    // Back across the DST change, midnight is an hour later in UTC.
+    vi.setSystemTime(new Date("2026-11-03T20:00:00Z"));
+    expect(ims.startOfDay(0).toISOString()).toBe("2026-11-03T08:00:00.000Z");
+    expect(ims.startOfDay(3).toISOString()).toBe("2026-10-31T07:00:00.000Z");
+    vi.useRealTimers();
+});
+
+test("picker dates read IMS's wall clock in the browser's zone", (): void => {
+    const d = new Date("2026-08-30T16:05:30.250Z");
+    const picker = ims.toPickerDate(d);
+    expect(picker.getFullYear()).toBe(2026);
+    expect(picker.getMonth()).toBe(7);
+    expect(picker.getDate()).toBe(30);
+    expect(picker.getHours()).toBe(9);
+    expect(picker.getMinutes()).toBe(5);
+    expect(picker.getSeconds()).toBe(30);
+    expect(ims.fromPickerDate(picker).toISOString()).toBe("2026-08-30T16:05:30.250Z");
+
+    // A picked wall-clock time, made in the browser's zone the way flatpickr does.
+    expect(ims.fromPickerDate(new Date(2026, 0, 15, 12, 0)).toISOString()).toBe("2026-01-15T20:00:00.000Z");
 });
 
 test("isValidIncidentsTableState accepts only known states", (): void => {
@@ -727,11 +807,11 @@ test("renderDate shows a short date and time, with the full date on hover", (): 
 
     const span = ims.renderDate(iso, "display", {}) as HTMLSpanElement;
     expect(span.title).toBe(ims.longFormatDate(millis));
-    expect(span.textContent).toBe(ims.shortDate.format(millis) + ims.shortTime.format(millis));
+    expect(span.textContent).toBe(ims.shortDate(millis) + "03:05");
     expect(span.querySelector("br")).not.toBeNull();
     expect(span.classList.contains("text-nowrap")).toBe(true);
 
-    expect(ims.renderDate(iso, "filter", {})).toBe(`${ims.shortDate.format(millis)} ${ims.shortTime.format(millis)}`);
+    expect(ims.renderDate(iso, "filter", {})).toBe(`${ims.shortDate(millis)} 03:05`);
     expect(ims.renderDate(iso, "sort", {})).toBe(millis);
     expect(ims.renderDate(iso, "bogus", {})).toBeUndefined();
     expect(ims.renderDate(undefined, "display", {})).toBeUndefined();
@@ -797,11 +877,6 @@ test("renderRangerHandles lists the handles sorted, skipping missing ones", (): 
     expect(ims.renderRangerHandles(rangers, "sort", {})).toBe("Hot Slots, Tool");
     expect(ims.renderRangerHandles(rangers, "bogus" as ims.RenderType, {})).toBeUndefined();
     expect(ims.renderRangerHandles(null, "display", {})).toBeUndefined();
-});
-
-test("localTzOffset gives the browser's UTC offset", (): void => {
-    // Empty in UTC itself, which formats as a bare "GMT".
-    expect(ims.localTzOffset(new Date())).toMatch(/^([+-]\d{2}:\d{2})?$/);
 });
 
 test("requestEventSourceLock refuses to run in an insecure context", (): void => {

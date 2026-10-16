@@ -16,6 +16,10 @@
 
 import { defineConfig } from "vitest/config";
 
+// The fixtures put IMS in America/Los_Angeles. Run the browser side somewhere
+// else, so that tests catch any date that leaks out in the device's own zone.
+process.env["TZ"] = "Europe/Berlin";
+
 export default defineConfig({
     test: {
         environment: "happy-dom",

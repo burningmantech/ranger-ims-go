@@ -155,7 +155,7 @@ templ Help(deployment, versionName, versionRef string) {
 <p>An Incident page has these parts, top to bottom:</p>
 <ul>
   <li><strong>State</strong>: where the Incident is in its lifecycle (see <a href="#incident-states">below</a>).</li>
-  <li><strong>Started</strong>: when the situation began. You can edit this if the Incident was created after the fact. Times are entered in your device's local time zone.</li>
+  <li><strong>Started</strong>: when the situation began. You can edit this if the Incident was created after the fact. Like every date and time in IMS, it's in IMS's time zone ({ timeZone(ctx) }), whatever your device's time zone is.</li>
   <li><strong>Summary</strong>: a one-line description shown in the Incidents list. Keep it short and informative.</li>
   <li><strong>Rangers</strong>: the Rangers involved. Start typing a handle to add one, and add a short note about each Ranger's role (such as "first on scene" or "transport"). The <strong>On-Duty</strong> link in this card's header opens the Clubhouse on-duty report for the time the Incident started, a handy way to see who was working when it began.</li>
   <li><strong>Incident Types</strong>: categories for the Incident, useful for filtering and for after-event analysis. Click <strong>Info</strong> to see a description of each type.</li>

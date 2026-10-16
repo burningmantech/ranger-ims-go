@@ -18,7 +18,7 @@
 // page (sanctuary_visit.templ).
 
 import { beforeEach, expect, test, vi } from "vitest";
-import type * as ims from "../typescript/ims.ts";
+import * as ims from "../typescript/ims.ts";
 import { change, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/sanctuary_visit.ts");
@@ -345,7 +345,9 @@ test("a broadcast redraw does not clobber a datetime the user is typing in", asy
     arrivalTime.blur();
     channel.postMessage({ event_id: eventId, visit_number: 2 });
     await vi.waitFor((): void => {
-        expect(arrivalTime.value).toBe("2025-08-25T12:00:00.000Z");
+        // The mock picker shows its Date's toISOString(), and the picker holds a
+        // stand-in for the instant, reading Los Angeles time in the browser's zone.
+        expect(arrivalTime.value).toBe(new Date(2025, 7, 25, 5, 0).toISOString());
     });
     channel.close();
 });
@@ -530,7 +532,8 @@ test("picking an arrival time posts it as an ISO timestamp", async (): Promise<v
     const mock = await initVisitPage();
 
     mock.mockClear();
-    flatpickrFor("arrival_time").setDate(new Date("2025-08-25T12:00:00Z"), true);
+    // The calendar works in the browser's zone, so 05:00 on it is 05:00 in Los Angeles.
+    flatpickrFor("arrival_time").setDate(new Date(2025, 7, 25, 5, 0), true);
     await vi.waitFor((): void => {
         expect(mock.mock.calls.some(([u, init]) =>
             u === `${visitsUrl}/2` && init?.body != null)).toBe(true);
@@ -549,7 +552,7 @@ test("re-picking the arrival time already stored sends nothing", async (): Promi
     const mock = await initVisitPage();
 
     mock.mockClear();
-    flatpickrFor("arrival_time").setDate(new Date("2025-08-25T12:00:00Z"), true);
+    flatpickrFor("arrival_time").setDate(new Date(2025, 7, 25, 5, 0), true);
 
     expect(mock.mock.calls.some(([u, init]) =>
         u === `${visitsUrl}/2` && init?.body != null)).toBe(false);
@@ -577,7 +580,7 @@ test("picking a departure time posts it as an ISO timestamp", async (): Promise<
     const mock = await initVisitPage();
 
     mock.mockClear();
-    flatpickrFor("departure_time").setDate(new Date("2025-08-25T18:30:00Z"), true);
+    flatpickrFor("departure_time").setDate(new Date(2025, 7, 25, 11, 30), true);
     await vi.waitFor((): void => {
         expect(mock.mock.calls.some(([u, init]) =>
             u === `${visitsUrl}/2` && init?.body != null)).toBe(true);
@@ -679,11 +682,13 @@ test("opening an unset picker points its time spinners at now", async (): Promis
     const after = new Date();
 
     // The clock could tick between the two samples, so either reading is right.
+    // The spinners show the time in Los Angeles, not the browser's zone.
     const pad = (n: number): string => n.toString().padStart(2, "0");
-    expect([pad(before.getHours()), pad(after.getHours())]).toContain(fp.hourElement.value);
-    expect([pad(before.getMinutes()), pad(after.getMinutes())]).toContain(fp.minuteElement.value);
-    expect([before.getHours(), after.getHours()]).toContain(fp.config.defaultHour);
-    expect([before.getMinutes(), after.getMinutes()]).toContain(fp.config.defaultMinute);
+    const [b, a] = [ims.zonedParts(before), ims.zonedParts(after)];
+    expect([pad(b.hour), pad(a.hour)]).toContain(fp.hourElement.value);
+    expect([pad(b.minute), pad(a.minute)]).toContain(fp.minuteElement.value);
+    expect([b.hour, a.hour]).toContain(fp.config.defaultHour);
+    expect([b.minute, a.minute]).toContain(fp.config.defaultMinute);
     // Nothing is selected yet, so nothing should have been saved.
     expect(fp.selectedDates).toHaveLength(0);
 });
@@ -700,7 +705,8 @@ test("opening a picker that already has a time leaves it alone", async (): Promi
 
     expect(fp.hourElement.value).toBe("");
     expect(fp.minuteElement.value).toBe("");
-    expect(fp.selectedDates[0]!.toISOString()).toBe("2025-08-25T12:00:00.000Z");
+    // 05:00 in Los Angeles.
+    expect(fp.selectedDates[0]!.getTime()).toBe(new Date(2025, 7, 25, 5, 0).getTime());
     expect(mock.mock.calls.some(([u, init]) =>
         u === `${visitsUrl}/2` && init?.body != null)).toBe(false);
 });

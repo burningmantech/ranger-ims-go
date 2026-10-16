@@ -99,6 +99,9 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	if v, ok := lookupEnv("IMS_INSECURE_COOKIES"); ok {
 		baseCfg.Core.InsecureCookies = strings.EqualFold(v, "true")
 	}
+	if v, ok := lookupEnv("IMS_TIME_ZONE"); ok {
+		baseCfg.Core.TimeZone = v
+	}
 	if v, ok := lookupEnv("IMS_BM_API_URL"); ok {
 		baseCfg.BurningManAPI.URL = strings.TrimSuffix(v, "/")
 	}

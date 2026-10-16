@@ -648,9 +648,9 @@ function drawStarted(): void {
         return;
     }
 
-    el.startedDatetimeTz.textContent = ims.localTzShortName(dateDate);
-    el.startedDatetimeTz.title = `${Intl.DateTimeFormat().resolvedOptions().timeZone}\n\n` +
-        `All date and time fields in IMS use your computer's time zone, not necessarily Gerlach time.`;
+    el.startedDatetimeTz.textContent = ims.tzShortName(dateDate);
+    el.startedDatetimeTz.title = `${ims.imsTimeZone()}\n\n` +
+        `All date and time fields in IMS use this time zone, whatever your device's time zone is.`;
 }
 
 //

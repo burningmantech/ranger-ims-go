@@ -70,6 +70,10 @@ export default defineConfig({
 
     /* Screenshot on failure. */
     screenshot: 'only-on-failure',
+
+    /* IMS shows times in its own zone (America/Los_Angeles by default), not the
+     * device's. Run the browser elsewhere so the tests catch any mix-up. */
+    timezoneId: 'Europe/Berlin',
   },
 
   /* Configure projects for major browsers. The functional suite runs on all

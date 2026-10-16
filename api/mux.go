@@ -148,9 +148,9 @@ func AddToMux(
 		}, LogMetadata, OptionalAuthN(jwter, cookies, userStore))
 
 	authed("GET /ims/api/events/{eventName}/incidents", GetIncidents{db, userStore, cfg.Core.Admins}, LogSearch)
-	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/incidents", NewIncident{db, userStore, es, cfg.Core.Admins, cfg.Core.Location()}, LogMutation)
 	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}", GetIncident{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogMetadata)
-	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}", EditIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}", EditIncident{db, userStore, es, cfg.Core.Admins, cfg.Core.Location()}, LogMutation)
 	authed("GET /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments/{attachmentNumber}", GetIncidentAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/attachments", AttachToIncident{db, userStore, es, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/incidents/{incidentNumber}/rangers/{rangerName}", AttachRangerToIncident{db, userStore, es, cfg.Core.Admins}, LogMutation)
@@ -171,8 +171,8 @@ func AddToMux(
 
 	authed("GET /ims/api/events/{eventName}/visits", GetVisits{db, userStore, cfg.Core.Admins}, LogNothing)
 	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}", GetVisit{db, userStore, cfg.Core.Admins, attachmentsEnabled}, LogMetadata)
-	authed("POST /ims/api/events/{eventName}/visits", NewVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
-	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}", EditVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/visits", NewVisit{db, userStore, es, cfg.Core.Admins, cfg.Core.Location()}, LogMutation)
+	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}", EditVisit{db, userStore, es, cfg.Core.Admins, cfg.Core.Location()}, LogMutation)
 	authed("POST /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", AttachRangerToVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
 	authed("DELETE /ims/api/events/{eventName}/visits/{visitNumber}/rangers/{rangerName}", DetachRangerFromVisit{db, userStore, es, cfg.Core.Admins}, LogMutation)
 	authed("GET /ims/api/events/{eventName}/visits/{visitNumber}/attachments/{attachmentNumber}", GetVisitAttachment{db, userStore, cfg.AttachmentsStore, s3Client, cfg.Core.Admins}, LogMetadata)

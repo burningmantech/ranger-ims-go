@@ -765,7 +765,7 @@ export function setFlatpickrDate(element: FlatpickrHTMLInputElement, date: strin
         (fp.input != null && hasUncommittedInput(fp.input))) {
         return false;
     }
-    fp.setDate(date, false, "Z");
+    fp.setDate(toPickerDate(new Date(date)), false, fp.config.altFormat!);
     return true;
 }
 
@@ -1030,25 +1030,155 @@ export function renderVisitNumber(visitNumber: number|null, type: string, _visit
     }
 }
 
+//
+// Time zone
+//
+
+// The server's default IMS_TIME_ZONE, for the moment before a page's markup
+// exists, e.g. when a test imports a module before loading its fixture.
+const fallbackTimeZone = "America/Los_Angeles";
+let _timeZone: string|null = null;
+
+// The IANA time zone in which IMS shows and takes every date and time, whatever
+// zone the viewer's device is in. The server sets it in each page's <head>.
+export function imsTimeZone(): string {
+    if (_timeZone == null) {
+        const tz = document.querySelector<HTMLMetaElement>("meta[name='ims-time-zone']")?.content;
+        if (!tz) {
+            return fallbackTimeZone;
+        }
+        _timeZone = tz;
+    }
+    return _timeZone;
+}
+
+const _formatters = new Map<string, Intl.DateTimeFormat>();
+
+// Formatters are expensive to build and the tables format thousands of dates,
+// so each one is built once per time zone.
+function zonedFormatter(name: string, locale: string|undefined, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+    const timeZone = imsTimeZone();
+    const key = `${name} ${timeZone}`;
+    let formatter = _formatters.get(key);
+    if (formatter == null) {
+        formatter = new Intl.DateTimeFormat(locale, {...options, timeZone: timeZone});
+        _formatters.set(key, formatter);
+    }
+    return formatter;
+}
+
+export interface ZonedParts {
+    year: number;
+    // 1 through 12
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+    // e.g. "Sun"
+    weekday: string;
+}
+
+// The wall-clock reading in IMS's time zone at the given instant.
+export function zonedParts(date: Date|number): ZonedParts {
+    const parts = zonedFormatter("parts", "en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hourCycle: "h23",
+    }).formatToParts(date);
+    const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find(p => p.type === type)?.value ?? "";
+    return {
+        year: Number(part("year")),
+        month: Number(part("month")),
+        day: Number(part("day")),
+        hour: Number(part("hour")),
+        minute: Number(part("minute")),
+        second: Number(part("second")),
+        weekday: part("weekday"),
+    };
+}
+
+// How far IMS's time zone is ahead of UTC at the given instant, in milliseconds.
+function zoneOffsetMillis(millis: number): number {
+    const p = zonedParts(millis);
+    const wallClock = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+    return wallClock - Math.floor(millis / 1000) * 1000;
+}
+
+// The instant at which IMS's time zone reads the given wall-clock time. Out of
+// range fields roll over, as with the Date constructor, so day 0 is the last day
+// of the previous month. A time that a DST change repeats resolves to its first
+// occurrence, and one that a DST change skips lands an hour off.
+export function zonedDate(year: number, month: number, day: number, hour = 0, minute = 0, second = 0): Date {
+    const asUTC = Date.UTC(year, month - 1, day, hour, minute, second);
+    // The offset at asUTC itself may be on the other side of a DST change from the
+    // answer, so correct once with the offset at the first guess.
+    const guess = asUTC - zoneOffsetMillis(asUTC);
+    return new Date(asUTC - zoneOffsetMillis(guess));
+}
+
+// Midnight in IMS's time zone, the given number of days before today.
+export function startOfDay(daysAgo: number): Date {
+    const today = zonedParts(Date.now());
+    return zonedDate(today.year, today.month, today.day - daysAgo);
+}
+
+// Parse a human-entered datetime in IMS's time zone. Returns null for empty
+// input (the date is being cleared), or undefined if the input couldn't be
+// parsed. It's lenient: an optional weekday prefix and "@" separator are
+// ignored, so it round-trips formatDateShort's output, and the time is optional
+// (defaulting to midnight), as are its seconds.
+export function parseDateInput(input: string): Date|null|undefined {
+    const trimmed = input.trim();
+    if (trimmed === "") {
+        return null;
+    }
+    const match = trimmed.match(/(\d{4})-(\d{1,2})-(\d{1,2})(?:[\sT@]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?\s*$/);
+    if (match == null) {
+        return undefined;
+    }
+    const year = parseInt10(match[1]!)!;
+    const month = parseInt10(match[2]!)!;
+    const day = parseInt10(match[3]!)!;
+    const hour = match[4] != null ? parseInt10(match[4])! : 0;
+    const minute = match[5] != null ? parseInt10(match[5])! : 0;
+    const second = match[6] != null ? parseInt10(match[6])! : 0;
+    if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) {
+        return undefined;
+    }
+    const date = zonedDate(year, month, day, hour, minute, second);
+    if (Number.isNaN(date.getTime())) {
+        return undefined;
+    }
+    return date;
+}
+
 // e.g. "Wed, 8/28"
-export const shortDate: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    month: "numeric",
-    day: "2-digit",
-    // timeZone not specified; will use user's timezone
-});
+export function shortDate(date: Date|number): string {
+    return zonedFormatter("shortDate", undefined, {
+        weekday: "short",
+        month: "numeric",
+        day: "2-digit",
+    }).format(date);
+}
 
 // e.g. "19:21"
-export const shortTime: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    hour12: false,
-    minute: "numeric",
-    // timeZone not specified; will use user's timezone
-});
+export function shortTime(date: Date|number): string {
+    return zonedFormatter("shortTime", undefined, {
+        hour: "numeric",
+        hour12: false,
+        minute: "numeric",
+    }).format(date);
+}
 
-// Returns something like "Sun, 2026-01-18 at 14:26:31 EST"
+// Returns something like "Sun, 2026-01-18 at 14:26:31 PST"
 export function longFormatDate(date: Date|number): string {
-    const options: Intl.DateTimeFormatOptions = {
+    const formatter = zonedFormatter("long", "en-US", {
         weekday: 'short',
         year: 'numeric',
         month: '2-digit',
@@ -1058,9 +1188,7 @@ export function longFormatDate(date: Date|number): string {
         second: '2-digit',
         timeZoneName: 'short',
         hour12: false
-    };
-
-    const formatter = new Intl.DateTimeFormat('en-US', options);
+    });
     const parts = formatter.formatToParts(date);
 
     const partMap: Record<string, string> = Object.fromEntries(parts.map(part => [part.type, part.value]));
@@ -1068,38 +1196,33 @@ export function longFormatDate(date: Date|number): string {
     return `${partMap['weekday']}, ${partMap['year']}-${partMap['month']}-${partMap['day']} at ${partMap['hour']}:${partMap['minute']}:${partMap['second']} ${partMap['timeZoneName']}`;
 }
 
-// returns something like -05:00
-export function localTzOffset(d: Date): string|null {
-    const parts = new Intl.DateTimeFormat(
-        undefined, { timeZoneName: 'longOffset' }).formatToParts(d);
-    return (parts.find(p => p.type === 'timeZoneName')?.value.replace("GMT", ""))??null;
-}
-
 // returns something like PDT
-export function localTzShortName(d: Date): string|null {
-    const parts = new Intl.DateTimeFormat(
-        undefined, { timeZoneName: 'short' }).formatToParts(d);
+export function tzShortName(d: Date): string|null {
+    const parts = zonedFormatter("tzShortName", undefined, { timeZoneName: 'short' }).formatToParts(d);
     return (parts.find(p => p.type === 'timeZoneName')?.value)??null;
 }
 
-// localDateISO gives the YYYY-MM-DD format of the provided date in the user's timezone.
-export function localDateISO(d: Date): string {
-    const year = d.getFullYear().toString().padStart(4, "0");
-    const month = (d.getMonth() + 1).toString().padStart(2, "0");
-    const date = d.getDate().toString().padStart(2, "0");
-    return `${year}-${month}-${date}`;
+// dateISO gives the YYYY-MM-DD format of the provided date in IMS's time zone.
+export function dateISO(d: Date|number): string {
+    const p = zonedParts(d);
+    return `${p.year.toString().padStart(4, "0")}-${padTwo(p.month)}-${padTwo(p.day)}`;
 }
 
-export function localTimeHHMM(date: Date): string {
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+export function timeHHMM(d: Date|number): string {
+    const p = zonedParts(d);
+    return `${padTwo(p.hour)}:${padTwo(p.minute)}`;
 }
 
-// Format a date in the browser's time zone, e.g. "Sun 2026-08-23 @ 12:00".
+// Format a date in IMS's time zone to the second, e.g. "2026-08-23 12:00:59",
+// a format parseDateInput accepts.
+export function nerdDateTime(d: Date|number): string {
+    const p = zonedParts(d);
+    return `${dateISO(d)} ${padTwo(p.hour)}:${padTwo(p.minute)}:${padTwo(p.second)}`;
+}
+
+// Format a date in IMS's time zone, e.g. "Sun 2026-08-23 @ 12:00".
 export function formatDateShort(date: Date): string {
-    const weekday = new Intl.DateTimeFormat("en-US", {weekday: "short"}).format(date);
-    return `${weekday} ${localDateISO(date)} @ ${localTimeHHMM(date)}`;
+    return `${zonedParts(date).weekday} ${dateISO(date)} @ ${timeHHMM(date)}`;
 }
 
 export function renderDate(date: string|undefined, type: string, _incidentOrFROrVisit: any): RenderValue {
@@ -1114,10 +1237,10 @@ export function renderDate(date: string|undefined, type: string, _incidentOrFROr
             dateSpan.title = fullDate;
             // The <br> makes this two lines; keep "Mon, 6/08" from wrapping into a third.
             dateSpan.classList.add("text-nowrap");
-            dateSpan.append(shortDate.format(d), document.createElement("br"), shortTime.format(d));
+            dateSpan.append(shortDate(d), document.createElement("br"), shortTime(d));
             return dateSpan;
         case "filter":
-            return shortDate.format(d) + " " + shortTime.format(d);
+            return shortDate(d) + " " + shortTime(d);
         case "type":
         case "sort":
         case undefined:
@@ -3123,6 +3246,23 @@ function newFlatpickrInternal(selector: string|Node, opts: FlatpickrOptions): Fl
     return flatpickr(selector, opts);
 }
 
+// flatpickr only knows the browser's own time zone, so a picker holds stand-in
+// Dates whose browser-local wall clock reads what IMS's time zone does at the
+// real instant. These convert between the two. A stand-in can't represent a
+// wall-clock time that the browser's zone skips for DST, so such a time shifts
+// by an hour, but that needs the browser and IMS to be in different zones.
+export function toPickerDate(d: Date): Date {
+    const p = zonedParts(d);
+    return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second, d.getMilliseconds());
+}
+
+export function fromPickerDate(d: Date): Date {
+    const z = zonedDate(d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
+    return new Date(z.getTime() + d.getMilliseconds());
+}
+
+// Make a date-time picker that shows and takes times in IMS's time zone. Its
+// onChange gets real instants, not the picker's stand-in Dates.
 export function newFlatpickr(
     selector: string|Node, altInputId: string, onChange: FlatpickrEventFunc,
     startAtNow?: boolean,
@@ -3135,15 +3275,20 @@ export function newFlatpickr(
         dateFormat: 'Y-m-d H:i',
         time_24hr: true,
         minuteIncrement: 1,
+        now: toPickerDate(new Date()),
         onReady: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
             instance.altInput!.id = altInputId;
         },
         onOpen: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
+            // This highlights "today" on the calendar.
+            instance.now = toPickerDate(new Date());
             if (startAtNow) {
                 startEmptyPickerAtNow(instance);
             }
         },
-        onChange: onChange,
+        onChange: function(selectedDates: Date[], dateStr: string, instance: Flatpickr): void {
+            onChange(selectedDates.map(fromPickerDate), dateStr, instance);
+        },
         // This lets us set the date even on manual data entry in the altInput field.
         onClose: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
             instance.setDate(instance.altInput!.value, true, instance.config.altFormat!);
@@ -3159,7 +3304,7 @@ function startEmptyPickerAtNow(instance: Flatpickr): void {
     if (instance.selectedDates.length > 0) {
         return;
     }
-    const now = new Date();
+    const now = toPickerDate(new Date());
     instance.config.defaultHour = now.getHours();
     instance.config.defaultMinute = now.getMinutes();
     if (instance.hourElement != null && instance.minuteElement != null) {
@@ -3174,7 +3319,7 @@ function startEmptyPickerAtNow(instance: Flatpickr): void {
 // Set a flatpickr to the current date and time, saving via its onChange.
 export function setFlatpickrToNow(element: FlatpickrHTMLInputElement): void {
     const fp = element._flatpickr;
-    fp.setDate(new Date(), true, fp.config.altFormat!);
+    fp.setDate(toPickerDate(new Date()), true, fp.config.altFormat!);
 }
 
 // Unset a flatpickr's date, saving via its onChange.
@@ -3196,6 +3341,7 @@ export interface FlatpickrOptions {
     minuteIncrement?: number;
     defaultHour?: number;
     defaultMinute?: number;
+    now?: Date;
     onOpen?: FlatpickrEventFunc|FlatpickrEventFunc[];
     onClose?: FlatpickrEventFunc|FlatpickrEventFunc[];
     onReady?: FlatpickrEventFunc|FlatpickrEventFunc[];
@@ -3209,6 +3355,8 @@ export interface Flatpickr {
     altInput?: HTMLInputElement;
     hourElement?: HTMLInputElement;
     minuteElement?: HTMLInputElement;
+    // The calendar marks this day as "today".
+    now?: Date;
     setDate(date: Date|string|Date[], triggerChange: boolean, dateStrFormat: string): void;
     clear(triggerChange: boolean): void;
     parseDate(date: string|number, format: string): Date;

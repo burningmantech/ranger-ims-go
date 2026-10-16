@@ -23,9 +23,7 @@ import * as ims from "./ims.ts";
 //
 
 const el = {
-    browserTz: ims.typedElement("browser_tz", HTMLElement),
     dateFormatExample: ims.typedElement("date_format_example", HTMLElement),
-    editBrowserTz: ims.typedElement("edit_browser_tz", HTMLElement),
     editDateFormatExample: ims.typedElement("edit_date_format_example", HTMLElement),
     explainModal: ims.typedElement("explainModal", HTMLDialogElement),
     editEventModal: ims.typedElement("editEventModal", HTMLDialogElement),
@@ -77,11 +75,8 @@ async function initAdminEventsPage(): Promise<void> {
         input.addEventListener("change", (): Promise<void> => setter(input));
     }
 
-    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    el.browserTz.textContent = browserTz;
-    el.editBrowserTz.textContent = browserTz;
     // Show the current time as the example, so it's useful to copy-paste from.
-    const dateExample = formatDateForInput(new Date());
+    const dateExample = ims.formatDateShort(new Date());
     el.dateFormatExample.textContent = dateExample;
     el.editDateFormatExample.textContent = dateExample;
 
@@ -418,7 +413,7 @@ function eventCard(event: ims.EventData): DocumentFragment {
             ["#edit_map_url_release", event.map_url_release],
         ] as const) {
             const input = el.editEventModal.querySelector(selector) as HTMLInputElement;
-            input.value = release ? formatDateForInput(new Date(release)) : "";
+            input.value = release ? ims.formatDateShort(new Date(release)) : "";
         }
 
         // Groups aren't events anyone works in, so they can't be the active one.
@@ -552,10 +547,10 @@ function grantBlock(eventName: string, grant: Grant|null, draft: DraftGrant|null
     levelSelect.value = mode;
     validitySelect.value = validity;
     if (notBefore) {
-        notBeforeInput.value = formatDateForInput(new Date(notBefore));
+        notBeforeInput.value = ims.formatDateShort(new Date(notBefore));
     }
     if (notAfter) {
-        notAfterInput.value = formatDateForInput(new Date(notAfter));
+        notAfterInput.value = ims.formatDateShort(new Date(notAfter));
     }
     descriptionInput.value = description;
 
@@ -604,14 +599,14 @@ function grantBlock(eventName: string, grant: Grant|null, draft: DraftGrant|null
             grantEl.dataset["mode"] = draft.mode;
             draft.validity = validitySelect.value === "onsite" ? Validity.onsite : Validity.always;
             grantEl.dataset["validity"] = draft.validity;
-            const nb = parseDateInput(notBeforeInput.value);
+            const nb = ims.parseDateInput(notBeforeInput.value);
             if (nb === undefined) {
                 ims.controlHasError(notBeforeInput);
             } else {
                 draft.notBefore = nb?.toISOString()??null;
                 grantEl.dataset["not_before"] = draft.notBefore??"";
             }
-            const na = parseDateInput(notAfterInput.value);
+            const na = ims.parseDateInput(notAfterInput.value);
             if (na === undefined) {
                 ims.controlHasError(notAfterInput);
             } else {
@@ -652,14 +647,14 @@ function renderGrantTermsDisplay(grantEl: HTMLElement, grant: Grant): void {
     if (grant.notBefore) {
         const badge = grantEl.querySelector(".grant_not_before_badge") as HTMLElement;
         const date = new Date(grant.notBefore);
-        badge.textContent = `not-before ${ims.localDateISO(date)}`;
+        badge.textContent = `not-before ${ims.dateISO(date)}`;
         badge.title = `Not before: ${ims.longFormatDate(date)}`;
         badge.classList.remove("d-none");
     }
     if (grant.notAfter) {
         const badge = grantEl.querySelector(".grant_not_after_badge") as HTMLElement;
         const date = new Date(grant.notAfter);
-        badge.textContent = `not-after ${ims.localDateISO(date)}`;
+        badge.textContent = `not-after ${ims.dateISO(date)}`;
         badge.title = `Not after: ${ims.longFormatDate(date)}`;
         badge.classList.remove("d-none");
     }
@@ -784,41 +779,6 @@ function displayMode(m: AccessMode): string {
         default:
             throw new Error(`unexpected access mode ${m satisfies never}`);
     }
-}
-
-// Format a date for display in a grant's date input, in the browser's time zone,
-// e.g. "Sun 2026-08-23 @ 12:00". This matches the format parseDateInput accepts.
-function formatDateForInput(date: Date): string {
-    return ims.formatDateShort(date);
-}
-
-// Parse a human-entered datetime into a Date in the browser's time zone. Returns
-// null for empty input (the date is being cleared), or undefined if the input
-// couldn't be parsed. It's lenient: an optional weekday prefix and "@" separator
-// are ignored, so it round-trips formatDateForInput's output, and the time is
-// optional (defaulting to midnight).
-function parseDateInput(input: string): Date|null|undefined {
-    const trimmed = input.trim();
-    if (trimmed === "") {
-        return null;
-    }
-    const match = trimmed.match(/(\d{4})-(\d{1,2})-(\d{1,2})(?:[\sT@]+(\d{1,2}):(\d{2}))?\s*$/);
-    if (match == null) {
-        return undefined;
-    }
-    const year = ims.parseInt10(match[1]!)!;
-    const month = ims.parseInt10(match[2]!)!;
-    const day = ims.parseInt10(match[3]!)!;
-    const hour = match[4] != null ? ims.parseInt10(match[4])! : 0;
-    const minute = match[5] != null ? ims.parseInt10(match[5])! : 0;
-    if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) {
-        return undefined;
-    }
-    const date = new Date(year, month - 1, day, hour, minute);
-    if (Number.isNaN(date.getTime())) {
-        return undefined;
-    }
-    return date;
 }
 
 //
@@ -1023,12 +983,12 @@ async function applyGrantTerms(grantEl: HTMLElement): Promise<void> {
     const newValidity = validitySelect.value === "onsite" ? Validity.onsite : Validity.always;
     const newDescription = descriptionInput.value;
 
-    const nb = parseDateInput(notBeforeInput.value);
+    const nb = ims.parseDateInput(notBeforeInput.value);
     if (nb === undefined) {
         ims.controlHasError(notBeforeInput);
         return;
     }
-    const na = parseDateInput(notAfterInput.value);
+    const na = ims.parseDateInput(notAfterInput.value);
     if (na === undefined) {
         ims.controlHasError(notAfterInput);
         return;
@@ -1313,7 +1273,7 @@ export async function setMapURLRelease(sender: HTMLInputElement): Promise<void> 
 async function setReleaseTime(sender: HTMLInputElement, field: ReleaseTimeField): Promise<void> {
     const eventId = ims.parseInt10(el.editEventModal.dataset["eventId"])!;
 
-    const date = parseDateInput(sender.value);
+    const date = ims.parseDateInput(sender.value);
     if (date === undefined) {
         ims.controlHasError(sender);
         return;
@@ -1339,7 +1299,7 @@ async function setReleaseTime(sender: HTMLInputElement, field: ReleaseTimeField)
     }
     // Show the time back in the canonical format, so the admin can see how the
     // server understood whatever they typed.
-    sender.value = date ? formatDateForInput(date) : "";
+    sender.value = date ? ims.formatDateShort(date) : "";
     ims.controlHasSuccess(sender);
     await loadAccessControlList();
     drawAccess();

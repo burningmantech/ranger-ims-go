@@ -18,6 +18,7 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
@@ -31,21 +32,21 @@ func TestBuildIncidentUpdateNormalizesLocationAddress(t *testing.T) {
 	address := "4&esp"
 	update, logs := buildIncidentUpdate(imsdb.Incident{}, imsjson.Incident{
 		Location: imsjson.Location{Address: &address},
-	}, true)
+	}, true, time.UTC)
 	assert.Equal(t, "4:00 & Esplanade", update.LocationAddress.String)
 	assert.Contains(t, logs, "Changed location address: 4:00 & Esplanade")
 
 	freeform := "behind the porta potties"
 	update, _ = buildIncidentUpdate(imsdb.Incident{}, imsjson.Incident{
 		Location: imsjson.Location{Address: &freeform},
-	}, true)
+	}, true, time.UTC)
 	assert.Equal(t, "behind the porta potties", update.LocationAddress.String)
 
 	// An absent address leaves the stored one alone.
 	stored := imsdb.Incident{}
 	stored.LocationAddress.String = "9:00 & A"
 	stored.LocationAddress.Valid = true
-	update, logs = buildIncidentUpdate(stored, imsjson.Incident{}, true)
+	update, logs = buildIncidentUpdate(stored, imsjson.Incident{}, true, time.UTC)
 	assert.Equal(t, "9:00 & A", update.LocationAddress.String)
 	assert.Empty(t, logs)
 }
@@ -56,7 +57,7 @@ func TestBuildVisitUpdateNormalizesGuestCampAddress(t *testing.T) {
 	address := "e+7"
 	update, logs, errHTTP := buildVisitUpdate(imsdb.Visit{}, imsjson.Visit{
 		GuestCampAddress: &address,
-	}, true)
+	}, true, time.UTC)
 	require.Nil(t, errHTTP)
 	assert.Equal(t, "E & 7:00", update.GuestCampAddress.String)
 	assert.Contains(t, logs, "Changed GuestCampAddress: E & 7:00")
@@ -68,15 +69,31 @@ func TestBuildUpdatesLeaveAddressesAloneWhenTheEventDoesNotNormalize(t *testing.
 	address := "4&esp"
 	incidentUpdate, logs := buildIncidentUpdate(imsdb.Incident{}, imsjson.Incident{
 		Location: imsjson.Location{Address: &address},
-	}, false)
+	}, false, time.UTC)
 	assert.Equal(t, "4&esp", incidentUpdate.LocationAddress.String)
 	assert.Contains(t, logs, "Changed location address: 4&esp")
 
 	campAddress := "e+7"
 	visitUpdate, logs, errHTTP := buildVisitUpdate(imsdb.Visit{}, imsjson.Visit{
 		GuestCampAddress: &campAddress,
-	}, false)
+	}, false, time.UTC)
 	require.Nil(t, errHTTP)
 	assert.Equal(t, "e+7", visitUpdate.GuestCampAddress.String)
 	assert.Contains(t, logs, "Changed GuestCampAddress: e+7")
+}
+
+func TestTimeChangeLogsUseTheTimeZone(t *testing.T) {
+	t.Parallel()
+
+	la, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+
+	started := time.Date(2026, 8, 30, 16, 5, 0, 0, time.UTC)
+	_, logs := buildIncidentUpdate(imsdb.Incident{}, imsjson.Incident{Started: started}, false, la)
+	assert.Contains(t, logs, "Changed start time: 2026-08-30 09:05:00 PDT")
+
+	arrival := time.Date(2026, 1, 15, 20, 0, 0, 0, time.UTC)
+	_, logs, errHTTP := buildVisitUpdate(imsdb.Visit{}, imsjson.Visit{ArrivalTime: &arrival}, false, la)
+	require.Nil(t, errHTTP)
+	assert.Contains(t, logs, "Changed ArrivalTime: 2026-01-15 12:00:00 PST")
 }

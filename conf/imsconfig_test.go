@@ -66,6 +66,21 @@ func TestValidateBase(t *testing.T) {
 	require.Error(t, cfg.Validate())
 }
 
+func TestValidateTimeZone(t *testing.T) {
+	t.Parallel()
+
+	cfg := conf.DefaultIMS()
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, "America/Los_Angeles", cfg.Core.Location().String())
+
+	cfg.Core.TimeZone = "Europe/Berlin"
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, "Europe/Berlin", cfg.Core.Location().String())
+
+	cfg.Core.TimeZone = "Black_Rock/City"
+	require.Error(t, cfg.Validate())
+}
+
 func TestValidateLongTokens(t *testing.T) {
 	t.Parallel()
 

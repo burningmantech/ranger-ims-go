@@ -701,12 +701,7 @@ export function showDays(daysBackToShow: number|string, replaceState: boolean): 
     if (daysBackToShow === "all") {
         _showModifiedAfter = null;
     } else {
-        const after = new Date();
-        after.setHours(0);
-        after.setMinutes(0);
-        after.setSeconds(0);
-        after.setDate(after.getDate()-Number(daysBackToShow));
-        _showModifiedAfter = after;
+        _showModifiedAfter = ims.startOfDay(Number(daysBackToShow));
     }
 
     if (replaceState) {

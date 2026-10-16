@@ -23,6 +23,7 @@ templ Head(title string, module string, usesDataTables bool, cacheVersion string
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="ims-time-zone" content={ timeZone(ctx) } />
     @importMap(cacheVersion)
     <link rel="apple-touch-icon" sizes="180x180" href="/ims/static/logos/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/ims/static/logos/favicon-32x32.png">

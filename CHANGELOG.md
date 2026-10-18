@@ -17,16 +17,34 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/commit/ea01f62
+https://github.com/burningmantech/ranger-ims-go/commit/67fc7da
 -->
 
 ## 2026-10
 
 ### Changed
 
-- Every date and time in the web UI is now shown and edited in IMS's time zone, set by the new `IMS_TIME_ZONE` (default `America/Los_Angeles`), rather than the time zone of each viewer's device. System entries recording a changed start, arrival, or departure time use that zone too, instead of UTC.
+- Every date and time in the web UI is now shown and edited in IMS's time zone, set by the new `IMS_TIME_ZONE` (default `America/Los_Angeles`), rather than the time zone of each viewer's device. System entries recording a changed start, arrival, or departure time use that zone too, instead of UTC. https://github.com/burningmantech/ranger-ims-go/commit/67fc7da
+- Replaced the top bar's color scheme dropdown with a single button that toggles between the light and dark themes, and dropped the Auto option from the color scheme controls. IMS follows the device's light/dark setting until an explicit Light or Dark choice is made. https://github.com/burningmantech/ranger-ims-go/commit/420a98b
+- Stopped sending report entries in the event-wide Incidents, Field Reports, and Visits lists, so that reading a record's contents takes a request for that one record, which the Action Log records. The lists are also much smaller by the end of an event. The Incidents and Field Reports pages' searches now run on the server, with the same syntax as before. https://github.com/burningmantech/ranger-ims-go/commit/0cb5236
+- Made the "Go to…" box available on every page, not just event pages, with a picker for which event to go to. Leaving the number empty goes to that event's list instead. The box was also restyled. https://github.com/burningmantech/ranger-ims-go/commit/da38787 https://github.com/burningmantech/ranger-ims-go/commit/a0a3f97 https://github.com/burningmantech/ranger-ims-go/commit/ba57908
+- Replaced Bootstrap's JavaScript with native popovers for dropdowns and `<details>` elements for accordions, so `bootstrap.bundle.min.js` is no longer loaded. https://github.com/burningmantech/ranger-ims-go/commit/4861ea1
+- Added a strict Content-Security-Policy to IMS's web pages, which run scripts only from IMS's own files. Templates no longer carry inline event handlers. https://github.com/burningmantech/ranger-ims-go/commit/ccd2a2b
+- Replaced `IMS_DMS_HOSTNAME` (a `host:port` string) with separate `IMS_DMS_HOST_NAME` and `IMS_DMS_HOST_PORT` settings, consistent with the IMS database's settings. https://github.com/burningmantech/ranger-ims-go/commit/a09f2d4
+- Capped search queries, both on the Search page and the list pages, at 256 characters. https://github.com/burningmantech/ranger-ims-go/commit/d03b36f
+- Reduced database lock contention and deadlocks under concurrent edits: the active event moved out of the `EVENT` table, Ranger roster tables are now keyed by event, number, and handle, roster writes lock the parent record first, striking a report entry updates a single row, and the list queries got lighter. Event deletion and setting the active event now retry on conflicts. https://github.com/burningmantech/ranger-ims-go/commit/4d9449a https://github.com/burningmantech/ranger-ims-go/commit/deda08e https://github.com/burningmantech/ranger-ims-go/commit/9f96c82 https://github.com/burningmantech/ranger-ims-go/commit/943dc27 https://github.com/burningmantech/ranger-ims-go/commit/c457884 https://github.com/burningmantech/ranger-ims-go/commit/0b47ced https://github.com/burningmantech/ranger-ims-go/commit/7b1a1b3
+- Raised the long-lived `Cache-Control` max age for static files from 2 hours to 8. https://github.com/burningmantech/ranger-ims-go/commit/7e34672
 
-- Replaced the top bar's color scheme dropdown with a single button that toggles between the light and dark themes, and dropped the Auto option from the color scheme controls. IMS follows the device's light/dark setting until an explicit Light or Dark choice is made.
+### Added
+
+- Added the ability to mark one event as active, from the Admin Events page's Edit Event dialog. The home page links to the active event, rather than to a hardcoded year. https://github.com/burningmantech/ranger-ims-go/commit/f23dd15
+- Added Event and type filter menus to the Search page, which is now called "Search Everywhere". https://github.com/burningmantech/ranger-ims-go/pull/850
+- Added support for MariaDB 13.0, while remaining compatible with 10.5. https://github.com/burningmantech/ranger-ims-go/commit/1ec0b21
+- Started showing the database schema version on the admin Debug page. https://github.com/burningmantech/ranger-ims-go/commit/c2b2bc1
+
+### Fixed
+
+- Fixed dates in list tables wrapping onto a third line. https://github.com/burningmantech/ranger-ims-go/commit/851b892
 
 ## 2026-09
 
@@ -39,10 +57,13 @@ https://github.com/burningmantech/ranger-ims-go/commit/ea01f62
 - Replaced the browser's built-in alert and confirm popups, and the Bootstrap modals, with native `<dialog>` elements styled to match the rest of IMS. https://github.com/burningmantech/ranger-ims-go/commit/2d6eb00 https://github.com/burningmantech/ranger-ims-go/commit/11db12f
 - Started showing keyboard shortcuts as keycaps, on the Help page and in each page's shortcut list. On a Mac, `⌘`+`Enter` now adds an entry, as `Ctrl`+`Enter` does elsewhere. https://github.com/burningmantech/ranger-ims-go/commit/a8cf59d
 - Made the Incident page load its data concurrently, as it was always meant to, rather than one request after another. https://github.com/burningmantech/ranger-ims-go/commit/e441841
+- Set the Clubhouse database's connection pool to 20 connections by default, matching the IMS database's. https://github.com/burningmantech/ranger-ims-go/commit/3f58a0c
 
 ### Added
 
-- Added `IMS_LONG_TOKEN_USERS` and `IMS_LONG_TOKEN_LIFETIME`, which give the listed handles a longer login than `IMS_TOKEN_LIFETIME`, so that an account signed into an event dashboard can stay logged in for the whole event.
+- Added `IMS_LONG_TOKEN_USERS` and `IMS_LONG_TOKEN_LIFETIME`, which give the listed handles a longer login than `IMS_TOKEN_LIFETIME`, so that an account signed into an event dashboard can stay logged in for the whole event. https://github.com/burningmantech/ranger-ims-go/commit/4a19bd7
+- Added a help dialog, opened with `?`, to every page, listing that page's keyboard shortcuts. https://github.com/burningmantech/ranger-ims-go/commit/148745b
+- Made the Incidents page's Type filter menu searchable: typing narrows the list of types, and "Select/Deselect Matching" toggles just those. https://github.com/burningmantech/ranger-ims-go/commit/c377373
 - Added an "On Hold" filter option to the Incidents page, which can also be picked as the default on the Settings page. https://github.com/burningmantech/ranger-ims-go/commit/fe6206b
 - Made URLs in report entries clickable. IMS pages now send `Referrer-Policy: same-origin`, so following such a link doesn't leak IMS paths to the other site. https://github.com/burningmantech/ranger-ims-go/commit/21c0d18
 - Started recording the mutation itself in the Action Log, as the API JSON the requestor sent, and showing it in an expandable row on the Action Logs admin page. Logins and attachment uploads are recorded without their bodies, as are bulk Places updates; passwords are redacted and an oversized body is truncated. The page also gained a filter on the page the request came from. https://github.com/burningmantech/ranger-ims-go/pull/826
@@ -58,6 +79,7 @@ https://github.com/burningmantech/ranger-ims-go/commit/ea01f62
 
 - Improved the error message for a user whose stored password still uses the old SHA-1 format. https://github.com/burningmantech/ranger-ims-go/commit/6dc9e89
 - Improved the error message shown when a user's session has ended. https://github.com/burningmantech/ranger-ims-go/commit/c7467c5
+- Fixed single-key shortcuts being ignored while focus was on a link or other non-text element. They're now blocked only in fields that take typed characters. https://github.com/burningmantech/ranger-ims-go/commit/e3f51dd
 - Fixed seeding the docker-compose dev stack on macOS, where MariaDB's case-insensitive table name handling left the `INCIDENT__RANGER` table unreachable after its index was created. https://github.com/burningmantech/ranger-ims-go/commit/6f163fe
 - Fixed the Field Report page not refreshing when someone else edited the Field Report. https://github.com/burningmantech/ranger-ims-go/commit/1681118
 - Fixed the Incident page showing an error when an attached Field Report or Visit was one the user isn't allowed to read, and a lack of access to Visits clearing the Incident page's Field Report list instead. https://github.com/burningmantech/ranger-ims-go/commit/1681118

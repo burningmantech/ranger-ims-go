@@ -434,7 +434,7 @@ test("incidents", async ({ page, browser, authState, events }) => {
     const reportEntry = `This is some text - ${randomName("text")}`;
     {
       await incidentPage.getByLabel("New report entry text").fill(reportEntry);
-      await incidentPage.getByLabel("Submit report entry").click();
+      await incidentPage.getByRole("button", { name: "Add Entry" }).click();
       await expect(incidentPage.getByText(reportEntry)).toBeVisible();
     }
     // strike the entry, verified it's stricken
@@ -613,7 +613,7 @@ test("field_reports", async ({ page, browser, authState, events }) => {
         // The save can transiently fail when the dev server is busy, leaving
         // the entry text in place; retry the submit until it's accepted.
         await expect(async (): Promise<void> => {
-          await frPage.getByLabel("Submit report entry").click();
+          await frPage.getByRole("button", { name: "Add Entry" }).click();
           await expect(frPage.getByLabel("New report entry text")).toBeEmpty({timeout: 3000});
         }).toPass();
         await expect(frPage.getByText(reportEntry)).toBeVisible();
@@ -775,7 +775,7 @@ test("sanctuary_visits", async ({ browser, authState, events }) => {
       // The save can transiently fail when the dev server is busy, leaving
       // the entry text in place; retry the submit until it's accepted.
       await expect(async (): Promise<void> => {
-        await visitPage.getByLabel("Submit report entry").click();
+        await visitPage.getByRole("button", { name: "Add Entry" }).click();
         await expect(visitPage.getByLabel("New report entry text")).toBeEmpty({timeout: 3000});
       }).toPass();
       await expect(visitPage.getByText(reportEntry)).toBeVisible();

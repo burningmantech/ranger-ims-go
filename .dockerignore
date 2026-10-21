@@ -32,3 +32,6 @@ playwright/test-results
 playwright/playwright-report
 playwright/blob-report
 playwright/playwright/.cache
+
+# build output of the Rust port
+rust/target

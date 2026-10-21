@@ -1,0 +1,50 @@
+{#
+ # Generated from web/template/admindebug.templ by rust/tools/templ2askama.py.
+ # Edit the .templ file and rerun that script, rather than editing this.
+ #}
+{% import "components.html" as c %}
+<!DOCTYPE html>
+<html lang="en">
+{% call c::head("Debugging Details", "admin_debug.js", false, version_ref) %}
+
+<body>
+<div class="container-fluid">
+{% call c::header(deployment) %}
+{% call c::nav("") %}
+<main id="main" tabindex="-1">
+<h1 id="doc-title">Server Debugging Details</h1>
+
+{% call c::error_info() %}
+
+<h2 class="h4">Server Info</h2>
+<p><button id="show-build-info" onclick="fetchBuildInfo()" class="btn btn-sm btn-default btn-primary">Fetch Server Info</button></p>
+<div id="build-info-div" style="display:none;">
+  <p id="build-info-p"></p>
+  <pre id="build-info"></pre>
+</div>
+
+<h2 class="h4">Server Configuration</h2>
+<p><button id="show-config" onclick="fetchConfig()" class="btn btn-sm btn-default btn-primary">Fetch Server Configuration</button></p>
+<div id="config-div" style="display:none;">
+  <p id="config-p">Secrets are redacted.</p>
+  <pre id="config"></pre>
+</div>
+
+<h2 class="h4">Garbage Collection</h2>
+<p><button id="perform-gc" onclick="performGC()" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
+<div id="gc-div" style="display:none;">
+  <pre id="gc"></pre>
+</div>
+
+<h2 class="h4">Runtime Metrics</h2>
+<p><button id="show-metrics" onclick="fetchRuntimeMetrics()" class="btn btn-sm btn-default btn-primary">Fetch Runtime Metrics</button></p>
+<div id="runtime-metrics-div" style="display:none;">
+  <p id="runtime-metrics-p"><a href="https://pkg.go.dev/runtime/metrics#hdr-Supported_metrics">See the metric definitions here</a></p>
+  <pre id="runtime-metrics"></pre>
+</div>
+
+</main>
+{% call c::footer(version_name, version_ref) %}
+</div>
+</body>
+</html>

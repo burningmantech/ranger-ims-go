@@ -1,0 +1,60 @@
+{#
+ # Generated from web/template/adminroot.templ by rust/tools/templ2askama.py.
+ # Edit the .templ file and rerun that script, rather than editing this.
+ #}
+{% import "components.html" as c %}
+<!DOCTYPE html>
+<html lang="en">
+{% call c::head("Administration Tools", "admin_root.js", false, version_ref) %}
+
+<body>
+<div class="container-fluid">
+{% call c::header(deployment) %}
+{% call c::nav("") %}
+<main id="main" tabindex="-1">
+<h1 id="doc-title">Administration Tools</h1>
+
+{% call c::error_info() %}
+
+  <ul>
+    <li>
+      <a href="/ims/app/admin/actionlogs">
+        Action Logs
+      </a>
+    </li>
+    <li>
+      <a href="/ims/app/admin/errorlogs">
+        Error Logs
+      </a>
+    </li>
+    <li>
+      <a href="/ims/app/admin/types">
+        Incident Types
+      </a>
+    </li>
+    <li>
+      <a href="/ims/app/admin/events">
+        Events and Permissions
+      </a>
+    </li>
+    <li>
+      <a href="/ims/app/admin/places">
+        Event Places
+      </a>
+    </li>
+    <li>
+      <a href="/ims/app/admin/directory">
+        User Directory
+      </a> - only for deployments that use the IMS-native directory
+    </li>
+    <li>
+      <a href="/ims/app/admin/debug">
+        Server Debugging Details
+      </a>
+    </li>
+  </ul>
+</main>
+{% call c::footer(version_name, version_ref) %}
+</div>
+</body>
+</html>

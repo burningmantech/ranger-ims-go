@@ -61,7 +61,12 @@ func TestGetErrorLog(t *testing.T) {
 	assert.Equal(t, userAdminHandle, foundLog.UserName)
 	assert.Equal(t, "The server malfunctioned", foundLog.ResponseMessage)
 	assert.Contains(t, foundLog.InternalError, "this handler always panics")
-	assert.Contains(t, foundLog.StackTrace, "goroutine")
+	if rustTarget() {
+		// A Rust backtrace has no goroutines to mention.
+		assert.NotEmpty(t, foundLog.StackTrace)
+	} else {
+		assert.Contains(t, foundLog.StackTrace, "goroutine")
+	}
 }
 
 // A 4xx is the client's problem, not the server's, so it stays out of the

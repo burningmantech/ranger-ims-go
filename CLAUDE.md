@@ -333,6 +333,16 @@ parameter, storing their query parameters as JSON in that column. Logins, attach
 bulk Places updates stay at `LogMetadata`, since their bodies are secret or enormous; captured
 bodies have passwords redacted and are truncated past 16KiB (`api/actionlogbody.go`).
 
+## Rust Port
+
+`rust/` holds an experimental Rust port of the whole server (`rust/README.md` has the details).
+It shares the SQL, schemas, migrations, and `web/static` with the Go tree. Its Askama templates are
+generated from `web/template/*.templ` by `rust/tools/templ2askama.py`, so after changing a `.templ`
+file, rerun that script. `make rust/test` runs its own tests. `make rust/test/parity` runs the Go API
+integration suite against the Rust binary (`IMS_TEST_TARGET=rust`, see
+`api/integration/rusttarget_test.go`). A behavior change to the Go server needs the same change in
+the Rust port, or the parity run will fail.
+
 ## Key Differences from Python Version
 
 - No SQLite support (MariaDB only for persistent storage)

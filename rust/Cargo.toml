@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["ims"]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+
+# Argon2 hashing is painfully slow unoptimized, and the directory endpoints
+# hash with 64 MiB params, so these stay optimized even in debug builds.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

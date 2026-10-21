@@ -603,7 +603,7 @@ func subscribeToEventSource(ctx context.Context, t *testing.T, srv testServer, j
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	// #nosec G704 // SSRF via taint analysis. We control the URLs.
-	resp, err := srv.server.Client().Do(req)
+	resp, err := srv.rawClient().Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	t.Cleanup(func() { _ = resp.Body.Close() })

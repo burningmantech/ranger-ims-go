@@ -1,0 +1,71 @@
+# The Rust port of the server (see rust/), with its own seeded databases, for
+# trying it out locally beside the Go dev stack. It serves on :8081 so as not
+# to collide with `make compose/live`.
+#
+#   make rust/compose
+
+services:
+  ims-rust:
+    build:
+      context: .
+      dockerfile: rust/Dockerfile
+    image: "ranger-ims-rust"
+    container_name: "ranger-ims-rust"
+    environment:
+      IMS_HOSTNAME: "0.0.0.0"
+      IMS_PORT: "8080"
+      IMS_DEPLOYMENT: "dev"
+      IMS_DB_HOST_NAME: "ims-rust-db"
+      IMS_DB_HOST_PORT: "3306"
+      IMS_DB_DATABASE: "ims"
+      IMS_DB_USER_NAME: "ims"
+      IMS_DB_PASSWORD: "ims"
+      IMS_DIRECTORY: "clubhousedb"
+      IMS_DMS_HOSTNAME: "ims-rust-clubhouse-db:3306"
+      IMS_DMS_DATABASE: "rangers"
+      IMS_DMS_USERNAME: "clubhouseuser"
+      IMS_DMS_PASSWORD: "clubhousepassword"
+      IMS_ADMINS: "${IMS_ADMINS:-Hardware}"
+      IMS_EVENT_DELETION_ENABLED: "true"
+      IMS_INSECURE_COOKIES: "true"
+    ports:
+      - "127.0.0.1:${IMS_RUST_HOST_PORT:-8081}:8080"
+    depends_on:
+      ims-rust-db:
+        condition: service_healthy
+      ims-rust-clubhouse-db:
+        condition: service_healthy
+
+  ims-rust-db:
+    image: "mariadb:10.5.29"
+    container_name: "ranger-ims-rust-db"
+    environment:
+      MARIADB_DATABASE: "ims"
+      MARIADB_USER: "ims"
+      MARIADB_PASSWORD: "ims"
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    volumes:
+      - ./store/schema/current.sql:/docker-entrypoint-initdb.d/1.schema.sql
+      - ./store/fakeimsdb/seed.sql:/docker-entrypoint-initdb.d/2.seed.sql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  ims-rust-clubhouse-db:
+    image: "mariadb:10.5.29"
+    container_name: "ranger-ims-rust-clubhouse-db"
+    environment:
+      MARIADB_DATABASE: "rangers"
+      MARIADB_USER: "clubhouseuser"
+      MARIADB_PASSWORD: "clubhousepassword"
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    volumes:
+      - ./directory/schema/current.sql:/docker-entrypoint-initdb.d/1.schema.sql
+      - ./directory/fakeclubhousedb/seed.sql:/docker-entrypoint-initdb.d/2.seed.sql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10

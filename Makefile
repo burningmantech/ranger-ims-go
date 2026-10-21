@@ -76,6 +76,32 @@ endef
 	cp .env.quickstart.example .env.quickstart
 	$(fill-secrets)
 
+## rust/build: build the experimental Rust port of the server (see rust/)
+.PHONY: rust/build
+rust/build:
+	cargo build --manifest-path rust/Cargo.toml
+
+## rust/test: run the Rust port's own tests
+.PHONY: rust/test
+rust/test:
+	cargo test --manifest-path rust/Cargo.toml
+
+## rust/test/parity: run the Go API integration suite against the Rust port
+## (requires Docker)
+.PHONY: rust/test/parity
+rust/test/parity: rust/build
+	IMS_TEST_TARGET=rust IMS_RUST_BIN=$(CURDIR)/rust/target/debug/ims go test ./api/integration
+
+## rust/compose: run the Rust port with its own seeded databases on :8081
+.PHONY: rust/compose
+rust/compose:
+	docker compose -f docker-compose.rust.yml up --build
+
+## rust/run: run the Rust port of the server, configured from ./.env like `run`
+.PHONY: rust/run
+rust/run: rust/build
+	./rust/target/debug/ims serve
+
 ## compose/build: build the stack for live reloading
 .PHONY: compose/build
 compose/build: .env.dev

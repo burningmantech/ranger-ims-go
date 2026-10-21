@@ -62,3 +62,6 @@ air_tmp
 /web/template/*_templ.go
 /web/static/*.js
 /web/static/ext
+
+# build output of the Rust port (see rust/)
+/rust/target

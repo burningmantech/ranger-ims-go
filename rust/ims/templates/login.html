@@ -1,0 +1,58 @@
+{#
+ # Generated from web/template/login.templ by rust/tools/templ2askama.py.
+ # Edit the .templ file and rerun that script, rather than editing this.
+ #}
+{% import "components.html" as c %}
+<!DOCTYPE html>
+<html lang="en">
+{% call c::head("Log In | IMS", "login.js", false, version_ref) %}
+
+<body>
+<div class="container-fluid">
+{% call c::header(deployment) %}
+{% call c::nav("") %}
+<main id="main" tabindex="-1">
+<h1 id="doc-title">Incident Management System</h1>
+
+{% call c::error_info() %}
+
+<form method="POST" id="login_form" class="form-horizontal">
+
+<div id="auth_fail_message" role="alert" class="alert alert-danger if-authentication-failed hidden">Authentication Failed</div>
+<div role="status" class="alert alert-secondary if-logged-in hidden">You are already logged in as <span
+        class="logged-in-user"></span></div>
+
+<p>
+  Please log in with your Ranger Secret Clubhouse credentials.
+</p>
+
+{% call c::credentials_notice(deployment) %}
+
+<div class="form-floating mb-3">
+  <input id="username_input" type="text" name="username" inputmode="latin-name"
+         class="form-control fs-6"
+         autocomplete="username" placeholder="name@example.com"/>
+  <label for="username_input">Email address</label>
+</div>
+
+<div class="input-group mb-3">
+  <div class="form-floating">
+    <input id="password_input" type="password" name="password" inputmode="text"
+           class="form-control fs-6"
+           autocomplete="current-password" placeholder="Password"/>
+    <label for="password_input">Password</label>
+  </div>
+  <button class="btn btn-outline-secondary" type="button" id="password_show_hide" onclick="toggleShowPassword()">Show</button>
+</div>
+
+<div class="d-flex justify-content-between mb-3">
+  <button type="submit" class="btn btn-primary">Submit</button>
+{% call c::password_reset_link(deployment) %}
+</div>
+
+</form>
+</main>
+{% call c::footer(version_name, version_ref) %}
+</div>
+</body>
+</html>

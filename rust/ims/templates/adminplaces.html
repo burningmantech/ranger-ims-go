@@ -1,0 +1,61 @@
+{#
+ # Generated from web/template/adminplaces.templ by rust/tools/templ2askama.py.
+ # Edit the .templ file and rerun that script, rather than editing this.
+ #}
+{% import "components.html" as c %}
+<!DOCTYPE html>
+<html lang="en">
+{% call c::head("Places", "admin_places.js", false, version_ref) %}
+
+<body>
+<div class="container-fluid">
+{% call c::header(deployment) %}
+{% call c::nav("") %}
+<main id="main" tabindex="-1">
+<h1 id="doc-title">Event Places</h1>
+
+{% call c::error_info() %}
+
+<form id="place-form">
+  <div class="mb-3">
+    <label for="event-name" class="form-label">Event name</label>
+    <select id="event-name" class="form-control form-select" onchange="loadPlaces();">
+      <option value="" selected>Select an event&hellip;</option>
+    </select>
+  </div>
+  <h2 class="h5">Art data</h2>
+  <div class="mb-3">
+    <label id="art-data-label" for="art-data" class="form-label">Art JSON Data</label>
+    <textarea id="art-data" type="text" class="form-control font-monospace" aria-describedby="art-help" rows="12"></textarea>
+    <div id="art-help" class="form-text">Paste in the full API response from the Burning Man v2 art endpoint.</div>
+{% call c::place_buttons("art", "Save art data", "Set art from API") %}
+  </div>
+  <h2 class="h5">Camp data</h2>
+    <div class="mb-3">
+      <label id="camp-data-label" for="camp-data" class="form-label">Camp JSON Data</label>
+      <textarea id="camp-data" type="text" class="form-control font-monospace" aria-describedby="camp-help" rows="12"></textarea>
+      <div id="camp-help" class="form-text">Paste in the full API response from the Burning Man v2 camp endpoint.</div>
+{% call c::place_buttons("camp", "Save camp data", "Set camps from API") %}
+    </div>
+  <h2 class="h5">Mutant vehicle data</h2>
+    <div class="mb-3">
+      <label id="mv-data-label" for="mv-data" class="form-label">Mutant vehicle JSON Data</label>
+      <textarea id="mv-data" type="text" class="form-control font-monospace" aria-describedby="mv-help" rows="12"></textarea>
+      <div id="mv-help" class="form-text">Paste in the full API response from the Burning Man v2 mv endpoint.</div>
+{% call c::place_buttons("mv", "Save mutant vehicle data", "Set mutant vehicles from API") %}
+    </div>
+  <h2 class="h5">Other data</h2>
+    <div class="mb-3">
+      <label id="other-data-label" for="other-data" class="form-label">Other JSON Data</label>
+      <textarea id="other-data" type="text" class="form-control font-monospace" aria-describedby="other-help" rows="12"></textarea>
+      <div id="other-help" class="form-text">Write in any Places that aren't in the Burning Man art or camp API responses.
+            This must be in the form of a JSON array. The only required fields are 'name' and 'location_string'.</div>
+      <button id="other-save" type="button" class="btn btn-primary mt-2">Save other data</button>
+    </div>
+</form>
+
+</main>
+{% call c::footer(version_name, version_ref) %}
+</div>
+</body>
+</html>

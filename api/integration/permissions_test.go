@@ -353,7 +353,7 @@ func TestEventSource_RequiresAuthn(t *testing.T) {
 	require.NoError(t, err)
 	req.AddCookie(tokenCookie(token))
 	// #nosec G704 // SSRF via taint analysis.
-	resp, err = srv.server.Client().Do(req)
+	resp, err = srv.rawClient().Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 

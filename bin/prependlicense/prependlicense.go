@@ -60,13 +60,14 @@ func main() {
 	must(err)
 
 	must(fs.WalkDir(repo.FS(), ".", func(path string, d fs.DirEntry, err error) error {
-		if d.IsDir() && d.Name() == "node_modules" {
+		if d.IsDir() && (d.Name() == "node_modules" || path == "rust/target") {
 			return fs.SkipDir
 		}
-		// conveniently, all of .go, .templ, and .ts support double slashed comments
+		// conveniently, all of .go, .templ, .ts, and .rs support double slashed comments
 		relevantType := strings.HasSuffix(d.Name(), ".go") ||
 			strings.HasSuffix(d.Name(), ".templ") ||
-			strings.HasSuffix(d.Name(), ".ts")
+			strings.HasSuffix(d.Name(), ".ts") ||
+			strings.HasSuffix(d.Name(), ".rs")
 		if !d.IsDir() && relevantType {
 			if needsLicense(repo, path) {
 				addLicense(repo, path)

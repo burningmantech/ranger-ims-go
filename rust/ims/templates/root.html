@@ -1,0 +1,60 @@
+{#
+ # Generated from web/template/root.templ by rust/tools/templ2askama.py.
+ # Edit the .templ file and rerun that script, rather than editing this.
+ #}
+{% import "components.html" as c %}
+<!DOCTYPE html>
+<html lang="en">
+{% call c::head("Home | IMS", "root.js", false, version_ref) %}
+
+<body>
+<div class="container-fluid">
+{% call c::header(deployment) %}
+{% call c::nav("") %}
+<main id="main" tabindex="-1">
+<h1 id="doc-title">Incident Management System</h1>
+
+{% call c::error_info() %}
+
+<p class="mt-3 if-logged-in hidden">
+  <a id="current-year-link" href="/ims/app/events/2026/incidents">Jump to the 2026 event</a> or select another event from the dropdown above.
+</p>
+
+<div class="mt-3 if-logged-in hidden">
+  <p>Summary of what's new in 2026:</p>
+  <ul>
+    <li>New <a href="/ims/app/events/2026/places">Places page</a> has camp/art/mutant vehicle info plus a detailed city map</li>
+    <li>Place details autopopulate Incident locations</li>
+    <li>New <a href="/ims/app/search">Search Anywhere page</a> lets you search all events at once</li>
+    <li>Ranger roles on Incidents show how each Ranger was involved</li>
+    <li>Link related Incidents together, even across years</li>
+    <li>Track Sanctuary Visits in IMS and attach them to Incidents</li>
+    <li>There's a comprehensive new <a href="/ims/app/help">IMS help page</a></li>
+  </ul>
+</div>
+
+<div class="btn-group mb-3" role="group">
+  <a
+     id="login-button"
+     href="/ims/auth/login"
+     role="button"
+     class="btn btn-md btn-default btn-primary if-not-logged-in hidden"
+  >
+    Log In
+  </a>
+</div>
+
+<div class="btn-group mb-3" role="group">
+  <a
+     href="/ims/auth/logout"
+     role="button"
+     class="btn btn-md btn-default btn-danger if-logged-in hidden"
+  >
+    Log Out
+  </a>
+</div>
+</main>
+{% call c::footer(version_name, version_ref) %}
+</div>
+</body>
+</html>

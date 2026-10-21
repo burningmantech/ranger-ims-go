@@ -255,6 +255,9 @@ func newCustomServer(
 	t *testing.T, cfg *conf.IMSConfig, imsDBQ *store.DBQ, userStore *directory.UserStore,
 ) testServer {
 	t.Helper()
+	if rustTarget() {
+		return newRustServer(t, cfg, imsDBQ, userStore)
+	}
 	bmAPI := httptest.NewTestServer(t, http.HandlerFunc(fakeBMAPI))
 	mux := api.AddToMux(
 		nil, api.NewEventSourcerer(), cfg, imsDBQ, userStore, nil,
@@ -278,6 +281,14 @@ func newCustomServer(
 	serverURL, err := url.Parse(server.URL)
 	require.NoError(t, err)
 	return testServer{t: t, server: server, url: serverURL, client: &client}
+}
+
+// rawClient is a client with no request timeout, for long-lived streams.
+func (s testServer) rawClient() *http.Client {
+	if s.server == nil {
+		return &http.Client{}
+	}
+	return s.server.Client()
 }
 
 // unauthed returns a helper that sends no Authorization header.

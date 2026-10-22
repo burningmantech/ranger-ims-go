@@ -214,7 +214,7 @@ func AddToMux(
 	// a stream outlives the token that opened it.
 	authed("GET /ims/api/eventsource", es.Server.Handler(EventSourceChannel), LogNothing)
 
-	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins}, LogMetadata)
+	authed("GET /ims/api/debug/buildinfo", GetBuildInfo{db, userStore, cfg.Core.Admins, cfg.Core.Location()}, LogMetadata)
 	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, LogMetadata)
 	authed("POST /ims/api/debug/gc", PerformGC{db, userStore, cfg.Core.Admins}, LogMetadata)
 	authed("GET /ims/api/debug/config", GetConfig{db, userStore, cfg.Core.Admins, cfg}, LogMetadata)

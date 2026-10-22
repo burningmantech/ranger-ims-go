@@ -19,11 +19,6 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"github.com/burningmantech/ranger-ims-go/conf"
-	"github.com/burningmantech/ranger-ims-go/directory"
-	"github.com/burningmantech/ranger-ims-go/lib/authz"
-	"github.com/burningmantech/ranger-ims-go/lib/herr"
-	"github.com/burningmantech/ranger-ims-go/store"
 	"log/slog"
 	"net/http"
 	"runtime"
@@ -33,6 +28,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/burningmantech/ranger-ims-go/conf"
+	"github.com/burningmantech/ranger-ims-go/directory"
+	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/herr"
+	"github.com/burningmantech/ranger-ims-go/store"
 )
 
 var serverStartTime = time.Now()
@@ -41,6 +42,7 @@ type GetBuildInfo struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
 	imsAdmins []string
+	timeZone  *time.Location
 }
 
 type GetRuntimeMetrics struct {
@@ -76,7 +78,7 @@ func (action GetBuildInfo) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		schemaVersion = strconv.Itoa(int(vers))
 	}
 	serverTimeInfo := fmt.Sprintf("Server started at: %v\nUptime: %v\nDatabase schema version: %v\n\n",
-		serverStartTime, time.Since(serverStartTime), schemaVersion)
+		serverStartTime.In(action.timeZone).Format("Mon, 2006-01-02 15:04:05 MST"), time.Since(serverStartTime).Round(time.Second), schemaVersion)
 	finalRespText := serverTimeInfo + bi.String()
 	w.Header().Set("Cache-Control", "no-cache")
 	herr.WriteOKResponse(w, finalRespText)

@@ -45,4 +45,6 @@ type SearchResult struct {
 	Snippet string `json:"snippet,omitempty"`
 	// Incident is the attached Incident number, for Field Report and Visit hits.
 	Incident *int32 `json:"incident,omitempty"`
+	// Junk hits only come back when the search asks for them.
+	Junk bool `json:"junk,omitzero"`
 }

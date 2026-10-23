@@ -785,6 +785,9 @@ func requireEqualIncident(t *testing.T, before, after imsjson.Incident) {
 	before.FieldReports, after.FieldReports = nil, nil
 	before.Visits, after.Visits = nil, nil
 	before.LinkedIncidents, after.LinkedIncidents = nil, nil
+	// A request needn't say that a record isn't junk, but a response always does.
+	require.Equal(t, before.Junk != nil && *before.Junk, after.Junk != nil && *after.Junk)
+	before.Junk, after.Junk = nil, nil
 
 	require.Equal(t, before, after)
 }

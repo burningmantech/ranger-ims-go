@@ -46,7 +46,8 @@ import (
 // substring by default, or a regular expression with regex=true — against
 // Incidents, Field Reports, and Visits in every Event the requestor is
 // permitted to read, returning a single merged result list. Repeated event=NAME
-// parameters narrow the search to just those Events.
+// parameters narrow the search to just those Events. Junk records are left out
+// unless junk=true.
 type GetSearch struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
@@ -105,6 +106,14 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 		regex, err = strconv.ParseBool(regexParam)
 		if err != nil {
 			return resp, herr.BadRequest("The 'regex' parameter must be a boolean", nil)
+		}
+	}
+
+	includeJunk := false
+	if junkParam := req.Form.Get("junk"); junkParam != "" {
+		includeJunk, err = strconv.ParseBool(junkParam)
+		if err != nil {
+			return resp, herr.BadRequest("The 'junk' parameter must be a boolean", nil)
 		}
 	}
 
@@ -228,10 +237,11 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	if searchIncidents && len(incidentEventIDs) > 0 {
 		started := time.Now()
 		rows, err := action.imsDBQ.SearchIncidents(ctx, action.imsDBQ, imsdb.SearchIncidentsParams{
-			TextLike:   textLike,
-			TextRegexp: textRegexp,
-			EventIds:   incidentEventIDs,
-			Limit:      limit,
+			TextLike:    textLike,
+			TextRegexp:  textRegexp,
+			IncludeJunk: includeJunk,
+			EventIds:    incidentEventIDs,
+			Limit:       limit,
 		})
 		incidentStat = searchQueryStat{ran: true, elapsed: time.Since(started), rows: len(rows), err: err}
 		if err != nil {
@@ -247,6 +257,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 				Summary:  row.Summary.String,
 				Snippet:  snippet(row.MatchedEntryText),
 				Incident: nil,
+				Junk:     row.Junk,
 			})
 		}
 		resp.Truncated = resp.Truncated || len(rows) == int(limit)
@@ -255,10 +266,11 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	if searchFieldReports && len(fieldReportEventIDs) > 0 {
 		started := time.Now()
 		rows, err := action.imsDBQ.SearchFieldReports(ctx, action.imsDBQ, imsdb.SearchFieldReportsParams{
-			TextLike:   textLike,
-			TextRegexp: textRegexp,
-			EventIds:   fieldReportEventIDs,
-			Limit:      limit,
+			TextLike:    textLike,
+			TextRegexp:  textRegexp,
+			IncludeJunk: includeJunk,
+			EventIds:    fieldReportEventIDs,
+			Limit:       limit,
 		})
 		fieldReportStat = searchQueryStat{ran: true, elapsed: time.Since(started), rows: len(rows), err: err}
 		if err != nil {
@@ -274,6 +286,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 				Summary:  row.Summary.String,
 				Snippet:  snippet(row.MatchedEntryText),
 				Incident: conv.SqlToInt32(row.IncidentNumber),
+				Junk:     row.Junk,
 			})
 		}
 		resp.Truncated = resp.Truncated || len(rows) == int(limit)
@@ -282,10 +295,11 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	if searchVisits && len(visitEventIDs) > 0 {
 		started := time.Now()
 		rows, err := action.imsDBQ.SearchVisits(ctx, action.imsDBQ, imsdb.SearchVisitsParams{
-			TextLike:   textLike,
-			TextRegexp: textRegexp,
-			EventIds:   visitEventIDs,
-			Limit:      limit,
+			TextLike:    textLike,
+			TextRegexp:  textRegexp,
+			IncludeJunk: includeJunk,
+			EventIds:    visitEventIDs,
+			Limit:       limit,
 		})
 		visitStat = searchQueryStat{ran: true, elapsed: time.Since(started), rows: len(rows), err: err}
 		if err != nil {
@@ -305,6 +319,7 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 				Summary:  summary,
 				Snippet:  snippet(row.MatchedEntryText),
 				Incident: conv.SqlToInt32(row.IncidentNumber),
+				Junk:     row.Junk,
 			})
 		}
 		resp.Truncated = resp.Truncated || len(rows) == int(limit)

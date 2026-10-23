@@ -1,0 +1,55 @@
+//
+// See the file COPYRIGHT for copyright information.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package template
+
+// JunkNote sits under a list page's table, saying how many junk records the
+// table hides and letting the user show them. It stays hidden while there are
+// none. See initJunkFilter in ims.ts.
+templ JunkNote() {
+<p id="junk_note" class="text-body-secondary small no-print hidden">
+  <span id="junk_note_text"></span>
+  { " · " }
+  <button id="junk_toggle" type="button" class="btn btn-link btn-sm p-0 align-baseline"></button>
+</p>
+}
+
+// JunkTitle is a record page's heading, alongside the button that marks the
+// record as junk. JunkBanner is shown once it is. See initJunkControls in ims.ts.
+templ JunkTitle(title, noun string) {
+<div class="d-flex justify-content-between align-items-center">
+  <h1 id="doc-title">{ title }</h1>
+  <button
+          id="junk_mark"
+          type="button"
+          class="btn btn-sm btn-outline-danger junk-toggle no-print hidden"
+          title={ "For when this " + noun + " was created by mistake, or duplicates another. It stays, but is hidden from lists and search." }
+  >
+    Mark as Junk
+  </button>
+</div>
+}
+
+templ JunkBanner(noun, pluralNoun string) {
+<div id="junk_banner" class="alert alert-warning d-flex flex-wrap align-items-center gap-2 py-2 hidden">
+  <span class="me-auto">
+    This { noun } is marked as junk, so it's hidden from the { pluralNoun } list and from search.
+  </span>
+  <button id="junk_unmark" type="button" class="btn btn-sm btn-outline-secondary junk-toggle no-print">
+    Not Junk
+  </button>
+</div>
+}

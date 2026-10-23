@@ -29,6 +29,7 @@ type Visit struct {
 	// Version is the optimistic-concurrency counter; see Incident.Version.
 	Version  int32  `json:"version,omitzero"`
 	Incident *int32 `json:"incident,omitzero"`
+	Junk     *bool  `json:"junk,omitempty"`
 
 	GuestPreferredName   *string `json:"guest_preferred_name,omitzero"`
 	GuestLegalName       *string `json:"guest_legal_name,omitzero"`
@@ -77,6 +78,7 @@ type VisitListItem struct {
 	Created      time.Time `json:"created,omitzero"`
 	LastModified time.Time `json:"last_modified,omitzero"`
 	Incident     *int32    `json:"incident,omitzero"`
+	Junk         bool      `json:"junk"`
 
 	GuestPreferredName *string `json:"guest_preferred_name,omitzero"`
 	// GuestLegalName is only present when the guest has no preferred name,

@@ -822,3 +822,26 @@ test("a failure to refresh an updated incident's row is shown", async (): Promis
     });
     channel.close();
 });
+
+test("junk Incidents are hidden by default, and badged when shown", async (): Promise<void> => {
+    serverIncidents[1]!.junk = true;
+    await initIncidentsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    expect(table.fixedSearch("junk", 0)).toBe(true);
+    expect(table.fixedSearch("junk", 1)).toBe(false);
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("junk_note_text")!.textContent).toBe("1 junk Incident hidden");
+    });
+    document.getElementById("junk_toggle")!.click();
+    expect(table.fixedSearch("junk", 1)).toBe(true);
+    expect(window.location.hash).toContain("junk=show");
+
+    const render = renderColumn("incident_summary");
+    expect(render(null, "display", serverIncidents[0]!)).toBe("Dust storm");
+    expect(render(null, "display", serverIncidents[1]!)).toContain(">Junk</span>Lost shoe");
+});

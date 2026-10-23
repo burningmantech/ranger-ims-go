@@ -353,3 +353,27 @@ test("a search in the URL fragment is run when the page loads", async (): Promis
     expect((document.getElementById("search_input") as HTMLInputElement).value).toBe("wallet");
     expect(MockDataTable.lastInstance!.lastSearch![0]).toBe("wallet");
 });
+
+test("junk Visits are hidden by default, and badged when shown", async (): Promise<void> => {
+    serverVisits[0]!.junk = true;
+    await initVisitsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    expect(table.fixedSearch("junk", 0)).toBe(false);
+    expect(table.fixedSearch("junk", 1)).toBe(true);
+
+    await vi.waitFor((): void => {
+        expect(document.getElementById("junk_note_text")!.textContent).toBe("1 junk Visit hidden");
+    });
+    document.getElementById("junk_toggle")!.click();
+    expect(table.fixedSearch("junk", 0)).toBe(true);
+    expect(table.fixedSearch("junk", 1)).toBe(true);
+    expect(window.location.hash).toContain("junk=show");
+
+    const render = renderColumn("visit_name");
+    expect((render(null, "display", serverVisits[0]!) as Node).textContent).toBe("JunkSparkle");
+    expect((render(null, "display", serverVisits[1]!) as Node).textContent).toBe("Wanderer");
+});

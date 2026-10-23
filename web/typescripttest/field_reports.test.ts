@@ -386,3 +386,76 @@ test("a search in the URL fragment is run when the page loads", async (): Promis
         expect(mock.mock.calls.some(([url]) => url === `${frUrl}?q=wallet`)).toBe(true);
     });
 });
+
+function junkNote(): {shown: boolean; text: string; toggle: HTMLButtonElement} {
+    const note = document.getElementById("junk_note")!;
+    return {
+        shown: !note.classList.contains("hidden"),
+        text: document.getElementById("junk_note_text")!.textContent ?? "",
+        toggle: document.getElementById("junk_toggle") as HTMLButtonElement,
+    };
+}
+
+test("with no junk Field Reports, there's no junk note", async (): Promise<void> => {
+    await initFieldReportsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(table.data().length).toBe(2);
+    });
+
+    expect(junkNote().shown).toBe(false);
+    expect(table.fixedSearch("junk", 0)).toBe(true);
+    expect(table.fixedSearch("junk", 1)).toBe(true);
+});
+
+test("junk Field Reports are hidden, and the note under the table shows them", async (): Promise<void> => {
+    serverFieldReports[1]!.junk = true;
+    await initFieldReportsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(junkNote().shown).toBe(true);
+    });
+
+    expect(junkNote().text).toBe("1 junk Field Report hidden");
+    expect(junkNote().toggle.textContent).toBe("Show");
+    expect(table.fixedSearch("junk", 0)).toBe(true);
+    expect(table.fixedSearch("junk", 1)).toBe(false);
+    expect(window.location.hash).not.toContain("junk");
+
+    junkNote().toggle.click();
+    expect(junkNote().text).toBe("Showing 1 junk Field Report");
+    expect(junkNote().toggle.textContent).toBe("Hide");
+    expect(table.fixedSearch("junk", 1)).toBe(true);
+    expect(window.location.hash).toContain("junk=show");
+
+    junkNote().toggle.click();
+    expect(junkNote().text).toBe("1 junk Field Report hidden");
+    expect(table.fixedSearch("junk", 1)).toBe(false);
+    expect(window.location.hash).not.toContain("junk");
+});
+
+test("the junk note counts in the plural, and starts from the URL fragment", async (): Promise<void> => {
+    serverFieldReports[0]!.junk = true;
+    serverFieldReports[1]!.junk = true;
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/field_reports#junk=show`);
+    await initFieldReportsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(junkNote().shown).toBe(true);
+    });
+
+    expect(junkNote().text).toBe("Showing 2 junk Field Reports");
+    expect(table.fixedSearch("junk", 0)).toBe(true);
+    expect(table.fixedSearch("junk", 1)).toBe(true);
+});
+
+test("a junk Field Report's summary is badged", async (): Promise<void> => {
+    serverFieldReports[1]!.junk = true;
+    await initFieldReportsPage();
+    const render = renderColumn("field_report_summary");
+
+    expect(render(null, "display", serverFieldReports[0]!)).toBe("Lost child");
+    expect(render(null, "display", serverFieldReports[1]!)).toContain(">Junk</span>Found wallet");
+    // Searching and sorting go by the summary alone.
+    expect(render(null, "filter", serverFieldReports[1]!)).toBe("Found wallet");
+});

@@ -125,6 +125,48 @@ func TestMigrateSameAsCurrentSchema(t *testing.T) {
 	}
 }
 
+func TestMigrateJunkIncidentTypeToFlag(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	_, db := newUnmigratedDB(t, ctx, rand.Text(), rand.Text(), rand.Text())
+	defer shut(db)
+	require.NoError(t, runScript(ctx, db, schema06))
+
+	// Incident 1 is Junk and Admin, incident 2 just Admin.
+	require.NoError(t, runScript(ctx, db, `
+		insert into EVENT (ID, NAME) values (1, 'JunkEvent');
+		insert into INCIDENT (EVENT, NUMBER, CREATED, PRIORITY, STATE)
+		values (1, 1, 1.0, 3, 'new'), (1, 2, 2.0, 3, 'new');
+		insert into INCIDENT__INCIDENT_TYPE (EVENT, INCIDENT_NUMBER, INCIDENT_TYPE)
+		select 1, 1, ID from INCIDENT_TYPE where NAME in ('Junk', 'Admin');
+		insert into INCIDENT__INCIDENT_TYPE (EVENT, INCIDENT_NUMBER, INCIDENT_TYPE)
+		select 1, 2, ID from INCIDENT_TYPE where NAME = 'Admin';
+	`))
+
+	require.NoError(t, store.MigrateDB(ctx, db))
+
+	var junk1, junk2 bool
+	require.NoError(t, db.QueryRowContext(ctx, `select JUNK from INCIDENT where EVENT = 1 and NUMBER = 1`).Scan(&junk1))
+	require.NoError(t, db.QueryRowContext(ctx, `select JUNK from INCIDENT where EVENT = 1 and NUMBER = 2`).Scan(&junk2))
+	assert.True(t, junk1)
+	assert.False(t, junk2)
+
+	var junkTypes int
+	require.NoError(t, db.QueryRowContext(ctx, `select count(*) from INCIDENT_TYPE where NAME = 'Junk'`).Scan(&junkTypes))
+	assert.Zero(t, junkTypes)
+
+	// Incident 1 keeps its other type.
+	var typeNames string
+	require.NoError(t, db.QueryRowContext(ctx, `
+		select group_concat(it.NAME)
+		from INCIDENT__INCIDENT_TYPE iit
+			join INCIDENT_TYPE it on it.ID = iit.INCIDENT_TYPE
+		where iit.EVENT = 1 and iit.INCIDENT_NUMBER = 1
+	`).Scan(&typeNames))
+	assert.Equal(t, "Admin", typeNames)
+}
+
 func newUnmigratedDB(t *testing.T, ctx context.Context, database, username, password string) (testcontainers.Container, *sql.DB) {
 	t.Helper()
 

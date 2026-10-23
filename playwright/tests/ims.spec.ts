@@ -351,7 +351,7 @@ test("incidents", async ({ page, browser, authState, events }) => {
       }
 
       await addType(incidentPage, "Admin");
-      await addType(incidentPage, "Junk");
+      await addType(incidentPage, "MOOP");
 
       // Removing one type leaves the other alone. Adding it back afterwards
       // must work too: the remove and the re-add are independent gestures, not
@@ -360,7 +360,7 @@ test("incidents", async ({ page, browser, authState, events }) => {
       // Assert on the row, not on its X button: that button is display:none
       // except while its row is hovered, and the cursor is wherever removeType
       // happened to leave it.
-      await expect(incidentPage.locator("#incident_types_list li", {hasText: "Junk"})).toBeVisible();
+      await expect(incidentPage.locator("#incident_types_list li", {hasText: "MOOP"})).toBeVisible();
       await addType(incidentPage, "Admin");
     }
 

@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type * as ims from "../typescript/ims.ts";
-import { jsonResponse, loadFixture, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
+import { answerDialog, jsonResponse, loadFixture, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/field_report.ts");
 
@@ -579,4 +579,47 @@ test("the Go to... modal opens on this page's Field Report type", async (): Prom
 
     expect((document.getElementById("goto-resource-field-report") as HTMLInputElement).checked).toBe(true);
     expect((document.getElementById("goto-number") as HTMLInputElement).getAttribute("aria-label")).toBe("FR#");
+});
+
+test("Mark as Junk asks first, then marks the Field Report as junk", async (): Promise<void> => {
+    const mock = await initFieldReportPage();
+    const banner = document.getElementById("junk_banner")!;
+    const markButton = document.getElementById("junk_mark")!;
+    expect(banner.classList.contains("hidden")).toBe(true);
+    expect(markButton.classList.contains("hidden")).toBe(false);
+
+    markButton.click();
+    expect(await answerDialog("cancel")).toContain("Mark this Field Report as junk?");
+    expect(postedBodies(mock, `${frUrl}/7`)).toEqual([]);
+
+    serverFieldReport.junk = true;
+    markButton.click();
+    await answerDialog("ok");
+    await vi.waitFor((): void => {
+        expect(banner.classList.contains("hidden")).toBe(false);
+    });
+    expect(postedBodies(mock, `${frUrl}/7`)).toEqual([{ junk: true, number: 7 }]);
+    expect(markButton.classList.contains("hidden")).toBe(true);
+});
+
+test("Not Junk on a junk Field Report's banner unmarks it", async (): Promise<void> => {
+    serverFieldReport.junk = true;
+    const mock = await initFieldReportPage();
+    const banner = document.getElementById("junk_banner")!;
+    expect(banner.classList.contains("hidden")).toBe(false);
+
+    serverFieldReport.junk = false;
+    document.getElementById("junk_unmark")!.click();
+    await vi.waitFor((): void => {
+        expect(banner.classList.contains("hidden")).toBe(true);
+    });
+    expect(postedBodies(mock, `${frUrl}/7`)).toEqual([{ junk: false, number: 7 }]);
+});
+
+test("a new Field Report can't be marked as junk yet", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/field_reports/new`);
+    await initFieldReportPage();
+
+    expect(document.getElementById("junk_mark")!.classList.contains("hidden")).toBe(true);
+    expect(document.getElementById("junk_banner")!.classList.contains("hidden")).toBe(true);
 });

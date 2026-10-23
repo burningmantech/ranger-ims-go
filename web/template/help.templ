@@ -61,6 +61,7 @@ templ Help(deployment, versionName, versionRef string) {
       <li><a href="#visits">Sanctuary Visits</a></li>
       <li><a href="#places">Places</a></li>
       <li><a href="#addresses">How addresses are tidied up</a></li>
+      <li><a href="#junk">Junk: records made by mistake</a></li>
       <li><a href="#searching">Searching</a></li>
       <li><a href="#saving">How saving works</a></li>
       <li><a href="#printing">Printing</a></li>
@@ -320,6 +321,23 @@ templ Help(deployment, versionName, versionRef string) {
   Anything IMS can't confidently read as an address, such as "behind the porta potties at
   center camp", is left exactly as you typed it. So write the address however is quickest. A
   real address gets cleaned up, and anything else is kept exactly as you wrote it.
+</p>
+
+<h2 id="junk" class="h4 mt-4">Junk: records made by mistake</h2>
+<p>
+  Nothing in IMS can be deleted. When an Incident, Field Report, or Visit was created by
+  mistake, or duplicates another one without adding anything to it, click
+  <strong>Mark as Junk</strong> at the top of its page instead. A junk record is kept just as
+  it was, but it's hidden from the Incidents, Field Reports, and Visits lists and from the
+  Search page, and it's left out of the choices for attaching to an Incident. If it duplicates
+  another record, add an entry saying which one before you mark it.
+</p>
+<p>
+  When a list hides any junk, a note under the table says how many; click
+  <strong>Show</strong> there to list them too, badged as junk. On the Search page, check
+  <strong>Include junk</strong>. A junk record's page says so in a banner
+  at the top, with a <strong>Not Junk</strong> button to undo the marking. Anyone who can edit
+  a record can mark it as junk or undo that, and either change shows up in the record's history.
 </p>
 
 <h2 id="searching" class="h4 mt-4">Searching</h2>

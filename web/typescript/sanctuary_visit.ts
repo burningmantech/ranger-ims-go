@@ -118,6 +118,7 @@ async function initSanctuaryVisitPage(): Promise<void> {
     ims.typedElement("departure_time_now", HTMLButtonElement).addEventListener("click", setDepartureTimeNow);
     ims.typedElement("departure_time_clear", HTMLButtonElement).addEventListener("click", clearDepartureTime);
     ims.initReportEntryControls(attachFile);
+    ims.initJunkControls("Visit", sendEdits);
 
     // load everything from the APIs concurrently
     await Promise.all([
@@ -278,6 +279,7 @@ function displayVisit(): void {
 function drawVisitFields(): void {
     drawVisitTitle("for_display");
     el.visitNumber.value = (visit?.number??"(new)").toString();
+    ims.drawJunk(visit?.number, visit?.junk);
 
     let docTitle = "Sanctuary Visit";
     if (visit?.number == null) {

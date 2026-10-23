@@ -26,11 +26,13 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
 @Header(deployment)
 @Nav(eventName)
 <main id="main" tabindex="-1">
-<h1 id="doc-title">Incident Details</h1>
+@JunkTitle("Incident Details", "Incident")
 
 @LoadingOverlay()
 
 @ErrorInfo()
+
+@JunkBanner("Incident", "Incidents")
 
     @HelpModal("Incident", "incidents") {
       <p class="mb-0">Keyboard shortcuts</p>

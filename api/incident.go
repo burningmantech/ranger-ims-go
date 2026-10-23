@@ -252,6 +252,7 @@ func incidentToListItem(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inc
 			Address:     conv.SqlToString(inc.LocationAddress),
 			Description: conv.SqlToString(inc.LocationDescription),
 		},
+		Junk:            inc.Junk,
 		IncidentTypeIDs: incidentTypeIDs,
 		FieldReports:    fieldReportNumbers,
 		Visits:          visitNumbers,
@@ -503,6 +504,7 @@ func incidentToJSON(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inciden
 			Address:     conv.SqlToString(storedRow.Incident.LocationAddress),
 			Description: conv.SqlToString(storedRow.Incident.LocationDescription),
 		},
+		Junk:            &storedRow.Incident.Junk,
 		IncidentTypeIDs: &incidentTypeIDs,
 		FieldReports:    &fieldReportNumbers,
 		Visits:          &visitNumbers,
@@ -791,6 +793,7 @@ func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident, no
 		LocationName:        stored.LocationName,
 		LocationAddress:     stored.LocationAddress,
 		LocationDescription: stored.LocationDescription,
+		Junk:                stored.Junk,
 	}
 
 	var logs []string
@@ -816,6 +819,7 @@ func buildIncidentUpdate(stored imsdb.Incident, newIncident imsjson.Incident, no
 	applyStringChange(&update.LocationName, newIncident.Location.Name, "location name", &logs)
 	applyStringChange(&update.LocationAddress, normalizedAddress(newIncident.Location.Address, normalizeAddresses), "location address", &logs)
 	applyStringChange(&update.LocationDescription, newIncident.Location.Description, "location description", &logs)
+	applyJunkChange(&update.Junk, newIncident.Junk, &logs)
 
 	return update, logs
 }

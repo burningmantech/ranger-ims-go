@@ -143,6 +143,7 @@ func visitToListItem(v imsdb.Visit, entries []imsdb.ReportEntry, event imsdb.Eve
 		Created:            conv.FloatToTime(v.Created),
 		LastModified:       lastModified(v.Created, entries),
 		Incident:           conv.SqlToInt32(v.IncidentNumber),
+		Junk:               v.Junk,
 		GuestPreferredName: preferredName,
 		GuestLegalName:     legalName,
 		ArrivalTime:        conv.NullFloatToTimePtr(v.ArrivalTime),
@@ -272,6 +273,7 @@ func visitToJSON(storedRow imsdb.VisitRow, visitRangers []imsdb.VisitRanger,
 		LastModified: lastModified,
 		Version:      storedRow.Visit.Version,
 		Incident:     conv.SqlToInt32(storedRow.Visit.IncidentNumber),
+		Junk:         &storedRow.Visit.Junk,
 
 		GuestPreferredName:   conv.SqlToString(storedRow.Visit.GuestPreferredName),
 		GuestLegalName:       conv.SqlToString(storedRow.Visit.GuestLegalName),
@@ -522,6 +524,7 @@ func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddre
 		ResourcePogs:         stored.ResourcePogs,
 		ResourceFoodBev:      stored.ResourceFoodBev,
 		ResourceOther:        stored.ResourceOther,
+		Junk:                 stored.Junk,
 	}
 
 	var logs []string
@@ -588,6 +591,7 @@ func buildVisitUpdate(stored imsdb.Visit, newVisit imsjson.Visit, normalizeAddre
 	applyStringChange(&update.ResourcePogs, newVisit.ResourcePogs, "ResourcePogs", &logs)
 	applyStringChange(&update.ResourceFoodBev, newVisit.ResourceFoodBev, "ResourceFoodBev", &logs)
 	applyStringChange(&update.ResourceOther, newVisit.ResourceOther, "ResourceOther", &logs)
+	applyJunkChange(&update.Junk, newVisit.Junk, &logs)
 
 	return update, logs, nil
 }

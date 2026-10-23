@@ -57,6 +57,9 @@ type Incident struct {
 	Priority int8      `json:"priority"`
 	Summary  *string   `json:"summary"`
 	Location Location  `json:"location"`
+	// Junk marks an erroneous or duplicate record, which the list pages hide
+	// by default. Field Reports and Visits carry the same flag.
+	Junk *bool `json:"junk,omitempty"`
 	// These five are response-only. Each is mutated one member at a time
 	// through its own endpoint, so that concurrent writers don't undo each
 	// other; sending any of the first four on an edit is a 400.
@@ -99,6 +102,7 @@ type IncidentListItem struct {
 	// the first line of its first non-system report entry.
 	Summary         string           `json:"summary"`
 	Location        Location         `json:"location"`
+	Junk            bool             `json:"junk"`
 	IncidentTypeIDs []int32          `json:"incident_type_ids"`
 	FieldReports    []int32          `json:"field_reports"`
 	Visits          []int32          `json:"visits"`

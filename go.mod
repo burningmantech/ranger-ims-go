@@ -124,7 +124,7 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/sqlc-dev/darkwing v0.1.0 // indirect
+	github.com/sqlc-dev/darkwing v0.2.0 // indirect
 	github.com/sqlc-dev/doubleclick v1.0.0 // indirect
 	github.com/sqlc-dev/marino v0.3.1 // indirect
 	github.com/sqlc-dev/meyer v0.1.2 // indirect

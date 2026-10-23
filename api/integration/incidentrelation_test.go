@@ -299,8 +299,8 @@ func TestConcurrentIncidentTypeAttach(t *testing.T) {
 	// point of these endpoints: each request names only its own member, so
 	// there's no whole list computed from a stale view and no way for one request
 	// to revert another.
-	typeIDs := []int32{2}
-	for range 3 {
+	var typeIDs []int32
+	for range 4 {
 		typeName := rand.NonCryptoText()
 		typeID, resp := apisAdmin.editType(ctx, imsjson.IncidentType{Name: &typeName})
 		require.NoError(t, resp.Body.Close())

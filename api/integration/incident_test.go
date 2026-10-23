@@ -530,24 +530,28 @@ func TestAttachIncidentTypeIsCommutative(t *testing.T) {
 	eventName := newEventWithWriter(t, apisAdmin)
 
 	num := apis.newIncidentSuccess(ctx, typelessIncident(eventName))
+	typeName := rand.NonCryptoText()
+	typeID, resp := apisAdmin.editType(ctx, imsjson.IncidentType{Name: &typeName})
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, typeID)
 
 	// Both requests are built from the Incident as it looks now, with no types.
-	resp := apis.attachTypeToIncident(ctx, eventName, num, 1)
+	resp = apis.attachTypeToIncident(ctx, eventName, num, 1)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	resp = apis.attachTypeToIncident(ctx, eventName, num, 2)
+	resp = apis.attachTypeToIncident(ctx, eventName, num, *typeID)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
 	retrieved, resp := apis.getIncident(ctx, eventName, num)
 	require.NoError(t, resp.Body.Close())
-	require.ElementsMatch(t, []int32{1, 2}, *retrieved.IncidentTypeIDs)
+	require.ElementsMatch(t, []int32{1, *typeID}, *retrieved.IncidentTypeIDs)
 
 	// Same for removals: neither click resurrects the other's type.
 	resp = apis.detachTypeFromIncident(ctx, eventName, num, 1)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
-	resp = apis.detachTypeFromIncident(ctx, eventName, num, 2)
+	resp = apis.detachTypeFromIncident(ctx, eventName, num, *typeID)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 

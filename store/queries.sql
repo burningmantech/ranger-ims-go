@@ -166,7 +166,8 @@ update INCIDENT set
     SUMMARY = ?,
     LOCATION_NAME = ?,
     LOCATION_ADDRESS = ?,
-    LOCATION_DESCRIPTION = ?
+    LOCATION_DESCRIPTION = ?,
+    JUNK = ?
 where
     EVENT = ?
     and NUMBER = ?
@@ -439,7 +440,7 @@ where EVENT = ? and NUMBER = ?;
 -- The VERSION bump must stay in the SET clause; see UpdateIncident.
 -- name: UpdateFieldReport :execrows
 update FIELD_REPORT
-set VERSION = VERSION + 1, SUMMARY = ?, INCIDENT_NUMBER = ?
+set VERSION = VERSION + 1, SUMMARY = ?, INCIDENT_NUMBER = ?, JUNK = ?
 where EVENT = ? and NUMBER = ? and VERSION = ?;
 
 -- name: CreateReportEntry :execlastid
@@ -661,7 +662,9 @@ update VISIT set
     RESOURCE_CLOTHES = ?,
     RESOURCE_POGS = ?,
     RESOURCE_FOOD_BEV = ?,
-    RESOURCE_OTHER = ?
+    RESOURCE_OTHER = ?,
+
+    JUNK = ?
 where
     EVENT = ?
     and NUMBER = ?
@@ -887,6 +890,7 @@ select
     i.PRIORITY,
     i.SUMMARY,
     i.LOCATION_NAME,
+    i.JUNK,
     coalesce((
         select re.TEXT
         from INCIDENT__REPORT_ENTRY ire
@@ -902,6 +906,8 @@ select
     ), '') as MATCHED_ENTRY_TEXT
 from INCIDENT i
 where i.EVENT in (sqlc.slice(event_ids))
+    -- Junk only when asked for.
+    and (i.JUNK = false or i.JUNK = sqlc.arg(include_junk))
     and (
         (i.SUMMARY like sqlc.narg(text_like) or regexp_instr(i.SUMMARY, sqlc.narg(text_regexp)) > 0)
         or (i.LOCATION_NAME like sqlc.narg(text_like) or regexp_instr(i.LOCATION_NAME, sqlc.narg(text_regexp)) > 0)
@@ -955,6 +961,7 @@ select
     fr.CREATED,
     fr.SUMMARY,
     fr.INCIDENT_NUMBER,
+    fr.JUNK,
     coalesce((
         select re.TEXT
         from FIELD_REPORT__REPORT_ENTRY frre
@@ -970,6 +977,7 @@ select
     ), '') as MATCHED_ENTRY_TEXT
 from FIELD_REPORT fr
 where fr.EVENT in (sqlc.slice(event_ids))
+    and (fr.JUNK = false or fr.JUNK = sqlc.arg(include_junk))
     and (
         (fr.SUMMARY like sqlc.narg(text_like) or regexp_instr(fr.SUMMARY, sqlc.narg(text_regexp)) > 0)
         or exists (
@@ -1015,6 +1023,7 @@ select
     v.GUEST_PREFERRED_NAME,
     v.GUEST_LEGAL_NAME,
     v.GUEST_CAMP_NAME,
+    v.JUNK,
     coalesce((
         select re.TEXT
         from VISIT__REPORT_ENTRY vre
@@ -1030,6 +1039,7 @@ select
     ), '') as MATCHED_ENTRY_TEXT
 from VISIT v
 where v.EVENT in (sqlc.slice(event_ids))
+    and (v.JUNK = false or v.JUNK = sqlc.arg(include_junk))
     and (
         (v.GUEST_PREFERRED_NAME like sqlc.narg(text_like) or regexp_instr(v.GUEST_PREFERRED_NAME, sqlc.narg(text_regexp)) > 0)
         or (v.GUEST_LEGAL_NAME like sqlc.narg(text_like) or regexp_instr(v.GUEST_LEGAL_NAME, sqlc.narg(text_regexp)) > 0)

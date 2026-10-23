@@ -32,6 +32,8 @@ let _frSearchDelayTimer: number|undefined = undefined;
 let _frShowRows: string|null = null;
 const frDefaultRows = "25";
 
+let junkFilter: {showing: ()=>boolean}|null = null;
+
 //
 // Initialize UI
 //
@@ -283,9 +285,11 @@ function frInitDataTables() {
 
 function renderSummary(_data: string|null, type: string, fieldReport: ims.FieldReportListItem): string|undefined {
     switch (type) {
-        case "display":
+        case "display": {
             // XSS prevention
-            return DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport)) as string;
+            const text = DataTable.render.text().display(ims.summarizeIncidentOrFR(fieldReport)) as string;
+            return fieldReport.junk ? ims.junkBadge().outerHTML + text : text;
+        }
         case "filter":
         case "sort":
         case "type":
@@ -385,6 +389,8 @@ function frInitSearchField(): void {
 //
 
 function frInitSearch() {
+    junkFilter = ims.initJunkFilter(fieldReportsTable!, "Field Report", "Field Reports", frReplaceWindowState);
+
     fieldReportsTable!.search.fixed("query",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
             const fieldReport: ims.FieldReportListItem = fieldReportsTable!.data()[rowIndex]!;
@@ -477,6 +483,9 @@ function frReplaceWindowState(): void {
     }
     if (_frShowRows != null && _frShowRows !== frDefaultRows) {
         newParams.push(["rows", _frShowRows.toString()]);
+    }
+    if (junkFilter?.showing()) {
+        newParams.push(["junk", "show"]);
     }
 
     // Next step is to create search params for the other filters too

@@ -2833,6 +2833,90 @@ export function onMenuPick(menu: HTMLElement, onPick: (value: string)=>void): vo
 }
 
 //
+// Junk
+//
+
+// Incidents, Field Reports, and Visits can be marked as junk, which hides them
+// from the list pages until the user asks to see them, using the note under
+// the table (the JunkNote templ component).
+
+// Prefixed to a junk row's summary in the list tables.
+export function junkBadge(): HTMLSpanElement {
+    const badge = document.createElement("span");
+    badge.className = "badge text-bg-secondary me-1 junk-badge";
+    badge.textContent = "Junk";
+    return badge;
+}
+
+// initJunkFilter hides the table's junk rows, and drives the note under it
+// that counts them and toggles showing them. It starts from the URL fragment's
+// "junk" parameter, and calls onChange whenever the user toggles.
+export function initJunkFilter(
+    table: DataTablesTable, noun: string, pluralNoun: string, onChange: ()=>void,
+): {showing: ()=>boolean} {
+    let showJunk = windowFragmentParams().get("junk") === "show";
+    const note = typedElement("junk_note", HTMLElement);
+    const noteText = typedElement("junk_note_text", HTMLElement);
+    const toggle = typedElement("junk_toggle", HTMLButtonElement);
+    const isJunk = (rowIndex: number): boolean =>
+        (table.data()[rowIndex] as {junk?: boolean|null}).junk === true;
+
+    table.search.fixed("junk", function (_searchStr: string, _rowData: object, rowIndex: number): boolean {
+        return showJunk || !isJunk(rowIndex);
+    });
+
+    // Counted over every row, whatever the other filters say, so the note
+    // doesn't jump around as they change.
+    table.on("draw", function (): void {
+        const rows = table.data() as unknown as ArrayLike<object>;
+        let count = 0;
+        for (let i = 0; i < rows.length; i++) {
+            if (isJunk(i)) {
+                count++;
+            }
+        }
+        note.classList.toggle("hidden", count === 0);
+        const what = `${count} junk ${count === 1 ? noun : pluralNoun}`;
+        noteText.textContent = showJunk ? `Showing ${what}` : `${what} hidden`;
+        toggle.textContent = showJunk ? "Hide" : "Show";
+    });
+
+    toggle.addEventListener("click", function (): void {
+        showJunk = !showJunk;
+        onChange();
+        table.draw();
+    });
+    return {showing: (): boolean => showJunk};
+}
+
+// initJunkControls wires up a record page's junk controls (the JunkTitle and
+// JunkBanner templ components), which set the record's junk flag via sendEdits.
+export function initJunkControls(
+    noun: string, sendEdits: (edits: {junk?: boolean|null})=>Promise<{err: string|null}>,
+): void {
+    typedElement("junk_mark", HTMLButtonElement).addEventListener("click", async (): Promise<void> => {
+        const confirmed = await confirmDialog(
+            `Mark this ${noun} as junk? It won't be deleted, but it will be hidden from lists and search ` +
+            `until it's marked as not junk again.`,
+            {okLabel: "Mark as Junk", danger: true},
+        );
+        if (confirmed) {
+            await sendEdits({junk: true});
+        }
+    });
+    typedElement("junk_unmark", HTMLButtonElement).addEventListener("click", async (): Promise<void> => {
+        await sendEdits({junk: false});
+    });
+}
+
+// drawJunk shows whether a record is junk. A record that hasn't been created
+// yet can't be marked.
+export function drawJunk(number: number|null|undefined, junk: boolean|null|undefined): void {
+    typedElement("junk_banner", HTMLElement).classList.toggle("hidden", junk !== true);
+    typedElement("junk_mark", HTMLElement).classList.toggle("hidden", number == null || junk === true);
+}
+
+//
 // TypeScript declarations. These won't appear in the final JavaScript.
 //
 
@@ -2883,6 +2967,7 @@ export type Incident = {
     field_reports?: number[]|null;
     visits?: number[]|null;
     linked_incidents?: LinkedIncident[]|null;
+    junk?: boolean|null;
 }
 
 export type FieldReport = {
@@ -2892,6 +2977,7 @@ export type FieldReport = {
     version?: number|null;
     summary?: string|null;
     incident?: number|null;
+    junk?: boolean|null;
     report_entries?: ReportEntry[]|null;
 }
 
@@ -2913,6 +2999,7 @@ export type IncidentListItem = {
     location?: EventLocation|null;
     field_reports?: number[]|null;
     visits?: number[]|null;
+    junk?: boolean|null;
 }
 
 export type FieldReportListItem = {
@@ -2923,6 +3010,7 @@ export type FieldReportListItem = {
     summary?: string|null;
     incident?: number|null;
     author?: string|null;
+    junk?: boolean|null;
 }
 
 export type VisitListItem = {
@@ -2938,6 +3026,7 @@ export type VisitListItem = {
     departure_time?: string|null;
     resource_sitter?: string|null;
     resource_bed_id?: string|null;
+    junk?: boolean|null;
 }
 
 export type Visit = {
@@ -2947,6 +3036,7 @@ export type Visit = {
     last_modified?: string|null;
     version?: number|null;
     incident?: number|null;
+    junk?: boolean|null;
 
     guest_preferred_name?: string|null;
     guest_legal_name?: string|null;

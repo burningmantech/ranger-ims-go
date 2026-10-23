@@ -34,6 +34,8 @@ type VisitsFilterStatus = "all" | "current";
 let _showStatus: VisitsFilterStatus = "current";
 const defaultStatus: VisitsFilterStatus = "current";
 
+let junkFilter: {showing: ()=>boolean}|null = null;
+
 //
 // Initialize UI
 //
@@ -288,6 +290,9 @@ function renderName(_data: string|null, type: string, visit: ims.VisitListItem):
         case "display":
             const sp = document.createElement("span");
             sp.textContent = guestName;
+            if (visit.junk) {
+                sp.prepend(ims.junkBadge());
+            }
             return sp;
         case "sort":
         case "filter":
@@ -395,6 +400,8 @@ function initSearchField(): void {
 //
 
 function initSearch() {
+    junkFilter = ims.initJunkFilter(visitsTable!, "Visit", "Visits", replaceWindowState);
+
     visitsTable!.search.fixed("modification_date",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
             const visit: ims.VisitListItem = visitsTable!.data()[rowIndex]!;
@@ -502,6 +509,9 @@ function replaceWindowState(): void {
     }
     if (_showStatus != null && _showStatus !== defaultStatus) {
         newParams.push(["status", _showStatus]);
+    }
+    if (junkFilter?.showing()) {
+        newParams.push(["junk", "show"]);
     }
 
     // Next step is to create search params for the other filters too

@@ -64,6 +64,7 @@ async function initFieldReportPage(): Promise<void> {
     el.fieldReportSummary.addEventListener("change", editSummary);
     el.incidentNumber.addEventListener("change", (): Promise<void> => updateIncident(el.incidentNumber));
     ims.initReportEntryControls(attachFile);
+    ims.initJunkControls("Field Report", frSendEdits);
 
     await loadAndDisplayFieldReport();
 
@@ -184,6 +185,7 @@ async function loadAndDisplayFieldReport(): Promise<void> {
 
     drawTitle();
     drawNumber();
+    ims.drawJunk(fieldReport.number, fieldReport.junk);
     drawIncident();
     drawSummary();
     ims.toggleShowHistory();

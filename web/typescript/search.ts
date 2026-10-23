@@ -28,6 +28,7 @@ interface SearchResult {
     summary?: string;
     snippet?: string;
     incident?: number;
+    junk?: boolean;
 }
 
 interface SearchResults {
@@ -78,6 +79,7 @@ const el = {
     ulShowEvent: ims.typedElement("ul_show_event", HTMLUListElement),
     showEventToggleAll: ims.typedElement("show_event_toggle_all", HTMLButtonElement),
     showEventTemplate: ims.typedElement("show_event_template", HTMLTemplateElement),
+    includeJunk: ims.typedElement("include_junk", HTMLInputElement),
     resultsInfo: ims.typedElement("search_results_info", HTMLParagraphElement),
     resultsTable: ims.typedElement("search_results_table", HTMLTableElement),
     resultRowTemplate: ims.typedElement("search_result_row_template", HTMLTemplateElement),
@@ -223,6 +225,7 @@ async function initSearchPage(): Promise<void> {
     resourceMenu = new CheckMenu(el.showResource, el.ulShowResource, el.showResourceToggleAll, "Resources", formChanged);
     eventMenu = new CheckMenu(el.showEvent, el.ulShowEvent, el.showEventToggleAll, "Events", formChanged);
     el.searchInput.addEventListener("input", formChanged);
+    el.includeJunk.addEventListener("change", formChanged);
 
     // Restore search parameters from the URL fragment, so that search links
     // can be shared and reloaded.
@@ -236,6 +239,7 @@ async function initSearchPage(): Promise<void> {
     if (events.length > 0) {
         eventMenu.select(events);
     }
+    el.includeJunk.checked = fragmentParams.get("junk") === "true";
 
     el.searchButton.addEventListener("click", doSearch);
     el.searchInput.addEventListener("keydown", function(e: KeyboardEvent): void {
@@ -306,6 +310,9 @@ function replaceWindowState(): void {
             newParams.push(["event", event]);
         }
     }
+    if (el.includeJunk.checked) {
+        newParams.push(["junk", "true"]);
+    }
     const fragment = new URLSearchParams(newParams).toString();
     history.replaceState(null, "", fragment ? "#" + fragment : window.location.pathname);
 }
@@ -342,6 +349,9 @@ function currentQuery(): {params: string}|{problem: string} {
         for (const event of eventMenu.values()) {
             params.append("event", event);
         }
+    }
+    if (el.includeJunk.checked) {
+        params.set("junk", "true");
     }
     return {params: params.toString()};
 }
@@ -446,7 +456,11 @@ function renderResults(hits: SearchResult[]): void {
         createdCell.textContent = formatCreated(created);
         createdCell.title = ims.longFormatDate(created);
 
-        row.getElementsByClassName("result-summary")[0]!.textContent = hit.summary??"";
+        const summaryCell = row.getElementsByClassName("result-summary")[0]!;
+        summaryCell.textContent = hit.summary??"";
+        if (hit.junk) {
+            summaryCell.prepend(ims.junkBadge());
+        }
         row.getElementsByClassName("result-snippet")[0]!.textContent = hit.snippet??"";
 
         row.addEventListener("click", function(e: MouseEvent): void {

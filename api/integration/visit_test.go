@@ -435,6 +435,9 @@ func requireEqualVisit(t *testing.T, before, after imsjson.Visit) {
 	before.ArrivalTime, after.ArrivalTime = &time.Time{}, &time.Time{}
 	before.DepartureTime, after.DepartureTime = &time.Time{}, &time.Time{}
 	before.ReportEntries, after.ReportEntries = nil, nil
+	// A request needn't say that a record isn't junk, but a response always does.
+	require.Equal(t, before.Junk != nil && *before.Junk, after.Junk != nil && *after.Junk)
+	before.Junk, after.Junk = nil, nil
 
 	require.Equal(t, before, after)
 }

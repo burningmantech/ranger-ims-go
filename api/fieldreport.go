@@ -181,6 +181,7 @@ func fieldReportToListItem(fr imsdb.FieldReport, entries []imsdb.ReportEntry, ev
 		LastModified: lastModified(fr.Created, entries),
 		Summary:      listSummary(fr.Summary.String, entries),
 		Incident:     conv.SqlToInt32(fr.IncidentNumber),
+		Junk:         fr.Junk,
 		Author:       author,
 	}
 }
@@ -270,6 +271,7 @@ func fieldReportToJSON(
 		Version:       fr.Version,
 		Summary:       conv.SqlToString(fr.Summary),
 		Incident:      conv.SqlToInt32(fr.IncidentNumber),
+		Junk:          &fr.Junk,
 		ReportEntries: entries,
 	}
 }
@@ -440,6 +442,7 @@ func (action EditFieldReport) updateFieldReportAttempt(
 		storedFR.Summary = conv.StringToSql(requestFR.Summary, 0)
 		logs = append(logs, "Changed summary to: "+*requestFR.Summary)
 	}
+	applyJunkChange(&storedFR.Junk, requestFR.Junk, &logs)
 	// A request that only appends report entries is applied without the
 	// guarded update below; see updateIncidentAttempt.
 	if len(logs) > 0 {
@@ -451,6 +454,7 @@ func (action EditFieldReport) updateFieldReportAttempt(
 				Version:        expectedVersion,
 				Summary:        storedFR.Summary,
 				IncidentNumber: storedFR.IncidentNumber,
+				Junk:           storedFR.Junk,
 			},
 		)
 		if err != nil {

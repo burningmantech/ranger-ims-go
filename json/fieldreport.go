@@ -27,6 +27,7 @@ type FieldReport struct {
 	Version       int32         `json:"version,omitzero"`
 	Summary       *string       `json:"summary"`
 	Incident      *int32        `json:"incident,omitzero"`
+	Junk          *bool         `json:"junk,omitempty"`
 	ReportEntries []ReportEntry `json:"report_entries"`
 }
 
@@ -42,6 +43,7 @@ type FieldReportListItem struct {
 	// Summary is as for IncidentListItem.Summary.
 	Summary  string `json:"summary"`
 	Incident *int32 `json:"incident,omitzero"`
+	Junk     bool   `json:"junk"`
 	// Author is the author of the Field Report's first report entry.
 	Author string `json:"author"`
 }

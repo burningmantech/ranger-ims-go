@@ -41,6 +41,11 @@ https://github.com/burningmantech/ranger-ims-go/commit/67fc7da
 - Added Event and type filter menus to the Search page, which is now called "Search Everywhere". https://github.com/burningmantech/ranger-ims-go/pull/850
 - Added support for MariaDB 13.0, while remaining compatible with 10.5. https://github.com/burningmantech/ranger-ims-go/commit/1ec0b21
 - Started showing the database schema version on the admin Debug page. https://github.com/burningmantech/ranger-ims-go/commit/c2b2bc1
+- Added a way to mark an Incident, Field Report, or Visit as junk, for one created by mistake or duplicating another. A junk record is kept, but the list pages hide it unless asked to show it, search leaves it out unless "Include junk" is checked, and it isn't offered for attaching to an Incident. A banner on its page says it's junk, with a button to undo that. Either change is logged in the record's history.
+
+### Removed
+
+- Removed the "Junk" Incident Type. Schema 48 marks every Incident that had it as junk instead.
 
 ### Fixed
 

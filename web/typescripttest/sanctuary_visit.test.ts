@@ -19,7 +19,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import * as ims from "../typescript/ims.ts";
-import { change, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
+import { answerDialog, change, jsonResponse, loadFixture, MockFlatpickr, mockFetch, mockXHR, problemResponse } from "./helpers.ts";
 
 let page: typeof import("../typescript/sanctuary_visit.ts");
 
@@ -1133,4 +1133,26 @@ test("a remove button outside any Ranger's row sends nothing", async (): Promise
     await page.removeRanger(stray);
 
     expect(mock.mock.calls.some(([url]) => (url as string).includes("/rangers/"))).toBe(false);
+});
+
+test("a Visit can be marked as junk, and unmarked from its banner", async (): Promise<void> => {
+    const mock = await initVisitPage();
+    const banner = document.getElementById("junk_banner")!;
+    const markButton = document.getElementById("junk_mark")!;
+    expect(banner.classList.contains("hidden")).toBe(true);
+
+    serverVisit.junk = true;
+    markButton.click();
+    expect(await answerDialog("ok")).toContain("Mark this Visit as junk?");
+    await vi.waitFor((): void => {
+        expect(banner.classList.contains("hidden")).toBe(false);
+    });
+    expect(markButton.classList.contains("hidden")).toBe(true);
+
+    serverVisit.junk = false;
+    document.getElementById("junk_unmark")!.click();
+    await vi.waitFor((): void => {
+        expect(banner.classList.contains("hidden")).toBe(true);
+    });
+    expect(postedBodies(mock, `${visitsUrl}/2`)).toEqual([{ junk: true, number: 2 }, { junk: false, number: 2 }]);
 });

@@ -130,6 +130,7 @@ function fieldReportListItem(fr: ims.FieldReport): ims.FieldReportListItem {
         incident: fr.incident ?? null,
         summary: fr.summary ?? null,
         author: fr.report_entries?.[0]?.author ?? null,
+        junk: fr.junk ?? false,
     };
 }
 
@@ -139,6 +140,7 @@ function visitListItem(visit: ims.Visit): ims.VisitListItem {
         incident: visit.incident ?? null,
         guest_preferred_name: visit.guest_preferred_name ?? null,
         guest_legal_name: visit.guest_legal_name ?? null,
+        junk: visit.junk ?? false,
     };
 }
 
@@ -2153,4 +2155,75 @@ test("a broadcast for a new visit adds it to the top of the attach dropdown", as
         .map(o => o.value).filter(v => v.startsWith("VS#"));
     expect(visitOptions[0]).toBe("VS#4");
     channel.close();
+});
+
+test("Mark as Junk asks first, then marks the Incident as junk", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    const incidentUrl = `/ims/api/events/${eventName}/incidents/1`;
+    const banner = document.getElementById("junk_banner")!;
+    const markButton = document.getElementById("junk_mark")!;
+    expect(banner.classList.contains("hidden")).toBe(true);
+    expect(markButton.classList.contains("hidden")).toBe(false);
+
+    markButton.click();
+    await answerDialog("cancel");
+    expect(postedBodies(mock, incidentUrl).filter((b): boolean => (b as ims.Incident).junk != null)).toEqual([]);
+
+    serverIncident.junk = true;
+    markButton.click();
+    await answerDialog("ok");
+    await vi.waitFor((): void => {
+        expect(banner.classList.contains("hidden")).toBe(false);
+    });
+    expect(postedBodies(mock, incidentUrl)).toContainEqual({ junk: true, number: 1 });
+    expect(markButton.classList.contains("hidden")).toBe(true);
+});
+
+test("Not Junk on a junk Incident's banner unmarks it", async (): Promise<void> => {
+    serverIncident.junk = true;
+    const mock = await initIncidentPage();
+    const banner = document.getElementById("junk_banner")!;
+    expect(banner.classList.contains("hidden")).toBe(false);
+    expect(document.getElementById("junk_mark")!.classList.contains("hidden")).toBe(true);
+
+    serverIncident.junk = false;
+    document.getElementById("junk_unmark")!.click();
+    await vi.waitFor((): void => {
+        expect(banner.classList.contains("hidden")).toBe(true);
+    });
+    expect(postedBodies(mock, `/ims/api/events/${eventName}/incidents/1`)).toContainEqual({ junk: false, number: 1 });
+    expect(document.getElementById("junk_mark")!.classList.contains("hidden")).toBe(false);
+});
+
+test("junk field reports and visits aren't offered for attaching, and attached ones are badged", async (): Promise<void> => {
+    serverFieldReports[0]!.junk = true; // attached
+    serverFieldReports[1]!.junk = true; // unattached
+    serverVisits[1]!.junk = true; // unattached
+    await initIncidentPage();
+
+    const options = [...document.querySelectorAll("#attached_field_report_add option")]
+        .map((o): string => (o as HTMLOptionElement).value);
+    expect(options).not.toContain("FR#8");
+    expect(options).not.toContain("VS#3");
+    expect(options).toContain("FR#9");
+
+    await vi.waitFor((): void => {
+        const attached = document.querySelector('#attached_field_reports li[data-fr-number="7"]');
+        expect(attached?.querySelector(".junk-badge")?.textContent).toBe("Junk");
+    });
+    const attachedVisit = document.querySelector('#attached_field_reports li[data-visit-number="2"]')!;
+    expect(attachedVisit.querySelector(".junk-badge")).toBeNull();
+});
+
+test("closing a junk Incident without a type doesn't nag for one", async (): Promise<void> => {
+    serverIncident.junk = true;
+    serverIncident.incident_type_ids = [];
+    const mock = await initIncidentPage();
+
+    const state = document.getElementById("incident_state") as HTMLSelectElement;
+    state.value = "closed";
+    await page.editState();
+
+    expect(document.querySelector("dialog.ims-dialog[open]")).toBeNull();
+    expect(postedBodies(mock, `/ims/api/events/${eventName}/incidents/1`)).toContainEqual({ state: "closed", number: 1 });
 });

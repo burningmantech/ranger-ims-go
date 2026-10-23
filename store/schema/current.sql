@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (47);
+insert into SCHEMA_INFO (VERSION) values (48);
 
 
 -- Declare indexes inline in "create table" rather than as standalone "create
@@ -65,7 +65,6 @@ create table INCIDENT_TYPE (
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 insert into INCIDENT_TYPE (ID, NAME, HIDDEN) values (1, 'Admin', 0);
-insert into INCIDENT_TYPE (ID, NAME, HIDDEN) values (2, 'Junk' , 0);
 
 
 create table REPORT_ENTRY (
@@ -110,6 +109,9 @@ create table INCIDENT (
     -- That covers report entries, the Ranger roster, incident types, links, and
     -- field-report/visit assignment.
     `VERSION` integer not null default 1,
+
+    -- Set on an erroneous or duplicate record, which the list pages hide.
+    `JUNK` boolean not null default false,
 
     constraint `INCIDENT_ibfk_1` foreign key (`EVENT`) references `EVENT`(ID),
 
@@ -205,6 +207,9 @@ create table FIELD_REPORT (
 
     -- Optimistic-concurrency version counter; see INCIDENT.VERSION.
     `VERSION` integer not null default 1,
+
+    -- See INCIDENT.JUNK.
+    `JUNK` boolean not null default false,
 
     key `EVENT` (`EVENT`, INCIDENT_NUMBER),
 
@@ -336,6 +341,9 @@ create table VISIT (
 
     -- Optimistic-concurrency version counter; see INCIDENT.VERSION.
     `VERSION` integer not null default 1,
+
+    -- See INCIDENT.JUNK.
+    `JUNK` boolean not null default false,
 
     foreign key `VISIT_TO_EVENT` (`EVENT`) references `EVENT`(ID),
     foreign key `VISIT_TO_INCIDENT` (`EVENT`, INCIDENT_NUMBER) references INCIDENT(`EVENT`, NUMBER),

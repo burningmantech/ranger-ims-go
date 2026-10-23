@@ -48,6 +48,8 @@ const _otherPlaceholder = "(other)";
 let _showRows: string|null = null;
 const defaultRows = "25";
 
+let junkFilter: {showing: ()=>boolean}|null = null;
+
 let allIncidentTypes: ims.IncidentType[] = [];
 let visibleIncidentTypes: ims.IncidentType[] = [];
 let visibleIncidentTypeIds: number[] = [];
@@ -400,7 +402,8 @@ function renderSummary(_data: string|null, type: ims.RenderType, incident: ims.I
                 summarized = summarized.substring(0, maxDisplayLength - 3) + "...";
             }
             // XSS prevention
-            return DataTable.render.text().display(summarized) as string;
+            const text = DataTable.render.text().display(summarized) as string;
+            return incident.junk ? ims.junkBadge().outerHTML + text : text;
         }
         case "filter":
         case "sort":
@@ -593,6 +596,8 @@ function initSearchField() {
 //
 
 function initSearch(): void {
+    junkFilter = ims.initJunkFilter(incidentsTable!, "Incident", "Incidents", replaceWindowState);
+
     incidentsTable!.search.fixed("query",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
             const incident: ims.IncidentListItem = incidentsTable!.data()[rowIndex]!;
@@ -853,6 +858,9 @@ function replaceWindowState(): void {
     }
     if (_showRows != null && _showRows !== defaultRows) {
         newParams.push(["rows", _showRows]);
+    }
+    if (junkFilter?.showing()) {
+        newParams.push(["junk", "show"]);
     }
     const newURL = `${ims.urlReplace(url_viewIncidents)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);

@@ -368,6 +368,7 @@ export class MockDataTable {
     options: DataTableOptions;
     private rowData: any[] = [];
     private initHandlers: (() => void)[] = [];
+    private drawHandlers: (() => void)[] = [];
 
     // The most recent page.len() argument the page set.
     pageLen: number | null = null;
@@ -404,6 +405,8 @@ export class MockDataTable {
     on(event: string, cb: () => void): MockDataTable {
         if (event === "init") {
             this.initHandlers.push(cb);
+        } else if (event === "draw") {
+            this.drawHandlers.push(cb);
         }
         return this;
     }
@@ -413,6 +416,9 @@ export class MockDataTable {
     }
 
     draw(_paging?: unknown): MockDataTable {
+        for (const cb of this.drawHandlers) {
+            cb();
+        }
         return this;
     }
 
@@ -449,6 +455,7 @@ export class MockDataTable {
         await new Promise<void>((resolve): void => {
             this.options.ajax(null, (resp): void => {
                 this.rowData = resp.data;
+                this.draw();
                 resolve();
             }, null);
         });

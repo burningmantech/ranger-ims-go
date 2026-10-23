@@ -26,11 +26,13 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
 @Header(deployment)
 @Nav(eventName)
 <main id="main" tabindex="-1">
-<h1 id="doc-title">Sanctuary Visit</h1>
+@JunkTitle("Sanctuary Visit", "Visit")
 
 @LoadingOverlay()
 
 @ErrorInfo()
+
+@JunkBanner("Visit", "Visits")
 
     @HelpModal("Sanctuary Visit", "visits") {
       <p class="mb-0">Keyboard shortcuts</p>

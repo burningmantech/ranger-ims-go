@@ -268,7 +268,8 @@ h1 {
    is disabled. */
 .no-edit .remove-badge,
 .no-edit :is(.list-group-item, .report_entry):hover .remove-badge,
-.no-edit :is(.new_incident, .new_field_report, .new_visit) {
+.no-edit :is(.new_incident, .new_field_report, .new_visit),
+.no-edit .junk-toggle {
   display: none;
 }
 
@@ -304,6 +305,12 @@ h1 {
   --bs-btn-hover-color: var(--bs-body-color);
   --bs-btn-hover-bg: var(--bs-secondary-bg);
   --bs-btn-hover-border-color: var(--bs-border-color);
+}
+
+/* Likewise .btn-outline-danger, whose #dc3545 is too dark on a dark background. */
+[data-bs-theme="dark"] .btn-outline-danger {
+  --bs-btn-color: var(--bs-danger-text-emphasis);
+  --bs-btn-border-color: var(--bs-danger-text-emphasis);
 }
 
 .hide-history :is(.report_entry_system, .report_entry_stricken) {

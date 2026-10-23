@@ -139,6 +139,18 @@ func applyStringChange(dst *sql.NullString, newVal *string, label string, logs *
 	*logs = append(*logs, fmt.Sprintf("Changed %v: %v", label, dst.String))
 }
 
+func applyJunkChange(dst *bool, newVal *bool, logs *[]string) {
+	if newVal == nil {
+		return
+	}
+	*dst = *newVal
+	if *newVal {
+		*logs = append(*logs, "Marked as junk")
+	} else {
+		*logs = append(*logs, "Marked as not junk")
+	}
+}
+
 // normalizedAddress puts a client-supplied Black Rock City address into
 // canonical form, e.g. "7+e" into "7:00 & E". Text that doesn't parse as an
 // address is left as the client sent it.

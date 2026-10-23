@@ -17,7 +17,6 @@
 "use strict";
 
 import * as ims from "./ims.ts";
-import {fetchPersonnel} from "./ims.ts";
 
 let incident: ims.Incident|null = null;
 
@@ -105,6 +104,7 @@ async function initIncidentPage(): Promise<void> {
     el.attachedFieldReportAdd.addEventListener("change", attachFieldReport);
     el.linkedIncidentAdd.addEventListener("change", (): Promise<void> => linkIncident(el.linkedIncidentAdd));
     ims.initReportEntryControls(attachFile);
+    ims.initJunkControls("Incident", sendEdits);
 
     // load everything from the APIs concurrently
     await Promise.all([
@@ -338,7 +338,7 @@ async function renderFieldReportData(): Promise<void> {
 let personnel: ims.PersonnelMap|null = null;
 
 async function loadPersonnel(): Promise<void> {
-    const res = await fetchPersonnel();
+    const res = await ims.fetchPersonnel();
     if (res.err != null || res.personnel == null) {
         ims.setErrorMessage(res.err??"");
     }
@@ -565,6 +565,7 @@ async function loadAttachedVisits(): Promise<void> {
 function drawIncidentFields() {
     drawIncidentTitle("for_display");
     drawIncidentNumber();
+    ims.drawJunk(incident!.number, incident!.junk);
     drawState();
     drawStarted();
     drawPriority();
@@ -948,6 +949,9 @@ function drawAttachedFieldReportsVisits() {
         link.innerText = ims.fieldReportAsString(report);
 
         item.classList.remove("hidden");
+        if (report.junk) {
+            item.append(ims.junkBadge());
+        }
         item.append(link);
         item.dataset["frNumber"] = report.number!.toString();
         const detachButton = item.querySelector("button")!;
@@ -965,6 +969,9 @@ function drawAttachedFieldReportsVisits() {
         link.innerText = ims.visitAsString(visit);
 
         item.classList.remove("hidden");
+        if (visit.junk) {
+            item.append(ims.junkBadge());
+        }
         item.append(link);
         item.dataset["visitNumber"] = visit.number!.toString();
         const detachButton = item.querySelector("button")!;
@@ -1035,7 +1042,7 @@ function drawFieldReportsToAttach() {
     el.attachedFieldReportAdd.append(unattachedGroup);
     for (const report of allFieldReports??[]) {
         // Skip field reports that *are* attached to an incident
-        if (report.incident != null) {
+        if (report.incident != null || report.junk) {
             continue;
         }
         const option: HTMLOptionElement = document.createElement("option");
@@ -1045,7 +1052,7 @@ function drawFieldReportsToAttach() {
     }
     for (const visit of allVisits??[]) {
         // Skip visits that *are* attached to an incident
-        if (visit.incident != null) {
+        if (visit.incident != null || visit.junk) {
             continue;
         }
         const option: HTMLOptionElement = document.createElement("option");
@@ -1058,7 +1065,7 @@ function drawFieldReportsToAttach() {
     el.attachedFieldReportAdd.append(attachedGroup);
     for (const report of allFieldReports??[]) {
         // Skip field reports that *are not* attached to an incident
-        if (report.incident == null) {
+        if (report.incident == null || report.junk) {
             continue;
         }
         // Skip field reports that are already attached this incident
@@ -1072,7 +1079,7 @@ function drawFieldReportsToAttach() {
     }
     for (const visit of allVisits??[]) {
         // Skip visits that *are not* attached to an incident
-        if (visit.incident == null) {
+        if (visit.incident == null || visit.junk) {
             continue;
         }
         // Skip visits that are already attached this incident
@@ -1173,13 +1180,13 @@ async function sendEditsNow(edits: ims.Incident): Promise<{err:string|null}> {
 ims.setSendEdits(sendEdits);
 
 export async function editState(): Promise<void> {
-    if (el.incidentState.value === "closed" && (incident!.incident_type_ids??[]).length === 0) {
+    if (el.incidentState.value === "closed" && !incident!.junk && (incident!.incident_type_ids??[]).length === 0) {
         await ims.alertDialog(
             "Closing out this incident?\n"+
             "Please add an incident type!\n\n" +
             "Special cases:\n" +
-            "    Junk: for erroneously-created Incidents\n" +
-            "    Admin: for administrative information, i.e. not Incidents at all\n\n" +
+            "    Admin: for administrative information, i.e. not Incidents at all\n" +
+            "    For an erroneously-created or duplicate Incident, use Mark as Junk instead\n\n" +
             "See the Incident Types help link for more details.\n"
         );
     }

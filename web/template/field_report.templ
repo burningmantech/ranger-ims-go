@@ -26,11 +26,13 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
 @Header(deployment)
 @Nav(eventName)
 <main id="main" tabindex="-1">
-<h1 id="doc-title">Field Report Details</h1>
+@JunkTitle("Field Report Details", "Field Report")
 
 @LoadingOverlay()
 
 @ErrorInfo()
+
+@JunkBanner("Field Report", "Field Reports")
 
   @HelpModal("Field Report", "field-reports") {
     <p class="mb-0">Keyboard shortcuts</p>

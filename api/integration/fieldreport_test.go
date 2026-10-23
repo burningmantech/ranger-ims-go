@@ -277,6 +277,9 @@ func requireEqualFieldReport(t *testing.T, before, after imsjson.FieldReport) {
 	}
 	before.Created, after.Created = time.Time{}, time.Time{}
 	before.Version, after.Version = 0, 0
+	// A request needn't say that a record isn't junk, but a response always does.
+	require.Equal(t, before.Junk != nil && *before.Junk, after.Junk != nil && *after.Junk)
+	before.Junk, after.Junk = nil, nil
 
 	require.Equal(t, before, after)
 }

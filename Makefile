@@ -117,14 +117,10 @@ upgrade/deps/actions:
 		go tool github.com/suzuki-shunsuke/pinact/v5/cmd/pinact run --update
 	uvx pre-commit autoupdate
 
-# This is kind of silly, but it's similar to what the Go website itself
-# does to check the latest version.
-LATEST_GO_VERSION = $(shell curl "https://go.dev/dl/?mode=json" | grep version | sort | tail -n 1 | grep -oG '[0-9.]\+')
-
 # upgrade/go: updates go.mod to the latest go language version
 .PHONY: upgrade/go
 upgrade/go:
-	go mod edit -go=$(LATEST_GO_VERSION)
+	go get go@latest
 
 # upgrade/all: upgrade the Go version, Go and npm deps, and GitHub Actions
 .PHONY: upgrade/all

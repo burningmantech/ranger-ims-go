@@ -835,7 +835,7 @@ test("junk Incidents are hidden by default, and badged when shown", async (): Pr
     expect(table.fixedSearch("junk", 1)).toBe(false);
 
     await vi.waitFor((): void => {
-        expect(document.getElementById("junk_note_text")!.textContent).toBe("1 junk Incident hidden");
+        expect(document.getElementById("junk_note_text")!.textContent).toBe("Hiding 1 junk Incident");
     });
     document.getElementById("junk_toggle")!.click();
     expect(table.fixedSearch("junk", 1)).toBe(true);

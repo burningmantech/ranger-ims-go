@@ -2877,7 +2877,7 @@ export function initJunkFilter(
         }
         note.classList.toggle("hidden", count === 0);
         const what = `${count} junk ${count === 1 ? noun : pluralNoun}`;
-        noteText.textContent = showJunk ? `Showing ${what}` : `${what} hidden`;
+        noteText.textContent = showJunk ? `Showing ${what}` : `Hiding ${what}`;
         toggle.textContent = showJunk ? "Hide" : "Show";
     });
 

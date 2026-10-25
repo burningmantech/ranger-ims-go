@@ -416,7 +416,7 @@ test("junk Field Reports are hidden, and the note under the table shows them", a
         expect(junkNote().shown).toBe(true);
     });
 
-    expect(junkNote().text).toBe("1 junk Field Report hidden");
+    expect(junkNote().text).toBe("Hiding 1 junk Field Report");
     expect(junkNote().toggle.textContent).toBe("Show");
     expect(table.fixedSearch("junk", 0)).toBe(true);
     expect(table.fixedSearch("junk", 1)).toBe(false);
@@ -429,7 +429,7 @@ test("junk Field Reports are hidden, and the note under the table shows them", a
     expect(window.location.hash).toContain("junk=show");
 
     junkNote().toggle.click();
-    expect(junkNote().text).toBe("1 junk Field Report hidden");
+    expect(junkNote().text).toBe("Hiding 1 junk Field Report");
     expect(table.fixedSearch("junk", 1)).toBe(false);
     expect(window.location.hash).not.toContain("junk");
 });

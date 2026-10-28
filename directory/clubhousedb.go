@@ -81,6 +81,9 @@ func MySQLConfig(chDBCfg conf.ClubhouseDB) *mysql.Config {
 	cfg.Addr = net.JoinHostPort(chDBCfg.HostName, conv.FormatInt(chDBCfg.HostPort))
 	cfg.DBName = chDBCfg.Database
 	cfg.MultiStatements = true
+	// Encrypt when the server offers TLS, and fall back to plaintext when it
+	// doesn't. The driver skips certificate verification in this mode.
+	cfg.TLSConfig = "preferred"
 	return cfg
 }
 

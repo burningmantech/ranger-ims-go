@@ -18,6 +18,7 @@ package integration_test
 
 import (
 	"context"
+	"database/sql"
 	_ "embed"
 	"fmt"
 	"log"
@@ -62,6 +63,7 @@ var shared struct {
 	cfg          *conf.IMSConfig
 	imsDBQ       *store.DBQ
 	userStore    *directory.UserStore
+	clubhouseDB  *sql.DB
 	actionLogger *actionlog.Logger
 	errorLogger  *errorlog.Logger
 }
@@ -197,6 +199,7 @@ func setup(ctx context.Context, tempDir string) {
 		if err != nil {
 			return err
 		}
+		shared.clubhouseDB = clubhouseDB
 		clubhouseDBQ := directory.NewDBQ(clubhouseDB, chqueries.New())
 		shared.userStore = directory.NewUserStore(
 			directory.NewClubhouseSource(clubhouseDBQ),
@@ -257,7 +260,7 @@ func newCustomServer(
 	t.Helper()
 	bmAPI := httptest.NewTestServer(t, http.HandlerFunc(fakeBMAPI))
 	mux := api.AddToMux(
-		nil, api.NewEventSourcerer(), cfg, imsDBQ, userStore, nil,
+		nil, api.NewEventSourcerer(), cfg, imsDBQ, userStore, shared.clubhouseDB, nil,
 		shared.actionLogger, shared.errorLogger, bmAPI.Client(),
 	)
 	mux.Handle(http.MethodGet+" "+panicPath, api.Adapt(

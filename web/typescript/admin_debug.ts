@@ -30,6 +30,10 @@ const el = {
     runtimeMetricsDiv: ims.typedElement("runtime-metrics-div", HTMLDivElement),
     config: ims.typedElement("config", HTMLPreElement),
     configDiv: ims.typedElement("config-div", HTMLDivElement),
+    dbInfo: ims.typedElement("db-info", HTMLPreElement),
+    dbInfoDiv: ims.typedElement("db-info-div", HTMLDivElement),
+    dbVariables: ims.typedElement("db-variables", HTMLPreElement),
+    dbVariablesDiv: ims.typedElement("db-variables-div", HTMLDivElement),
     gc: ims.typedElement("gc", HTMLPreElement),
     gcDiv: ims.typedElement("gc-div", HTMLDivElement),
 };
@@ -45,6 +49,8 @@ async function initAdminDebugPage(): Promise<void> {
 
     ims.typedElement("show-build-info", HTMLButtonElement).addEventListener("click", fetchBuildInfo);
     ims.typedElement("show-config", HTMLButtonElement).addEventListener("click", fetchConfig);
+    ims.typedElement("show-db-info", HTMLButtonElement).addEventListener("click", fetchDBInfo);
+    ims.typedElement("show-db-variables", HTMLButtonElement).addEventListener("click", fetchDBVariables);
     ims.typedElement("perform-gc", HTMLButtonElement).addEventListener("click", performGC);
     ims.typedElement("show-metrics", HTMLButtonElement).addEventListener("click", fetchRuntimeMetrics);
 }
@@ -95,6 +101,24 @@ async function fetchConfig(): Promise<void> {
     }
     el.config.textContent = await resp.text();
     el.configDiv.style.display = "";
+}
+
+async function fetchDBInfo(): Promise<void> {
+    const {resp, err} = await ims.fetchNoThrow(url_debugDBInfo, {});
+    if (err != null || resp == null) {
+        throw err;
+    }
+    el.dbInfo.textContent = await resp.text();
+    el.dbInfoDiv.style.display = "";
+}
+
+async function fetchDBVariables(): Promise<void> {
+    const {resp, err} = await ims.fetchNoThrow(url_debugDBVariables, {});
+    if (err != null || resp == null) {
+        throw err;
+    }
+    el.dbVariables.textContent = await resp.text();
+    el.dbVariablesDiv.style.display = "";
 }
 
 async function performGC(): Promise<void> {

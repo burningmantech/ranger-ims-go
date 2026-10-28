@@ -59,6 +59,8 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		{http.MethodGet, "/ims/api/debug/runtimemetrics"},
 		{http.MethodPost, "/ims/api/debug/gc"},
 		{http.MethodGet, "/ims/api/debug/config"},
+		{http.MethodGet, "/ims/api/debug/dbinfo"},
+		{http.MethodGet, "/ims/api/debug/dbvariables"},
 	}
 
 	for _, api := range adminOnly {

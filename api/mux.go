@@ -68,6 +68,9 @@ func AddToMux(
 	cfg *conf.IMSConfig,
 	db *store.DBQ,
 	userStore *directory.UserStore,
+	// clubhouseDB is the Clubhouse directory's database, which only the debug
+	// page uses directly. It's nil when there's no Clubhouse directory.
+	clubhouseDB *sql.DB,
 	s3Client *attachment.S3Client,
 	actionLogger *actionlog.Logger,
 	errorLogger *errorlog.Logger,
@@ -218,6 +221,8 @@ func AddToMux(
 	authed("GET /ims/api/debug/runtimemetrics", GetRuntimeMetrics{db, userStore, cfg.Core.Admins}, LogMetadata)
 	authed("POST /ims/api/debug/gc", PerformGC{db, userStore, cfg.Core.Admins}, LogMetadata)
 	authed("GET /ims/api/debug/config", GetConfig{db, userStore, cfg.Core.Admins, cfg}, LogMetadata)
+	authed("GET /ims/api/debug/dbinfo", GetDBInfo{db, userStore, cfg.Core.Admins, cfg, clubhouseDB, false}, LogMetadata)
+	authed("GET /ims/api/debug/dbvariables", GetDBInfo{db, userStore, cfg.Core.Admins, cfg, clubhouseDB, true}, LogMetadata)
 
 	// Uncomment these to add pprof into the program. Note that we'd probably want
 	// these endpoints to be restricted to admins only, were this going to run in

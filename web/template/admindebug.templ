@@ -48,6 +48,18 @@ templ AdminDebug(deployment, versionName, versionRef string) {
   <pre id="config"></pre>
 </div>
 
+<h2 class="h4">Databases</h2>
+<p>
+  <button id="show-db-info" class="btn btn-sm btn-default btn-primary">Fetch Database Info</button>
+  <button id="show-db-variables" class="btn btn-sm btn-default btn-primary">Fetch All Database Variables</button>
+</p>
+<div id="db-info-div" style="display:none;">
+  <pre id="db-info"></pre>
+</div>
+<div id="db-variables-div" style="display:none;">
+  <pre id="db-variables"></pre>
+</div>
+
 <h2 class="h4">Garbage Collection</h2>
 <p><button id="perform-gc" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
 <div id="gc-div" style="display:none;">

@@ -18,16 +18,32 @@ package testctr
 
 import (
 	"context"
+	_ "embed"
 	"log/slog"
+	"regexp"
+	"strings"
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-const (
-	MariaDBVersion     = "13.0.2"
-	MariaDBDockerImage = "mariadb:" + MariaDBVersion
+//go:embed docker-compose.mariadb.yml
+var mariaDBComposeFile []byte
+
+var (
+	MariaDBDockerImage = mariaDBImageFromCompose()
+	MariaDBVersion     = strings.TrimPrefix(MariaDBDockerImage, "mariadb:")
 )
+
+// mariaDBImageFromCompose gets the MariaDB image from the compose file that the
+// repo's compose stacks extend, so the tests run against the same version.
+func mariaDBImageFromCompose() string {
+	m := regexp.MustCompile(`image:\s*"(mariadb:[^"]+)"`).FindSubmatch(mariaDBComposeFile)
+	if m == nil {
+		panic("no MariaDB image found in docker-compose.mariadb.yml")
+	}
+	return string(m[1])
+}
 
 // MariaDBContainer creates and runs a MariaDB TestContainer.
 //

@@ -80,7 +80,9 @@ services:
         condition: service_healthy
 
   ims-db:
-    image: "mariadb:13.0.2"
+    extends:
+      file: "lib/testctr/docker-compose.mariadb.yml"
+      service: "mariadb"
     container_name: "ranger-ims-db"
     environment:
       MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"
@@ -101,7 +103,9 @@ services:
       retries: 10
 
   clubhouse-db:
-    image: "mariadb:13.0.2"
+    extends:
+      file: "lib/testctr/docker-compose.mariadb.yml"
+      service: "mariadb"
     container_name: "ranger-clubhouse-db"
     environment:
       MARIADB_DATABASE: "${IMS_DMS_DATABASE:-rangers}"

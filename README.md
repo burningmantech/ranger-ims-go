@@ -47,12 +47,13 @@ when you run `ims serve` directly — the two configs can't collide. Edit `.env.
    ```shell
    password=$(openssl rand -hex 16)
    echo "Password is ${password}"
+   image=$(grep -o 'mariadb:[0-9][0-9.]*' lib/testctr/docker-compose.mariadb.yml)
    docker run -it \
      -e MARIADB_RANDOM_ROOT_PASSWORD=true \
      -e MARIADB_DATABASE=ims \
      -e MARIADB_USER=rangers \
      -e MARIADB_PASSWORD=${password} \
-     -p 3306:3306 mariadb:13.0.2
+     -p 3306:3306 ${image}
    ```
 2. Copy `.env.example` as `.env`, and set the various flags. Without a Clubhouse DB to point
    `IMS_DMS_*` at, set `IMS_DIRECTORY=ims` and follow the IMS-native directory steps below.

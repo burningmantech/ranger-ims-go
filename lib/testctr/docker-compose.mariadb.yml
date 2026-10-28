@@ -1,0 +1,5 @@
+# The one place the MariaDB version is set. The other compose files' database
+# services extend this one, and the testctr package embeds this file to get the image too.
+services:
+  mariadb:
+    image: "mariadb:12.3.3"

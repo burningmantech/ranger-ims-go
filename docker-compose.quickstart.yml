@@ -80,7 +80,9 @@ services:
       retries: 30
 
   ims-db:
-    image: "mariadb:13.0.2"
+    extends:
+      file: "lib/testctr/docker-compose.mariadb.yml"
+      service: "mariadb"
     container_name: "ranger-ims-quickstart-db"
     environment:
       MARIADB_DATABASE: "${IMS_DB_DATABASE:-ims}"

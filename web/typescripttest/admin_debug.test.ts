@@ -53,7 +53,7 @@ async function initAdminDebugPage() {
             return textResponse("/sched/goroutines:goroutines 7");
         }
         if (url === url_debugDBInfo) {
-            return textResponse("IMS database\n    VERSION():    13.0.2-MariaDB\n");
+            return textResponse("IMS database\n    VERSION():    123.456.789-MariaDB\n");
         }
         if (url === url_debugDBVariables) {
             return textResponse("SHOW SESSION VARIABLES\n    max_connections = 151\n");
@@ -128,7 +128,7 @@ test("fetching database info reveals the database info panel", async (): Promise
     await vi.waitFor((): void => {
         expect(div.style.display).toBe("");
     });
-    expect(document.getElementById("db-info")!.textContent).toContain("13.0.2-MariaDB");
+    expect(document.getElementById("db-info")!.textContent).toContain("123.456.789-MariaDB");
     // The full variables dump is a separate panel, and stays hidden.
     expect((document.getElementById("db-variables-div") as HTMLDivElement).style.display).toBe("none");
 });

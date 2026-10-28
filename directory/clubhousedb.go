@@ -35,6 +35,10 @@ import (
 //go:embed schema/current.sql
 var CurrentSchema string
 
+// ConnMaxLifetime is how long a pooled Clubhouse DB connection is kept before
+// it's retired. It matches store.ConnMaxLifetime, for the same reasons.
+const ConnMaxLifetime = 5 * time.Minute
+
 func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) {
 	var chDBCfg conf.ClubhouseDB
 	var err error
@@ -48,17 +52,7 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	}
 	slog.Info("Setting up Clubhouse DB connection")
 
-	// Capture connection properties.
-	cfg := mysql.NewConfig()
-	cfg.User = chDBCfg.Username
-	cfg.Passwd = chDBCfg.Password
-	cfg.Net = "tcp"
-	cfg.Addr = net.JoinHostPort(chDBCfg.HostName, conv.FormatInt(chDBCfg.HostPort))
-	cfg.DBName = chDBCfg.Database
-	cfg.MultiStatements = true
-
-	// Get a database handle.
-	db, err := sql.Open("mysql", cfg.FormatDSN())
+	db, err := sql.Open("mysql", MySQLConfig(chDBCfg).FormatDSN())
 	if err != nil {
 		return nil, fmt.Errorf("[sql.Open]: %w", err)
 	}
@@ -68,7 +62,7 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	// As in store.openDB: database/sql keeps only two idle connections by
 	// default, so busier moments pay for a connection handshake per query.
 	db.SetMaxIdleConns(int(chDBCfg.MaxOpenConns))
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxLifetime(ConnMaxLifetime)
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
 		return nil, fmt.Errorf("[PingContext]: %w", pingErr)
@@ -76,6 +70,18 @@ func MariaDB(ctx context.Context, directoryCfg conf.Directory) (*sql.DB, error) 
 	slog.Info("Connected to Clubhouse MariaDB")
 
 	return db, nil
+}
+
+// MySQLConfig is the driver configuration the Clubhouse database is opened with.
+func MySQLConfig(chDBCfg conf.ClubhouseDB) *mysql.Config {
+	cfg := mysql.NewConfig()
+	cfg.User = chDBCfg.Username
+	cfg.Passwd = chDBCfg.Password
+	cfg.Net = "tcp"
+	cfg.Addr = net.JoinHostPort(chDBCfg.HostName, conv.FormatInt(chDBCfg.HostPort))
+	cfg.DBName = chDBCfg.Database
+	cfg.MultiStatements = true
+	return cfg
 }
 
 // DBQ combines the SQL database and the Querier for the Clubhouse datastore.

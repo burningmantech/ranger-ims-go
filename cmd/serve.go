@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net"
@@ -115,12 +116,13 @@ func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printC
 	imsDBQ := store.NewDBQ(imsDB, imsdb.New())
 
 	var directorySource directory.Source
+	var clubhouseDB *sql.DB
 	if imsCfg.Directory.Directory == conf.DirectoryTypeIMS {
 		// The IMS-native directory lives in the IMS database itself,
 		// so there's no separate directory database to connect to.
 		directorySource = directory.NewIMSSource(imsDBQ)
 	} else {
-		clubhouseDB, err := directory.MariaDB(ctx, imsCfg.Directory)
+		clubhouseDB, err = directory.MariaDB(ctx, imsCfg.Directory)
 		must(err)
 		directorySource = directory.NewClubhouseSource(directory.NewDBQ(clubhouseDB, chqueries.New()))
 	}
@@ -136,7 +138,7 @@ func mustStartServer(ctx context.Context, unvalidatedCfg *conf.IMSConfig, printC
 
 	eventSource := api.NewEventSourcerer()
 	mux := http.NewServeMux()
-	api.AddToMux(mux, eventSource, imsCfg, imsDBQ, userStore, s3Client, actionLogger, errorLogger, nil)
+	api.AddToMux(mux, eventSource, imsCfg, imsDBQ, userStore, clubhouseDB, s3Client, actionLogger, errorLogger, nil)
 	web.AddToMux(mux, imsCfg)
 
 	s := &http.Server{

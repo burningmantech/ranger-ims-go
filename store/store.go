@@ -67,10 +67,15 @@ func SqlDB(ctx context.Context, dbStoreCfg conf.DBStore, migrateDB bool) (*sql.D
 	return db, nil
 }
 
-func openDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (*sql.DB, error) {
-	slog.Info("Setting up IMS DB connection")
+// ConnMaxLifetime is how long a pooled IMS DB connection is kept before it's retired.
+//
+// Retire connections well before anything between here and the database
+// (MariaDB's own wait_timeout, a load balancer's idle timeout) can drop one
+// out from under us and turn it into a failed query.
+const ConnMaxLifetime = 5 * time.Minute
 
-	// Capture connection properties.
+// MySQLConfig is the driver configuration the IMS database is opened with.
+func MySQLConfig(mariaCfg conf.DBStoreMaria) *mysql.Config {
 	cfg := mysql.NewConfig()
 	cfg.User = mariaCfg.Username
 	cfg.Passwd = mariaCfg.Password
@@ -78,9 +83,13 @@ func openDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (*sql.DB, error) {
 	cfg.Addr = net.JoinHostPort(mariaCfg.HostName, conv.FormatInt(mariaCfg.HostPort))
 	cfg.DBName = mariaCfg.Database
 	cfg.MultiStatements = true
+	return cfg
+}
 
-	// Get a database handle.
-	db, err := sql.Open("mysql", cfg.FormatDSN())
+func openDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (*sql.DB, error) {
+	slog.Info("Setting up IMS DB connection")
+
+	db, err := sql.Open("mysql", MySQLConfig(mariaCfg).FormatDSN())
 	if err != nil {
 		return nil, fmt.Errorf("[sql.Open]: %w", err)
 	}
@@ -90,10 +99,7 @@ func openDB(ctx context.Context, mariaCfg conf.DBStoreMaria) (*sql.DB, error) {
 	// for a fresh TCP and auth handshake on the next query. Let every connection
 	// the pool is allowed to open stay in it.
 	db.SetMaxIdleConns(int(mariaCfg.MaxOpenConns))
-	// Retire connections well before anything between here and the database
-	// (MariaDB's own wait_timeout, a load balancer's idle timeout) can drop one
-	// out from under us and turn it into a failed query.
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxLifetime(ConnMaxLifetime)
 	pingErr := db.PingContext(ctx)
 	if pingErr != nil {
 		return nil, fmt.Errorf("[db.PingContext]: %w", pingErr)

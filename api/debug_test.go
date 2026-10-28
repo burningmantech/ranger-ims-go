@@ -56,3 +56,33 @@ func TestGetConfigReturnsRedactedConfigForAdmin(t *testing.T) {
 	require.NotContains(t, configString, "hunter2")
 	require.NotContains(t, configString, "swordfish")
 }
+
+func TestGetDBInfoForbiddenWithoutGlobalAdministrateDebugging(t *testing.T) {
+	t.Parallel()
+
+	cfg := &conf.IMSConfig{}
+	cfg.Core.JWTSecret = "hunter2"
+	action := GetDBInfo{nil, testUserStore(), []string{"SomeAdmin"}, cfg, nil, false}
+
+	_, errHTTP := action.getDBInfo(requestWithClaims(t, authz.IMSClaims{Handle: "SomeRanger"}))
+
+	require.NotNil(t, errHTTP)
+	require.Equal(t, http.StatusForbidden, errHTTP.Code)
+	require.Contains(t, errHTTP.ResponseMessage, "GlobalAdministrateDebugging")
+}
+
+func TestGetDBInfoWithoutDatabases(t *testing.T) {
+	t.Parallel()
+
+	cfg := &conf.IMSConfig{}
+	cfg.Core.JWTSecret = "hunter2"
+	cfg.Store.Type = conf.DBStoreTypeNoOp
+	cfg.Directory.Directory = conf.DirectoryTypeIMS
+	action := GetDBInfo{nil, testUserStore(), []string{"SomeAdmin"}, cfg, nil, false}
+
+	infoString, errHTTP := action.getDBInfo(requestWithClaims(t, authz.IMSClaims{Handle: "SomeAdmin"}))
+
+	require.Nil(t, errHTTP)
+	require.Contains(t, infoString, "The store type is noop, so there's no database connection.")
+	require.Contains(t, infoString, "The directory lives in the IMS database, so there's no separate connection.")
+}

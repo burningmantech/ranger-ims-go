@@ -83,6 +83,9 @@ func MySQLConfig(mariaCfg conf.DBStoreMaria) *mysql.Config {
 	cfg.Addr = net.JoinHostPort(mariaCfg.HostName, conv.FormatInt(mariaCfg.HostPort))
 	cfg.DBName = mariaCfg.Database
 	cfg.MultiStatements = true
+	// Encrypt when the server offers TLS, and fall back to plaintext when it
+	// doesn't. The driver skips certificate verification in this mode.
+	cfg.TLSConfig = "preferred"
 	return cfg
 }
 

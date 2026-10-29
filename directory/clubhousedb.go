@@ -81,9 +81,10 @@ func MySQLConfig(chDBCfg conf.ClubhouseDB) *mysql.Config {
 	cfg.Addr = net.JoinHostPort(chDBCfg.HostName, conv.FormatInt(chDBCfg.HostPort))
 	cfg.DBName = chDBCfg.Database
 	cfg.MultiStatements = true
-	// Encrypt when the server offers TLS, and fall back to plaintext when it
-	// doesn't. The driver skips certificate verification in this mode.
-	cfg.TLSConfig = "preferred"
+	// Require TLS, but don't verify the CA. We almost certainly don't use real
+	// signed certificates on the playa. It'd be good for us to start using those
+	// in the future though, and to switch this to "true".
+	cfg.TLSConfig = "skip-verify"
 	return cfg
 }
 

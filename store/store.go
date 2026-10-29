@@ -21,13 +21,14 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"log/slog"
+	"net"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
 	_ "github.com/burningmantech/ranger-ims-go/lib/noopdb"
 	"github.com/go-sql-driver/mysql"
-	"log/slog"
-	"net"
-	"time"
 )
 
 //go:embed schema/current.sql
@@ -83,9 +84,10 @@ func MySQLConfig(mariaCfg conf.DBStoreMaria) *mysql.Config {
 	cfg.Addr = net.JoinHostPort(mariaCfg.HostName, conv.FormatInt(mariaCfg.HostPort))
 	cfg.DBName = mariaCfg.Database
 	cfg.MultiStatements = true
-	// Encrypt when the server offers TLS, and fall back to plaintext when it
-	// doesn't. The driver skips certificate verification in this mode.
-	cfg.TLSConfig = "preferred"
+	// Require TLS, but don't verify the CA. We almost certainly don't use real
+	// signed certificates on the playa. It'd be good for us to start using those
+	// in the future though, and to switch this to "true".
+	cfg.TLSConfig = "skip-verify"
 	return cfg
 }
 

@@ -123,13 +123,9 @@ async function initSanctuaryVisitPage(): Promise<void> {
     // load everything from the APIs concurrently
     await Promise.all([
         loadVisit(),
+        ims.loadDayNames(),
         loadPersonnel(),
     ]);
-
-    // const onChange = function(selectedDates: Date[], _dateStr: string, instance: ims.Flatpickr): void {
-    //     instance.input!.title = ims.longFormatDate(selectedDates[0]!);
-    //     instance.altInput!.title = ims.longFormatDate(selectedDates[0]!);
-    // };
 
     ims.newFlatpickr(el.arrivalTime, "alt_arrival_time", editArrivalTime, true);
     ims.newFlatpickr(el.departureTime, "alt_departure_time", editDepartureTime, true);
@@ -315,7 +311,7 @@ function drawVisitFields(): void {
     ims.setInputValue(el.guestCampContacts, (visit?.guest_camp_contacts?.toString())??"");
 
     if (visit?.arrival_time && ims.setFlatpickrDate(el.arrivalTime, visit.arrival_time)) {
-        const fullDate = ims.longFormatDate(new Date(visit.arrival_time));
+        const fullDate = ims.longFormatDateWithDayName(new Date(visit.arrival_time));
         el.arrivalTime._flatpickr.input!.title = fullDate;
         el.arrivalTime._flatpickr.altInput!.title = fullDate;
     }
@@ -325,7 +321,7 @@ function drawVisitFields(): void {
     ims.setInputValue(el.arrivalBelongings, (visit?.arrival_belongings?.toString())??"");
 
     if (visit?.departure_time && ims.setFlatpickrDate(el.departureTime, visit.departure_time)) {
-        const fullDate = ims.longFormatDate(new Date(visit.departure_time));
+        const fullDate = ims.longFormatDateWithDayName(new Date(visit.departure_time));
         el.departureTime._flatpickr.input!.title = fullDate;
         el.departureTime._flatpickr.altInput!.title = fullDate;
     }

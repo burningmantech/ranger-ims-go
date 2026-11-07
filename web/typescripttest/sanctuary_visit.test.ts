@@ -31,6 +31,7 @@ let serverEventAccess: ims.AuthInfoEventAccess;
 let serverVisit: ims.Visit;
 let serverPersonnel: ims.Personnel[];
 let serverEvents: ims.EventData[];
+let serverDayNames: ims.EventDayName[];
 
 beforeEach((): void => {
     vi.resetModules();
@@ -67,6 +68,7 @@ beforeEach((): void => {
         { handle: "Tool", status: "active", directory_id: 2 },
     ];
     serverEvents = [{ id: eventId, name: eventName }];
+    serverDayNames = [];
 });
 
 function visitRoutes(url: string, init?: RequestInit): Response | undefined {
@@ -99,6 +101,9 @@ function visitRoutes(url: string, init?: RequestInit): Response | undefined {
     }
     if (url === `${visitsUrl}/2/attachments` && hasBody) {
         return new Response(null, { status: 200 });
+    }
+    if (url === `/ims/api/events/${eventName}/day_names`) {
+        return jsonResponse(serverDayNames);
     }
     return undefined;
 }
@@ -153,6 +158,16 @@ test("page init draws the visit's number, names, and arrival state from the API"
 function expanded(sectionId: string): boolean {
     return (document.getElementById(sectionId) as HTMLDetailsElement).open;
 }
+
+test("the arrival and departure times' tooltips include the day's name", async (): Promise<void> => {
+    serverDayNames = [{ date: "2025-08-25", name: "Burn Night" }];
+    serverVisit.arrival_time = "2025-08-25T12:00:00Z";
+    serverVisit.departure_time = "2025-08-27T12:00:00Z";
+    await initVisitPage();
+
+    expect(document.getElementById("alt_arrival_time")!.title).toBe("Burn Night Mon, 2025-08-25 at 05:00:00 PDT");
+    expect(document.getElementById("alt_departure_time")!.title).toBe("Wed, 2025-08-27 at 05:00:00 PDT");
+});
 
 test("sections holding data start open, empty ones stay closed", async (): Promise<void> => {
     serverVisit.resource_bed_id = "B4";

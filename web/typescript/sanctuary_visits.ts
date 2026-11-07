@@ -187,9 +187,11 @@ function initDataTables() {
         // https://datatables.net/forums/discussion/47411/i-always-get-error-when-i-use-table-ajax-reload
         "ajax": function (_data: unknown, callback: (resp: {data: ims.VisitListItem[]})=>void, _settings: unknown): void {
             async function doAjax(): Promise<void> {
-                const {json, err} = await ims.fetchNoThrow<ims.VisitListItem[]>(
-                    ims.urlReplace(url_visits), null,
-                );
+                // The date columns' tooltips and search text include the day names.
+                const [{json, err}] = await Promise.all([
+                    ims.fetchNoThrow<ims.VisitListItem[]>(ims.urlReplace(url_visits), null),
+                    ims.loadDayNames(),
+                ]);
                 if (err != null || json == null) {
                     ims.setErrorMessage(`Failed to load table: ${err}`);
                     return;

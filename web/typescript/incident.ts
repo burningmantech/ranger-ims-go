@@ -109,6 +109,7 @@ async function initIncidentPage(): Promise<void> {
     // load everything from the APIs concurrently
     await Promise.all([
         loadIncident(),
+        ims.loadDayNames(),
         loadPersonnel(),
         ims.loadIncidentTypes().then(
             value=> {
@@ -648,6 +649,7 @@ function drawStarted(): void {
     if (!ims.setFlatpickrDate(el.startedDatetime, date)) {
         return;
     }
+    el.startedDatetime._flatpickr.altInput!.title = ims.longFormatDateWithDayName(dateDate);
 
     el.startedDatetimeTz.textContent = ims.tzShortName(dateDate);
     el.startedDatetimeTz.title = `${ims.imsTimeZone()}\n\n` +

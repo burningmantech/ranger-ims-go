@@ -280,7 +280,8 @@ export function parseInt10(stringInt: string|null|undefined): number|null {
 function timeElement(date: Date): HTMLTimeElement {
     const timeStampContainer = document.createElement("time");
     timeStampContainer.setAttribute("datetime", date.toISOString());
-    timeStampContainer.textContent = longFormatDate(date);
+    timeStampContainer.textContent = reportEntryDate(date);
+    timeStampContainer.title = longFormatDate(date);
     return timeStampContainer;
 }
 
@@ -1220,6 +1221,16 @@ export function nerdDateTime(d: Date|number): string {
     return `${dateISO(d)} ${padTwo(p.hour)}:${padTwo(p.minute)}:${padTwo(p.second)}`;
 }
 
+const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Format a date in IMS's time zone, e.g. "Sun, Aug 16 @ 21:38", with the year
+// ("Sun, Aug 16, 2026 @ 21:38") only when it isn't the current one.
+export function reportEntryDate(date: Date|number): string {
+    const p = zonedParts(date);
+    const year = p.year === zonedParts(Date.now()).year ? "" : `, ${p.year}`;
+    return `${p.weekday}, ${shortMonthNames[p.month - 1]} ${p.day}${year} @ ${padTwo(p.hour)}:${padTwo(p.minute)}`;
+}
+
 // Format a date in IMS's time zone, e.g. "Sun 2026-08-23 @ 12:00".
 export function formatDateShort(date: Date): string {
     return `${zonedParts(date).weekday} ${dateISO(date)} @ ${timeHHMM(date)}`;
@@ -1230,7 +1241,7 @@ export function renderDate(date: string|undefined, type: string, _incidentOrFROr
         return undefined;
     }
     const d = Date.parse(date);
-    const fullDate = longFormatDate(d);
+    const fullDate = longFormatDateWithDayName(d);
     switch (type) {
         case "display":
             const dateSpan = document.createElement("span");
@@ -1240,7 +1251,7 @@ export function renderDate(date: string|undefined, type: string, _incidentOrFROr
             dateSpan.append(shortDate(d), document.createElement("br"), shortTime(d));
             return dateSpan;
         case "filter":
-            return shortDate(d) + " " + shortTime(d);
+            return [dayName(d), shortDate(d), shortTime(d)].filter((s?: string): boolean => s != null).join(" ");
         case "type":
         case "sort":
         case undefined:
@@ -1545,17 +1556,38 @@ function createSvgTextLink(svgID: string, text: string): HTMLAnchorElement {
 // The current event's day names (e.g. "Man Burn"), keyed by "YYYY-MM-DD" in
 // IMS's time zone.
 let dayNames: Map<string, string> = new Map();
+let dayNamesLoaded: Promise<void>|null = null;
 
-// Fetches the event's day names, then labels any report entries already drawn,
-// since this races the page's own loading.
-async function loadDayNames(): Promise<void> {
-    const {json, err} = await fetchNoThrow<EventDayName[]>(urlReplace(url_dayNames), null);
-    if (err != null || json == null) {
-        // The page is fine without them, so this isn't worth an error banner.
-        console.warn(`Failed to load day names: ${err}`);
-        return;
-    }
-    dayNames = new Map(json.map((dn: EventDayName): [string, string] => [dn.date, dn.name]));
+// Fetches the event's day names, once per page load, however many callers ask.
+export function loadDayNames(): Promise<void> {
+    dayNamesLoaded ??= (async (): Promise<void> => {
+        const {json, err} = await fetchNoThrow<EventDayName[]>(urlReplace(url_dayNames), null);
+        if (err != null || json == null) {
+            // The page is fine without them, so this isn't worth an error banner.
+            console.warn(`Failed to load day names: ${err}`);
+            return;
+        }
+        dayNames = new Map(json.map((dn: EventDayName): [string, string] => [dn.date, dn.name]));
+    })();
+    return dayNamesLoaded;
+}
+
+// The name of the day the date falls on, if it has one and loadDayNames has
+// finished.
+export function dayName(date: Date|number): string|undefined {
+    return dayNames.get(dateISO(date));
+}
+
+// longFormatDate, preceded by the day's name if it has one.
+export function longFormatDateWithDayName(date: Date|number): string {
+    const name = dayName(date);
+    return name == null ? longFormatDate(date) : `${name} ${longFormatDate(date)}`;
+}
+
+// Labels any report entries already drawn once the day names arrive, since
+// this races the page's own loading.
+async function labelReportEntryDays(): Promise<void> {
+    await loadDayNames();
     for (const time of document.querySelectorAll<HTMLTimeElement>("#report_entries time.report_entry_timestamp")) {
         addDayName(time);
     }
@@ -1566,7 +1598,8 @@ function addDayName(time: HTMLTimeElement): void {
     if (time.previousElementSibling?.classList.contains("report_entry_day_name")) {
         return;
     }
-    const name: string|undefined = dayNames.get(dateISO(new Date(time.dateTime)));
+    const date = new Date(time.dateTime);
+    const name: string|undefined = dayName(date);
     if (name == null) {
         return;
     }
@@ -1574,6 +1607,7 @@ function addDayName(time: HTMLTimeElement): void {
     nameContainer.classList.add("report_entry_day_name");
     nameContainer.textContent = name;
     time.before(nameContainer, " ");
+    time.title = longFormatDateWithDayName(date);
 }
 
 export function drawReportEntries(entries: ReportEntry[]): void {
@@ -1705,7 +1739,7 @@ export async function submitReportEntry(): Promise<void> {
 // Wires up the report entry controls that the Incident, Field Report, and
 // Visit pages share.
 export function initReportEntryControls(attachFile: ()=>Promise<void>): void {
-    void loadDayNames();
+    void labelReportEntryDays();
     typedElement("history_checkbox", HTMLInputElement).addEventListener("change", toggleShowHistory);
     typedElement("report_entry_add", HTMLTextAreaElement).addEventListener("change", reportEntryEdited);
     typedElement("report_entry_submit", HTMLButtonElement).addEventListener("click", submitReportEntry);

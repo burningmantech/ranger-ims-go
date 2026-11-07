@@ -33,6 +33,7 @@ let serverEventAccess: ims.AuthInfoEventAccess;
 let serverIncidents: ims.IncidentListItem[];
 let serverTypes: ims.IncidentType[];
 let serverEvents: ims.EventData[];
+let serverDayNames: ims.EventDayName[];
 
 beforeEach((): void => {
     vi.resetModules();
@@ -64,6 +65,7 @@ beforeEach((): void => {
         { id: 2, name: "Lost Child", hidden: false, description: "" },
     ];
     serverEvents = [{ id: eventId, name: eventName }];
+    serverDayNames = [];
 });
 
 function incidentsRoutes(url: string, _init?: RequestInit): Response | undefined {
@@ -83,6 +85,9 @@ function incidentsRoutes(url: string, _init?: RequestInit): Response | undefined
     }
     if (url === incidentsUrl) {
         return jsonResponse(serverIncidents);
+    }
+    if (url === `/ims/api/events/${eventName}/day_names`) {
+        return jsonResponse(serverDayNames);
     }
     return undefined;
 }
@@ -177,6 +182,26 @@ test("the summary column truncates very long summaries for display", async (): P
     const display = render(longSummary, "display", serverIncidents[0]!) as string;
     expect(display.length).toBe(250);
     expect(display.endsWith("...")).toBe(true);
+});
+
+test("the date columns' tooltips and search text include the day's name", async (): Promise<void> => {
+    serverDayNames = [{ date: "2025-08-25", name: "Burn Night" }];
+    await initIncidentsPage();
+    await vi.waitFor((): void => {
+        expect(MockDataTable.lastInstance?.data().length).toBe(2);
+    });
+    const render = renderColumn("incident_started");
+    const incident = serverIncidents[0]!;
+
+    const named = render("2025-08-25T10:00:00Z", "display", incident) as HTMLSpanElement;
+    expect(named.title).toBe("Burn Night Mon, 2025-08-25 at 03:00:00 PDT");
+    // The day's name stays out of the cell itself.
+    expect(named.textContent).not.toContain("Burn Night");
+    expect(render("2025-08-25T10:00:00Z", "filter", incident)).toContain("Burn Night");
+
+    const unnamed = render("2025-08-27T10:00:00Z", "display", incident) as HTMLSpanElement;
+    expect(unnamed.title).toBe("Wed, 2025-08-27 at 03:00:00 PDT");
+    expect(render("2025-08-27T10:00:00Z", "filter", incident)).not.toContain("Burn Night");
 });
 
 test("the types column renders type names and handles missing ids", async (): Promise<void> => {

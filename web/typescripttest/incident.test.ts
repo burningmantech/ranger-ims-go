@@ -318,6 +318,19 @@ test("page init draws the incident fields from the API", async (): Promise<void>
     expect(mapLink.classList.contains("d-none")).toBe(false);
 });
 
+test("the started time's tooltip includes the day's name", async (): Promise<void> => {
+    serverDayNames = [{ date: "2025-08-25", name: "Burn Night" }];
+    await initIncidentPage();
+
+    expect(document.getElementById("alt_started_datetime")!.title).toBe("Burn Night Mon, 2025-08-25 at 03:00:00 PDT");
+});
+
+test("the started time's tooltip is the plain date on an unnamed day", async (): Promise<void> => {
+    await initIncidentPage();
+
+    expect(document.getElementById("alt_started_datetime")!.title).toBe("Mon, 2025-08-25 at 03:00:00 PDT");
+});
+
 test("rangers and incident types are drawn with their add datalists", async (): Promise<void> => {
     await initIncidentPage();
 
@@ -428,7 +441,9 @@ test("report entries on a named day show the day's name before the timestamp", a
     await vi.waitFor((): void => {
         expect(metadataFor("named day").querySelector(".report_entry_day_name")?.textContent).toBe("Burn Night");
     });
-    expect(metadataFor("named day").textContent).toContain("Burn Night Mon, 2025-08-25 at 03:05:00 PDT, Hot Slots");
+    expect(metadataFor("named day").textContent).toContain("Burn Night Mon, Aug 25, 2025 @ 03:05, Hot Slots");
+    expect(metadataFor("named day").querySelector("time")!.title).toBe("Burn Night Mon, 2025-08-25 at 03:05:00 PDT");
+    expect(metadataFor("unnamed day").querySelector("time")!.title).toBe("Wed, 2025-08-27 at 11:00:00 PDT");
     expect(metadataFor("late that night").querySelector(".report_entry_day_name")?.textContent).toBe("Burn Night");
     expect(metadataFor("unnamed day").querySelector(".report_entry_day_name")).toBeNull();
 });

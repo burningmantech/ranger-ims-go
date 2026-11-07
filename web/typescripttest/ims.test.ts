@@ -192,6 +192,17 @@ test("dates format in IMS's time zone, not the device's", (): void => {
     });
 });
 
+test("reportEntryDate shows the year only when it isn't the current one", (): void => {
+    vi.useFakeTimers();
+    // Still 2026 in Los Angeles, but already 2027 in Berlin.
+    vi.setSystemTime(new Date("2027-01-01T05:00:00Z"));
+    expect(ims.reportEntryDate(new Date("2026-08-17T04:38:12Z"))).toBe("Sun, Aug 16 @ 21:38");
+    expect(ims.reportEntryDate(new Date("2026-08-06T16:05:00Z"))).toBe("Thu, Aug 6 @ 09:05");
+    vi.setSystemTime(new Date("2027-06-01T12:00:00Z"));
+    expect(ims.reportEntryDate(new Date("2026-08-17T04:38:12Z"))).toBe("Sun, Aug 16, 2026 @ 21:38");
+    vi.useRealTimers();
+});
+
 test("zonedDate finds the instant of a wall-clock time in IMS's time zone", (): void => {
     expect(ims.zonedDate(2026, 8, 30, 9, 5).toISOString()).toBe("2026-08-30T16:05:00.000Z");
     expect(ims.zonedDate(2026, 1, 15, 12, 0).toISOString()).toBe("2026-01-15T20:00:00.000Z");

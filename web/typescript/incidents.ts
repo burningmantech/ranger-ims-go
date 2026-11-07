@@ -279,6 +279,8 @@ function initDataTables(tablePrereqs: Promise<void>): void {
                 // concurrently fetch the data needed for the table
                 await Promise.all([
                     tablePrereqs,
+                    // The date columns' tooltips include the day names.
+                    ims.loadDayNames(),
                     ims.fetchNoThrow<ims.IncidentListItem[]>(
                         ims.urlReplace(url_incidents), null,
                     ).then(res => {

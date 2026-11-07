@@ -31,6 +31,7 @@ const visitsUrl = `/ims/api/events/${eventName}/visits`;
 let serverEventAccess: ims.AuthInfoEventAccess;
 let serverVisits: ims.VisitListItem[];
 let serverEvents: ims.EventData[];
+let serverDayNames: ims.EventDayName[];
 
 beforeEach((): void => {
     vi.resetModules();
@@ -58,6 +59,7 @@ beforeEach((): void => {
         { number: 3, guest_preferred_name: "Wanderer", departure_time: "2025-08-25T12:00:00Z" },
     ];
     serverEvents = [{ id: eventId, name: eventName }];
+    serverDayNames = [];
 });
 
 function visitRoutes(url: string, init?: RequestInit): Response | undefined {
@@ -74,6 +76,9 @@ function visitRoutes(url: string, init?: RequestInit): Response | undefined {
     }
     if (url === visitsUrl && init?.body == null) {
         return jsonResponse(serverVisits);
+    }
+    if (url === `/ims/api/events/${eventName}/day_names`) {
+        return jsonResponse(serverDayNames);
     }
     return undefined;
 }
@@ -155,6 +160,21 @@ test("the string columns render display, filter, and truncated text", async (): 
     const display = render(long, "display", serverVisits[0]!) as string;
     expect(display.length).toBe(250);
     expect(display.endsWith("...")).toBe(true);
+});
+
+test("the date columns' tooltips and search text include the day's name", async (): Promise<void> => {
+    serverDayNames = [{ date: "2025-08-25", name: "Burn Night" }];
+    await initVisitsPage();
+    await vi.waitFor((): void => {
+        expect(MockDataTable.lastInstance?.data().length).toBe(2);
+    });
+    const render = MockDataTable.lastInstance!.column("visit_departure_time")!.render!;
+    const visit = serverVisits[1]!;
+
+    const display = render(visit.departure_time, "display", visit) as HTMLSpanElement;
+    expect(display.title).toBe("Burn Night Mon, 2025-08-25 at 05:00:00 PDT");
+    expect(display.textContent).not.toContain("Burn Night");
+    expect(render(visit.departure_time, "filter", visit)).toContain("Burn Night");
 });
 
 test("the status filter shows only current visits unless showing all", async (): Promise<void> => {

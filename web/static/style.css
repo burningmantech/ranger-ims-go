@@ -184,9 +184,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .report_entry_metadata {
   font-size: var(--font-size-smallest);
-  font-weight: bold;
-  text-decoration: underline;
-  filter: opacity(75%);
+  filter: opacity(85%);
   margin: 0.9rem 0 0 0;
 }
 

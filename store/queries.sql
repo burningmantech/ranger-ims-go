@@ -95,6 +95,9 @@ delete from EVENT_ACCESS where EVENT = ?;
 -- name: DeleteEventPlaces :exec
 delete from PLACE where EVENT = ?;
 
+-- name: DeleteEventDayNames :exec
+delete from EVENT_DAY_NAME where EVENT = ?;
+
 -- name: DetachChildrenFromEventGroup :exec
 update `EVENT` set PARENT_GROUP = null where PARENT_GROUP = ?;
 
@@ -627,6 +630,16 @@ from
 where
     EVENT = ?
 ;
+
+-- name: EventDayNames :many
+select date_format(DATE, '%Y-%m-%d') as DATE, NAME
+from EVENT_DAY_NAME
+where EVENT = ?
+order by DATE
+;
+
+-- name: CreateEventDayName :exec
+insert into EVENT_DAY_NAME (EVENT, DATE, NAME) values (?, ?, ?);
 
 -- name: CreateVisit :execlastid
 insert into VISIT (`EVENT`, NUMBER, CREATED) values (?, ?, ?);

@@ -11,6 +11,14 @@ sql:
       emit_all_enum_values: true
       emit_interface: true
       emit_methods_with_db_argument: true
+      overrides:
+        # Day names are written as "YYYY-MM-DD" strings. EventDayNames reads
+        # them back with date_format(), so that doesn't hinge on the DSN's
+        # parseTime setting.
+        - column: "event_day_name.date"
+          go_type:
+            type: "string"
+            pointer: false
 - engine: "mysql"
   queries: "directory/queries.sql"
   schema: "directory/schema/current.sql"

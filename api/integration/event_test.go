@@ -637,6 +637,10 @@ func TestDeleteEvent(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
+	resp = admin.editDayNames(ctx, child1Name, []imsjson.EventDayName{{Date: "2026-09-05", Name: "Man Burn"}})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
 	// The event now has report entries associated with it.
 	reportEntryIDs, err := shared.imsDBQ.EventReportEntryIDs(ctx, shared.imsDBQ,
 		imsdb.EventReportEntryIDsParams{EventID: child1ID})

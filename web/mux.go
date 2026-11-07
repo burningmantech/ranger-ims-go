@@ -98,6 +98,9 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 	mux.Handle("GET /ims/app/admin/directory",
 		AdaptTempl(template.AdminDirectory(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
+	mux.Handle("GET /ims/app/admin/daynames",
+		AdaptTempl(template.AdminDayNames(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
+	)
 	mux.Handle("GET /ims/app/admin/places",
 		AdaptTempl(template.AdminPlaces(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)

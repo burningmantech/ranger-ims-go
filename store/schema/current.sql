@@ -6,7 +6,7 @@ create table SCHEMA_INFO (
 -- This value must be updated when you make a new migration file.
 --
 
-insert into SCHEMA_INFO (VERSION) values (48);
+insert into SCHEMA_INFO (VERSION) values (49);
 
 
 -- Declare indexes inline in "create table" rather than as standalone "create
@@ -303,6 +303,16 @@ create table `PLACE` (
 
     primary key (`EVENT`, `TYPE`, `NUMBER`),
     foreign key `DEST_EVENT` (`EVENT`) references `EVENT`(ID)
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
+
+create table `EVENT_DAY_NAME` (
+    `EVENT` integer      not null,
+    `DATE`  date         not null,
+    `NAME`  varchar(128) not null,
+
+    primary key (`EVENT`, `DATE`),
+    foreign key `EVENT_DAY_NAME_EVENT` (`EVENT`) references `EVENT`(`ID`)
 ) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
 

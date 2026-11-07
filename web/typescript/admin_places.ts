@@ -326,11 +326,17 @@ async function importFromAPI(field: PlaceField): Promise<void> {
 // Fetches the selected event's places and redraws the given fields from the
 // response, so that a just-saved field shows what the server actually stored.
 async function fetchPlaces(toDraw: PlaceField[]): Promise<void> {
+    const eventName = el.eventName.value;
     const {json, err} = await ims.fetchNoThrow<ims.Places>(
-        url_places.replace("<event_id>", el.eventName.value), {
+        url_places.replace("<event_id>", eventName), {
             headers: {"Cache-Control": "no-cache"},
         },
     );
+    // A slow response for a previously selected event mustn't fill in the
+    // textareas, or saving would write that event's places to this one.
+    if (el.eventName.value !== eventName) {
+        return;
+    }
     if (err != null || json == null) {
         const message = `Failed to load places: ${err}`;
         console.error(message);

@@ -420,6 +420,10 @@ func (action DeleteEvent) deleteEventRows(ctx context.Context, eventID int32) *h
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventPlaces]")
 	}
+	err = action.imsDBQ.DeleteEventDayNames(ctx, txn, eventID)
+	if err != nil {
+		return herr.InternalServerError("Failed to delete event", err).From("[DeleteEventDayNames]")
+	}
 	err = action.imsDBQ.DetachChildrenFromEventGroup(ctx, txn, sql.NullInt32{Int32: eventID, Valid: true})
 	if err != nil {
 		return herr.InternalServerError("Failed to delete event", err).From("[DetachChildrenFromEventGroup]")

@@ -1,0 +1,65 @@
+//
+// See the file COPYRIGHT for copyright information.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package template
+
+templ AdminDayNames(deployment, versionName, versionRef string) {
+<!DOCTYPE html>
+<html lang="en">
+@Head("Day Names", "admin_day_names.js", false, versionRef)
+
+<body>
+<div class="container-fluid">
+@Header(deployment)
+@Nav("")
+<main id="main" tabindex="-1">
+<h1 id="doc-title">Event Day Names</h1>
+
+@ErrorInfo()
+
+@HelpModal("Day Names admin", "admin") {
+  @helpOnlyGoToShortcut()
+}
+
+<p>
+  Name particular days of an event, e.g. "Man Burn". A report entry written on a named day shows that
+  name in front of its timestamp.
+</p>
+
+<form id="day-names-form">
+  <div class="mb-3">
+    <label for="event-name" class="form-label">Event name</label>
+    <select id="event-name" class="form-control form-select">
+      <option value="" selected>Select an event...</option>
+    </select>
+  </div>
+  <div class="mb-3">
+    <label for="day-names" class="form-label">Day names, one per line as CSV: <code>date,name</code></label>
+    <textarea id="day-names" class="form-control font-monospace" rows="15" spellcheck="false" aria-describedby="day-names-help" disabled></textarea>
+    <div id="day-names-help" class="form-text">
+      Dates are YYYY-MM-DD, e.g. <code>2026-09-05,Man Burn</code>. Everything after the first comma is the name, so a name may contain commas.
+      Blank lines are ignored.
+    </div>
+  </div>
+  <button id="day-names-save" type="button" class="btn btn-primary" disabled>Save day names</button>
+</form>
+
+</main>
+@Footer(versionName, versionRef)
+</div>
+</body>
+</html>
+}

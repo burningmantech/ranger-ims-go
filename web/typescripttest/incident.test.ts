@@ -34,11 +34,13 @@ let serverEvents: ims.EventData[];
 let serverPlaces: ims.Places;
 let serverFieldReports: ims.FieldReport[];
 let serverVisits: ims.Visit[];
+let serverDayNames: ims.EventDayName[];
 
 beforeEach((): void => {
     vi.resetModules();
     loadFixture("incident.html");
     window.history.replaceState(null, "", `/ims/app/events/${eventName}/incidents/1`);
+    serverDayNames = [];
 
     // requestEventSourceLock requires a secure context, which happy-dom
     // doesn't claim to be, and the Web Locks API, which happy-dom leaves
@@ -159,6 +161,9 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
     }
     if (url === `/ims/api/personnel?event_id=${eventName}`) {
         return jsonResponse(serverPersonnel);
+    }
+    if (url === `/ims/api/events/${eventName}/day_names`) {
+        return jsonResponse(serverDayNames);
     }
     if (url === "/ims/api/incident_types") {
         return jsonResponse(serverTypes);
@@ -401,6 +406,31 @@ test("report entries from the incident, field reports, and visits are merged in 
 
     // History (system entries) is hidden until the checkbox is checked.
     expect(document.getElementById("report_entries")!.classList.contains("hide-history")).toBe(true);
+});
+
+test("report entries on a named day show the day's name before the timestamp", async (): Promise<void> => {
+    // 2025-08-25T10:00:00Z is still 08-25 in IMS's time zone, but
+    // 2025-08-26T05:00:00Z is 08-25 there too, which a UTC date would get wrong.
+    serverIncident.report_entries = [
+        { id: 1, created: "2025-08-25T10:05:00Z", author: "Hot Slots", text: "named day", system_entry: false },
+        { id: 2, created: "2025-08-26T05:00:00Z", author: "Hot Slots", text: "late that night", system_entry: false },
+        { id: 3, created: "2025-08-27T18:00:00Z", author: "Hot Slots", text: "unnamed day", system_entry: false },
+    ];
+    serverFieldReports = [];
+    serverVisits = [];
+    serverDayNames = [{ date: "2025-08-25", name: "Burn Night" }];
+    await initIncidentPage();
+
+    const metadataFor = (text: string): HTMLElement =>
+        [...document.querySelectorAll<HTMLDivElement>("#report_entries .report_entry")]
+            .find((e: HTMLDivElement): boolean => e.querySelector(".report_entry_text")!.textContent === text)!
+            .querySelector<HTMLElement>(".report_entry_metadata")!;
+    await vi.waitFor((): void => {
+        expect(metadataFor("named day").querySelector(".report_entry_day_name")?.textContent).toBe("Burn Night");
+    });
+    expect(metadataFor("named day").textContent).toContain("Burn Night Mon, 2025-08-25 at 03:05:00 PDT, Hot Slots");
+    expect(metadataFor("late that night").querySelector(".report_entry_day_name")?.textContent).toBe("Burn Night");
+    expect(metadataFor("unnamed day").querySelector(".report_entry_day_name")).toBeNull();
 });
 
 // Attach a file to each of the three entries the incident page merges together:

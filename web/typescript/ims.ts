@@ -1437,6 +1437,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
     timeStampContainer.classList.add("report_entry_timestamp");
 
     metaDataContainer.append(timeStampContainer, ", ");
+    addDayName(timeStampContainer);
 
     const authorContainer: HTMLSpanElement = document.createElement("span");
     authorContainer.textContent = entry.author??"(unknown)";
@@ -1539,6 +1540,40 @@ function createSvgTextLink(svgID: string, text: string): HTMLAnchorElement {
     linkFrag.querySelector("use")!.setAttributeNS(null, "href", svgID);
     linkFrag.querySelector("span")!.textContent = text;
     return linkFrag.querySelector("a")!;
+}
+
+// The current event's day names (e.g. "Man Burn"), keyed by "YYYY-MM-DD" in
+// IMS's time zone.
+let dayNames: Map<string, string> = new Map();
+
+// Fetches the event's day names, then labels any report entries already drawn,
+// since this races the page's own loading.
+async function loadDayNames(): Promise<void> {
+    const {json, err} = await fetchNoThrow<EventDayName[]>(urlReplace(url_dayNames), null);
+    if (err != null || json == null) {
+        // The page is fine without them, so this isn't worth an error banner.
+        console.warn(`Failed to load day names: ${err}`);
+        return;
+    }
+    dayNames = new Map(json.map((dn: EventDayName): [string, string] => [dn.date, dn.name]));
+    for (const time of document.querySelectorAll<HTMLTimeElement>("#report_entries time.report_entry_timestamp")) {
+        addDayName(time);
+    }
+}
+
+// Puts the day's name, if it has one, in front of a report entry's timestamp.
+function addDayName(time: HTMLTimeElement): void {
+    if (time.previousElementSibling?.classList.contains("report_entry_day_name")) {
+        return;
+    }
+    const name: string|undefined = dayNames.get(dateISO(new Date(time.dateTime)));
+    if (name == null) {
+        return;
+    }
+    const nameContainer: HTMLSpanElement = document.createElement("span");
+    nameContainer.classList.add("report_entry_day_name");
+    nameContainer.textContent = name;
+    time.before(nameContainer, " ");
 }
 
 export function drawReportEntries(entries: ReportEntry[]): void {
@@ -1670,6 +1705,7 @@ export async function submitReportEntry(): Promise<void> {
 // Wires up the report entry controls that the Incident, Field Report, and
 // Visit pages share.
 export function initReportEntryControls(attachFile: ()=>Promise<void>): void {
+    void loadDayNames();
     typedElement("history_checkbox", HTMLInputElement).addEventListener("change", toggleShowHistory);
     typedElement("report_entry_add", HTMLTextAreaElement).addEventListener("change", reportEntryEdited);
     typedElement("report_entry_submit", HTMLButtonElement).addEventListener("click", submitReportEntry);
@@ -3100,6 +3136,12 @@ export interface ReportEntry {
     system_entry?: boolean|null;
     stricken?: boolean|null;
     attachment?: Attachment|null;
+}
+
+export interface EventDayName {
+    // "YYYY-MM-DD", a day in IMS's time zone
+    date: string;
+    name: string;
 }
 
 export interface IncidentType {

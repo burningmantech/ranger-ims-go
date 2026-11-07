@@ -56,6 +56,7 @@ func main() {
 		"admin_error_logs.html":  template.AdminErrorLogs(deployment, versionName, versionRef),
 		"admin_debug.html":       template.AdminDebug(deployment, versionName, versionRef),
 		"admin_places.html":      template.AdminPlaces(deployment, versionName, versionRef),
+		"admin_day_names.html":   template.AdminDayNames(deployment, versionName, versionRef),
 		"admin_root.html":        template.AdminRoot(deployment, versionName, versionRef),
 		"settings.html":          template.Settings(deployment, versionName, versionRef),
 		"help.html":              template.Help(deployment, versionName, versionRef),

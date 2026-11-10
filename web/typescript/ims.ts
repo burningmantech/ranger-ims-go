@@ -3427,18 +3427,64 @@ export function fromPickerDate(d: Date): Date {
     return new Date(z.getTime() + d.getMilliseconds());
 }
 
+const pickerAltFormat = "display";
+const pickerDateFormat = "Y-m-d H:i";
+
+// How a date-time picker shows its (stand-in) date, e.g. "Burn Night Mon, Aug 25 @ 03:00".
+function formatPickerDate(d: Date, format: string): string {
+    if (format === pickerAltFormat) {
+        const real = fromPickerDate(d);
+        const name = dayName(real);
+        const date = reportEntryDate(real);
+        return name == null ? date : `${name} ${date}`;
+    }
+    // The hidden input's dateFormat. Nothing reads it but flatpickr itself.
+    return `${d.getFullYear()}-${padTwo(d.getMonth() + 1)}-${padTwo(d.getDate())} ${padTwo(d.getHours())}:${padTwo(d.getMinutes())}`;
+}
+
+const monthPattern = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?(?:[\s,@]+(?:at\s+)?(\d{1,2}):(\d{2}))?\s*$/i;
+
+// Parse what's typed into a date-time picker, as a picker stand-in Date. It
+// takes the picker's own display format, with or without the day name and the
+// year (the current one by default), and anything parseDateInput does, such as
+// "2026-08-25 03:00". The time is optional, defaulting to midnight.
+export function parsePickerInput(input: string): Date|undefined {
+    const iso = parseDateInput(input);
+    if (iso != null) {
+        return toPickerDate(iso);
+    }
+    const match = input.trim().match(monthPattern);
+    if (match == null) {
+        return undefined;
+    }
+    const month = shortMonthNames.findIndex(
+        (m: string): boolean => m.toLowerCase() === match[1]!.toLowerCase(),
+    ) + 1;
+    const day = parseInt10(match[2]!)!;
+    const year = match[3] != null ? parseInt10(match[3])! : zonedParts(Date.now()).year;
+    const hour = match[4] != null ? parseInt10(match[4])! : 0;
+    const minute = match[5] != null ? parseInt10(match[5])! : 0;
+    if (day < 1 || day > 31 || hour > 23 || minute > 59) {
+        return undefined;
+    }
+    return toPickerDate(zonedDate(year, month, day, hour, minute));
+}
+
 // Make a date-time picker that shows and takes times in IMS's time zone. Its
-// onChange gets real instants, not the picker's stand-in Dates.
+// onChange gets real instants, not the picker's stand-in Dates. The day names
+// show only if loadDayNames has finished before a date is set.
 export function newFlatpickr(
     selector: string|Node, altInputId: string, onChange: FlatpickrEventFunc,
     startAtNow?: boolean,
 ): Flatpickr {
     return newFlatpickrInternal(selector, {
         altInput: true,
-        altFormat: 'D Y-m-d @ H:i',
+        altFormat: pickerAltFormat,
         enableTime: true,
         allowInput: true,
-        dateFormat: 'Y-m-d H:i',
+        dateFormat: pickerDateFormat,
+        formatDate: formatPickerDate,
+        parseDate: (input: string, _format: string): Date|undefined => parsePickerInput(input),
         time_24hr: true,
         minuteIncrement: 1,
         now: toPickerDate(new Date()),
@@ -3457,6 +3503,13 @@ export function newFlatpickr(
         },
         // This lets us set the date even on manual data entry in the altInput field.
         onClose: function(_selectedDates: Date[], _dateStr: string, instance: Flatpickr): void {
+            // On mobile, flatpickr shows a native picker that commits its own
+            // value, and leaves the alt input hidden. It also ignores our
+            // formatDate there, so the alt input holds altFormat's letters run
+            // through flatpickr's tokens, which would parse as no date at all.
+            if (instance.isMobile) {
+                return;
+            }
             instance.setDate(instance.altInput!.value, true, instance.config.altFormat!);
         },
     });
@@ -3503,6 +3556,8 @@ export interface FlatpickrOptions {
     allowInput?: boolean;
     enableTime?: boolean;
     dateFormat?: string;
+    formatDate?: (date: Date, format: string) => string;
+    parseDate?: (input: string, format: string) => Date|undefined;
     time_24hr?: boolean;
     minuteIncrement?: number;
     defaultHour?: number;
@@ -3519,6 +3574,7 @@ export interface Flatpickr {
     selectedDates: Date[];
     input?: FlatpickrHTMLInputElement;
     altInput?: HTMLInputElement;
+    isMobile?: boolean;
     hourElement?: HTMLInputElement;
     minuteElement?: HTMLInputElement;
     // The calendar marks this day as "today".

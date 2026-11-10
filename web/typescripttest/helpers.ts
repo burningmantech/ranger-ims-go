@@ -222,6 +222,8 @@ type FlatpickrHook = (selectedDates: Date[], dateStr: string, instance: MockFlat
 
 interface FlatpickrOptionsLike {
     altFormat?: string;
+    formatDate?: (date: Date, format: string) => string;
+    parseDate?: (input: string, format: string) => Date | undefined;
     defaultHour?: number;
     defaultMinute?: number;
     onReady?: FlatpickrHook;
@@ -277,9 +279,9 @@ export class MockFlatpickr {
 
     setDate(date: Date | string | Date[], triggerChange: boolean, _format?: string): void {
         const first = Array.isArray(date) ? date[0]! : date;
-        const parsed = first instanceof Date ? first : new Date(first);
+        const parsed = first instanceof Date ? first : (this.config.parseDate?.(first, "") ?? new Date(first));
         this.selectedDates = [parsed];
-        this.altInput.value = parsed.toISOString();
+        this.altInput.value = this.config.formatDate?.(parsed, this.config.altFormat ?? "") ?? parsed.toISOString();
         if (triggerChange) {
             this.config.onChange?.(this.selectedDates, this.altInput.value, this);
         }

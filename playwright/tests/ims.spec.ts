@@ -483,7 +483,8 @@ test("incidents", async ({ page, browser, authState, events }) => {
       await expect(runnerRow).toHaveValue("Runner Role");
       if (!ignoreDatetimeCheck) {
         await expect(altStartedDatetime).toBeVisible();
-        await expect(altStartedDatetime).toHaveValue(altStartedDateTimeStr);
+        // The typed date comes back in the picker's display format.
+        await expect(altStartedDatetime).toHaveValue("Mon, Jan 27, 2025 @ 22:11");
       }
     }
 
@@ -884,22 +885,31 @@ test("sanctuary_visits", async ({ browser, authState, events }) => {
     // outside the !onMobile branch above. Each click saves, so the page title
     // flipping between Current and Past is the round trip's confirmation.
     {
+      // On mobile, the visible field is flatpickr's native input, which holds
+      // an ISO-ish local time, and the alt input is hidden.
+      const onMobile = await visitPage.locator(".flatpickr-mobile").first().isVisible();
+      const arrivalField = visitPage.locator(onMobile ? "#arrival_time + .flatpickr-mobile" : "#alt_arrival_time");
+      const departureField = visitPage.locator(onMobile ? "#departure_time + .flatpickr-mobile" : "#alt_departure_time");
+      const setTimePattern = onMobile
+        ? /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
+        : /[A-Z][a-z]{2} \d{1,2}(, \d{4})? @ \d{2}:\d{2}$/;
+
       await visitPage.locator("#departure_time_clear").click();
-      await expect(visitPage.locator("#alt_departure_time")).toHaveValue("");
+      await expect(departureField).toHaveValue("");
       await expect(visitPage.locator("#doc-title")).toHaveText(`Current Sanctuary Visit (${guestName})`);
 
       // With no departure time set, the arrival time can safely move to now.
       await visitPage.locator("#arrival_time_now").click();
-      await expect(visitPage.locator("#alt_arrival_time")).toHaveValue(/\d{4}-\d{2}-\d{2} @ \d{2}:\d{2}/);
+      await expect(arrivalField).toHaveValue(setTimePattern);
 
       await visitPage.locator("#departure_time_now").click();
-      await expect(visitPage.locator("#alt_departure_time")).toHaveValue(/\d{4}-\d{2}-\d{2} @ \d{2}:\d{2}/);
+      await expect(departureField).toHaveValue(setTimePattern);
       await expect(visitPage.locator("#doc-title")).toHaveText(`Past Sanctuary Visit (${guestName})`);
 
       // The saved times survive a reload.
-      const departureTime = await visitPage.locator("#alt_departure_time").inputValue();
+      const departureTime = await departureField.inputValue();
       await visitPage.reload();
-      await expect(visitPage.locator("#alt_departure_time")).toHaveValue(departureTime);
+      await expect(departureField).toHaveValue(departureTime);
     }
 
     await visitPage.close();

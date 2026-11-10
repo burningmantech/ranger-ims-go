@@ -39,7 +39,6 @@ const el = {
     incidentSummary: ims.typedElement("incident_summary", HTMLInputElement),
     incidentState: ims.typedElement("incident_state", HTMLSelectElement),
     startedDatetime: ims.typedElement("started_datetime", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
-    startedDatetimeTz: ims.typedElement("started_datetime_tz", HTMLSpanElement),
 
     locationName: ims.typedElement("incident_location_name", HTMLInputElement),
     locationAddress: ims.typedElement("incident_location_address", HTMLInputElement),
@@ -650,10 +649,6 @@ function drawStarted(): void {
         return;
     }
     el.startedDatetime._flatpickr.altInput!.title = ims.longFormatDateWithDayName(dateDate);
-
-    el.startedDatetimeTz.textContent = ims.tzShortName(dateDate);
-    el.startedDatetimeTz.title = `${ims.imsTimeZone()}\n\n` +
-        `All date and time fields in IMS use this time zone, whatever your device's time zone is.`;
 }
 
 //

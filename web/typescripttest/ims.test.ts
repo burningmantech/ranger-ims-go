@@ -265,6 +265,41 @@ test("picker dates read IMS's wall clock in the browser's zone", (): void => {
     expect(ims.fromPickerDate(new Date(2026, 0, 15, 12, 0)).toISOString()).toBe("2026-01-15T20:00:00.000Z");
 });
 
+test("parsePickerInput reads the picker's display format in IMS's time zone", (): void => {
+    vi.useFakeTimers();
+    try {
+        vi.setSystemTime(new Date("2026-06-01T12:00:00Z"));
+        const real = (input: string): string | undefined => {
+            const d = ims.parsePickerInput(input);
+            return d == null ? undefined : ims.fromPickerDate(d).toISOString();
+        };
+
+        // The display format, with no year meaning the current one.
+        expect(real("Sun, Aug 16 @ 21:38")).toBe("2026-08-17T04:38:00.000Z");
+
+        // A day name in front is ignored, even one that starts like a month.
+        expect(real("Burn Night Sun, Aug 16 @ 21:38")).toBe("2026-08-17T04:38:00.000Z");
+        expect(real("Mayhem Sun, Aug 16 @ 21:38")).toBe("2026-08-17T04:38:00.000Z");
+
+        // An explicit year, as the display shows for other years.
+        expect(real("Sat, Aug 30, 2025 @ 18:00")).toBe("2025-08-31T01:00:00.000Z");
+
+        // Looser typing: no weekday, full month name, no "@", no time.
+        expect(real("august 16 21:38")).toBe("2026-08-17T04:38:00.000Z");
+        expect(real("Aug 16")).toBe("2026-08-16T07:00:00.000Z");
+
+        // The old ISO-style format still works.
+        expect(real("Mon 2025-01-27 @ 22:11")).toBe("2025-01-28T06:11:00.000Z");
+        expect(real("2025-01-27 22:11")).toBe("2025-01-28T06:11:00.000Z");
+
+        expect(real("")).toBeUndefined();
+        expect(real("tomorrow-ish")).toBeUndefined();
+        expect(real("Aug 16 @ 25:00")).toBeUndefined();
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
 test("isValidIncidentsTableState accepts only known states", (): void => {
     expect(ims.isValidIncidentsTableState("all")).toBe(true);
     expect(ims.isValidIncidentsTableState("open")).toBe(true);

@@ -360,9 +360,7 @@ test("a broadcast redraw does not clobber a datetime the user is typing in", asy
     arrivalTime.blur();
     channel.postMessage({ event_id: eventId, visit_number: 2 });
     await vi.waitFor((): void => {
-        // The mock picker shows its Date's toISOString(), and the picker holds a
-        // stand-in for the instant, reading Los Angeles time in the browser's zone.
-        expect(arrivalTime.value).toBe(new Date(2025, 7, 25, 5, 0).toISOString());
+        expect(arrivalTime.value).toBe("Mon, Aug 25, 2025 @ 05:00");
     });
     channel.close();
 });

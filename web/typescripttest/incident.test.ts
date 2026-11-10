@@ -307,8 +307,6 @@ test("page init draws the incident fields from the API", async (): Promise<void>
     const fp = MockFlatpickr.instances.find((f: MockFlatpickr): boolean => f.input.id === "started_datetime")!;
     expect(fp.selectedDates[0]!.getTime()).toBe(new Date(2025, 7, 25, 3, 0).getTime());
     expect(fp.altInput.id).toBe("alt_started_datetime");
-    expect(document.getElementById("started_datetime_tz")!.textContent).toBe("PDT");
-    expect(document.getElementById("started_datetime_tz")!.title).toContain("America/Los_Angeles");
 
     // attachFiles access unhides the attach button; the map link points at the
     // event's map URL.
@@ -323,12 +321,14 @@ test("the started time's tooltip includes the day's name", async (): Promise<voi
     await initIncidentPage();
 
     expect(document.getElementById("alt_started_datetime")!.title).toBe("Burn Night Mon, 2025-08-25 at 03:00:00 PDT");
+    expect(inputValue("alt_started_datetime")).toBe("Burn Night Mon, Aug 25, 2025 @ 03:00");
 });
 
 test("the started time's tooltip is the plain date on an unnamed day", async (): Promise<void> => {
     await initIncidentPage();
 
     expect(document.getElementById("alt_started_datetime")!.title).toBe("Mon, 2025-08-25 at 03:00:00 PDT");
+    expect(inputValue("alt_started_datetime")).toBe("Mon, Aug 25, 2025 @ 03:00");
 });
 
 test("rangers and incident types are drawn with their add datalists", async (): Promise<void> => {

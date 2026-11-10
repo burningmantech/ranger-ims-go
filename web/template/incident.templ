@@ -94,9 +94,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <!-- This label will be applied to the altInput, which is created in the JS by Flatpickr. -->
           <label class="control-label input-group-text" for="alt_started_datetime">Started</label>
           <input id="started_datetime" type="text" class="form-control" />
-          <span id="started_datetime_tz" class="control-follow-text input-group-text"
-              title={ "This datetime is in IMS's time zone, " + timeZone(ctx) + "." }
-          ></span>
         </div>
       </div>
     </div>

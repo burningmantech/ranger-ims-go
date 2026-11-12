@@ -2907,54 +2907,87 @@ export function onMenuPick(menu: HTMLElement, onPick: (value: string)=>void): vo
 //
 
 // Incidents, Field Reports, and Visits can be marked as junk, which hides them
-// from the list pages until the user asks to see them, using the note under
-// the table (the JunkNote templ component).
+// from the list pages until the user asks to see them, using the link in the
+// table's info line (see initJunkFilter).
 
 // Prefixed to a junk row's summary in the list tables.
 export function junkBadge(): HTMLSpanElement {
     const badge = document.createElement("span");
-    badge.className = "badge text-bg-secondary me-1 junk-badge";
+    badge.className = "badge text-bg-danger me-1 junk-badge";
     badge.textContent = "Junk";
     return badge;
 }
 
-// initJunkFilter hides the table's junk rows, and drives the note under it
-// that counts them and toggles showing them. It starts from the URL fragment's
-// "junk" parameter, and calls onChange whenever the user toggles.
+// initJunkFilter hides the table's junk rows, and notes them in the table's
+// info line ("Showing 1 to 25 of ..."), with a link to show or hide them. The
+// page must call it after registering its other fixed searches.
 export function initJunkFilter(
     table: DataTablesTable, noun: string, pluralNoun: string, onChange: ()=>void,
 ): {showing: ()=>boolean} {
     let showJunk = windowFragmentParams().get("junk") === "show";
-    const note = typedElement("junk_note", HTMLElement);
-    const noteText = typedElement("junk_note_text", HTMLElement);
-    const toggle = typedElement("junk_toggle", HTMLButtonElement);
     const isJunk = (rowIndex: number): boolean =>
         (table.data()[rowIndex] as {junk?: boolean|null}).junk === true;
 
+    // DataTables runs the fixed searches in the order they were registered,
+    // each over only the rows that passed the global search and the fixed
+    // searches before it. Registered last, this one therefore sees just the
+    // junk rows that the page's other filters let through, which is how many
+    // the "show" link would add.
+    let counting = 0;
+    let matching = 0;
     table.search.fixed("junk", function (_searchStr: string, _rowData: object, rowIndex: number): boolean {
-        return showJunk || !isJunk(rowIndex);
+        if (!isJunk(rowIndex)) {
+            return true;
+        }
+        counting++;
+        return showJunk;
+    });
+    table.on("search", function (): void {
+        matching = counting;
+        counting = 0;
     });
 
-    // Counted over every row, whatever the other filters say, so the note
-    // doesn't jump around as they change.
-    table.on("draw", function (): void {
+    table.on("info", function (_e: object, _settings: object, info: HTMLElement): void {
+        info.removeAttribute("title");
         const rows = table.data() as unknown as ArrayLike<object>;
-        let count = 0;
+        let total = 0;
         for (let i = 0; i < rows.length; i++) {
             if (isJunk(i)) {
-                count++;
+                total++;
             }
         }
-        note.classList.toggle("hidden", count === 0);
-        const what = `${count} junk ${count === 1 ? noun : pluralNoun}`;
-        noteText.textContent = showJunk ? `Showing ${what}` : `Hiding ${what}`;
-        toggle.textContent = showJunk ? "Hide" : "Show";
-    });
-
-    toggle.addEventListener("click", function (): void {
-        showJunk = !showJunk;
-        onChange();
-        table.draw();
+        if (total === 0) {
+            return;
+        }
+        // Fold the count into DataTables' "(filtered from N total entries)",
+        // or start a parenthetical if there isn't one.
+        let text = info.textContent ?? "";
+        let opening = " (";
+        if (text.endsWith(")")) {
+            text = text.slice(0, -1);
+            opening = ", ";
+        }
+        info.textContent = `${text}${opening}including ${total} junk`;
+        if (showJunk || matching > 0) {
+            const control = document.createElement("span");
+            control.className = "no-print";
+            const toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "btn btn-link btn-sm p-0 align-baseline junk-info-toggle";
+            toggle.textContent = showJunk ? "hide" : "show";
+            toggle.addEventListener("click", function (): void {
+                showJunk = !showJunk;
+                onChange();
+                table.draw();
+            });
+            control.append(" · ", toggle);
+            info.append(control);
+        } else {
+            info.title = total === 1
+                ? `The junk ${noun} doesn't match the current filters`
+                : `None of the ${total} junk ${pluralNoun} match the current filters`;
+        }
+        info.append(")");
     });
     return {showing: (): boolean => showJunk};
 }
@@ -3390,6 +3423,8 @@ interface DTAjax {
 type DTData = Record<number, object>;
 
 export interface DataTablesTable {
+    // DataTables fires "info" once it has rewritten the table's info element.
+    on(event: "info", callback: (event: object, dtSettings: object, info: HTMLElement) => void): unknown;
     on(event: string, callback: (event: object, dtSettings: object, json: object) => void): unknown;
     // The delegated form, for events on elements within the table's rows.
     on(event: string, selector: string, callback: (this: HTMLElement) => void): unknown;

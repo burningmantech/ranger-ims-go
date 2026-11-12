@@ -386,9 +386,10 @@ test("junk Visits are hidden by default, and badged when shown", async (): Promi
     expect(table.fixedSearch("junk", 1)).toBe(true);
 
     await vi.waitFor((): void => {
-        expect(document.getElementById("junk_note_text")!.textContent).toBe("Hiding 1 junk Visit");
+        // The other Visit has departed, so the default filter hides it too.
+        expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, including 1 junk · show)");
     });
-    document.getElementById("junk_toggle")!.click();
+    table.info.querySelector("button")!.click();
     expect(table.fixedSearch("junk", 0)).toBe(true);
     expect(table.fixedSearch("junk", 1)).toBe(true);
     expect(window.location.hash).toContain("junk=show");

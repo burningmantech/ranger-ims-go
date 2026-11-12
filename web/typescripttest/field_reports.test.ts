@@ -387,66 +387,84 @@ test("a search in the URL fragment is run when the page loads", async (): Promis
     });
 });
 
-function junkNote(): {shown: boolean; text: string; toggle: HTMLButtonElement} {
-    const note = document.getElementById("junk_note")!;
-    return {
-        shown: !note.classList.contains("hidden"),
-        text: document.getElementById("junk_note_text")!.textContent ?? "",
-        toggle: document.getElementById("junk_toggle") as HTMLButtonElement,
-    };
+function junkToggle(): HTMLButtonElement | null {
+    return MockDataTable.lastInstance!.info.querySelector("button");
 }
 
-test("with no junk Field Reports, there's no junk note", async (): Promise<void> => {
+test("with no junk Field Reports, the info line doesn't mention junk", async (): Promise<void> => {
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
     await vi.waitFor((): void => {
         expect(table.data().length).toBe(2);
     });
 
-    expect(junkNote().shown).toBe(false);
+    expect(table.info.textContent).toBe("Showing 2 entries");
+    expect(junkToggle()).toBeNull();
     expect(table.fixedSearch("junk", 0)).toBe(true);
     expect(table.fixedSearch("junk", 1)).toBe(true);
 });
 
-test("junk Field Reports are hidden, and the note under the table shows them", async (): Promise<void> => {
+test("junk Field Reports are hidden, and the info line's link shows them", async (): Promise<void> => {
     serverFieldReports[1]!.junk = true;
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
     await vi.waitFor((): void => {
-        expect(junkNote().shown).toBe(true);
+        expect(junkToggle()).not.toBeNull();
     });
 
-    expect(junkNote().text).toBe("Hiding 1 junk Field Report");
-    expect(junkNote().toggle.textContent).toBe("Show");
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show)");
     expect(table.fixedSearch("junk", 0)).toBe(true);
     expect(table.fixedSearch("junk", 1)).toBe(false);
     expect(window.location.hash).not.toContain("junk");
 
-    junkNote().toggle.click();
-    expect(junkNote().text).toBe("Showing 1 junk Field Report");
-    expect(junkNote().toggle.textContent).toBe("Hide");
+    junkToggle()!.click();
+    expect(table.info.textContent).toBe("Showing 2 entries (including 1 junk · hide)");
     expect(table.fixedSearch("junk", 1)).toBe(true);
     expect(window.location.hash).toContain("junk=show");
 
-    junkNote().toggle.click();
-    expect(junkNote().text).toBe("Hiding 1 junk Field Report");
+    junkToggle()!.click();
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show)");
     expect(table.fixedSearch("junk", 1)).toBe(false);
     expect(window.location.hash).not.toContain("junk");
 });
 
-test("the junk note counts in the plural, and starts from the URL fragment", async (): Promise<void> => {
+test("there's no link to show junk Field Reports that the other filters exclude", async (): Promise<void> => {
+    serverFieldReports[1]!.junk = true;
+    await initFieldReportsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(junkToggle()).not.toBeNull();
+    });
+
+    table.globalFilter = (rowIndex: number): boolean => rowIndex !== 1;
+    table.draw();
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk)");
+    expect(junkToggle()).toBeNull();
+    expect(table.info.title).toBe("The junk Field Report doesn't match the current filters");
+
+    table.globalFilter = null;
+    table.draw();
+    expect(junkToggle()!.textContent).toBe("show");
+    expect(table.info.title).toBe("");
+});
+
+test("the junk link starts from the URL fragment, and stays while showing junk that doesn't match", async (): Promise<void> => {
     serverFieldReports[0]!.junk = true;
     serverFieldReports[1]!.junk = true;
     window.history.replaceState(null, "", `/ims/app/events/${eventName}/field_reports#junk=show`);
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
     await vi.waitFor((): void => {
-        expect(junkNote().shown).toBe(true);
+        expect(junkToggle()).not.toBeNull();
     });
 
-    expect(junkNote().text).toBe("Showing 2 junk Field Reports");
+    expect(table.info.textContent).toBe("Showing 2 entries (including 2 junk · hide)");
     expect(table.fixedSearch("junk", 0)).toBe(true);
     expect(table.fixedSearch("junk", 1)).toBe(true);
+
+    table.globalFilter = (): boolean => false;
+    table.draw();
+    expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, including 2 junk · hide)");
 });
 
 test("a junk Field Report's summary is badged", async (): Promise<void> => {

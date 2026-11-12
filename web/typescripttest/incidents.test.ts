@@ -848,7 +848,7 @@ test("a failure to refresh an updated incident's row is shown", async (): Promis
     channel.close();
 });
 
-test("junk Incidents are hidden by default, and badged when shown", async (): Promise<void> => {
+test("junk Incidents are hidden by default, and badged when shown alone", async (): Promise<void> => {
     serverIncidents[0]!.junk = true;
     await initIncidentsPage();
     const table = MockDataTable.lastInstance!;
@@ -861,26 +861,26 @@ test("junk Incidents are hidden by default, and badged when shown", async (): Pr
 
     // Incident 2 is closed, so the default filters hide it too.
     await vi.waitFor((): void => {
-        expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, including 1 junk · show)");
+        expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, including 1 junk · show only junk)");
     });
     table.info.querySelector("button")!.click();
     expect(table.fixedSearch("junk", 0)).toBe(true);
-    expect(window.location.hash).toContain("junk=show");
-    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · hide)");
+    expect(table.fixedSearch("junk", 1)).toBe(false);
+    expect(window.location.hash).toContain("junk=only");
+    expect(document.getElementById("junk_only_notice")!.classList.contains("hidden")).toBe(false);
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, only junk · show non-junk)");
 
     const render = renderColumn("incident_summary");
     expect(render(null, "display", serverIncidents[0]!)).toContain(">Junk</span>Dust storm");
     expect(render(null, "display", serverIncidents[1]!)).toBe("Lost shoe");
 });
 
-test("there's no link to show junk Incidents that the other filters exclude", async (): Promise<void> => {
+test("the junk link is offered even when the other filters exclude all the junk Incidents", async (): Promise<void> => {
     // Closed, so hidden by the default state filter.
     serverIncidents[1]!.junk = true;
     await initIncidentsPage();
     const table = MockDataTable.lastInstance!;
     await vi.waitFor((): void => {
-        expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk)");
+        expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show only junk)");
     });
-    expect(table.info.querySelector("button")).toBeNull();
-    expect(table.info.title).toBe("The junk Incident doesn't match the current filters");
 });

@@ -48,7 +48,7 @@ const _otherPlaceholder = "(other)";
 let _showRows: string|null = null;
 const defaultRows = "25";
 
-let junkFilter: {showing: ()=>boolean}|null = null;
+let junkFilter: {junkOnly: ()=>boolean}|null = null;
 
 let allIncidentTypes: ims.IncidentType[] = [];
 let visibleIncidentTypes: ims.IncidentType[] = [];
@@ -662,8 +662,7 @@ function initSearch(): void {
         return true;
     });
 
-    // Last, so it can count the junk rows that pass the other filters.
-    junkFilter = ims.initJunkFilter(incidentsTable!, "Incident", "Incidents", replaceWindowState);
+    junkFilter = ims.initJunkFilter(incidentsTable!, replaceWindowState);
 }
 
 
@@ -862,8 +861,8 @@ function replaceWindowState(): void {
     if (_showRows != null && _showRows !== defaultRows) {
         newParams.push(["rows", _showRows]);
     }
-    if (junkFilter?.showing()) {
-        newParams.push(["junk", "show"]);
+    if (junkFilter?.junkOnly()) {
+        newParams.push(["junk", "only"]);
     }
     const newURL = `${ims.urlReplace(url_viewIncidents)}#${new URLSearchParams(newParams).toString()}`;
     window.history.replaceState(null, "", newURL);

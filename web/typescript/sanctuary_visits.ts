@@ -34,7 +34,7 @@ type VisitsFilterStatus = "all" | "current";
 let _showStatus: VisitsFilterStatus = "current";
 const defaultStatus: VisitsFilterStatus = "current";
 
-let junkFilter: {showing: ()=>boolean}|null = null;
+let junkFilter: {junkOnly: ()=>boolean}|null = null;
 
 //
 // Initialize UI
@@ -421,8 +421,7 @@ function initSearch() {
         },
     );
 
-    // Last, so it can count the junk rows that pass the other filters.
-    junkFilter = ims.initJunkFilter(visitsTable!, "Visit", "Visits", replaceWindowState);
+    junkFilter = ims.initJunkFilter(visitsTable!, replaceWindowState);
 }
 
 function renderString(data: string|null, type: ims.RenderType, _visit: ims.VisitListItem): ims.RenderValue {
@@ -513,8 +512,8 @@ function replaceWindowState(): void {
     if (_showStatus != null && _showStatus !== defaultStatus) {
         newParams.push(["status", _showStatus]);
     }
-    if (junkFilter?.showing()) {
-        newParams.push(["junk", "show"]);
+    if (junkFilter?.junkOnly()) {
+        newParams.push(["junk", "only"]);
     }
 
     // Next step is to create search params for the other filters too

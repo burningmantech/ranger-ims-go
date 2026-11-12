@@ -162,7 +162,7 @@ test("the string columns render display, filter, and truncated text", async (): 
     expect(display.endsWith("...")).toBe(true);
 });
 
-test("the date columns' tooltips and search text include the day's name", async (): Promise<void> => {
+test("the date columns show a named day's name in place of its date", async (): Promise<void> => {
     serverDayNames = [{ date: "2025-08-25", name: "Burn Night" }];
     await initVisitsPage();
     await vi.waitFor((): void => {
@@ -173,7 +173,7 @@ test("the date columns' tooltips and search text include the day's name", async 
 
     const display = render(visit.departure_time, "display", visit) as HTMLSpanElement;
     expect(display.title).toBe("Burn Night Mon, 2025-08-25 at 05:00:00 PDT");
-    expect(display.textContent).not.toContain("Burn Night");
+    expect(display.textContent).toBe("Burn Night Mon05:00");
     expect(render(visit.departure_time, "filter", visit)).toContain("Burn Night");
 });
 

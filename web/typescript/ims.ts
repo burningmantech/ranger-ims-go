@@ -1248,7 +1248,9 @@ export function renderDate(date: string|undefined, type: string, _incidentOrFROr
             dateSpan.title = fullDate;
             // The <br> makes this two lines; keep "Mon, 6/08" from wrapping into a third.
             dateSpan.classList.add("text-nowrap");
-            dateSpan.append(shortDate(d), document.createElement("br"), shortTime(d));
+            const name = dayName(d);
+            const dayLine = name == null ? shortDate(d) : `${name} ${zonedParts(d).weekday}`;
+            dateSpan.append(dayLine, document.createElement("br"), shortTime(d));
             return dateSpan;
         case "filter":
             return [dayName(d), shortDate(d), shortTime(d)].filter((s?: string): boolean => s != null).join(" ");

@@ -353,9 +353,11 @@ export function createdRow(data: unknown): HTMLTableRowElement {
 // field_reports, sanctuary_visits, places) construct as a classic-script
 // dependency. It captures the options the page passes, runs the ajax data
 // source (so the page's row transforms and fetches are exercised), and fires
-// the "init" listeners once the first load completes. The methods the pages
-// call for filtering/paging are present as no-ops that record nothing, since
-// those drive the real DataTables rendering that isn't under test here.
+// the "init" listeners once the first load completes. draw() filters the rows
+// as DataTables does, through globalFilter (standing in for the global search)
+// and then each fixed search in the order registered, each seeing only the rows
+// that passed the ones before, and then writes a simplified info line. Paging
+// and the global search itself are no-ops that record their arguments.
 //
 // Install it per-test with vi.stubGlobal("DataTable", MockDataTable), then read
 // MockDataTable.lastInstance.data() to see the rows the page handed the table.
@@ -371,6 +373,13 @@ export class MockDataTable {
     private rowData: any[] = [];
     private initHandlers: (() => void)[] = [];
     private drawHandlers: (() => void)[] = [];
+    private searchHandlers: (() => void)[] = [];
+    private infoHandlers: ((e: object, settings: object, info: HTMLElement) => void)[] = [];
+
+    // The info element DataTables would put under the table.
+    info: HTMLDivElement = document.createElement("div");
+    // Tests set this to exclude rows before the fixed searches see them.
+    globalFilter: ((rowIndex: number) => boolean) | null = null;
 
     // The most recent page.len() argument the page set.
     pageLen: number | null = null;
@@ -404,11 +413,15 @@ export class MockDataTable {
         void this.runAjax(true);
     }
 
-    on(event: string, cb: () => void): MockDataTable {
+    on(event: string, cb: (...args: any[]) => void): MockDataTable {
         if (event === "init") {
             this.initHandlers.push(cb);
         } else if (event === "draw") {
             this.drawHandlers.push(cb);
+        } else if (event === "search") {
+            this.searchHandlers.push(cb);
+        } else if (event === "info") {
+            this.infoHandlers.push(cb);
         }
         return this;
     }
@@ -418,8 +431,25 @@ export class MockDataTable {
     }
 
     draw(_paging?: unknown): MockDataTable {
+        let shown = this.rowData.map((_row, index) => index);
+        if (this.globalFilter != null) {
+            shown = shown.filter(this.globalFilter);
+        }
+        for (const fn of Object.values(this.fixedSearches)) {
+            shown = shown.filter(index => fn("", {}, index));
+        }
+        for (const cb of this.searchHandlers) {
+            cb();
+        }
         for (const cb of this.drawHandlers) {
             cb();
+        }
+        const total = this.rowData.length;
+        this.info.textContent = shown.length < total
+            ? `Showing ${shown.length} entries (filtered from ${total} total entries)`
+            : `Showing ${shown.length} entries`;
+        for (const cb of this.infoHandlers) {
+            cb({}, {}, this.info);
         }
         return this;
     }

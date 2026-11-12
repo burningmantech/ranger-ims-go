@@ -16,17 +16,6 @@
 
 package template
 
-// JunkNote sits under a list page's table, saying how many junk records the
-// table hides and letting the user show them. It stays hidden while there are
-// none. See initJunkFilter in ims.ts.
-templ JunkNote() {
-<p id="junk_note" class="text-body-secondary small no-print hidden">
-  <span id="junk_note_text"></span>
-  { " · " }
-  <button id="junk_toggle" type="button" class="btn btn-link btn-sm p-0 align-baseline"></button>
-</p>
-}
-
 // JunkTitle is a record page's heading, alongside the button that marks the
 // record as junk. JunkBanner is shown once it is. See initJunkControls in ims.ts.
 templ JunkTitle(title, noun string) {

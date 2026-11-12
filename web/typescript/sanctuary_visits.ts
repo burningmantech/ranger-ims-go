@@ -402,8 +402,6 @@ function initSearchField(): void {
 //
 
 function initSearch() {
-    junkFilter = ims.initJunkFilter(visitsTable!, "Visit", "Visits", replaceWindowState);
-
     visitsTable!.search.fixed("modification_date",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
             const visit: ims.VisitListItem = visitsTable!.data()[rowIndex]!;
@@ -422,6 +420,9 @@ function initSearch() {
             return visit.departure_time == null || visit.departure_time === "";
         },
     );
+
+    // Last, so it can count the junk rows that pass the other filters.
+    junkFilter = ims.initJunkFilter(visitsTable!, "Visit", "Visits", replaceWindowState);
 }
 
 function renderString(data: string|null, type: ims.RenderType, _visit: ims.VisitListItem): ims.RenderValue {

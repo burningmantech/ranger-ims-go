@@ -391,8 +391,6 @@ function frInitSearchField(): void {
 //
 
 function frInitSearch() {
-    junkFilter = ims.initJunkFilter(fieldReportsTable!, "Field Report", "Field Reports", frReplaceWindowState);
-
     fieldReportsTable!.search.fixed("query",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
             const fieldReport: ims.FieldReportListItem = fieldReportsTable!.data()[rowIndex]!;
@@ -407,6 +405,9 @@ function frInitSearch() {
                 new Date(Date.parse(fieldReport.last_modified!)) < _frShowModifiedAfter);
         },
     );
+
+    // Last, so it can count the junk rows that pass the other filters.
+    junkFilter = ims.initJunkFilter(fieldReportsTable!, "Field Report", "Field Reports", frReplaceWindowState);
 }
 
 

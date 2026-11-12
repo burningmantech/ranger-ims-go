@@ -598,8 +598,6 @@ function initSearchField() {
 //
 
 function initSearch(): void {
-    junkFilter = ims.initJunkFilter(incidentsTable!, "Incident", "Incidents", replaceWindowState);
-
     incidentsTable!.search.fixed("query",
         function(_searchStr: string, _rowData: object, rowIndex: number): boolean {
             const incident: ims.IncidentListItem = incidentsTable!.data()[rowIndex]!;
@@ -663,6 +661,9 @@ function initSearch(): void {
 
         return true;
     });
+
+    // Last, so it can count the junk rows that pass the other filters.
+    junkFilter = ims.initJunkFilter(incidentsTable!, "Incident", "Incidents", replaceWindowState);
 }
 
 

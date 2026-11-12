@@ -46,7 +46,7 @@ jobs:
             *.docker.io:443
 
       - name: Check user
-        if: ${{ ! contains('["wsanchez", "mikeburg", "srabraham"]', github.actor) }}
+        if: ${{ ! contains(fromJSON('["wsanchez", "mikeburg", "srabraham"]'), github.actor) }}
         run: false
 
       - name: Configure AWS Credentials

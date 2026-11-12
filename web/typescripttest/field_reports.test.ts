@@ -404,7 +404,11 @@ test("with no junk Field Reports, the info line doesn't mention junk", async ():
     expect(table.fixedSearch("junk", 1)).toBe(true);
 });
 
-test("junk Field Reports are hidden, and the info line's link shows them", async (): Promise<void> => {
+function junkOnlyNoticeShown(): boolean {
+    return !document.getElementById("junk_only_notice")!.classList.contains("hidden");
+}
+
+test("junk Field Reports are hidden, and the info line's link shows only them", async (): Promise<void> => {
     serverFieldReports[1]!.junk = true;
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
@@ -412,23 +416,47 @@ test("junk Field Reports are hidden, and the info line's link shows them", async
         expect(junkToggle()).not.toBeNull();
     });
 
-    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show)");
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show only junk)");
     expect(table.fixedSearch("junk", 0)).toBe(true);
     expect(table.fixedSearch("junk", 1)).toBe(false);
+    expect(junkOnlyNoticeShown()).toBe(false);
     expect(window.location.hash).not.toContain("junk");
 
     junkToggle()!.click();
-    expect(table.info.textContent).toBe("Showing 2 entries (including 1 junk · hide)");
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, only junk · show non-junk)");
+    expect(table.fixedSearch("junk", 0)).toBe(false);
     expect(table.fixedSearch("junk", 1)).toBe(true);
-    expect(window.location.hash).toContain("junk=show");
+    expect(junkOnlyNoticeShown()).toBe(true);
+    expect(window.location.hash).toContain("junk=only");
 
     junkToggle()!.click();
-    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show)");
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show only junk)");
+    expect(table.fixedSearch("junk", 0)).toBe(true);
     expect(table.fixedSearch("junk", 1)).toBe(false);
+    expect(junkOnlyNoticeShown()).toBe(false);
     expect(window.location.hash).not.toContain("junk");
 });
 
-test("there's no link to show junk Field Reports that the other filters exclude", async (): Promise<void> => {
+test("the junk-only notice's button shows the non-junk Field Reports again", async (): Promise<void> => {
+    serverFieldReports[1]!.junk = true;
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/field_reports#junk=only`);
+    await initFieldReportsPage();
+    const table = MockDataTable.lastInstance!;
+    await vi.waitFor((): void => {
+        expect(junkToggle()).not.toBeNull();
+    });
+    expect(junkOnlyNoticeShown()).toBe(true);
+    expect(table.fixedSearch("junk", 0)).toBe(false);
+
+    document.getElementById("junk_only_exit")!.click();
+    expect(junkOnlyNoticeShown()).toBe(false);
+    expect(table.fixedSearch("junk", 0)).toBe(true);
+    expect(table.fixedSearch("junk", 1)).toBe(false);
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show only junk)");
+    expect(window.location.hash).not.toContain("junk");
+});
+
+test("the junk link is offered even when the other filters exclude all the junk Field Reports", async (): Promise<void> => {
     serverFieldReports[1]!.junk = true;
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
@@ -438,33 +466,27 @@ test("there's no link to show junk Field Reports that the other filters exclude"
 
     table.globalFilter = (rowIndex: number): boolean => rowIndex !== 1;
     table.draw();
-    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk)");
-    expect(junkToggle()).toBeNull();
-    expect(table.info.title).toBe("The junk Field Report doesn't match the current filters");
+    expect(table.info.textContent).toBe("Showing 1 entries (filtered from 2 total entries, including 1 junk · show only junk)");
 
-    table.globalFilter = null;
-    table.draw();
-    expect(junkToggle()!.textContent).toBe("show");
-    expect(table.info.title).toBe("");
+    junkToggle()!.click();
+    expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, only junk · show non-junk)");
 });
 
-test("the junk link starts from the URL fragment, and stays while showing junk that doesn't match", async (): Promise<void> => {
-    serverFieldReports[0]!.junk = true;
-    serverFieldReports[1]!.junk = true;
-    window.history.replaceState(null, "", `/ims/app/events/${eventName}/field_reports#junk=show`);
+test("junk-only mode keeps its way back when there's no junk", async (): Promise<void> => {
+    window.history.replaceState(null, "", `/ims/app/events/${eventName}/field_reports#junk=only`);
     await initFieldReportsPage();
     const table = MockDataTable.lastInstance!;
     await vi.waitFor((): void => {
         expect(junkToggle()).not.toBeNull();
     });
 
-    expect(table.info.textContent).toBe("Showing 2 entries (including 2 junk · hide)");
-    expect(table.fixedSearch("junk", 0)).toBe(true);
-    expect(table.fixedSearch("junk", 1)).toBe(true);
+    expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, only junk · show non-junk)");
+    expect(junkOnlyNoticeShown()).toBe(true);
 
-    table.globalFilter = (): boolean => false;
-    table.draw();
-    expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, including 2 junk · hide)");
+    junkToggle()!.click();
+    expect(table.info.textContent).toBe("Showing 2 entries");
+    expect(junkToggle()).toBeNull();
+    expect(junkOnlyNoticeShown()).toBe(false);
 });
 
 test("a junk Field Report's summary is badged", async (): Promise<void> => {

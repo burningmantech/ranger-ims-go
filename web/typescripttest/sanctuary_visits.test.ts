@@ -374,7 +374,7 @@ test("a search in the URL fragment is run when the page loads", async (): Promis
     expect(MockDataTable.lastInstance!.lastSearch![0]).toBe("wallet");
 });
 
-test("junk Visits are hidden by default, and badged when shown", async (): Promise<void> => {
+test("junk Visits are hidden by default, and badged when shown alone", async (): Promise<void> => {
     serverVisits[0]!.junk = true;
     await initVisitsPage();
     const table = MockDataTable.lastInstance!;
@@ -387,12 +387,13 @@ test("junk Visits are hidden by default, and badged when shown", async (): Promi
 
     await vi.waitFor((): void => {
         // The other Visit has departed, so the default filter hides it too.
-        expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, including 1 junk · show)");
+        expect(table.info.textContent).toBe("Showing 0 entries (filtered from 2 total entries, including 1 junk · show only junk)");
     });
     table.info.querySelector("button")!.click();
     expect(table.fixedSearch("junk", 0)).toBe(true);
-    expect(table.fixedSearch("junk", 1)).toBe(true);
-    expect(window.location.hash).toContain("junk=show");
+    expect(table.fixedSearch("junk", 1)).toBe(false);
+    expect(window.location.hash).toContain("junk=only");
+    expect(document.getElementById("junk_only_notice")!.classList.contains("hidden")).toBe(false);
 
     const render = renderColumn("visit_name");
     expect((render(null, "display", serverVisits[0]!) as Node).textContent).toBe("JunkSparkle");

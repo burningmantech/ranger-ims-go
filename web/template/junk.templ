@@ -42,3 +42,16 @@ templ JunkBanner(noun, pluralNoun string) {
   </button>
 </div>
 }
+
+// JunkOnlyNotice is shown above a list table while it's showing only the junk
+// rows. See initJunkFilter in ims.ts.
+templ JunkOnlyNotice(pluralNoun string) {
+<div id="junk_only_notice" class="alert alert-danger d-flex flex-wrap align-items-center gap-2 py-2 no-print hidden">
+  <span class="me-auto">
+    Showing only junk { pluralNoun }.
+  </span>
+  <button id="junk_only_exit" type="button" class="btn btn-sm btn-outline-secondary">
+    Show Non-Junk { pluralNoun }
+  </button>
+</div>
+}

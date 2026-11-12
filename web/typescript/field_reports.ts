@@ -32,7 +32,7 @@ let _frSearchDelayTimer: number|undefined = undefined;
 let _frShowRows: string|null = null;
 const frDefaultRows = "25";
 
-let junkFilter: {showing: ()=>boolean}|null = null;
+let junkFilter: {junkOnly: ()=>boolean}|null = null;
 
 //
 // Initialize UI
@@ -406,8 +406,7 @@ function frInitSearch() {
         },
     );
 
-    // Last, so it can count the junk rows that pass the other filters.
-    junkFilter = ims.initJunkFilter(fieldReportsTable!, "Field Report", "Field Reports", frReplaceWindowState);
+    junkFilter = ims.initJunkFilter(fieldReportsTable!, frReplaceWindowState);
 }
 
 
@@ -487,8 +486,8 @@ function frReplaceWindowState(): void {
     if (_frShowRows != null && _frShowRows !== frDefaultRows) {
         newParams.push(["rows", _frShowRows.toString()]);
     }
-    if (junkFilter?.showing()) {
-        newParams.push(["junk", "show"]);
+    if (junkFilter?.junkOnly()) {
+        newParams.push(["junk", "only"]);
     }
 
     // Next step is to create search params for the other filters too

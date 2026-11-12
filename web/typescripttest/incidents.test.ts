@@ -184,7 +184,7 @@ test("the summary column truncates very long summaries for display", async (): P
     expect(display.endsWith("...")).toBe(true);
 });
 
-test("the date columns' tooltips and search text include the day's name", async (): Promise<void> => {
+test("the date columns show a named day's name in place of its date", async (): Promise<void> => {
     serverDayNames = [{ date: "2025-08-25", name: "Burn Night" }];
     await initIncidentsPage();
     await vi.waitFor((): void => {
@@ -195,12 +195,14 @@ test("the date columns' tooltips and search text include the day's name", async 
 
     const named = render("2025-08-25T10:00:00Z", "display", incident) as HTMLSpanElement;
     expect(named.title).toBe("Burn Night Mon, 2025-08-25 at 03:00:00 PDT");
-    // The day's name stays out of the cell itself.
-    expect(named.textContent).not.toContain("Burn Night");
-    expect(render("2025-08-25T10:00:00Z", "filter", incident)).toContain("Burn Night");
+    expect(named.textContent).toBe("Burn Night Mon03:00");
+    expect(named.querySelector("br")).not.toBeNull();
+    // The hidden date stays searchable.
+    expect(render("2025-08-25T10:00:00Z", "filter", incident)).toBe("Burn Night Mon, 8/25 03:00");
 
     const unnamed = render("2025-08-27T10:00:00Z", "display", incident) as HTMLSpanElement;
     expect(unnamed.title).toBe("Wed, 2025-08-27 at 03:00:00 PDT");
+    expect(unnamed.textContent).toBe("Wed, 8/2703:00");
     expect(render("2025-08-27T10:00:00Z", "filter", incident)).not.toContain("Burn Night");
 });
 

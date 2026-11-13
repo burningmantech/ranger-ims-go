@@ -84,6 +84,10 @@ func MySQLConfig(mariaCfg conf.DBStoreMaria) *mysql.Config {
 	cfg.Addr = net.JoinHostPort(mariaCfg.HostName, conv.FormatInt(mariaCfg.HostPort))
 	cfg.DBName = mariaCfg.Database
 	cfg.MultiStatements = true
+	// Under the default REPEATABLE READ, a DELETE takes gap locks, so concurrent
+	// delete-then-insert transactions on different events deadlock when their
+	// inserts land in the same gap.
+	cfg.Params = map[string]string{"transaction_isolation": "'READ-COMMITTED'"}
 	// Require TLS, but don't verify the CA. We almost certainly don't use real
 	// signed certificates on the playa. It'd be good for us to start using those
 	// in the future though, and to switch this to "true".

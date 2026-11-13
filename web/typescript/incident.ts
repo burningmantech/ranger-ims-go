@@ -1210,7 +1210,9 @@ export async function editIncidentSummary(): Promise<void> {
 
 
 export async function editLocationName(): Promise<void> {
-    const place = document.querySelector(`option[value='${CSS.escape(el.locationName.value)}']`) as HTMLOptionElement|null;
+    // Only the places list: the page's other options (states, Ranger handles,
+    // incident types) aren't places, even when a location is named like one.
+    const place = el.placesList.querySelector<HTMLOptionElement>(`option[value='${CSS.escape(el.locationName.value)}']`);
     if (place) {
         return await setLocationFromPlace(place);
     }

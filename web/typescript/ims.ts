@@ -1898,6 +1898,7 @@ function subscribeToUpdates(closed: (_value?: undefined)=>void): void {
         localStorage.setItem(lastSseIDKey, e.lastEventId);
         newIncidentChannel().postMessage({update_all: true});
         newFieldReportChannel().postMessage({update_all: true});
+        newVisitChannel().postMessage({update_all: true});
     });
 
     eventSource.addEventListener("Incident", function(e: MessageEvent<string>) {

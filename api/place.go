@@ -143,57 +143,67 @@ func (action UpdatePlaces) run(req *http.Request) *herr.HTTPError {
 
 	// for each type supplied, delete everything we have currently for that type
 	// before adding in everything from the request.
+	byType := make(map[imsdb.PlaceType][]imsjson.Place, len(destByType))
 	for dType, dests := range destByType {
-		errHTTP = replacePlaces(ctx, action.imsDBQ, event.ID, imsdb.PlaceType(dType), dests)
-		if errHTTP != nil {
-			return errHTTP.From("[replacePlaces]")
-		}
+		byType[imsdb.PlaceType(dType)] = dests
+	}
+	errHTTP = replacePlaces(ctx, action.imsDBQ, event.ID, byType)
+	if errHTTP != nil {
+		return errHTTP.From("[replacePlaces]")
 	}
 
 	return nil
 }
 
-// replacePlaces swaps out everything the event has of one place type for the
-// places provided.
+// replacePlaces replaces all of the event's places of each given type, in one
+// transaction, so that a failure partway leaves the old places in place.
 func replacePlaces(
-	ctx context.Context, imsDBQ *store.DBQ, eventID int32, placeType imsdb.PlaceType, places []imsjson.Place,
+	ctx context.Context, imsDBQ *store.DBQ, eventID int32, placesByType map[imsdb.PlaceType][]imsjson.Place,
 ) *herr.HTTPError {
-	err := imsDBQ.RemovePlaces(ctx, imsDBQ,
-		imsdb.RemovePlacesParams{
-			Event: eventID,
-			Type:  placeType,
-		},
-	)
+	txn, err := imsDBQ.BeginTx(ctx, nil)
 	if err != nil {
-		return herr.InternalServerError("Failed to remove places", err).From("[RemovePlaces]")
+		return herr.InternalServerError("Failed to begin transaction", err).From("[BeginTx]")
 	}
+	defer rollback(txn)
 
-	for i, d := range places {
-		marshal, err := json.Marshal(d.ExternalData)
-		if err != nil {
-			return herr.InternalServerError("Failed to marshal place", err).From("[Marshal]")
-		}
-		err = imsDBQ.CreatePlace(ctx, imsDBQ,
-			imsdb.CreatePlaceParams{
-				Event:          eventID,
-				Number:         int32(i),
-				Type:           placeType,
-				Name:           d.Name,
-				LocationString: d.LocationString,
-				ExternalData:   marshal,
+	for placeType, places := range placesByType {
+		err = imsDBQ.RemovePlaces(ctx, txn,
+			imsdb.RemovePlacesParams{
+				Event: eventID,
+				Type:  placeType,
 			},
 		)
 		if err != nil {
-			return herr.InternalServerError("Failed to create place", err).From("[UpdatePlace]")
+			return herr.InternalServerError("Failed to remove places", err).From("[RemovePlaces]")
 		}
+
+		for i, d := range places {
+			marshal, err := json.Marshal(d.ExternalData)
+			if err != nil {
+				return herr.InternalServerError("Failed to marshal place", err).From("[Marshal]")
+			}
+			err = imsDBQ.CreatePlace(ctx, txn,
+				imsdb.CreatePlaceParams{
+					Event:          eventID,
+					Number:         int32(i),
+					Type:           placeType,
+					Name:           d.Name,
+					LocationString: d.LocationString,
+					ExternalData:   marshal,
+				},
+			)
+			if err != nil {
+				return herr.InternalServerError("Failed to create place", err).From("[CreatePlace]")
+			}
+		}
+	}
+	err = txn.Commit()
+	if err != nil {
+		return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 	return nil
 }
 
-// ImportPlaces replaces one place type's places for an event with what the
-// Burning Man API has for a given year. The year is a request parameter rather
-// than something derived from the event, since an IMS event isn't necessarily
-// named for the year whose data it wants.
 type ImportPlaces struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
@@ -275,7 +285,7 @@ func (action ImportPlaces) run(req *http.Request) (ImportPlacesResponse, *herr.H
 			ExternalData:   r.Raw,
 		})
 	}
-	errHTTP = replacePlaces(ctx, action.imsDBQ, event.ID, imsdb.PlaceType(kind), places)
+	errHTTP = replacePlaces(ctx, action.imsDBQ, event.ID, map[imsdb.PlaceType][]imsjson.Place{imsdb.PlaceType(kind): places})
 	if errHTTP != nil {
 		return resp, errHTTP.From("[replacePlaces]")
 	}

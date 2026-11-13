@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -398,6 +399,10 @@ func (action EditFieldReport) updateFieldReport(
 	ctx context.Context, event imsdb.Event, fieldReportNumber int32,
 	requestFR imsjson.FieldReport, author string,
 ) *herr.HTTPError {
+	errHTTP := tooLong(requestFR.Summary, "summary", maxIncidentTextChars)
+	if errHTTP != nil {
+		return errHTTP
+	}
 	for range maxCASAttempts {
 		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
 			return action.updateFieldReportAttempt(ctx, event, fieldReportNumber, requestFR, author)
@@ -614,6 +619,10 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 	if fr.Incident != nil {
 		return 0, "", herr.BadRequest("A new Field Report may not be attached to an incident", nil)
 	}
+	errHTTP = tooLong(fr.Summary, "summary", maxIncidentTextChars)
+	if errHTTP != nil {
+		return 0, "", errHTTP
+	}
 
 	author := jwtCtx.Claims.RangerHandle()
 
@@ -658,6 +667,12 @@ func (action NewFieldReport) newFieldReport(req *http.Request) (frNumber int32, 
 		var logs []string
 		if fr.Summary != nil {
 			logs = append(logs, "Changed summary to: "+*fr.Summary)
+		}
+		// A Field Report's authors are the authors of its entries, and that's
+		// who "own Field Reports" access admits. One created with nothing in it
+		// (e.g. to attach a file to) would have no author, locking its creator out.
+		if len(logs) == 0 && !slices.ContainsFunc(fr.ReportEntries, func(e imsjson.ReportEntry) bool { return e.Text != "" }) {
+			logs = append(logs, "Created Field Report")
 		}
 		errHTTP := addChangeReportEntries(ctx, action.imsDBQ, txn, event.ID, fr.Number, author,
 			logs, fr.ReportEntries, addFRReportEntry)

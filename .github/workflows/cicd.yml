@@ -249,6 +249,7 @@ jobs:
             *.golang.org:443
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
+            docker-images-prod.s3.dualstack.us-east-1.amazonaws.com:443
             dl-cdn.alpinelinux.org:443
             github.com:443
             storage.googleapis.com:443

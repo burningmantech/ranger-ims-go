@@ -17,8 +17,33 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/commit/67fc7da
+https://github.com/burningmantech/ranger-ims-go/commit/4da404b
 -->
+
+## 2026-11
+
+### Changed
+
+- Report entry timestamps are now shorter, like "Sun, Aug 16 @ 21:38", with the year only when it isn't the current one. The full date is in the timestamp's tooltip. https://github.com/burningmantech/ranger-ims-go/commit/7f5d341
+- Date-time pickers now show and accept the same format as report entry timestamps, preceded by the day's name if it has one. https://github.com/burningmantech/ranger-ims-go/commit/6228fb8
+- Junk records on the list pages are now counted in the table's info line ("including N junk"), with a link to show only the junk records. While they're shown, a notice above the table offers a way back. The junk badge is now red. https://github.com/burningmantech/ranger-ims-go/commit/cc70e7d https://github.com/burningmantech/ranger-ims-go/commit/978586f
+- Switched IMS's database connections to the `READ COMMITTED` transaction isolation level, avoiding deadlocks between concurrent transactions that delete and insert rows on different events. https://github.com/burningmantech/ranger-ims-go/commit/4a35b7c
+
+### Added
+
+- Added names for particular days of an event (e.g. "Man Burn"), set on the new admin Day Names page. A day's name is shown before the timestamps of report entries written that day, in date tooltips and pickers, and in place of the date in the list tables. https://github.com/burningmantech/ranger-ims-go/commit/755f36c https://github.com/burningmantech/ranger-ims-go/commit/7f5d341 https://github.com/burningmantech/ranger-ims-go/commit/bffdda2
+
+### Fixed
+
+- Rejected Incident, Field Report, and Visit text that's too long for its database column with a clear error, rather than a server error, and capped those inputs' lengths in the web UI. Text is now cut to length by characters, not bytes, so a cut can't split a multibyte character. https://github.com/burningmantech/ranger-ims-go/commit/1964dc7 https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
+- Fixed an Incident location whose name matched some other option on the page (a state, Ranger handle, or Incident Type) being dropped. https://github.com/burningmantech/ranger-ims-go/commit/1964dc7
+- Fixed a Reporter being locked out of a Field Report they created with no summary or text, since it had no author. Such a Field Report now gets a "Created Field Report" entry. https://github.com/burningmantech/ranger-ims-go/commit/1964dc7
+- Made replacing an event's Places, and editing a person in the IMS directory, all-or-nothing, so a failure partway leaves the old data intact. https://github.com/burningmantech/ranger-ims-go/commit/1964dc7 https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
+- Fixed Visit pages missing updates made while their live-update connection was down. https://github.com/burningmantech/ranger-ims-go/commit/1964dc7
+- Attaching a file to a nonexistent Incident or Visit is now a 404, checked before the file is stored, and a file whose name isn't valid UTF-8 can now be attached. https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
+- Places must now have a JSON object (or null) for their external data, and an event's Places list no longer fails over a stored row that has something else. https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
+- Fixed creating an Incident from a Field Report not adding the Field Report's author as a Ranger on the new Incident.
+- Removing a Ranger who isn't on an Incident's or Visit's roster no longer records a report entry, and a failed removal in the web UI now shows an error. https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
 
 ## 2026-10
 
@@ -34,6 +59,8 @@ https://github.com/burningmantech/ranger-ims-go/commit/67fc7da
 - Capped search queries, both on the Search page and the list pages, at 256 characters. https://github.com/burningmantech/ranger-ims-go/commit/d03b36f
 - Reduced database lock contention and deadlocks under concurrent edits: the active event moved out of the `EVENT` table, Ranger roster tables are now keyed by event, number, and handle, roster writes lock the parent record first, striking a report entry updates a single row, and the list queries got lighter. Event deletion and setting the active event now retry on conflicts. https://github.com/burningmantech/ranger-ims-go/commit/4d9449a https://github.com/burningmantech/ranger-ims-go/commit/deda08e https://github.com/burningmantech/ranger-ims-go/commit/9f96c82 https://github.com/burningmantech/ranger-ims-go/commit/943dc27 https://github.com/burningmantech/ranger-ims-go/commit/c457884 https://github.com/burningmantech/ranger-ims-go/commit/0b47ced https://github.com/burningmantech/ranger-ims-go/commit/7b1a1b3
 - Raised the long-lived `Cache-Control` max age for static files from 2 hours to 8. https://github.com/burningmantech/ranger-ims-go/commit/7e34672
+- IMS now requires TLS for its connections to the IMS and Clubhouse databases, though it doesn't verify the server's certificate. https://github.com/burningmantech/ranger-ims-go/commit/d2e2b77 https://github.com/burningmantech/ranger-ims-go/commit/71b66d1
+- The admin Debug page shows the server's start time in IMS's time zone, and its uptime to the second. https://github.com/burningmantech/ranger-ims-go/commit/01e4a7d
 
 ### Added
 
@@ -41,11 +68,12 @@ https://github.com/burningmantech/ranger-ims-go/commit/67fc7da
 - Added Event and type filter menus to the Search page, which is now called "Search Everywhere". https://github.com/burningmantech/ranger-ims-go/pull/850
 - Added support for MariaDB 13.0, while remaining compatible with 10.5. https://github.com/burningmantech/ranger-ims-go/commit/1ec0b21
 - Started showing the database schema version on the admin Debug page. https://github.com/burningmantech/ranger-ims-go/commit/c2b2bc1
-- Added a way to mark an Incident, Field Report, or Visit as junk, for one created by mistake or duplicating another. A junk record is kept, but the list pages hide it unless asked to show it, search leaves it out unless "Include junk" is checked, and it isn't offered for attaching to an Incident. A banner on its page says it's junk, with a button to undo that. Either change is logged in the record's history.
+- Added a way to mark an Incident, Field Report, or Visit as junk, for one created by mistake or duplicating another. A junk record is kept, but the list pages hide it unless asked to show it, search leaves it out unless "Include junk" is checked, and it isn't offered for attaching to an Incident. A banner on its page says it's junk, with a button to undo that. Either change is logged in the record's history. https://github.com/burningmantech/ranger-ims-go/commit/4ab6087 https://github.com/burningmantech/ranger-ims-go/commit/fd339dc
+- Added connection and server details for the IMS and Clubhouse databases to the admin Debug page, along with a way to list every variable and status value each database server reports. https://github.com/burningmantech/ranger-ims-go/commit/d2dc547
 
 ### Removed
 
-- Removed the "Junk" Incident Type. Schema 48 marks every Incident that had it as junk instead.
+- Removed the "Junk" Incident Type. Schema 48 marks every Incident that had it as junk instead. https://github.com/burningmantech/ranger-ims-go/commit/4ab6087
 
 ### Fixed
 

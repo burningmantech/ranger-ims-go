@@ -415,13 +415,13 @@ export async function makeIncident(): Promise<void> {
         ims.setErrorMessage(`Failed to create incident: ${err}`);
         return;
     }
-    const newNum: string|null = resp.headers.get("IMS-Incident-Number");
-    if (newNum == null) {
+    const incidentNumber = ims.parseInt10(resp.headers.get("IMS-Incident-Number"));
+    if (incidentNumber == null) {
         ims.disableEditing();
         ims.setErrorMessage("Failed to create incident: no IMS Incident Number provided");
         return;
     }
-    fieldReport.incident = ims.parseInt10(newNum);
+    fieldReport.incident = incidentNumber;
 
     // Attach this FR to that new incident
     const attachToIncidentUrl =
@@ -435,8 +435,23 @@ export async function makeIncident(): Promise<void> {
         ims.setErrorMessage(`Failed to attach field report: ${attachErr}`);
         return;
     }
-    console.log("Created and attached to new incident " + fieldReport.incident);
+    // Put the Field Report's author on the new Incident. The create endpoint
+    // ignores "rangers", so this is its own request.
+    const author = fieldReport.report_entries?.[0]?.author;
+    let rangerErr: string|null = null;
+    if (author) {
+        const rangerURL = ims.urlReplace(url_incidentRanger)
+            .replace("<incident_number>", incidentNumber.toString())
+            .replace("<ranger_name>", encodeURIComponent(author));
+        ({err: rangerErr} = await ims.fetchNoThrow(rangerURL, {
+            body: JSON.stringify({handle: author}),
+        }));
+    }
+    console.log("Created and attached to new incident " + incidentNumber);
     await loadAndDisplayFieldReport();
+    if (rangerErr != null) {
+        ims.setErrorMessage(`Created Incident ${incidentNumber}, but failed to add ${author} to it: ${rangerErr}`);
+    }
 }
 
 

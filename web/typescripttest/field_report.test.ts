@@ -88,6 +88,9 @@ function frRoutes(url: string, init?: RequestInit): Response | undefined {
     if (url === `/ims/api/events/${eventName}/incidents` && hasBody) {
         return new Response(null, { status: 201, headers: { "IMS-Incident-Number": "42" } });
     }
+    if (url.startsWith(`/ims/api/events/${eventName}/incidents/42/rangers/`) && hasBody) {
+        return new Response(null, { status: 204 });
+    }
     return undefined;
 }
 
@@ -164,6 +167,39 @@ test("makeIncident creates an incident, attaches the report, and links it", asyn
     // The FR is then attached to the freshly-created incident 42.
     expect(mock.mock.calls.some(([url, init]) =>
         url === `${frUrl}/7?action=attach&incident=42` && init?.body != null)).toBe(true);
+    // And the FR's author is added to it as a Ranger.
+    expect(postedBodies(mock, `/ims/api/events/${eventName}/incidents/42/rangers/Tool`)).toEqual([
+        { handle: "Tool" },
+    ]);
+});
+
+test("makeIncident adds no Ranger when the field report has no entries", async (): Promise<void> => {
+    serverFieldReport.report_entries = [];
+    const mock = await initFieldReportPage();
+
+    serverFieldReport.incident = 42;
+    await page.makeIncident();
+
+    expect(mock.mock.calls.some(([url]): boolean => url.includes("/rangers/"))).toBe(false);
+    expect(document.getElementById("error_info")!.classList.contains("hidden")).toBe(true);
+});
+
+test("makeIncident reports a failure to add the author as a Ranger", async (): Promise<void> => {
+    const mock = await initFieldReportPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url.includes("/rangers/")) {
+            return problemResponse("no such Ranger", 400);
+        }
+        return frRoutes(url, init);
+    });
+
+    serverFieldReport.incident = 42;
+    await page.makeIncident();
+
+    // The FR still got attached, and the error says what's missing.
+    expect(mock.mock.calls.some(([url, init]) =>
+        url === `${frUrl}/7?action=attach&incident=42` && init?.body != null)).toBe(true);
+    expect(errorText()).toContain("Created Incident 42, but failed to add Tool to it");
+    expect(errorText()).toContain("no such Ranger");
 });
 
 test("updateIncident attaches the field report to a typed-in incident number", async (): Promise<void> => {

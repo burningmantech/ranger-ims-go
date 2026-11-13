@@ -86,7 +86,7 @@ templ FieldReport(deployment, versionName, versionRef, eventName string) {
       <div class="py-1 input-group">
         <label for="field_report_summary" class="control-label input-group-text">Summary</label>
         <input
-                id="field_report_summary" class="form-control"
+                id="field_report_summary" maxlength="1024" class="form-control"
                 type="text" inputmode="text"
                 { NoAutofill()... }
         />

@@ -1015,12 +1015,14 @@ test("an InitialEvent asks every page to reload, unless nothing was missed", asy
     const { source } = await takeEventSourceLock();
     const incidents = listen("incident_update");
     const fieldReports = listen("field_report_update");
+    const visits = listen("visit_update");
 
     // A fresh connection, with no record of what came before.
     source.dispatchEvent(new MessageEvent("InitialEvent", { lastEventId: "20" }));
     await vi.waitFor((): void => {
         expect(incidents.messages).toEqual([{ update_all: true }]);
         expect(fieldReports.messages).toEqual([{ update_all: true }]);
+        expect(visits.messages).toEqual([{ update_all: true }]);
     });
     expect(localStorage.getItem("last_sse_id")).toBe("20");
 
@@ -1034,9 +1036,11 @@ test("an InitialEvent asks every page to reload, unless nothing was missed", asy
         expect(incidents.messages).toEqual([{ update_all: true }, { event_id: 1, incident_number: 4 }]);
     });
     expect(fieldReports.messages).toEqual([{ update_all: true }]);
+    expect(visits.messages).toEqual([{ update_all: true }]);
 
     incidents.channel.close();
     fieldReports.channel.close();
+    visits.channel.close();
 });
 
 test("the EventSource leader gives up the lock only once the connection is closed", async (): Promise<void> => {

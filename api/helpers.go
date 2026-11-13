@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -137,6 +138,16 @@ func applyStringChange(dst *sql.NullString, newVal *string, label string, logs *
 	}
 	*dst = conv.StringToSql(newVal, 0)
 	*logs = append(*logs, fmt.Sprintf("Changed %v: %v", label, dst.String))
+}
+
+// tooLong rejects a client-supplied string that won't fit its column, which
+// MariaDB would otherwise refuse as a 500. The limit is in characters, as a
+// varchar's is.
+func tooLong(val *string, label string, maxChars int) *herr.HTTPError {
+	if val == nil || utf8.RuneCountInString(*val) <= maxChars {
+		return nil
+	}
+	return herr.BadRequest(fmt.Sprintf("The %v can be at most %v characters long", label, maxChars), nil).SetExpectedError()
 }
 
 func applyJunkChange(dst *bool, newVal *bool, logs *[]string) {

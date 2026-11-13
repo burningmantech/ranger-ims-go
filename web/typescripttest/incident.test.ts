@@ -1864,6 +1864,38 @@ test("linked incidents are sorted by event, then by number", async (): Promise<v
     expect(linked).toEqual(["2015#4", "2025#3", "2025#9"]);
 });
 
+test("a location named like some other option on the page is saved as typed", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    const name = document.getElementById("incident_location_name") as HTMLInputElement;
+
+    // An incident state.
+    name.value = "closed";
+    await page.editLocationName();
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+        { location: { name: "closed" }, number: 1 },
+    ]);
+
+    // A Ranger's handle.
+    mock.mockClear();
+    const handle = document.querySelector<HTMLOptionElement>("#ranger_handles option[value]")!.value;
+    expect(handle).not.toBe("");
+    name.value = handle;
+    await page.editLocationName();
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+        { location: { name: handle }, number: 1 },
+    ]);
+
+    // An incident type.
+    mock.mockClear();
+    const typeName = document.querySelector<HTMLOptionElement>("#incident_types option[value]")!.value;
+    expect(typeName).not.toBe("");
+    name.value = typeName;
+    await page.editLocationName();
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1")).toEqual([
+        { location: { name: typeName }, number: 1 },
+    ]);
+});
+
 test("choosing a mutant vehicle place gives its name an MV suffix", async (): Promise<void> => {
     const mock = await initIncidentPage();
 

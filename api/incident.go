@@ -17,6 +17,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -582,6 +583,13 @@ func (action NewIncident) newIncident(req *http.Request) (incidentNumber int32, 
 
 	author := jwtCtx.Claims.RangerHandle()
 
+	// Checked before the insert below, so that a request that's going to be
+	// refused doesn't leave an empty Incident behind.
+	errHTTP = validateIncidentEdit(newIncident)
+	if errHTTP != nil {
+		return 0, "", errHTTP.From("[validateIncidentEdit]")
+	}
+
 	// First create the incident, to lock in the incident number reservation.
 	// The number is allocated with a plain SELECT, so a concurrent creator in
 	// the same event can claim the same number first; the (EVENT, NUMBER)
@@ -684,12 +692,30 @@ func rejectSetReplacement(newIncident imsjson.Incident) *herr.HTTPError {
 	return herr.BadRequest(msg, nil).SetExpectedError()
 }
 
-func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
-	normalizeAddresses bool, timeZone *time.Location,
-) *herr.HTTPError {
+// maxIncidentTextChars is the size of the INCIDENT table's text columns.
+const maxIncidentTextChars = 1024
+
+// validateIncidentEdit checks everything about an edit body that can be judged
+// without the stored Incident.
+func validateIncidentEdit(newIncident imsjson.Incident) *herr.HTTPError {
 	errHTTP := rejectSetReplacement(newIncident)
 	if errHTTP != nil {
 		return errHTTP.From("[rejectSetReplacement]")
+	}
+	return cmp.Or(
+		tooLong(newIncident.Summary, "summary", maxIncidentTextChars),
+		tooLong(newIncident.Location.Name, "location name", maxIncidentTextChars),
+		tooLong(newIncident.Location.Address, "location address", maxIncidentTextChars),
+		tooLong(newIncident.Location.Description, "location description", maxIncidentTextChars),
+	)
+}
+
+func updateIncident(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newIncident imsjson.Incident, author string,
+	normalizeAddresses bool, timeZone *time.Location,
+) *herr.HTTPError {
+	errHTTP := validateIncidentEdit(newIncident)
+	if errHTTP != nil {
+		return errHTTP.From("[validateIncidentEdit]")
 	}
 	for range maxCASAttempts {
 		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {

@@ -17,6 +17,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -343,6 +344,18 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber int32, location 
 
 	author := jwtCtx.Claims.RangerHandle()
 
+	// Checked before the insert below, so that a request that's going to be
+	// refused doesn't leave an empty Visit behind. Building the update against
+	// a blank Visit is what checks the request's own arrival and departure times.
+	errHTTP = validateVisitEdit(newVisit)
+	if errHTTP != nil {
+		return 0, "", errHTTP.From("[validateVisitEdit]")
+	}
+	_, _, errHTTP = buildVisitUpdate(imsdb.Visit{}, newVisit, event.NormalizeAddresses, action.timeZone)
+	if errHTTP != nil {
+		return 0, "", errHTTP.From("[buildVisitUpdate]")
+	}
+
 	// First create the visit, to lock in the visit number reservation.
 	// The number allocation can race a concurrent creator; see newIncident.
 	now := conv.TimeToFloat(time.Now())
@@ -380,9 +393,40 @@ func (action NewVisit) newVisit(req *http.Request) (visitNumber int32, location 
 	return newVisit.Number, fmt.Sprintf("/ims/api/events/%v/visits/%d", event.Name, newVisit.Number), nil
 }
 
+// validateVisitEdit checks that the edit's text fits the VISIT table's columns.
+func validateVisitEdit(v imsjson.Visit) *herr.HTTPError {
+	return cmp.Or(
+		tooLong(v.GuestPreferredName, "guest preferred name", 128),
+		tooLong(v.GuestLegalName, "guest legal name", 128),
+		tooLong(v.GuestDescription, "guest description", 256),
+		tooLong(v.GuestActionPlan, "guest action plan", 512),
+		tooLong(v.GuestCampName, "guest camp name", 256),
+		tooLong(v.GuestCampAddress, "guest camp address", 256),
+		tooLong(v.GuestCampDescription, "guest camp description", 256),
+		tooLong(v.GuestCampContacts, "guest camp contacts", 512),
+		tooLong(v.ArrivalMethod, "arrival method", 256),
+		tooLong(v.ArrivalState, "arrival state", 256),
+		tooLong(v.ArrivalReason, "arrival reason", 256),
+		tooLong(v.ArrivalBelongings, "arrival belongings", 256),
+		tooLong(v.DepartureMethod, "departure method", 256),
+		tooLong(v.DepartureState, "departure state", 256),
+		tooLong(v.ResourceSitter, "sitter", 256),
+		tooLong(v.ResourceBedID, "bed ID", 64),
+		tooLong(v.ResourceRest, "rest", 256),
+		tooLong(v.ResourceClothes, "clothes", 256),
+		tooLong(v.ResourcePogs, "pogs", 256),
+		tooLong(v.ResourceFoodBev, "food and beverage", 256),
+		tooLong(v.ResourceOther, "other resources", 256),
+	)
+}
+
 func updateVisit(ctx context.Context, imsDBQ *store.DBQ, es *EventSourcerer, newVisit imsjson.Visit, author string,
 	normalizeAddresses bool, timeZone *time.Location,
 ) *herr.HTTPError {
+	errHTTP := validateVisitEdit(newVisit)
+	if errHTTP != nil {
+		return errHTTP.From("[validateVisitEdit]")
+	}
 	for range maxCASAttempts {
 		conflict, errHTTP := retryOnDeadlock(func() (bool, *herr.HTTPError) {
 			return updateVisitAttempt(ctx, imsDBQ, es, newVisit, author, normalizeAddresses, timeZone)

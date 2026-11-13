@@ -124,7 +124,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                    class="col-sm-2 col-form-label control-label">Preferred name:</label>
               <div title="The name the guest wants to be called by" class="col-sm-10">
                 <input
-                    id="guest_preferred_name" class="form-control form-control-sm"
+                    id="guest_preferred_name" maxlength="128" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
                 />
@@ -135,7 +135,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
                      class="col-sm-2 col-form-label control-label">Legal name:</label>
               <div class="col-sm-10">
                 <input
-                    id="guest_legal_name" class="form-control form-control-sm"
+                    id="guest_legal_name" maxlength="128" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
                 />
@@ -145,7 +145,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="guest_description" class="col-sm-2 col-form-label control-label">Physical description:</label>
               <div class="col-sm-10">
                 <input
-                    id="guest_description" class="form-control form-control-sm"
+                    id="guest_description" maxlength="256" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
                 />
@@ -155,7 +155,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="guest_action_plan" class="col-sm-2 col-form-label control-label">Action plan:</label>
               <div class="col-sm-10">
                 <input
-                    id="guest_action_plan" class="form-control form-control-sm"
+                    id="guest_action_plan" maxlength="512" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
                 />
@@ -227,7 +227,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="arrival_method" class="col-sm-2 col-form-label control-label">Arrival method:</label>
               <div class="col-sm-10">
                 <input
-                    id="arrival_method"
+                    id="arrival_method" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -239,7 +239,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="arrival_state" class="col-sm-2 col-form-label control-label">Arrival state:</label>
               <div class="col-sm-10">
                 <input
-                    id="arrival_state"
+                    id="arrival_state" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -251,7 +251,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="arrival_reason" class="col-sm-2 col-form-label control-label">Reason:</label>
               <div class="col-sm-10">
                 <textarea
-                    id="arrival_reason"
+                    id="arrival_reason" maxlength="256"
                     class="form-control form-control-sm"
                     rows="1"
                 ></textarea>
@@ -262,7 +262,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="arrival_belongings" class="col-sm-2 col-form-label control-label">Items brought:</label>
               <div class="col-sm-10">
                 <textarea
-                    id="arrival_belongings"
+                    id="arrival_belongings" maxlength="256"
                     class="form-control form-control-sm"
                     rows="1"
                 ></textarea>
@@ -273,7 +273,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="departure_method" class="col-sm-2 col-form-label control-label">Departure method:</label>
               <div class="col-sm-10">
                 <input
-                    id="departure_method"
+                    id="departure_method" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -285,7 +285,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="departure_state" class="col-sm-2 col-form-label control-label">Departure state:</label>
               <div class="col-sm-10">
                 <input
-                    id="departure_state"
+                    id="departure_state" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -320,7 +320,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="guest_camp_name" class="col-sm-2 col-form-label control-label">Camp name:</label>
               <div class="col-sm-10">
                 <input
-                        id="guest_camp_name"
+                        id="guest_camp_name" maxlength="256"
                         type="text"
                         class="form-control form-control-sm"
                         { NoAutofill()... }
@@ -331,7 +331,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="guest_camp_address" class="col-sm-2 col-form-label control-label">Camp address:</label>
               <div class="col-sm-10">
                 <input
-                        id="guest_camp_address"
+                        id="guest_camp_address" maxlength="256"
                         type="text"
                         class="form-control form-control-sm"
                         { NoAutofill()... }
@@ -342,7 +342,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="guest_camp_description" class="col-sm-2 col-form-label control-label">Camp description:</label>
               <div class="col-sm-10">
                 <input
-                        id="guest_camp_description"
+                        id="guest_camp_description" maxlength="256"
                         type="text"
                         class="form-control form-control-sm"
                         aria-label="Additional location description"
@@ -354,7 +354,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="guest_camp_contacts" class="col-sm-2 col-form-label control-label">Contacts:</label>
               <div class="col-sm-10">
                 <input
-                        id="guest_camp_contacts"
+                        id="guest_camp_contacts" maxlength="512"
                         type="text"
                         class="form-control form-control-sm"
                         aria-label="Guest camp contact information"
@@ -380,7 +380,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="resource_sitter" class="col-sm-2 col-form-label control-label">Sanctuary sitter:</label>
               <div class="col-sm-10">
                 <input
-                    id="resource_sitter" class="form-control form-control-sm"
+                    id="resource_sitter" maxlength="256" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
                 />
@@ -390,7 +390,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="resource_bed_id" class="col-sm-2 col-form-label control-label">Bed ID:</label>
               <div class="col-sm-10">
                 <input
-                    id="resource_bed_id" class="form-control form-control-sm"
+                    id="resource_bed_id" maxlength="64" class="form-control form-control-sm"
                     type="text" inputmode="text"
                     { NoAutofill()... }
                 />
@@ -400,7 +400,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="resource_rest" class="col-sm-2 col-form-label control-label">Bedding/blankets:</label>
               <div class="col-sm-10">
                 <input
-                    id="resource_rest"
+                    id="resource_rest" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -411,7 +411,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="resource_clothes" class="col-sm-2 col-form-label control-label">Clothing:</label>
               <div class="col-sm-10">
                 <input
-                    id="resource_clothes"
+                    id="resource_clothes" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -422,7 +422,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="resource_food_bev" class="col-sm-2 col-form-label control-label">Food/bev given:</label>
               <div class="col-sm-10">
                 <input
-                    id="resource_food_bev"
+                    id="resource_food_bev" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -433,7 +433,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="resource_pogs" class="col-sm-2 col-form-label control-label">Commissary food:</label>
               <div class="col-sm-10">
                 <input
-                    id="resource_pogs"
+                    id="resource_pogs" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }
@@ -444,7 +444,7 @@ templ SanctuaryVisit(deployment, versionName, versionRef, eventName string) {
               <label for="resource_other" class="col-sm-2 col-form-label control-label">Other resources:</label>
               <div class="col-sm-10">
                 <input
-                    id="resource_other"
+                    id="resource_other" maxlength="256"
                     type="text"
                     class="form-control form-control-sm"
                     { NoAutofill()... }

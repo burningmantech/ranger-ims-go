@@ -104,7 +104,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       <div class="input-group py-1">
         <label for="incident_summary" class="input-group-text control-label">Summary</label>
         <input
-                id="incident_summary" class="form-control form-control-sm"
+                id="incident_summary" maxlength="1024" class="form-control form-control-sm"
                 type="text" inputmode="text"
                 { NoAutofill()... }
         />
@@ -221,7 +221,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                        class="col-sm-2 col-form-label control-label">Name:</label>
                 <div class="col-sm-10">
                   <input
-                          id="incident_location_name" class="form-control form-control-sm"
+                          id="incident_location_name" maxlength="1024" class="form-control form-control-sm"
                           type="text" inputmode="text"
                           { NoAutofill()... }
                           placeholder="Name of location"
@@ -236,7 +236,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                        class="col-sm-2 col-form-label control-label">Address:</label>
                 <div class="col-sm-10">
                   <input
-                          id="incident_location_address" class="form-control form-control-sm"
+                          id="incident_location_address" maxlength="1024" class="form-control form-control-sm"
                           type="text" inputmode="text"
                           { NoAutofill()... }
                           placeholder="Address of location"
@@ -248,7 +248,7 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 <label for="incident_location_description" class="col-sm-2 col-form-label control-label">Details:</label>
                 <div class="col-sm-10">
                   <input
-                          id="incident_location_description" class="form-control form-control-sm"
+                          id="incident_location_description" maxlength="1024" class="form-control form-control-sm"
                           type="text" inputmode="text"
                           { NoAutofill()... }
                           aria-label="Additional location description"

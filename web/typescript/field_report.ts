@@ -404,15 +404,11 @@ export async function makeIncident(): Promise<void> {
         return;
     }
 
-    const authors: string[] = [];
-    if (fieldReport.report_entries) {
-        authors.push(fieldReport.report_entries[0]!.author??"null");
-    }
+    const incident: ims.Incident = {
+        "summary": fieldReport.summary??"",
+    };
     const {resp, err} = await ims.fetchNoThrow(incidentsURL, {
-        body:JSON.stringify({
-            "summary": fieldReport.summary,
-            "ranger_handles": authors,
-        }),
+        body:JSON.stringify(incident),
     });
     if (err != null || resp == null) {
         ims.disableEditing();

@@ -41,7 +41,7 @@ type rangerRoster struct {
 	noun                string
 
 	lock           func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32) error
-	detach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error
+	detach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (int64, error)
 	attach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string, role sql.NullString) error
 	currentRole    func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (sql.NullString, bool, error)
 	addReportEntry func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError)
@@ -58,7 +58,7 @@ func incidentRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 			_, err := imsDBQ.LockIncident(ctx, dbtx, imsdb.LockIncidentParams{Event: eventID, Number: number})
 			return err
 		},
-		detach: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error {
+		detach: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (int64, error) {
 			return imsDBQ.DetachRangerHandleFromIncident(ctx, dbtx, imsdb.DetachRangerHandleFromIncidentParams{
 				Event:          eventID,
 				IncidentNumber: number,
@@ -105,7 +105,7 @@ func visitRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 			_, err := imsDBQ.LockVisit(ctx, dbtx, imsdb.LockVisitParams{Event: eventID, Number: number})
 			return err
 		},
-		detach: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) error {
+		detach: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (int64, error) {
 			return imsDBQ.DetachRangerFromVisit(ctx, dbtx, imsdb.DetachRangerFromVisitParams{
 				Event:        eventID,
 				VisitNumber:  number,
@@ -306,8 +306,12 @@ func detachRanger(
 	}
 	ctx := req.Context()
 
+	// False when the Ranger wasn't on the roster, as in attachRanger.
+	changed := false
+
 	// Retried on deadlock, as in attachRanger.
 	errHTTP = retryOnDeadlockErr(func() *herr.HTTPError {
+		changed = false
 		txn, err := imsDBQ.Begin()
 		if err != nil {
 			return herr.InternalServerError("Failed to start transaction", err).From("[Begin]")
@@ -319,9 +323,12 @@ func detachRanger(
 			return errHTTP
 		}
 
-		err = roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
+		removed, err := roster.detach(ctx, txn, rosterReq.event.ID, rosterReq.number, rosterReq.rangerName)
 		if err != nil {
 			return herr.InternalServerError(fmt.Sprintf("Failed to detach Ranger from %v", roster.noun), err).From("[detach]")
+		}
+		if removed == 0 {
+			return nil
 		}
 
 		_, errHTTP = roster.addReportEntry(ctx, txn, rosterReq.event.ID, rosterReq.number, newReportEntry{
@@ -337,13 +344,16 @@ func detachRanger(
 		if err != nil {
 			return herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 		}
+		changed = true
 		return nil
 	})
 	if errHTTP != nil {
 		return errHTTP
 	}
 
-	roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
+	if changed {
+		roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
+	}
 
 	return nil
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -91,12 +92,7 @@ func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError)
 			ExternalData:   nil,
 		}
 		if !excludeExternalData {
-			ed := make(map[string]any)
-			err := json.Unmarshal(rowDest.ExternalData.([]byte), &ed)
-			if err != nil {
-				return nil, herr.InternalServerError("Failed to unmarshal place", err).From("[Unmarshal]")
-			}
-			apiDest.ExternalData = ed
+			apiDest.ExternalData = placeExternalData(event.Name, dType, rowDest.Name, rowDest.ExternalData)
 		}
 		if !isAdmin && placeLocationsEmbargoed(event, rowDest.Type, now) {
 			redactPlaceLocation(&apiDest)
@@ -105,6 +101,33 @@ func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError)
 	}
 
 	return resp, nil
+}
+
+// placeExternalData decodes a Place's stored EXTERNAL_DATA. A row that holds
+// SQL NULL or something other than a JSON object just gets no external data,
+// rather than failing the whole event's list.
+func placeExternalData(eventName, placeType, placeName string, raw any) map[string]any {
+	var b []byte
+	switch v := raw.(type) {
+	case nil:
+		return nil
+	case []byte:
+		b = v
+	case string:
+		b = []byte(v)
+	default:
+		slog.Warn("Unexpected Place external data type",
+			"event", eventName, "type", placeType, "name", placeName, "goType", fmt.Sprintf("%T", raw))
+		return nil
+	}
+	var ed map[string]any
+	err := json.Unmarshal(b, &ed)
+	if err != nil {
+		slog.Warn("Place external data is not a JSON object",
+			"event", eventName, "type", placeType, "name", placeName, "error", err)
+		return nil
+	}
+	return ed
 }
 
 type UpdatePlaces struct {
@@ -139,6 +162,14 @@ func (action UpdatePlaces) run(req *http.Request) *herr.HTTPError {
 	destByType, errHTTP := readBodyAs[imsjson.Places](req)
 	if errHTTP != nil {
 		return errHTTP.From("[readBodyAs]")
+	}
+	for dType, dests := range destByType {
+		for _, d := range dests {
+			if _, isObject := d.ExternalData.(map[string]any); d.ExternalData != nil && !isObject {
+				return herr.BadRequest(
+					fmt.Sprintf("external_data for %v place %q must be a JSON object or null", dType, d.Name), nil)
+			}
+		}
 	}
 
 	// for each type supplied, delete everything we have currently for that type

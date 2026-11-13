@@ -829,8 +829,8 @@ function drawIncidentTypeInfo(): void {
 //
 
 function drawLocationName() {
-    if (incident?.location?.name) {
-        ims.setInputValue(el.locationName, incident.location.name);
+    if (incident?.location) {
+        ims.setInputValue(el.locationName, incident.location?.name??"");
     }
 }
 
@@ -897,8 +897,8 @@ function drawLocationAddress() {
 }
 
 function drawLocationDescription() {
-    if (incident!.location?.description) {
-        ims.setInputValue(el.locationDescription, incident!.location.description);
+    if (incident!.location) {
+        ims.setInputValue(el.locationDescription, incident!.location?.description??"");
     }
 }
 
@@ -1276,16 +1276,26 @@ export async function removeRanger(sender: HTMLElement): Promise<void> {
         return;
     }
 
-    await chainMutation(async (): Promise<void> => {
-        const url = (
-            ims.urlReplace(url_incidentRanger)
-                .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
-                .replace("<ranger_name>", encodeURIComponent(rangerHandle))
-        );
-        await ims.fetchNoThrow(url, {
-            method: "DELETE",
+    const button = sender as HTMLButtonElement;
+    button.disabled = true;
+    try {
+        await chainMutation(async (): Promise<void> => {
+            const url = (
+                ims.urlReplace(url_incidentRanger)
+                    .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+                    .replace("<ranger_name>", encodeURIComponent(rangerHandle))
+            );
+            const {err} = await ims.fetchNoThrow(url, {
+                method: "DELETE",
+            });
+            if (err != null) {
+                ims.setErrorMessage(`Failed to remove Ranger: ${err}`);
+            }
         });
-    });
+    } finally {
+        // On success the list is redrawn and this button is gone.
+        button.disabled = false;
+    }
 }
 
 export async function setRangerRole(sender: HTMLInputElement): Promise<void> {

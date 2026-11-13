@@ -25,6 +25,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/api"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/rand"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -400,4 +401,77 @@ func TestImportPlacesRequiresAdmin(t *testing.T) {
 	resp = apisAlice.importPlaces(ctx, eventName, "camp", "2025")
 	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+}
+
+// TestPlaceExternalDataMustBeAnObject checks that UpdatePlaces rejects
+// external data that isn't a JSON object, and that GetPlaces still lists an
+// event whose stored rows hold SQL NULL or non-object external data.
+func TestPlaceExternalDataMustBeAnObject(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apis := srv.admin(ctx)
+
+	eventName := rand.NonCryptoText()
+	_, resp := apis.createEvent(ctx, imsjson.Event{Name: &eventName})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	events, resp := apis.getEvents(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	var eventID int32
+	for _, e := range events {
+		if *e.Name == eventName {
+			eventID = e.ID
+		}
+	}
+	require.NotZero(t, eventID)
+
+	// An array is rejected.
+	resp = apis.imsPost(ctx, map[string]any{
+		"camp": []any{map[string]any{"name": "Array Camp", "external_data": []any{1, 2}}},
+	}, apis.serverURL.JoinPath("/ims/api/events/", eventName, "/places").String())
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// So is a string.
+	resp = apis.imsPost(ctx, map[string]any{
+		"camp": []any{map[string]any{"name": "String Camp", "external_data": "oops"}},
+	}, apis.serverURL.JoinPath("/ims/api/events/", eventName, "/places").String())
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Null is fine.
+	resp = apis.editPlaces(ctx, eventName, imsjson.Places{
+		"other": {{Name: "Null Place", LocationString: "Somewhere"}},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Rows written around the API, with SQL NULL and with a JSON array, don't
+	// break the list.
+	err := shared.imsDBQ.CreatePlace(ctx, shared.imsDBQ, imsdb.CreatePlaceParams{
+		Event: eventID, Number: 0, Type: imsdb.PlaceTypeCamp, Name: "SQL Null Camp", ExternalData: nil,
+	})
+	require.NoError(t, err)
+	err = shared.imsDBQ.CreatePlace(ctx, shared.imsDBQ, imsdb.CreatePlaceParams{
+		Event: eventID, Number: 1, Type: imsdb.PlaceTypeCamp, Name: "Array Camp", ExternalData: json.RawMessage(`[1,2]`),
+	})
+	require.NoError(t, err)
+	err = shared.imsDBQ.CreatePlace(ctx, shared.imsDBQ, imsdb.CreatePlaceParams{
+		Event: eventID, Number: 2, Type: imsdb.PlaceTypeCamp, Name: "Good Camp", ExternalData: json.RawMessage(`{"uid":"a1"}`),
+	})
+	require.NoError(t, err)
+
+	places, resp := apis.getPlaces(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, imsjson.Places{
+		"camp": {
+			{Name: "SQL Null Camp"},
+			{Name: "Array Camp"},
+			{Name: "Good Camp", ExternalData: map[string]any{"uid": "a1"}},
+		},
+		"other": {{Name: "Null Place", LocationString: "Somewhere"}},
+	}, places)
 }

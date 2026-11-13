@@ -465,13 +465,18 @@ func (a ApiHelper) getAccessTargets(ctx context.Context) (imsjson.AccessTargets,
 
 func (a ApiHelper) attachFileToIncident(ctx context.Context, eventName string, incident int32, fileBytes []byte) (int32, *http.Response) {
 	a.t.Helper()
+	return a.attachNamedFileToIncident(ctx, eventName, incident, "irrelevant-filename-"+rand.NonCryptoText(), fileBytes)
+}
+
+func (a ApiHelper) attachNamedFileToIncident(ctx context.Context, eventName string, incident int32, filename string, fileBytes []byte) (int32, *http.Response) {
+	a.t.Helper()
 
 	path := a.serverURL.JoinPath("/ims/api/events", eventName, "incidents", conv.FormatInt(incident), "attachments")
 
 	// Create a `multipart/form-data`-encoded request, with a single form file inside
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
-	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, "irrelevant-filename-"+rand.NonCryptoText())
+	part, err := writer.CreateFormFile(api.IMSAttachmentFormKey, filename)
 	require.NoError(a.t, err)
 	_, err = part.Write(fileBytes)
 	require.NoError(a.t, err)

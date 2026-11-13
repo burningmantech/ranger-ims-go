@@ -517,7 +517,7 @@ insert into INCIDENT__RANGER (EVENT, INCIDENT_NUMBER, RANGER_HANDLE, ROLE)
 values (?, ?, ?, ?)
 on duplicate key update ROLE = values(ROLE);
 
--- name: DetachRangerHandleFromIncident :exec
+-- name: DetachRangerHandleFromIncident :execrows
 delete from INCIDENT__RANGER
 where
     EVENT = ?
@@ -737,7 +737,7 @@ insert into VISIT__RANGER (EVENT, VISIT_NUMBER, RANGER_HANDLE, ROLE)
 values (?, ?, ?, ?)
 on duplicate key update ROLE = values(ROLE);
 
--- name: DetachRangerFromVisit :exec
+-- name: DetachRangerFromVisit :execrows
 delete from VISIT__RANGER
 where
     EVENT = ?

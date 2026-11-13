@@ -77,17 +77,28 @@ func SqlToString(v sql.NullString) *string {
 
 // StringToSql converts a string pointer into a sql.NullString.
 //
-// The string will be truncated at maxLength, if maxLength > 0. This uses the fact
-// that Go and IMS's MariaDB tables encode strings in UTF-8.
+// The string will be truncated to maxLength characters (runes), if maxLength > 0.
+// MariaDB's varchar(N) limit on IMS's utf8mb4 tables counts characters, not bytes,
+// and cutting by bytes could split a multibyte rune, which the insert would reject.
 func StringToSql(s *string, maxLength int) sql.NullString {
 	if s == nil || *s == "" {
 		return sql.NullString{}
 	}
-	val := *s
-	if maxLength > 0 && len(val) > maxLength {
-		val = val[:maxLength]
+	return sql.NullString{String: truncateRunes(*s, maxLength), Valid: true}
+}
+
+func truncateRunes(s string, maxRunes int) string {
+	if maxRunes <= 0 || len(s) <= maxRunes {
+		return s
 	}
-	return sql.NullString{String: val, Valid: true}
+	n := 0
+	for i := range s {
+		if n == maxRunes {
+			return s[:i]
+		}
+		n++
+	}
+	return s
 }
 
 // FloatToTime converts the float number of seconds since Unix epoch into a time.Time.

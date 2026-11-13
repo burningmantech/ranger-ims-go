@@ -507,6 +507,60 @@ func TestDirectoryPersonPartialUpdate(t *testing.T) {
 	require.Empty(t, *person.PositionIDs)
 }
 
+func TestDirectoryPersonEditIsAtomic(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newIMSDirectoryServer(t, ctx)
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
+
+	teamA, resp := apisAdmin.editDirectoryGroup(ctx, "teams", imsjson.DirectoryGroup{
+		Title: new("TeamA-" + rand.NonCryptoText()),
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	const missingTeam = int64(999999999)
+
+	// A new person with a nonexistent team isn't created at all.
+	failedHandle := "Atomic-" + rand.NonCryptoText()
+	_, resp = apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{
+		Handle:  &failedHandle,
+		TeamIDs: &[]int64{*teamA, missingTeam},
+	})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	dir, resp := apisAdmin.getDirectory(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	for _, p := range dir.Persons {
+		require.NotEqual(t, failedHandle, *p.Handle)
+	}
+
+	// The same handle is still free to use.
+	personID, resp := apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{
+		Handle:  &failedHandle,
+		TeamIDs: &[]int64{*teamA},
+	})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, personID)
+
+	// A failed update leaves the person's fields and teams as they were.
+	_, resp = apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{
+		ID:      *personID,
+		Handle:  new("Renamed-" + rand.NonCryptoText()),
+		TeamIDs: &[]int64{missingTeam},
+	})
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	dir, resp = apisAdmin.getDirectory(ctx)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	person := findDirectoryPerson(dir, *personID)
+	require.NotNil(t, person)
+	require.Equal(t, failedHandle, *person.Handle)
+	require.Equal(t, []int64{*teamA}, *person.TeamIDs)
+}
+
 func TestDirectoryPersonPassword(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -39,6 +40,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/format"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
+	"github.com/burningmantech/ranger-ims-go/store/imsdb"
 	"github.com/gabriel-vasile/mimetype"
 )
 
@@ -354,6 +356,16 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 	if err != nil {
 		return 0, herr.BadRequest("Failed to parse incident number", err).From("[ParseInt32]")
 	}
+	_, err = action.imsDBQ.IncidentVersion(ctx, action.imsDBQ, imsdb.IncidentVersionParams{
+		Event:  event.ID,
+		Number: incidentNumber,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, herr.NotFound("Incident not found", err).From("[IncidentVersion]")
+		}
+		return 0, herr.InternalServerError("Failed to fetch Incident", err).From("[IncidentVersion]")
+	}
 
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
@@ -364,6 +376,9 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		return 0, herr.BadRequest("Failed to parse file", err)
 	}
 	defer shut(fi)
+	// The client's filename can be any bytes, but the DB column only takes valid
+	// UTF-8, and the insert happens after the file is already stored.
+	fiHead.Filename = strings.ToValidUTF8(fiHead.Filename, "\uFFFD")
 
 	mtype, errHTTP := sniffFile(fi)
 	if errHTTP != nil {
@@ -390,7 +405,7 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
 		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
-	reID, errHTTP := addIncidentReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, incidentNumber, newReportEntry{
+	reID, errHTTP := addAttachmentReportEntry(ctx, action.imsDBQ, event.ID, incidentNumber, addIncidentReportEntry, newReportEntry{
 		author:                   jwtCtx.Claims.RangerHandle(),
 		text:                     reText,
 		generated:                false,
@@ -399,10 +414,33 @@ func (action AttachToIncident) attachToIncident(req *http.Request) (int32, *herr
 		attachedFileMediaType:    mtype.String(),
 	})
 	if errHTTP != nil {
-		return 0, errHTTP.From("[addIncidentReportEntry]")
+		return 0, errHTTP.From("[addAttachmentReportEntry]")
 	}
 
 	action.es.notifyIncidentUpdate(event.ID, incidentNumber)
+	return reID, nil
+}
+
+// addAttachmentReportEntry adds the entry and its join row in one transaction,
+// so a failed join (e.g. the parent vanished) doesn't leave an orphan entry.
+func addAttachmentReportEntry(
+	ctx context.Context, db *store.DBQ, eventID, number int32,
+	add func(ctx context.Context, db *store.DBQ, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError),
+	entry newReportEntry,
+) (int32, *herr.HTTPError) {
+	txn, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, herr.InternalServerError("Failed to begin transaction", err).From("[BeginTx]")
+	}
+	defer rollback(txn)
+	reID, errHTTP := add(ctx, db, txn, eventID, number, entry)
+	if errHTTP != nil {
+		return 0, errHTTP.From("[add]")
+	}
+	err = txn.Commit()
+	if err != nil {
+		return 0, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
+	}
 	return reID, nil
 }
 
@@ -482,6 +520,9 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		return 0, herr.BadRequest("Failed to parse file", err)
 	}
 	defer shut(fi)
+	// The client's filename can be any bytes, but the DB column only takes valid
+	// UTF-8, and the insert happens after the file is already stored.
+	fiHead.Filename = strings.ToValidUTF8(fiHead.Filename, "\uFFFD")
 
 	mtype, errHTTP := sniffFile(fi)
 	if errHTTP != nil {
@@ -508,7 +549,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type: %v",
 		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
-	reID, errHTTP := addFRReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, fieldReportNumber, newReportEntry{
+	reID, errHTTP := addAttachmentReportEntry(ctx, action.imsDBQ, event.ID, fieldReportNumber, addFRReportEntry, newReportEntry{
 		author:                   jwtCtx.Claims.RangerHandle(),
 		text:                     reText,
 		generated:                false,
@@ -517,7 +558,7 @@ func (action AttachToFieldReport) attachToFieldReport(req *http.Request) (int32,
 		attachedFileMediaType:    mtype.String(),
 	})
 	if errHTTP != nil {
-		return 0, errHTTP.From("[addFRReportEntry]")
+		return 0, errHTTP.From("[addAttachmentReportEntry]")
 	}
 
 	action.es.notifyFieldReportUpdate(event.ID, fieldReportNumber)
@@ -610,6 +651,16 @@ func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPE
 	if err != nil {
 		return 0, herr.BadRequest("Failed to parse visit number", err).From("[ParseInt32]")
 	}
+	_, err = action.imsDBQ.VisitVersion(ctx, action.imsDBQ, imsdb.VisitVersionParams{
+		Event:  event.ID,
+		Number: visitNumber,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, herr.NotFound("Visit not found", err).From("[VisitVersion]")
+		}
+		return 0, herr.InternalServerError("Failed to fetch Visit", err).From("[VisitVersion]")
+	}
 
 	// this must match the key sent by the client
 	fi, fiHead, err := req.FormFile(IMSAttachmentFormKey)
@@ -620,6 +671,9 @@ func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPE
 		return 0, herr.BadRequest("Failed to parse file", err)
 	}
 	defer shut(fi)
+	// The client's filename can be any bytes, but the DB column only takes valid
+	// UTF-8, and the insert happens after the file is already stored.
+	fiHead.Filename = strings.ToValidUTF8(fiHead.Filename, "\uFFFD")
 
 	mtype, errHTTP := sniffFile(fi)
 	if errHTTP != nil {
@@ -646,7 +700,7 @@ func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPE
 
 	reText := fmt.Sprintf("File Name: %v, Size: %v, Type:%v",
 		fiHead.Filename, format.HumanByteSize(fiHead.Size), mtype.String())
-	reID, errHTTP := addVisitReportEntry(ctx, action.imsDBQ, action.imsDBQ, event.ID, visitNumber, newReportEntry{
+	reID, errHTTP := addAttachmentReportEntry(ctx, action.imsDBQ, event.ID, visitNumber, addVisitReportEntry, newReportEntry{
 		author:                   jwtCtx.Claims.RangerHandle(),
 		text:                     reText,
 		generated:                false,
@@ -655,7 +709,7 @@ func (action AttachToVisit) attachToVisit(req *http.Request) (int32, *herr.HTTPE
 		attachedFileMediaType:    mtype.String(),
 	})
 	if errHTTP != nil {
-		return 0, errHTTP.From("[addVisitReportEntry]")
+		return 0, errHTTP.From("[addAttachmentReportEntry]")
 	}
 
 	action.es.notifyVisitUpdate(event.ID, visitNumber)

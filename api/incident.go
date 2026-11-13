@@ -637,7 +637,7 @@ func unmarshalByteSlice[T any](isByteSlice any) (T, error) {
 	var result T
 	b, ok := isByteSlice.([]byte)
 	if !ok {
-		return result, fmt.Errorf("could not read object as []bytes. Was actually %T", b)
+		return result, fmt.Errorf("could not read object as []bytes. Was actually %T", isByteSlice)
 	}
 	err := json.Unmarshal(b, &result)
 	if err != nil {

@@ -249,6 +249,66 @@ func TestGetIncidentAttachmentHeaders(t *testing.T) {
 	require.Equal(t, originalName, params["filename"])
 }
 
+// The original filename column holds 128 characters. A longer name is cut to fit,
+// and the cut must not land inside a multibyte rune, which the insert would reject.
+func TestAttachFileWithLongNonASCIINameIsTruncatedByCharacter(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
+
+	// 127 ASCII bytes, then "é" spanning bytes 128-129, so a byte cut at 128 splits it.
+	filename := strings.Repeat("a", 127) + "é" + "日本語.txt"
+	reID, resp := apisAlice.attachNamedFileToIncident(ctx, eventName, num, filename, []byte("some notes"))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	incident, resp := apisAlice.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var originalName string
+	for _, re := range incident.ReportEntries {
+		if re.ID == reID {
+			originalName = re.Attachment.Name
+		}
+	}
+	require.Equal(t, strings.Repeat("a", 127)+"é", originalName)
+}
+
+// A filename that isn't valid UTF-8 has its bad bytes replaced, rather than
+// failing the insert after the file is already stored.
+func TestAttachFileWithInvalidUTF8NameIsCleaned(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
+
+	eventName := newEventWithWriter(t, apisAdmin)
+	num := apisAlice.newIncidentSuccess(ctx, sampleIncident1(eventName))
+
+	reID, resp := apisAlice.attachNamedFileToIncident(ctx, eventName, num, "bad\xffname.txt", []byte("some notes"))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	incident, resp := apisAlice.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var originalName string
+	for _, re := range incident.ReportEntries {
+		if re.ID == reID {
+			originalName = re.Attachment.Name
+		}
+	}
+	require.Equal(t, "bad�name.txt", originalName)
+}
+
 // Asking for an attachment by the ID of a report entry that carries no file is a
 // 404, not a 500 or an empty 200.
 func TestGetIncidentAttachmentForEntryWithNoFileIs404(t *testing.T) {
@@ -645,4 +705,36 @@ func (w *sseWatcher) await(want api.IMSEventData) bool {
 			return false
 		}
 	}
+}
+
+// The parent is checked before the file is stored, so a missing one is a 404,
+// not a 500 from the foreign key after the file and entry have been written.
+func TestAttachToNonexistentIncidentIs404(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
+
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	_, resp := apisAlice.attachFileToIncident(ctx, eventName, 99999, []byte("some evidence"))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func TestAttachToNonexistentVisitIs404(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	apisAdmin := srv.admin(ctx)
+	apisAlice := srv.alice(ctx)
+
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	_, resp := apisAlice.attachFileToVisit(ctx, eventName, 99999, []byte("some evidence"))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 }

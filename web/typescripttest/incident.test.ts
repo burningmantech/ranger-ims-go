@@ -1996,6 +1996,18 @@ test("Ranger, type, and link controls outside any row send nothing", async (): P
     expect(mock.mock.calls).toEqual([]);
 });
 
+test("a failed Ranger removal shows the error and re-enables the button", async (): Promise<void> => {
+    await initIncidentPage((url, init) => url.includes("/rangers/") && init?.method === "DELETE"
+        ? problemResponse("not allowed", 403)
+        : incidentRoutes(url, init));
+
+    const button = document.querySelector<HTMLButtonElement>('#incident_rangers_list li[data-ranger-handle="Tool"] button')!;
+    await page.removeRanger(button);
+
+    expect(errorText()).toContain("Failed to remove Ranger: not allowed (HTTP 403)");
+    expect(button.disabled).toBe(false);
+});
+
 test("a failed type removal reloads the incident and shows the error", async (): Promise<void> => {
     await initIncidentPage((url, init) => url.includes("/incident_types/") && init?.method === "DELETE"
         ? problemResponse("type is stuck", 500)

@@ -235,6 +235,17 @@ func TestIncidentRangerRoleChangeLog(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	require.Len(t, *retrieved.Rangers, 1)
 	require.Equal(t, "Removed Ranger: Software", lastReportEntryText(t, retrieved))
+	entriesAfterRemove := len(retrieved.ReportEntries)
+
+	// Removing a Ranger who isn't on the roster records nothing.
+	resp = apis.detachRangerFromIncident(ctx, eventName, num, "Software")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getIncident(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, *retrieved.Rangers, 1)
+	require.Len(t, retrieved.ReportEntries, entriesAfterRemove)
 }
 
 // Visits share the roster code with Incidents, so their change log says the same
@@ -266,6 +277,25 @@ func TestVisitRangerRoleChangeLog(t *testing.T) {
 	require.Len(t, *retrieved.Rangers, 1)
 	require.Equal(t, "Sitter", *(*retrieved.Rangers)[0].Role)
 	require.Equal(t, "Set role for Hardware: Sitter", lastVisitReportEntryText(t, retrieved))
+
+	resp = apis.detachRangerFromVisit(ctx, eventName, num, "Hardware")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, *retrieved.Rangers)
+	require.Equal(t, "Removed Ranger: Hardware", lastVisitReportEntryText(t, retrieved))
+	entriesAfterRemove := len(retrieved.ReportEntries)
+
+	// Removing a Ranger who isn't on the roster records nothing.
+	resp = apis.detachRangerFromVisit(ctx, eventName, num, "Hardware")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	retrieved, resp = apis.getVisit(ctx, eventName, num)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, retrieved.ReportEntries, entriesAfterRemove)
 }
 
 // The roster code is shared between Incidents and Visits through rangerRoster,

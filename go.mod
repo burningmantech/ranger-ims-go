@@ -48,7 +48,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.52.0 // indirect
 	github.com/bep/godartsass/v2 v2.5.0 // indirect
-	github.com/bep/golibsass v1.2.0 // indirect
 	github.com/bep/helpers v0.12.0 // indirect
 	github.com/bits-and-blooms/bitset v1.29.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -79,7 +78,7 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/godbus/dbus/v5 v5.2.4 // indirect
 	github.com/gohugoio/hashstructure v1.1.0 // indirect
-	github.com/gohugoio/hugo v0.169.0 // indirect
+	github.com/gohugoio/hugo v0.170.0 // indirect
 	github.com/google/go-github/v93 v93.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -101,8 +100,8 @@ require (
 	github.com/microsoft/TypeScript/tsc v0.0.0-20261112163023-056d69edb807 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.3.3 // indirect
-	github.com/moby/moby/api v1.56.1 // indirect
-	github.com/moby/moby/client v0.6.2 // indirect
+	github.com/moby/moby/api v1.57.0 // indirect
+	github.com/moby/moby/client v0.6.3 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
 	github.com/moby/sys/user v0.5.0 // indirect
@@ -110,7 +109,7 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
 	github.com/ncruces/go-sqlite3 v0.37.0 // indirect
-	github.com/ncruces/go-sqlite3-wasm/v6 v6.6.35401 // indirect
+	github.com/ncruces/go-sqlite3-wasm/v6 v6.7.35401 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
@@ -154,7 +153,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
-	golang.org/x/exp v0.0.0-20261112173441-d10d3b464990 // indirect
+	golang.org/x/exp v0.0.0-20261113113407-e3970619a1a4 // indirect
 	golang.org/x/mod v0.43.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.38.0 // indirect

@@ -18,6 +18,12 @@ package api
 
 import (
 	"fmt"
+	"net/http"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/burningmantech/ranger-ims-go/directory"
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
@@ -25,11 +31,6 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/imsdb"
-	"net/http"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type GetIncidentTypes struct {
@@ -156,7 +157,7 @@ func (action EditIncidentTypes) editIncidentTypes(req *http.Request) (newTypeID 
 		Description: typeRow.IncidentType.Description,
 	})
 	if err != nil {
-		return nil, herr.InternalServerError("Failed to update incident type", nil).From("[UpdateIncidentType]")
+		return nil, herr.InternalServerError("Failed to update incident type", err).From("[UpdateIncidentType]")
 	}
 
 	return nil, nil

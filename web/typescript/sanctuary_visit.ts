@@ -723,16 +723,26 @@ export async function removeRanger(sender: HTMLElement): Promise<void> {
         return;
     }
 
-    await chainMutation(async (): Promise<void> => {
-        const url = (
-            ims.urlReplace(url_visitRanger)
-                .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
-                .replace("<ranger_name>", encodeURIComponent(rangerHandle))
-        );
-        await ims.fetchNoThrow(url, {
-            method: "DELETE",
+    const button = sender as HTMLButtonElement;
+    button.disabled = true;
+    try {
+        await chainMutation(async (): Promise<void> => {
+            const url = (
+                ims.urlReplace(url_visitRanger)
+                    .replace("<visit_number>", ims.pathIds.visitNumber!.toString())
+                    .replace("<ranger_name>", encodeURIComponent(rangerHandle))
+            );
+            const {err} = await ims.fetchNoThrow(url, {
+                method: "DELETE",
+            });
+            if (err != null) {
+                ims.setErrorMessage(`Failed to remove Ranger: ${err}`);
+            }
         });
-    });
+    } finally {
+        // On success the list is redrawn and this button is gone.
+        button.disabled = false;
+    }
 }
 
 

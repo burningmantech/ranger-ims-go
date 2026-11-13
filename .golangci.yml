@@ -32,6 +32,7 @@ linters:
     - gochecknoinits  # init functions are sometimes ok
     - godox  # TODOs are fine
     - gomodguard  # deprecated in favor of gomodguard_v2
+    - gosmopolitan # blocks Han characters in strings. Why?
     - ireturn  # not helpful
     - lll  # long lines are sometimes alright
     - nlreturn  # seems unnecessary

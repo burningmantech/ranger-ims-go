@@ -66,7 +66,12 @@ func TestStringToSql(t *testing.T) {
 	assert.Zero(t, StringToSql(nil, 0))
 	assert.Equal(t, sql.NullString{String: "BRC", Valid: true}, StringToSql(new("BRC"), 0))
 	assert.Equal(t, sql.NullString{String: "abcd", Valid: true}, StringToSql(new("abcdefgh"), 4))
-	assert.Equal(t, sql.NullString{String: "😊", Valid: true}, StringToSql(new("😊😂"), 4))
+	assert.Equal(t, sql.NullString{String: "😊😂", Valid: true}, StringToSql(new("😊😂"), 4))
+	assert.Equal(t, sql.NullString{String: "😊", Valid: true}, StringToSql(new("😊😂"), 1))
+	// Multibyte runes are kept whole, never split mid-rune.
+	assert.Equal(t, sql.NullString{String: "aé", Valid: true}, StringToSql(new("aéb"), 2))
+	assert.Equal(t, sql.NullString{String: "日本語", Valid: true}, StringToSql(new("日本語の名前"), 3))
+	assert.Equal(t, sql.NullString{String: "日本語", Valid: true}, StringToSql(new("日本語"), 3))
 
 	input := new("successful round trip conversion?")
 	assert.Equal(t, *input, *SqlToString(StringToSql(input, 0)))

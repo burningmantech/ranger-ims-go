@@ -511,6 +511,20 @@ test("removing a ranger DELETEs that ranger's endpoint", async (): Promise<void>
         url === `${visitsUrl}/2/rangers/Hot%20Slots` && init?.method === "DELETE")).toBe(true);
 });
 
+test("a failed Ranger removal shows the error and re-enables the button", async (): Promise<void> => {
+    await initVisitPage((url, init) => url.includes("/rangers/") && init?.method === "DELETE"
+        ? problemResponse("not allowed", 403)
+        : visitRoutes(url, init));
+
+    const removeButton = document
+        .getElementById("visit_rangers_list")!
+        .querySelector("li button") as HTMLButtonElement;
+    await page.removeRanger(removeButton);
+
+    expect(errorText()).toContain("Failed to remove Ranger: not allowed (HTTP 403)");
+    expect(removeButton.disabled).toBe(false);
+});
+
 test("setting a ranger's role posts the handle and the role", async (): Promise<void> => {
     const mock = await initVisitPage();
 

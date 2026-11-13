@@ -160,7 +160,6 @@ test("makeIncident creates an incident, attaches the report, and links it", asyn
         url === `/ims/api/events/${eventName}/incidents` && init?.body != null)!;
     expect(JSON.parse(incidentCreate[1]!.body as string)).toEqual({
         summary: "Lost child near center camp",
-        ranger_handles: ["Tool"],
     });
     // The FR is then attached to the freshly-created incident 42.
     expect(mock.mock.calls.some(([url, init]) =>

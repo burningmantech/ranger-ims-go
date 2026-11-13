@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"errors"
@@ -177,11 +178,12 @@ type EditDirectoryPerson struct {
 
 func (action EditDirectoryPerson) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	newID, errHTTP := action.editDirectoryPerson(req)
+	// Flush even on failure: a failed Commit may still have applied.
+	action.userStore.Flush()
 	if errHTTP != nil {
 		errHTTP.From("[editDirectoryPerson]").WriteResponse(w)
 		return
 	}
-	action.userStore.Flush()
 	if newID != nil {
 		w.Header().Set("IMS-Directory-Person-ID", strconv.FormatInt(*newID, 10))
 	}
@@ -209,6 +211,12 @@ func (action EditDirectoryPerson) editDirectoryPerson(req *http.Request) (newPer
 		return nil, herr.BadRequest("Email is too long", nil)
 	}
 
+	txn, err := action.imsDBQ.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to begin transaction", err).From("[BeginTx]")
+	}
+	defer rollback(txn)
+
 	var personID int64
 	if personReq.ID == 0 {
 		if personReq.Handle == nil {
@@ -221,7 +229,7 @@ func (action EditDirectoryPerson) editDirectoryPerson(req *http.Request) (newPer
 		if personReq.Email != nil {
 			email = conv.StringToSql(conv.EmptyToNil(*personReq.Email), maxDirectoryEmailLen)
 		}
-		id, err := action.imsDBQ.DirectoryCreatePerson(ctx, action.imsDBQ, imsdb.DirectoryCreatePersonParams{
+		id, err := action.imsDBQ.DirectoryCreatePerson(ctx, txn, imsdb.DirectoryCreatePersonParams{
 			Handle:   *personReq.Handle,
 			Email:    email,
 			Password: placeholder,
@@ -235,7 +243,7 @@ func (action EditDirectoryPerson) editDirectoryPerson(req *http.Request) (newPer
 		personID = id
 	} else {
 		personID = personReq.ID
-		existing, err := action.imsDBQ.DirectoryPersonByID(ctx, action.imsDBQ, personID)
+		existing, err := action.imsDBQ.DirectoryPersonByID(ctx, txn, personID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil, herr.NotFound("Person not found", err)
@@ -258,7 +266,7 @@ func (action EditDirectoryPerson) editDirectoryPerson(req *http.Request) (newPer
 		if personReq.Onsite != nil {
 			onsite = *personReq.Onsite
 		}
-		err = action.imsDBQ.DirectoryUpdatePerson(ctx, action.imsDBQ, imsdb.DirectoryUpdatePersonParams{
+		err = action.imsDBQ.DirectoryUpdatePerson(ctx, txn, imsdb.DirectoryUpdatePersonParams{
 			Handle: handle,
 			Email:  email,
 			Active: active,
@@ -271,9 +279,13 @@ func (action EditDirectoryPerson) editDirectoryPerson(req *http.Request) (newPer
 		}
 	}
 
-	errHTTP = action.setMemberships(req, personID, personReq.TeamIDs, personReq.PositionIDs)
+	errHTTP = action.setMemberships(ctx, txn, personID, personReq.TeamIDs, personReq.PositionIDs)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[setMemberships]")
+	}
+	err = txn.Commit()
+	if err != nil {
+		return nil, herr.InternalServerError("Failed to commit transaction", err).From("[Commit]")
 	}
 	if personReq.ID == 0 {
 		return &personID, nil
@@ -282,16 +294,15 @@ func (action EditDirectoryPerson) editDirectoryPerson(req *http.Request) (newPer
 }
 
 func (action EditDirectoryPerson) setMemberships(
-	req *http.Request, personID int64, teamIDs, positionIDs *[]int64,
+	ctx context.Context, txn *sql.Tx, personID int64, teamIDs, positionIDs *[]int64,
 ) *herr.HTTPError {
-	ctx := req.Context()
 	if teamIDs != nil {
-		err := action.imsDBQ.DirectoryClearPersonTeams(ctx, action.imsDBQ, personID)
+		err := action.imsDBQ.DirectoryClearPersonTeams(ctx, txn, personID)
 		if err != nil {
 			return herr.InternalServerError("Failed to update team memberships", err).From("[DirectoryClearPersonTeams]")
 		}
 		for _, teamID := range *teamIDs {
-			err = action.imsDBQ.DirectoryAddPersonTeam(ctx, action.imsDBQ, imsdb.DirectoryAddPersonTeamParams{
+			err = action.imsDBQ.DirectoryAddPersonTeam(ctx, txn, imsdb.DirectoryAddPersonTeamParams{
 				PersonID: personID,
 				TeamID:   teamID,
 			})
@@ -302,12 +313,12 @@ func (action EditDirectoryPerson) setMemberships(
 		}
 	}
 	if positionIDs != nil {
-		err := action.imsDBQ.DirectoryClearPersonPositions(ctx, action.imsDBQ, personID)
+		err := action.imsDBQ.DirectoryClearPersonPositions(ctx, txn, personID)
 		if err != nil {
 			return herr.InternalServerError("Failed to update position memberships", err).From("[DirectoryClearPersonPositions]")
 		}
 		for _, positionID := range *positionIDs {
-			err = action.imsDBQ.DirectoryAddPersonPosition(ctx, action.imsDBQ, imsdb.DirectoryAddPersonPositionParams{
+			err = action.imsDBQ.DirectoryAddPersonPosition(ctx, txn, imsdb.DirectoryAddPersonPositionParams{
 				PersonID:   personID,
 				PositionID: positionID,
 			})

@@ -18,6 +18,7 @@ package api
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -85,4 +86,44 @@ func TestGetDBInfoWithoutDatabases(t *testing.T) {
 	require.Nil(t, errHTTP)
 	require.Contains(t, infoString, "The store type is noop, so there's no database connection.")
 	require.Contains(t, infoString, "The directory lives in the IMS database, so there's no separate connection.")
+}
+
+func TestGetECSMetadataForbiddenWithoutGlobalAdministrateDebugging(t *testing.T) {
+	t.Parallel()
+
+	action := GetECSMetadata{nil, testUserStore(), []string{"SomeAdmin"}, "http://169.254.170.2/v4/abc", http.DefaultClient}
+
+	_, errHTTP := action.getECSMetadata(requestWithClaims(t, authz.IMSClaims{Handle: "SomeRanger"}))
+
+	require.NotNil(t, errHTTP)
+	require.Equal(t, http.StatusForbidden, errHTTP.Code)
+	require.Contains(t, errHTTP.ResponseMessage, "GlobalAdministrateDebugging")
+}
+
+func TestGetECSMetadataNotFoundOffECS(t *testing.T) {
+	t.Parallel()
+
+	action := GetECSMetadata{nil, testUserStore(), []string{"SomeAdmin"}, "", http.DefaultClient}
+
+	_, errHTTP := action.getECSMetadata(requestWithClaims(t, authz.IMSClaims{Handle: "SomeAdmin"}))
+
+	require.NotNil(t, errHTTP)
+	require.Equal(t, http.StatusNotFound, errHTTP.Code)
+	require.Contains(t, errHTTP.ResponseMessage, "ECS_CONTAINER_METADATA_URI_V4")
+}
+
+func TestGetECSMetadataForAdmin(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// #nosec G705 // XSS via taint analysis. It's a test.
+		_, _ = w.Write([]byte(`{"path":"` + r.URL.Path + `"}`))
+	}))
+	t.Cleanup(srv.Close)
+	action := GetECSMetadata{nil, testUserStore(), []string{"SomeAdmin"}, srv.URL + "/v4/abc", srv.Client()}
+
+	metadata, errHTTP := action.getECSMetadata(requestWithClaims(t, authz.IMSClaims{Handle: "SomeAdmin"}))
+
+	require.Nil(t, errHTTP)
+	require.Contains(t, metadata, `"path": "/v4/abc/task/stats"`)
 }

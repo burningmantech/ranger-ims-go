@@ -16,7 +16,7 @@
 
 package template
 
-templ AdminDebug(deployment, versionName, versionRef string) {
+templ AdminDebug(deployment, versionName, versionRef string, onECS bool) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Debugging Details", "admin_debug.js", false, versionRef)
@@ -59,6 +59,15 @@ templ AdminDebug(deployment, versionName, versionRef string) {
 <div id="db-variables-div" style="display:none;">
   <pre id="db-variables"></pre>
 </div>
+
+if onECS {
+<h2 class="h4">ECS Task Metadata</h2>
+<p><button id="show-ecs-metadata" class="btn btn-sm btn-default btn-primary">Fetch ECS Task Metadata</button></p>
+<div id="ecs-metadata-div" style="display:none;">
+  <p id="ecs-metadata-p"><a href="https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4-fargate.html">See the endpoint documentation here</a></p>
+  <pre id="ecs-metadata"></pre>
+</div>
+}
 
 <h2 class="h4">Garbage Collection</h2>
 <p><button id="perform-gc" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>

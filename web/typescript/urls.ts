@@ -73,6 +73,7 @@ const url_debugGC = "/ims/api/debug/gc";
 const url_debugConfig = "/ims/api/debug/config";
 const url_debugDBInfo = "/ims/api/debug/dbinfo";
 const url_debugDBVariables = "/ims/api/debug/dbvariables";
+const url_debugECSMetadata = "/ims/api/debug/ecsmetadata";
 const url_static = "/ims/static";
 const url_styleSheet = "/ims/static/style.css";
 const url_authApp = "/ims/auth";

@@ -29,6 +29,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/burningmantech/ranger-ims-go/conf"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
+	"github.com/burningmantech/ranger-ims-go/lib/ecsmetadata"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/web/template"
 )
@@ -93,7 +94,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		AdaptTempl(template.AdminTypes(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/debug",
-		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
+		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef, ecsmetadata.URI() != ""), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/directory",
 		AdaptTempl(template.AdminDirectory(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),

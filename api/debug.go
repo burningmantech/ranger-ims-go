@@ -34,6 +34,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/directory"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/dbinfo"
+	"github.com/burningmantech/ranger-ims-go/lib/ecsmetadata"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/go-sql-driver/mysql"
@@ -70,6 +71,16 @@ type GetDBInfo struct {
 	cfg         *conf.IMSConfig
 	clubhouseDB *sql.DB
 	full        bool
+}
+
+// GetECSMetadata shows what the ECS task metadata endpoint reports, when the
+// server runs on ECS (e.g. Fargate).
+type GetECSMetadata struct {
+	imsDBQ      *store.DBQ
+	userStore   *directory.UserStore
+	imsAdmins   []string
+	metadataURI string
+	httpClient  *http.Client
 }
 
 type PerformGC struct {
@@ -264,6 +275,29 @@ func (action GetDBInfo) getDBInfo(req *http.Request) (string, *herr.HTTPError) {
 		buf.WriteString(describe(action.clubhouseDB, directory.MySQLConfig(action.cfg.Directory.ClubhouseDB), directory.ConnMaxLifetime))
 	}
 	return buf.String(), nil
+}
+
+func (action GetECSMetadata) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	metadata, errHTTP := action.getECSMetadata(req)
+	if errHTTP != nil {
+		errHTTP.From("[getECSMetadata]").WriteResponse(w)
+		return
+	}
+	herr.WriteOKResponse(w, metadata)
+}
+
+func (action GetECSMetadata) getECSMetadata(req *http.Request) (string, *herr.HTTPError) {
+	_, globalPermissions, errHTTP := getGlobalPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
+	if errHTTP != nil {
+		return "", errHTTP.From("[getGlobalPermissions]")
+	}
+	if globalPermissions&authz.GlobalAdministrateDebugging == 0 {
+		return "", herr.Forbidden("The requestor does not have GlobalAdministrateDebugging permission", nil)
+	}
+	if action.metadataURI == "" {
+		return "", herr.NotFound(ecsmetadata.EnvVar+" is not set, so this server isn't running on ECS", nil)
+	}
+	return ecsmetadata.All(req.Context(), action.httpClient, action.metadataURI), nil
 }
 
 func (action PerformGC) ServeHTTP(w http.ResponseWriter, req *http.Request) {

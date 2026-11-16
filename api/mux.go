@@ -33,6 +33,7 @@ import (
 	"github.com/burningmantech/ranger-ims-go/lib/attachment"
 	"github.com/burningmantech/ranger-ims-go/lib/authz"
 	"github.com/burningmantech/ranger-ims-go/lib/conv"
+	"github.com/burningmantech/ranger-ims-go/lib/ecsmetadata"
 	"github.com/burningmantech/ranger-ims-go/lib/herr"
 	"github.com/burningmantech/ranger-ims-go/store"
 	"github.com/burningmantech/ranger-ims-go/store/actionlog"
@@ -226,6 +227,7 @@ func AddToMux(
 	authed("GET /ims/api/debug/config", GetConfig{db, userStore, cfg.Core.Admins, cfg}, LogMetadata)
 	authed("GET /ims/api/debug/dbinfo", GetDBInfo{db, userStore, cfg.Core.Admins, cfg, clubhouseDB, false}, LogMetadata)
 	authed("GET /ims/api/debug/dbvariables", GetDBInfo{db, userStore, cfg.Core.Admins, cfg, clubhouseDB, true}, LogMetadata)
+	authed("GET /ims/api/debug/ecsmetadata", GetECSMetadata{db, userStore, cfg.Core.Admins, ecsmetadata.URI(), http.DefaultClient}, LogMetadata)
 
 	// Uncomment these to add pprof into the program. Note that we'd probably want
 	// these endpoints to be restricted to admins only, were this going to run in

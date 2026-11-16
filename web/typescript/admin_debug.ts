@@ -59,6 +59,8 @@ async function initAdminDebugPage(): Promise<void> {
     el.showDBInfo.addEventListener("click", fetchDBInfo);
     el.showDBVariables.addEventListener("click", fetchDBVariables);
     el.performGC.addEventListener("click", performGC);
+    // The ECS section is only rendered when the server runs on ECS.
+    document.getElementById("show-ecs-metadata")?.addEventListener("click", fetchECSMetadata);
     el.showMetrics.addEventListener("click", fetchRuntimeMetrics);
 }
 
@@ -126,6 +128,15 @@ async function fetchDBVariables(): Promise<void> {
     }
     el.dbVariables.textContent = await resp.text();
     el.dbVariablesDiv.style.display = "";
+}
+
+async function fetchECSMetadata(): Promise<void> {
+    const {resp, err} = await ims.fetchNoThrow(url_debugECSMetadata, {});
+    if (err != null || resp == null) {
+        throw err;
+    }
+    ims.typedElement("ecs-metadata", HTMLPreElement).textContent = await resp.text();
+    ims.typedElement("ecs-metadata-div", HTMLDivElement).style.display = "";
 }
 
 async function performGC(): Promise<void> {

@@ -58,6 +58,9 @@ async function initAdminDebugPage() {
         if (url === url_debugDBVariables) {
             return textResponse("SHOW SESSION VARIABLES\n    max_connections = 151\n");
         }
+        if (url === url_debugECSMetadata) {
+            return textResponse("Task metadata\n{\n  \"LaunchType\": \"FARGATE\"\n}\n");
+        }
         if (url === url_debugGC) {
             return textResponse("GC complete");
         }
@@ -145,6 +148,20 @@ test("fetching all database variables reveals the variables panel", async (): Pr
         expect(div.style.display).toBe("");
     });
     expect(document.getElementById("db-variables")!.textContent).toContain("max_connections = 151");
+});
+
+test("fetching ECS task metadata reveals the ECS panel", async (): Promise<void> => {
+    await initAdminDebugPage();
+
+    const div = document.getElementById("ecs-metadata-div") as HTMLDivElement;
+    expect(div.style.display).toBe("none");
+
+    document.getElementById("show-ecs-metadata")!.click();
+
+    await vi.waitFor((): void => {
+        expect(div.style.display).toBe("");
+    });
+    expect(document.getElementById("ecs-metadata")!.textContent).toContain("FARGATE");
 });
 
 test("performing GC posts to the GC endpoint and reveals its panel", async (): Promise<void> => {

@@ -41,11 +41,16 @@ const el = {
     searchInput: ims.typedElement("search_input", HTMLInputElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
     showTypeMenu: ims.typedElement("show_type", HTMLButtonElement),
+    showRowsList: ims.typedElement("show_rows_menu", HTMLUListElement),
+    showTypeList: ims.typedElement("show_type_menu", HTMLUListElement),
     placeInfoModal: ims.typedElement("placeInfoModal", HTMLDialogElement),
     placeInfoModalLabel: ims.typedElement("placeInfoModalLabel", HTMLParagraphElement),
     placeBody: ims.typedElement("placeBody", HTMLElement),
     mapLink: ims.typedElement("map-link", HTMLAnchorElement),
     embargoNotice: ims.typedElement("embargo_notice", HTMLDivElement),
+    campTemplate: ims.typedElement("camp_template", HTMLTemplateElement),
+    artTemplate: ims.typedElement("art_template", HTMLTemplateElement),
+    mvTemplate: ims.typedElement("mv_template", HTMLTemplateElement),
 };
 
 const placeInfoModal = ims.dialogModal(el.placeInfoModal);
@@ -68,8 +73,8 @@ async function initPlacesPage(): Promise<void> {
         return;
     }
 
-    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => destShowRows(rows, true));
-    ims.onMenuPick(ims.typedElement("show_type_menu", HTMLUListElement), (type: string): void => destShowType(type, true));
+    ims.onMenuPick(el.showRowsList, (rows: string): void => destShowRows(rows, true));
+    ims.onMenuPick(el.showTypeList, (type: string): void => destShowType(type, true));
 
     const eventDatas = await initResult.eventDatas;
     ims.setupMapLink(el.mapLink, eventDatas);
@@ -353,10 +358,8 @@ function placeToHTML(place: ims.Place): Node {
         case "camp": {
             const camp = place.external_data as ims.BMCamp;
 
-            const campTemplate = document.getElementById("camp_template") as HTMLTemplateElement;
-
             // Clone the new row and insert it into the table
-            const campEl = campTemplate.content.cloneNode(true) as DocumentFragment;
+            const campEl = el.campTemplate.content.cloneNode(true) as DocumentFragment;
 
             campEl.getElementById("camp_name")!.textContent = camp.name;
             campEl.getElementById("location_label")!.textContent = (camp.location?.intersection_type)
@@ -393,10 +396,8 @@ function placeToHTML(place: ims.Place): Node {
         case "art": {
             const art = place.external_data as ims.BMArt;
 
-            const template = document.getElementById("art_template") as HTMLTemplateElement;
-
             // Clone the new row and insert it into the table
-            const artEl = template.content.cloneNode(true) as DocumentFragment;
+            const artEl = el.artTemplate.content.cloneNode(true) as DocumentFragment;
 
             artEl.getElementById("art_name")!.textContent = art.name;
             const lat = art.location?.gps_latitude?.toFixed(6) ?? "Unknown";
@@ -431,10 +432,8 @@ function placeToHTML(place: ims.Place): Node {
         case "mv": {
             const mv = place.external_data as ims.BMMV;
 
-            const template = document.getElementById("mv_template") as HTMLTemplateElement;
-
             // Clone the new row and insert it into the table
-            const mvEl = template.content.cloneNode(true) as DocumentFragment;
+            const mvEl = el.mvTemplate.content.cloneNode(true) as DocumentFragment;
 
             mvEl.getElementById("mv_name")!.textContent = mv.name;
             mvEl.getElementById("description")!.textContent = mv.description ?? "None provided";
@@ -593,7 +592,7 @@ export function destShowRows(rowsToShow: string, replaceState: boolean) {
     const id = rowsToShow;
     _destShowRows = rowsToShow;
 
-    const item = document.getElementById("show_rows_" + id) as HTMLLIElement;
+    const item = ims.typedElement("show_rows_" + id, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;
@@ -621,7 +620,7 @@ export function destShowRows(rowsToShow: string, replaceState: boolean) {
 function destShowType(typeToShow: string, replaceState: boolean) {
     _destShowType = typeToShow;
 
-    const item = document.getElementById("show_type_" + typeToShow) as HTMLLIElement;
+    const item = ims.typedElement("show_type_" + typeToShow, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;

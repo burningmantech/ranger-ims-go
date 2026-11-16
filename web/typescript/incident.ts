@@ -75,6 +75,7 @@ const el = {
     attachFile: ims.typedElement("attach_file", HTMLInputElement),
     attachFileInput: ims.typedElement("attach_file_input", HTMLInputElement),
 
+    incidentTypeInfoModal: ims.typedElement("incidentTypeInfoModal", HTMLDialogElement),
 };
 
 initIncidentPage();
@@ -209,7 +210,7 @@ async function initIncidentPage(): Promise<void> {
         }
     }
 
-    const incidentTypeInfoModal = ims.dialogModal(ims.typedElement("incidentTypeInfoModal", HTMLDialogElement));
+    const incidentTypeInfoModal = ims.dialogModal(el.incidentTypeInfoModal);
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function(e: KeyboardEvent): void {

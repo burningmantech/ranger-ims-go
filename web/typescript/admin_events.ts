@@ -27,6 +27,17 @@ const el = {
     editDateFormatExample: ims.typedElement("edit_date_format_example", HTMLElement),
     explainModal: ims.typedElement("explainModal", HTMLDialogElement),
     editEventModal: ims.typedElement("editEventModal", HTMLDialogElement),
+    editIsGroup: ims.typedElement("is_group", HTMLInputElement),
+    editParentGroup: ims.typedElement("edit_parent_group", HTMLInputElement),
+    editMapURL: ims.typedElement("edit_map_url", HTMLInputElement),
+    editReleaseTimesGroup: ims.typedElement("edit_release_times_group", HTMLElement),
+    editCampLocationsRelease: ims.typedElement("edit_camp_locations_release", HTMLInputElement),
+    editArtLocationsRelease: ims.typedElement("edit_art_locations_release", HTMLInputElement),
+    editMapURLRelease: ims.typedElement("edit_map_url_release", HTMLInputElement),
+    editIsActiveGroup: ims.typedElement("edit_is_active_group", HTMLElement),
+    editIsActive: ims.typedElement("edit_is_active", HTMLInputElement),
+    editNormalizeAddressesGroup: ims.typedElement("edit_normalize_addresses_group", HTMLElement),
+    editNormalizeAddresses: ims.typedElement("edit_normalize_addresses", HTMLInputElement),
     eventAccessContainer: ims.typedElement("event_access_container", HTMLElement),
     eventAccessTemplate: ims.typedElement("event_access_template", HTMLTemplateElement),
     grantTemplate: ims.typedElement("grant_template", HTMLTemplateElement),
@@ -61,17 +72,16 @@ async function initAdminEventsPage(): Promise<void> {
 
     el.eventAdd.addEventListener("change", (): Promise<void> => addEvent(el.eventAdd, "not-group"));
     el.eventAddGroup.addEventListener("change", (): Promise<void> => addEvent(el.eventAddGroup, "group"));
-    const modalSetters: [string, (input: HTMLInputElement) => Promise<void>][] = [
-        ["edit_parent_group", setParentGroup],
-        ["edit_map_url", setMapURL],
-        ["edit_is_active", setIsActive],
-        ["edit_normalize_addresses", setNormalizeAddresses],
-        ["edit_camp_locations_release", setCampLocationsRelease],
-        ["edit_art_locations_release", setArtLocationsRelease],
-        ["edit_map_url_release", setMapURLRelease],
+    const modalSetters: [HTMLInputElement, (input: HTMLInputElement) => Promise<void>][] = [
+        [el.editParentGroup, setParentGroup],
+        [el.editMapURL, setMapURL],
+        [el.editIsActive, setIsActive],
+        [el.editNormalizeAddresses, setNormalizeAddresses],
+        [el.editCampLocationsRelease, setCampLocationsRelease],
+        [el.editArtLocationsRelease, setArtLocationsRelease],
+        [el.editMapURLRelease, setMapURLRelease],
     ];
-    for (const [id, setter] of modalSetters) {
-        const input = ims.typedElement(id, HTMLInputElement);
+    for (const [input, setter] of modalSetters) {
         input.addEventListener("change", (): Promise<void> => setter(input));
     }
 
@@ -387,47 +397,37 @@ function eventCard(event: ims.EventData): DocumentFragment {
         el.editEventModal.dataset["eventId"] = event.id.toString();
         el.editEventModal.dataset["eventName"] = event.name;
 
-        const isGroupInput = el.editEventModal.querySelector("#is_group") as HTMLInputElement;
-        isGroupInput.disabled = true;
-        isGroupInput.value = (event.is_group??false).toString();
-
-        const parentGroupInput = el.editEventModal.querySelector("#edit_parent_group") as HTMLInputElement;
+        el.editIsGroup.disabled = true;
+        el.editIsGroup.value = (event.is_group??false).toString();
 
         // groups can't have parent groups
-        parentGroupInput.disabled = event.is_group??false;
+        el.editParentGroup.disabled = event.is_group??false;
         const currentParent = sortedEvents.find(value => {return value.id === event.parent_group});
-        parentGroupInput.value = currentParent?.name??"";
+        el.editParentGroup.value = currentParent?.name??"";
 
-        const mapURLInput = el.editEventModal.querySelector("#edit_map_url") as HTMLInputElement;
         // groups can't have map URLs
-        mapURLInput.disabled = event.is_group??false;
-        mapURLInput.value = event.map_url??"";
+        el.editMapURL.disabled = event.is_group??false;
+        el.editMapURL.value = event.map_url??"";
 
         // Groups hold no places and get no map URL, so they have nothing to
         // embargo.
-        const releaseGroup = el.editEventModal.querySelector("#edit_release_times_group") as HTMLElement;
-        releaseGroup.classList.toggle("d-none", event.is_group??false);
-        for (const [selector, release] of [
-            ["#edit_camp_locations_release", event.camp_locations_release],
-            ["#edit_art_locations_release", event.art_locations_release],
-            ["#edit_map_url_release", event.map_url_release],
+        el.editReleaseTimesGroup.classList.toggle("d-none", event.is_group??false);
+        for (const [input, release] of [
+            [el.editCampLocationsRelease, event.camp_locations_release],
+            [el.editArtLocationsRelease, event.art_locations_release],
+            [el.editMapURLRelease, event.map_url_release],
         ] as const) {
-            const input = el.editEventModal.querySelector(selector) as HTMLInputElement;
             input.value = release ? ims.formatDateShort(new Date(release)) : "";
         }
 
         // Groups aren't events anyone works in, so they can't be the active one.
-        const isActiveGroup = el.editEventModal.querySelector("#edit_is_active_group") as HTMLElement;
-        isActiveGroup.classList.toggle("d-none", event.is_group??false);
-        const isActiveInput = el.editEventModal.querySelector("#edit_is_active") as HTMLInputElement;
-        isActiveInput.checked = event.is_active??false;
+        el.editIsActiveGroup.classList.toggle("d-none", event.is_group??false);
+        el.editIsActive.checked = event.is_active??false;
 
         // Groups hold no incidents or visits, so address normalization is
         // meaningless for them.
-        const normalizeGroup = el.editEventModal.querySelector("#edit_normalize_addresses_group") as HTMLElement;
-        normalizeGroup.classList.toggle("d-none", event.is_group??false);
-        const normalizeInput = el.editEventModal.querySelector("#edit_normalize_addresses") as HTMLInputElement;
-        normalizeInput.checked = event.normalize_addresses??false;
+        el.editNormalizeAddressesGroup.classList.toggle("d-none", event.is_group??false);
+        el.editNormalizeAddresses.checked = event.normalize_addresses??false;
 
         editEventModal.show();
     });

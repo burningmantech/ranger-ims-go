@@ -66,6 +66,9 @@ const el = {
     showDays: ims.typedElement("show_days", HTMLButtonElement),
     showType: ims.typedElement("show_type", HTMLElement),
     showRows: ims.typedElement("show_rows", HTMLButtonElement),
+    showStateMenu: ims.typedElement("show_state_menu", HTMLUListElement),
+    showDaysMenu: ims.typedElement("show_days_menu", HTMLUListElement),
+    showRowsMenu: ims.typedElement("show_rows_menu", HTMLUListElement),
 
     ulShowType: ims.typedElement("ul_show_type", HTMLUListElement),
     showTypeToggleAll: ims.typedElement("show_type_toggle_all", HTMLButtonElement),
@@ -100,13 +103,13 @@ async function initIncidentsPage(): Promise<void> {
         return;
     }
 
-    ims.onMenuPick(ims.typedElement("show_state_menu", HTMLUListElement), (state: string): void => {
+    ims.onMenuPick(el.showStateMenu, (state: string): void => {
         if (ims.isValidIncidentsTableState(state)) {
             showState(state, true);
         }
     });
-    ims.onMenuPick(ims.typedElement("show_days_menu", HTMLUListElement), (days: string): void => showDays(days, true));
-    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => showRows(rows, true));
+    ims.onMenuPick(el.showDaysMenu, (days: string): void => showDays(days, true));
+    ims.onMenuPick(el.showRowsMenu, (rows: string): void => showRows(rows, true));
     el.showTypeToggleAll.addEventListener("click", toggleCheckAllTypes);
 
     await initIncidentsTable();
@@ -671,7 +674,7 @@ function initSearch(): void {
 //
 
 export function showState(stateToShow: ims.IncidentsTableState, replaceState: boolean) {
-    const item = document.getElementById("show_state_" + stateToShow) as HTMLLIElement;
+    const item = ims.typedElement("show_state_" + stateToShow, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;
@@ -697,7 +700,7 @@ export function showDays(daysBackToShow: number|string, replaceState: boolean): 
     const id: string = daysBackToShow.toString();
     _showDaysBack = daysBackToShow;
 
-    const item = document.getElementById("show_days_" + id) as HTMLLIElement;
+    const item = ims.typedElement("show_days_" + id, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;
@@ -810,7 +813,7 @@ function showRows(rowsToShow: string, replaceState: boolean): void {
     const id = rowsToShow;
     _showRows = rowsToShow;
 
-    const item = document.getElementById("show_rows_" + id) as HTMLLIElement;
+    const item = ims.typedElement("show_rows_" + id, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;

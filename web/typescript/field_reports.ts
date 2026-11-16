@@ -44,6 +44,8 @@ const el = {
 
     showDaysMenu: ims.typedElement("show_days", HTMLButtonElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
+    showDaysList: ims.typedElement("show_days_menu", HTMLUListElement),
+    showRowsList: ims.typedElement("show_rows_menu", HTMLUListElement),
 
 };
 
@@ -63,8 +65,8 @@ async function initFieldReportsPage(): Promise<void> {
         return;
     }
 
-    ims.onMenuPick(ims.typedElement("show_days_menu", HTMLUListElement), (days: string): void => frShowDays(days, true));
-    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => frShowRows(rows, true));
+    ims.onMenuPick(el.showDaysList, (days: string): void => frShowDays(days, true));
+    ims.onMenuPick(el.showRowsList, (rows: string): void => frShowRows(rows, true));
 
     ims.disableEditing();
     initFieldReportsTable();
@@ -418,7 +420,7 @@ export function frShowDays(daysBackToShow: number|string, replaceState: boolean)
     const id: string = daysBackToShow.toString();
     _frShowDaysBack = daysBackToShow;
 
-    const item = document.getElementById("show_days_" + id) as HTMLLIElement;
+    const item = ims.typedElement("show_days_" + id, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;
@@ -448,7 +450,7 @@ export function frShowRows(rowsToShow: string, replaceState: boolean) {
     const id = rowsToShow.toString();
     _frShowRows = rowsToShow;
 
-    const item = document.getElementById("show_rows_" + id) as HTMLLIElement;
+    const item = ims.typedElement("show_rows_" + id, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;

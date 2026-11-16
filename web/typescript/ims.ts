@@ -463,7 +463,7 @@ function renderCommonPageItems(authInfo: AuthInfo): void {
     // Set the active event in the navbar, show "Incidents" and "Field Report" buttons
     const event: string|null = pathIds.eventName;
     if (event != null) {
-        const eventLabel = document.getElementById("nav-event-id")!;
+        const eventLabel = typedElement("nav-event-id", HTMLElement);
         eventLabel.textContent = event;
         eventLabel.classList.add("active-event");
 
@@ -517,7 +517,7 @@ function sortedEventNames(eds: EventData[]): string[] {
 
 function renderNavEvents(eds: EventData[]): void {
     const eventIds = sortedEventNames(eds);
-    const navEvents = document.getElementById("nav-events") as HTMLUListElement;
+    const navEvents = typedElement("nav-events", HTMLUListElement);
     for (const id of eventIds) {
         const anchor = document.createElement("a");
         anchor.textContent = id;
@@ -1548,7 +1548,7 @@ function reportEntryElement(entry: ReportEntry): HTMLDivElement {
 // Create a button-styled link that'll show an SVG icon and some text as its
 // content. The svgID must reference an SVG that exists in the DOM already.
 function createSvgTextLink(svgID: string, text: string): HTMLAnchorElement {
-    const linkTemplate = document.getElementById("svg_link_template") as HTMLTemplateElement;
+    const linkTemplate = typedElement("svg_link_template", HTMLTemplateElement);
     const linkFrag = linkTemplate.content.cloneNode(true) as DocumentFragment;
     linkFrag.querySelector("use")!.setAttributeNS(null, "href", svgID);
     linkFrag.querySelector("span")!.textContent = text;
@@ -1613,7 +1613,7 @@ function addDayName(time: HTMLTimeElement): void {
 }
 
 export function drawReportEntries(entries: ReportEntry[]): void {
-    const container: HTMLElement = document.getElementById("report_entries")!;
+    const container = typedElement("report_entries", HTMLElement);
     container.replaceChildren();
 
     for (const entry of entries) {
@@ -1622,8 +1622,8 @@ export function drawReportEntries(entries: ReportEntry[]): void {
 }
 
 export function reportEntryEdited(): void {
-    const text = (document.getElementById("report_entry_add")! as HTMLTextAreaElement).value.trim();
-    const submitButton = document.getElementById("report_entry_submit")!;
+    const text = typedElement("report_entry_add", HTMLTextAreaElement).value.trim();
+    const submitButton = typedElement("report_entry_submit", HTMLButtonElement);
 
     submitButton.classList.remove("btn-default");
     submitButton.classList.remove("btn-warning");
@@ -1710,7 +1710,9 @@ export function setSendEdits(func: ((edits: Incident|FieldReport)=>Promise<{err:
 }
 
 export async function submitReportEntry(): Promise<void> {
-    const text = (document.getElementById("report_entry_add") as HTMLTextAreaElement).value;
+    const textArea = typedElement("report_entry_add", HTMLTextAreaElement);
+    const submitButton = typedElement("report_entry_submit", HTMLButtonElement);
+    const text = textArea.value;
 
     if (!text) {
         return;
@@ -1719,19 +1721,17 @@ export async function submitReportEntry(): Promise<void> {
     console.log("New report entry:\n" + text);
 
     // Disable the submit button to prevent repeat submissions
-    document.getElementById("report_entry_submit")!.classList.add("disabled");
+    submitButton.classList.add("disabled");
     // send a dummy ID to appease the JSON parser in the server
     const {err} = await sendEditsFunc!({"report_entries": [{"text": text, "id": -1}]});
     if (err != null) {
-        const submitButton = document.getElementById("report_entry_submit")!;
         submitButton.classList.remove("disabled");
         submitButton.classList.remove("btn-default");
         submitButton.classList.remove("btn-warning");
         submitButton.classList.add("btn-danger");
-        controlHasError(document.getElementById("report_entry_add")!);
+        controlHasError(textArea);
         return;
     }
-    const textArea = document.getElementById("report_entry_add") as HTMLTextAreaElement;
     // Clear the report entry
     textArea.value = "";
     // Reset the submit button and its "disabled" status
@@ -1755,11 +1755,8 @@ export function initReportEntryControls(attachFile: ()=>Promise<void>): void {
 //
 
 export function toggleShowHistory(): void {
-    if ((document.getElementById("history_checkbox") as HTMLInputElement).checked) {
-        document.getElementById("report_entries")!.classList.remove("hide-history");
-    } else {
-        document.getElementById("report_entries")!.classList.add("hide-history");
-    }
+    const showHistory = typedElement("history_checkbox", HTMLInputElement).checked;
+    typedElement("report_entries", HTMLElement).classList.toggle("hide-history", !showHistory);
 }
 
 export async function editFromElement(

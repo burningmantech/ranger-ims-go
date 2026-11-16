@@ -22,6 +22,14 @@ import * as ims from "./ims.ts";
 // Initialize UI
 //
 
+const el = {
+    loginButton: ims.typedElement("login-button", HTMLAnchorElement),
+    activeEventJump: ims.typedElement("active-event-jump", HTMLSpanElement),
+    activeEventLink: ims.typedElement("active-event-link", HTMLAnchorElement),
+    activeEventName: ims.typedElement("active-event-name", HTMLSpanElement),
+    noActiveEvent: ims.typedElement("no-active-event", HTMLSpanElement),
+};
+
 initRootPage();
 
 async function initRootPage(): Promise<void> {
@@ -36,17 +44,16 @@ async function initRootPage(): Promise<void> {
     const result = await ims.commonPageInit();
 
     if (!result.authInfo.authenticated) {
-        document.getElementById("login-button")?.focus();
+        el.loginButton.focus();
         return;
     }
 
     const activeEvent = (await result.eventDatas)?.find(e => e.is_active);
     if (activeEvent != null) {
-        const link = document.getElementById("active-event-link") as HTMLAnchorElement;
-        link.href = url_viewIncidents.replace("<event_id>", activeEvent.name);
-        document.getElementById("active-event-name")!.textContent = activeEvent.name;
-        document.getElementById("active-event-jump")!.classList.remove("hidden");
-        document.getElementById("no-active-event")!.classList.add("hidden");
-        link.focus();
+        el.activeEventLink.href = url_viewIncidents.replace("<event_id>", activeEvent.name);
+        el.activeEventName.textContent = activeEvent.name;
+        el.activeEventJump.classList.remove("hidden");
+        el.noActiveEvent.classList.add("hidden");
+        el.activeEventLink.focus();
     }
 }

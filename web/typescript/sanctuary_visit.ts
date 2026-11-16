@@ -29,6 +29,7 @@ const remoteUpdates = ims.newRemoteUpdateAnnouncer("This Visit was updated");
 //
 
 const el = {
+    docTitle: ims.typedElement("doc-title", HTMLHeadingElement),
     visitNumber: ims.typedElement("visit_number", HTMLInputElement),
     parentIncident: ims.typedElement("parent_incident", HTMLInputElement),
     parentIncidentLink: ims.typedElement("parent_incident_link", HTMLAnchorElement),
@@ -47,10 +48,14 @@ const el = {
     arrivalState: ims.typedElement("arrival_state", HTMLInputElement),
     arrivalReason: ims.typedElement("arrival_reason", HTMLTextAreaElement),
     arrivalBelongings: ims.typedElement("arrival_belongings", HTMLTextAreaElement),
+    arrivalTimeNow: ims.typedElement("arrival_time_now", HTMLButtonElement),
+    arrivalTimeClear: ims.typedElement("arrival_time_clear", HTMLButtonElement),
 
     departureTime: ims.typedElement("departure_time", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
     departureMethod: ims.typedElement("departure_method", HTMLInputElement),
     departureState: ims.typedElement("departure_state", HTMLInputElement),
+    departureTimeNow: ims.typedElement("departure_time_now", HTMLButtonElement),
+    departureTimeClear: ims.typedElement("departure_time_clear", HTMLButtonElement),
 
     resourceSitter: ims.typedElement("resource_sitter", HTMLInputElement),
     resourceBedID: ims.typedElement("resource_bed_id", HTMLInputElement),
@@ -62,9 +67,12 @@ const el = {
 
     rangerHandles: ims.typedElement("ranger_handles", HTMLDataListElement),
     addRanger: ims.typedElement("ranger_add", HTMLInputElement),
+    rangersList: ims.typedElement("visit_rangers_list", HTMLUListElement),
+    rangersLiTemplate: ims.typedElement("visit_rangers_li_template", HTMLTemplateElement),
 
     historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
     reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
+    reportEntrySubmit: ims.typedElement("report_entry_submit", HTMLButtonElement),
     attachFile: ims.typedElement("attach_file", HTMLInputElement),
     attachFileInput: ims.typedElement("attach_file_input", HTMLInputElement),
 };
@@ -113,10 +121,10 @@ async function initSanctuaryVisitPage(): Promise<void> {
     for (const [field, editor] of fieldEditors) {
         field.addEventListener("change", editor);
     }
-    ims.typedElement("arrival_time_now", HTMLButtonElement).addEventListener("click", setArrivalTimeNow);
-    ims.typedElement("arrival_time_clear", HTMLButtonElement).addEventListener("click", clearArrivalTime);
-    ims.typedElement("departure_time_now", HTMLButtonElement).addEventListener("click", setDepartureTimeNow);
-    ims.typedElement("departure_time_clear", HTMLButtonElement).addEventListener("click", clearDepartureTime);
+    el.arrivalTimeNow.addEventListener("click", setArrivalTimeNow);
+    el.arrivalTimeClear.addEventListener("click", clearArrivalTime);
+    el.departureTimeNow.addEventListener("click", setDepartureTimeNow);
+    el.departureTimeClear.addEventListener("click", clearDepartureTime);
     ims.initReportEntryControls(attachFile);
     ims.initJunkControls("Visit", sendEdits);
 
@@ -198,7 +206,7 @@ async function initSanctuaryVisitPage(): Promise<void> {
         }
     });
     el.reportEntryAdd.addEventListener("keydown", function (e: KeyboardEvent): void {
-        const submitEnabled = !document.getElementById("report_entry_submit")!.classList.contains("disabled");
+        const submitEnabled = !el.reportEntrySubmit.classList.contains("disabled");
         if (submitEnabled && (ims.shortcutModifierHeld(e) || e.altKey) && e.key === "Enter") {
             ims.submitReportEntry();
         }
@@ -292,7 +300,7 @@ function drawVisitFields(): void {
     } else if (visit?.number) {
         docTitle = `${docTitle} (no name)`;
     }
-    document.getElementById("doc-title")!.textContent = docTitle;
+    el.docTitle.textContent = docTitle;
     if (visit?.incident) {
         ims.setInputValue(el.parentIncident, (visit.incident?.toString())??"");
         el.parentIncidentLink.href = ims.urlReplace(`${url_viewIncidents}/${visit.incident}`);
@@ -777,10 +785,7 @@ function drawRangers() {
     const rangers: ims.VisitRanger[] = visit?.rangers??[];
     rangers.sort((a: ims.VisitRanger, b: ims.VisitRanger) => (a.handle??"").localeCompare(b.handle??""));
 
-    const rangerItemTemplate = document.getElementById("visit_rangers_li_template") as HTMLTemplateElement;
-
-    const rangersElement: HTMLElement = document.getElementById("visit_rangers_list")!;
-    rangersElement.querySelectorAll("li").forEach((el: HTMLElement) => {el.remove()});
+    el.rangersList.querySelectorAll("li").forEach((li: HTMLElement) => {li.remove()});
 
     for (const ranger of rangers) {
         if (!ranger.handle) {
@@ -788,7 +793,7 @@ function drawRangers() {
         }
         const handle = ranger.handle;
 
-        const rangerFragment = rangerItemTemplate.content.cloneNode(true) as DocumentFragment;
+        const rangerFragment = el.rangersLiTemplate.content.cloneNode(true) as DocumentFragment;
         const rangerLi = rangerFragment.querySelector("li")!;
         rangerLi.classList.remove("hidden");
         rangerLi.dataset["rangerHandle"] = handle;
@@ -815,7 +820,7 @@ function drawRangers() {
         removeButton.ariaLabel = `Remove Ranger ${handle}`;
         removeButton.addEventListener("click", (): Promise<void> => removeRanger(removeButton));
 
-        rangersElement.append(rangerFragment);
+        el.rangersList.append(rangerFragment);
     }
 }
 

@@ -36,6 +36,13 @@ const el = {
     dbVariablesDiv: ims.typedElement("db-variables-div", HTMLDivElement),
     gc: ims.typedElement("gc", HTMLPreElement),
     gcDiv: ims.typedElement("gc-div", HTMLDivElement),
+
+    showBuildInfo: ims.typedElement("show-build-info", HTMLButtonElement),
+    showConfig: ims.typedElement("show-config", HTMLButtonElement),
+    showDBInfo: ims.typedElement("show-db-info", HTMLButtonElement),
+    showDBVariables: ims.typedElement("show-db-variables", HTMLButtonElement),
+    performGC: ims.typedElement("perform-gc", HTMLButtonElement),
+    showMetrics: ims.typedElement("show-metrics", HTMLButtonElement),
 };
 
 initAdminDebugPage();
@@ -47,12 +54,12 @@ async function initAdminDebugPage(): Promise<void> {
         return;
     }
 
-    ims.typedElement("show-build-info", HTMLButtonElement).addEventListener("click", fetchBuildInfo);
-    ims.typedElement("show-config", HTMLButtonElement).addEventListener("click", fetchConfig);
-    ims.typedElement("show-db-info", HTMLButtonElement).addEventListener("click", fetchDBInfo);
-    ims.typedElement("show-db-variables", HTMLButtonElement).addEventListener("click", fetchDBVariables);
-    ims.typedElement("perform-gc", HTMLButtonElement).addEventListener("click", performGC);
-    ims.typedElement("show-metrics", HTMLButtonElement).addEventListener("click", fetchRuntimeMetrics);
+    el.showBuildInfo.addEventListener("click", fetchBuildInfo);
+    el.showConfig.addEventListener("click", fetchConfig);
+    el.showDBInfo.addEventListener("click", fetchDBInfo);
+    el.showDBVariables.addEventListener("click", fetchDBVariables);
+    el.performGC.addEventListener("click", performGC);
+    el.showMetrics.addEventListener("click", fetchRuntimeMetrics);
 }
 
 async function fetchBuildInfo(): Promise<void> {

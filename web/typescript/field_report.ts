@@ -34,6 +34,7 @@ const el = {
     incidentNumber: ims.typedElement("incident_number", HTMLInputElement),
     incidentNumberLink: ims.typedElement("incident_number_link", HTMLAnchorElement),
     createIncident: ims.typedElement("create_incident", HTMLElement),
+    verboseInstructions: ims.typedElement("verboseInstructions", HTMLDetailsElement),
 
     historyCheckbox: ims.typedElement("history_checkbox", HTMLInputElement),
     reportEntryAdd: ims.typedElement("report_entry_add", HTMLTextAreaElement),
@@ -78,7 +79,7 @@ async function initFieldReportPage(): Promise<void> {
     if (fieldReport.number == null) {
         // assume that Rangers without Incident access ought to see the instructions by default
         if (!ims.eventAccess?.readIncidents && !ims.eventAccess?.writeIncidents) {
-            (document.getElementById("verboseInstructions") as HTMLDetailsElement).open = true;
+            el.verboseInstructions.open = true;
         }
         el.fieldReportSummary.focus();
     }

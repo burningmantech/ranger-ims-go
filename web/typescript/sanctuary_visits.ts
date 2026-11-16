@@ -45,6 +45,8 @@ const el = {
     newVisit: ims.typedElement("new_visit", HTMLAnchorElement),
     showRowsMenu: ims.typedElement("show_rows", HTMLButtonElement),
     showStatusMenu: ims.typedElement("show_status", HTMLButtonElement),
+    showRowsList: ims.typedElement("show_rows_menu", HTMLUListElement),
+    showStatusList: ims.typedElement("show_status_menu", HTMLUListElement),
 
 };
 
@@ -64,8 +66,8 @@ async function initSanctuaryVisitsPage(): Promise<void> {
         return;
     }
 
-    ims.onMenuPick(ims.typedElement("show_rows_menu", HTMLUListElement), (rows: string): void => showRows(rows, true));
-    ims.onMenuPick(ims.typedElement("show_status_menu", HTMLUListElement), (status: string): void => showStatus(status, true));
+    ims.onMenuPick(el.showRowsList, (rows: string): void => showRows(rows, true));
+    ims.onMenuPick(el.showStatusList, (status: string): void => showStatus(status, true));
 
     ims.disableEditing();
     initVisitsTable();
@@ -453,7 +455,7 @@ export function showRows(rowsToShow: string, replaceState: boolean) {
     const id = rowsToShow.toString();
     _showRows = rowsToShow;
 
-    const item = document.getElementById("show_rows_" + id) as HTMLLIElement;
+    const item = ims.typedElement("show_rows_" + id, HTMLLIElement);
 
     // Get title from selected item
     const selection = item.getElementsByClassName("name")[0]!.textContent;
@@ -479,7 +481,7 @@ export function showRows(rowsToShow: string, replaceState: boolean) {
 //
 
 export function showStatus(statusToShow: string, replaceState: boolean): void {
-    const item = document.getElementById("show_status_" + statusToShow) as HTMLLIElement;
+    const item = ims.typedElement("show_status_" + statusToShow, HTMLLIElement);
     const selection = item.getElementsByClassName("name")[0]!.textContent;
     el.showStatusMenu.getElementsByClassName("selection")[0]!.textContent = selection;
     _showStatus = statusToShow as VisitsFilterStatus;

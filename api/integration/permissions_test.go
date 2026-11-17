@@ -54,6 +54,7 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		// to a non-admin before they check whether the event even exists.
 		{http.MethodPost, "/ims/api/events/SomeFakeEvent/places"},
 		{http.MethodPost, "/ims/api/events/SomeFakeEvent/places/import"},
+		{http.MethodPost, "/ims/api/events/SomeFakeEvent/day_names"},
 		{http.MethodPost, "/ims/api/incident_types"},
 		{http.MethodGet, "/ims/api/debug/buildinfo"},
 		{http.MethodGet, "/ims/api/debug/runtimemetrics"},
@@ -62,6 +63,14 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		{http.MethodGet, "/ims/api/debug/dbinfo"},
 		{http.MethodGet, "/ims/api/debug/dbvariables"},
 		{http.MethodGet, "/ims/api/debug/ecsmetadata"},
+		// "profile" and "trace" are left out, since without a "seconds"
+		// parameter each would block the admin's call for 30 seconds.
+		{http.MethodGet, "/ims/api/debug/pprof/heap"},
+		{http.MethodGet, "/ims/api/debug/pprof/allocs"},
+		{http.MethodGet, "/ims/api/debug/pprof/goroutine"},
+		{http.MethodGet, "/ims/api/debug/pprof/block"},
+		{http.MethodGet, "/ims/api/debug/pprof/mutex"},
+		{http.MethodGet, "/ims/api/debug/pprof/threadcreate"},
 	}
 
 	for _, api := range adminOnly {
@@ -154,6 +163,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	postVisitRanger := MethodURL{http.MethodPost, eventPath + "/visits/1/rangers/some_name"}
 	deleteVisitRanger := MethodURL{http.MethodDelete, eventPath + "/visits/1/rangers/some_name"}
 	getPlaces := MethodURL{http.MethodGet, eventPath + "/places"}
+	getDayNames := MethodURL{http.MethodGet, eventPath + "/day_names"}
 
 	allPerms := []MethodURL{
 		getIncidents,
@@ -186,6 +196,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		postVisitRanger,
 		deleteVisitRanger,
 		getPlaces,
+		getDayNames,
 	}
 	reporter := []MethodURL{
 		getFieldReports,
@@ -195,6 +206,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		postFieldReportAttachment,
 		postFieldReportRE,
 		getPlaces,
+		getDayNames,
 	}
 	reader := []MethodURL{
 		getIncidents,
@@ -207,6 +219,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getVisit,
 		getVisitAttachment,
 		getPlaces,
+		getDayNames,
 	}
 
 	// TODO: section for visit writers?
@@ -214,6 +227,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	// these are per-event endpoints that admins can access by virtue of being admins
 	adminGlobal := []MethodURL{
 		getPlaces,
+		getDayNames,
 	}
 	writer := slices.Clone(allPerms)
 
@@ -317,6 +331,72 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 			code := apiCall(t, api, apisAdmin)
 			require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
 		}
+	}
+}
+
+// Event deletion is off by default, which makes it 403 even for admins, so the
+// admin half of this check needs a server with it enabled.
+func TestDeleteEventIsAdminOnly(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	cfg := *shared.cfg
+	cfg.Core.EventDeletionEnabled = true
+	srv := newCustomServer(t, &cfg, shared.imsDBQ, shared.userStore)
+
+	api := MethodURL{http.MethodDelete, "/ims/api/events/SomeFakeEvent"}
+
+	code := apiCall(t, api, srv.admin(ctx))
+	require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
+
+	code = apiCall(t, api, srv.alice(ctx))
+	require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
+
+	code = apiCall(t, api, srv.unauthed())
+	require.True(t, unauthorized(code), "%v %v wanted 401 status code, got %v", api.Method, api.Path, code)
+}
+
+// The directory admin API is 403 for everyone unless IMS_DIRECTORY=ims, so it
+// needs its own server, and a non-admin made in that server's directory.
+func TestDirectoryEndpointsAreAdminOnly(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newIMSDirectoryServer(t, ctx)
+
+	apisAdmin := srv.withJWT(dirAdminJWT(t, ctx, srv))
+	apisNotAuthenticated := srv.unauthed()
+
+	nonAdminHandle := "NonAdmin-" + rand.NonCryptoText()
+	nonAdminPassword := "password-" + rand.NonCryptoText()
+	personID, resp := apisAdmin.editDirectoryPerson(ctx, imsjson.DirectoryPerson{Handle: &nonAdminHandle})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, personID)
+	resp = apisAdmin.setDirectoryPersonPassword(ctx, *personID, nonAdminPassword)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	apisNonAdmin := srv.withJWT(srv.login(ctx, nonAdminHandle, nonAdminPassword))
+
+	// The IDs are made up, so that the admin's calls can't touch real rows.
+	adminOnly := []MethodURL{
+		{http.MethodGet, "/ims/api/directory"},
+		{http.MethodPost, "/ims/api/directory/persons"},
+		{http.MethodPost, "/ims/api/directory/persons/999999999/password"},
+		{http.MethodDelete, "/ims/api/directory/persons/999999999"},
+		{http.MethodPost, "/ims/api/directory/teams"},
+		{http.MethodDelete, "/ims/api/directory/teams/999999999"},
+		{http.MethodPost, "/ims/api/directory/positions"},
+		{http.MethodDelete, "/ims/api/directory/positions/999999999"},
+	}
+
+	for _, api := range adminOnly {
+		code := apiCall(t, api, apisAdmin)
+		require.True(t, permitted(code), "%v %v wanted non-401/403 status code, got %v", api.Method, api.Path, code)
+
+		code = apiCall(t, api, apisNonAdmin)
+		require.True(t, forbidden(code), "%v %v wanted 403 status code, got %v", api.Method, api.Path, code)
+
+		code = apiCall(t, api, apisNotAuthenticated)
+		require.True(t, unauthorized(code), "%v %v wanted 401 status code, got %v", api.Method, api.Path, code)
 	}
 }
 

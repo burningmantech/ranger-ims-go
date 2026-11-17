@@ -54,6 +54,14 @@ linters:
         - 'github\.com/testcontainers/.*'
         - 'net/http\..*'
         - 'runtime/metrics\..*'
+    forbidigo:
+      forbid:
+        # forbidigo's default rule, which setting forbid replaces.
+        - pattern: ^(fmt\.Print(|f|ln)|print|println)$
+        # The default mux carries net/http/pprof's unauthenticated handlers, so
+        # nothing may register on it or serve it.
+        - pattern: ^http\.(DefaultServeMux|Handle|HandleFunc|ListenAndServe|ListenAndServeTLS|Serve|ServeTLS)$
+          msg: use the server's own ServeMux; http.DefaultServeMux exposes net/http/pprof
     gosec:
       excludes:
         - G115  # integer overflow conversion

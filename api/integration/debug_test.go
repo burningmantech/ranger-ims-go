@@ -61,3 +61,55 @@ func TestGetDBVariables(t *testing.T) {
 	require.Equal(t, 2, strings.Count(vars, "\n    Uptime = "))
 	require.NotContains(t, vars, "Failed")
 }
+
+func TestPprof(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	heapURL := srv.url.JoinPath("/ims/api/debug/pprof/heap").String()
+
+	_, resp := srv.unauthed().imsGetBodyBytes(ctx, heapURL)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	_, resp = srv.alice(ctx).imsGetBodyBytes(ctx, heapURL)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	body, resp := srv.admin(ctx).imsGetBodyBytes(ctx, heapURL)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, []byte{0x1f, 0x8b}, body[:2])
+
+	// Only the allowlisted profiles have routes.
+	_, resp = srv.admin(ctx).imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/debug/pprof/cmdline").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	_, resp = srv.admin(ctx).imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/debug/pprof/").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+
+	// net/http/pprof's own routes live on http.DefaultServeMux, which IMS
+	// never serves.
+	_, resp = srv.admin(ctx).imsGetBodyBytes(ctx, srv.url.JoinPath("/debug/pprof/").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	_, resp = srv.admin(ctx).imsGetBodyBytes(ctx, srv.url.JoinPath("/debug/pprof/heap").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func TestPprofDisabled(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	cfg := *shared.cfg
+	cfg.Core.DisablePprof = true
+	srv := newCustomServer(t, &cfg, shared.imsDBQ, shared.userStore)
+
+	_, resp := srv.admin(ctx).imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/debug/pprof/heap").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	_, resp = srv.admin(ctx).imsGetBodyBytes(ctx, srv.url.JoinPath("/ims/api/debug/pprof/profile").String())
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+}

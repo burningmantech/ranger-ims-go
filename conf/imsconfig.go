@@ -51,6 +51,7 @@ func DefaultIMS() *IMSConfig {
 			ActionLogEnabled:     true,
 			ErrorLogEnabled:      true,
 			EventDeletionEnabled: false,
+			DisablePprof:         false,
 			InsecureCookies:      false,
 			TimeZone:             "America/Los_Angeles",
 		},
@@ -277,6 +278,11 @@ type ConfigCore struct {
 	// test events. It should stay false in production, where such a destructive operation
 	// shouldn't be needed.
 	EventDeletionEnabled bool
+
+	// DisablePprof turns off the admin-only pprof endpoints under
+	// /ims/api/debug/pprof, which otherwise let admins download profiles of
+	// the running server.
+	DisablePprof bool
 
 	// InsecureCookies lets a web client's access token go in a cookie that isn't
 	// Secure, over plain HTTP. Only a dev deployment may turn this on, and only a

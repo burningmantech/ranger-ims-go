@@ -94,7 +94,7 @@ func AddToMux(mux *http.ServeMux, cfg *conf.IMSConfig) *http.ServeMux {
 		AdaptTempl(template.AdminTypes(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/debug",
-		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef, ecsmetadata.URI() != ""), cfg.Core.CacheControlLong, csp, timeZone),
+		AdaptTempl(template.AdminDebug(deployment, versionName, versionRef, ecsmetadata.URI() != "", !cfg.Core.DisablePprof), cfg.Core.CacheControlLong, csp, timeZone),
 	)
 	mux.Handle("GET /ims/app/admin/directory",
 		AdaptTempl(template.AdminDirectory(deployment, versionName, versionRef), cfg.Core.CacheControlLong, csp, timeZone),

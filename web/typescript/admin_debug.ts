@@ -59,7 +59,7 @@ async function initAdminDebugPage(): Promise<void> {
     el.showDBInfo.addEventListener("click", fetchDBInfo);
     el.showDBVariables.addEventListener("click", fetchDBVariables);
     el.performGC.addEventListener("click", performGC);
-    // The ECS section is only rendered when the server runs on ECS.
+    // The button is disabled unless the server runs on ECS.
     document.getElementById("show-ecs-metadata")?.addEventListener("click", fetchECSMetadata);
     el.showMetrics.addEventListener("click", fetchRuntimeMetrics);
 }

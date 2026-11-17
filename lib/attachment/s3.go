@@ -90,6 +90,10 @@ func (c *S3Client) GetObject(ctx context.Context, bucketName, objectName string)
 	// This reads the whole object in memory, which isn't ideal, but it lets us use the
 	// http.ServeContent(..) in attachments.go, which requires an io.ReadSeeker.
 	// In an ideal world, we'd just stream the object to the IMS API client.
+	//
+	// TODO: stop holding the whole object (up to the upload limit) in memory for
+	// the length of the download, e.g. by spooling it to a temp file, or by
+	// passing the client's Range header through to S3.
 	buf := bytes.Buffer{}
 	_, err = io.Copy(&buf, output.Body)
 	slog.Debug("Read attachment from S3", "objectName", objectName, "duration", time.Since(start))

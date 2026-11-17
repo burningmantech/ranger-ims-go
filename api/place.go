@@ -17,6 +17,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -91,10 +92,11 @@ func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError)
 			LocationString: rowDest.LocationString,
 			ExternalData:   nil,
 		}
+		redact := !isAdmin && placeLocationsEmbargoed(event, rowDest.Type, now)
 		if !excludeExternalData {
-			apiDest.ExternalData = placeExternalData(event.Name, dType, rowDest.Name, rowDest.ExternalData)
+			apiDest.ExternalData = placeExternalData(event.Name, dType, rowDest.Name, rowDest.ExternalData, redact)
 		}
-		if !isAdmin && placeLocationsEmbargoed(event, rowDest.Type, now) {
+		if redact {
 			redactPlaceLocation(&apiDest)
 		}
 		resp[dType] = append(resp[dType], apiDest)
@@ -103,10 +105,14 @@ func (action GetPlaces) run(req *http.Request) (imsjson.Places, *herr.HTTPError)
 	return resp, nil
 }
 
-// placeExternalData decodes a Place's stored EXTERNAL_DATA. A row that holds
+// placeExternalData reads a Place's stored EXTERNAL_DATA. A row that holds
 // SQL NULL or something other than a JSON object just gets no external data,
 // rather than failing the whole event's list.
-func placeExternalData(eventName, placeType, placeName string, raw any) map[string]any {
+//
+// Unless the caller needs to edit it (decode), an object goes out exactly as
+// stored, as a json.RawMessage. Decoding and re-encoding every place in an
+// event is otherwise most of the cost of listing them.
+func placeExternalData(eventName, placeType, placeName string, raw any, decode bool) any {
 	var b []byte
 	switch v := raw.(type) {
 	case nil:
@@ -119,6 +125,11 @@ func placeExternalData(eventName, placeType, placeName string, raw any) map[stri
 		slog.Warn("Unexpected Place external data type",
 			"event", eventName, "type", placeType, "name", placeName, "goType", fmt.Sprintf("%T", raw))
 		return nil
+	}
+	if !decode {
+		if trimmed := bytes.TrimSpace(b); len(trimmed) > 0 && trimmed[0] == '{' && json.Valid(trimmed) {
+			return json.RawMessage(trimmed)
+		}
 	}
 	var ed map[string]any
 	err := json.Unmarshal(b, &ed)

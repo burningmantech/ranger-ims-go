@@ -312,8 +312,10 @@ jobs:
             cdn.datatables.net:443
             cdn.jsdelivr.net:443
             dl-cdn.alpinelinux.org:443
+            docker-images-prod.s3.dualstack.*.amazonaws.com:443
             github.com:443
             storage.googleapis.com:443
+            tuf-repo-cdn.sigstore.dev
 
       - name: Checkout source code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

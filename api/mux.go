@@ -229,16 +229,13 @@ func AddToMux(
 	authed("GET /ims/api/debug/dbvariables", GetDBInfo{db, userStore, cfg.Core.Admins, cfg, clubhouseDB, true}, LogMetadata)
 	authed("GET /ims/api/debug/ecsmetadata", GetECSMetadata{db, userStore, cfg.Core.Admins, ecsmetadata.URI(), http.DefaultClient}, LogMetadata)
 
-	// Uncomment these to add pprof into the program. Note that we'd probably want
-	// these endpoints to be restricted to admins only, were this going to run in
-	// production.
-	// https://pkg.go.dev/runtime/pprof
-	// https://github.com/google/pprof/blob/main/doc/README.md
-	// mux.HandleFunc("GET /debug/pprof/", pprof.Index)
-	// mux.HandleFunc("GET /debug/pprof/cmdline", pprof.Cmdline)
-	// mux.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
-	// mux.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
-	// mux.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
+	// pprof is on by default, behind the same authentication and admin
+	// permission as the other debug endpoints. Disabled, its routes don't exist.
+	if !cfg.Core.DisablePprof {
+		for _, profile := range PprofProfiles {
+			authed("GET /ims/api/debug/pprof/"+profile, GetPprof{db, userStore, cfg.Core.Admins, profile}, LogMetadata)
+		}
+	}
 
 	return AddBasicHandlers(mux)
 }

@@ -96,6 +96,9 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	if v, ok := lookupEnv("IMS_EVENT_DELETION_ENABLED"); ok {
 		baseCfg.Core.EventDeletionEnabled = strings.EqualFold(v, "true")
 	}
+	if v, ok := lookupEnv("IMS_DISABLE_PPROF"); ok {
+		baseCfg.Core.DisablePprof = strings.EqualFold(v, "true")
+	}
 	if v, ok := lookupEnv("IMS_INSECURE_COOKIES"); ok {
 		baseCfg.Core.InsecureCookies = strings.EqualFold(v, "true")
 	}

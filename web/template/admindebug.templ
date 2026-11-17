@@ -16,7 +16,7 @@
 
 package template
 
-templ AdminDebug(deployment, versionName, versionRef string, onECS bool) {
+templ AdminDebug(deployment, versionName, versionRef string, onECS, pprofEnabled bool) {
 <!DOCTYPE html>
 <html lang="en">
 @Head("Debugging Details", "admin_debug.js", false, versionRef)
@@ -60,14 +60,34 @@ templ AdminDebug(deployment, versionName, versionRef string, onECS bool) {
   <pre id="db-variables"></pre>
 </div>
 
-if onECS {
 <h2 class="h4">ECS Task Metadata</h2>
-<p><button id="show-ecs-metadata" class="btn btn-sm btn-default btn-primary">Fetch ECS Task Metadata</button></p>
+if !onECS {
+<p class="text-body-secondary">Unavailable: the server isn't running on AWS ECS.</p>
+}
+<p><button id="show-ecs-metadata" class="btn btn-sm btn-default btn-primary" disabled?={ !onECS }>Fetch ECS Task Metadata</button></p>
 <div id="ecs-metadata-div" style="display:none;">
   <p id="ecs-metadata-p"><a href="https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4-fargate.html">See the endpoint documentation here</a></p>
   <pre id="ecs-metadata"></pre>
 </div>
+
+<h2 class="h4">Profiling</h2>
+if !pprofEnabled {
+<p class="text-body-secondary">Unavailable: profiling is turned off by <code>IMS_DISABLE_PPROF</code>.</p>
 }
+<p>
+  Download a pprof profile of the server, then open it with
+  <code>go tool pprof -http=: FILE</code>, or a trace with <code>go tool trace FILE</code>.
+  The CPU profile takes 30 seconds to collect, and the trace 5 seconds.
+</p>
+<p>
+  @pprofLink(pprofEnabled, "/ims/api/debug/pprof/profile?seconds=30", "cpu.pb.gz", "CPU (30s)")
+  @pprofLink(pprofEnabled, "/ims/api/debug/pprof/heap", "heap.pb.gz", "Heap")
+  @pprofLink(pprofEnabled, "/ims/api/debug/pprof/allocs", "allocs.pb.gz", "Allocs")
+  @pprofLink(pprofEnabled, "/ims/api/debug/pprof/goroutine", "goroutine.pb.gz", "Goroutines")
+  @pprofLink(pprofEnabled, "/ims/api/debug/pprof/threadcreate", "threadcreate.pb.gz", "Thread Creation")
+  @pprofLink(pprofEnabled, "/ims/api/debug/pprof/trace?seconds=5", "trace.out", "Trace (5s)")
+  @pprofLink(pprofEnabled, "/ims/api/debug/pprof/goroutine?debug=2", "", "Goroutine Stacks (text)")
+</p>
 
 <h2 class="h4">Garbage Collection</h2>
 <p><button id="perform-gc" class="btn btn-sm btn-default btn-primary">Perform GC</button></p>
@@ -87,4 +107,17 @@ if onECS {
 </div>
 </body>
 </html>
+}
+
+// pprofLink downloads the profile at href as the file named download, or opens it
+// in a new tab when download is empty. When disabled it renders without an href,
+// since an <a> has no disabled attribute.
+templ pprofLink(enabled bool, href, download, label string) {
+	if !enabled {
+		<a class="btn btn-sm btn-default btn-primary disabled" role="link" aria-disabled="true">{ label }</a>
+	} else if download == "" {
+		<a class="btn btn-sm btn-default btn-primary" href={ templ.SafeURL(href) } target="_blank">{ label }</a>
+	} else {
+		<a class="btn btn-sm btn-default btn-primary" href={ templ.SafeURL(href) } download={ download }>{ label }</a>
+	}
 }

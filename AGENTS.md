@@ -114,6 +114,9 @@ To change the IMS schema:
   in, whatever the viewer's device says
 - `IMS_BM_API_KEY` / `IMS_BM_API_URL`: optional; enable importing Places from the Burning Man API
 - `IMS_ADMINS`: handles with unrestricted access
+- `IMS_DISABLE_PPROF`: turns off the admin-only pprof endpoints (`/ims/api/debug/pprof/*`, `api/pprof.go`),
+  which the admin debug page links to. Nothing may use `http.DefaultServeMux`, where `net/http/pprof`
+  registers its own unauthenticated handlers; a forbidigo rule enforces that.
 
 ## Server-side conventions
 

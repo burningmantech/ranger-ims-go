@@ -84,6 +84,10 @@ func MySQLConfig(mariaCfg conf.DBStoreMaria) *mysql.Config {
 	cfg.Addr = net.JoinHostPort(mariaCfg.HostName, conv.FormatInt(mariaCfg.HostPort))
 	cfg.DBName = mariaCfg.Database
 	cfg.MultiStatements = true
+	// Without this, the driver runs every query that has arguments as a
+	// server-side prepared statement: a prepare, an execute, and a close, each
+	// its own round trip. Interpolating the arguments client-side makes it one.
+	cfg.InterpolateParams = true
 	// Under the default REPEATABLE READ, a DELETE takes gap locks, so concurrent
 	// delete-then-insert transactions on different events deadlock when their
 	// inserts land in the same gap.

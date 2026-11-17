@@ -106,12 +106,13 @@ func (action GetIncidentAttachment) ServeHTTP(w http.ResponseWriter, req *http.R
 		errHTTP.From("[getIncidentAttachment]").WriteResponse(w)
 		return
 	}
+	defer shut(file)
 	serveAttachment(w, req, file, contentType, name)
 }
 
 func (action GetIncidentAttachment) getIncidentAttachment(
 	req *http.Request,
-) (fi io.ReadSeeker, contentType, name string, errHTTP *herr.HTTPError) {
+) (fi io.ReadSeekCloser, contentType, name string, errHTTP *herr.HTTPError) {
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, "", "", errHTTP.From("[getEventPermissions]")
@@ -151,6 +152,7 @@ func (action GetIncidentAttachment) getIncidentAttachment(
 
 	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
+		shut(file)
 		return nil, "", "", errHTTP.From("[sniffFile]")
 	}
 	contentType = safeToPreviewContentType(mtype.String())
@@ -229,11 +231,11 @@ func previewableContentType(contentType string) bool {
 func retrieveFile(
 	ctx context.Context, attachmentsStore conf.AttachmentsStore,
 	s3Client *attachment.S3Client, filename string,
-) (io.ReadSeeker, *herr.HTTPError) {
+) (io.ReadSeekCloser, *herr.HTTPError) {
 	if filename == "" {
 		return nil, herr.NotFound("No attachment for this ID", nil)
 	}
-	var file io.ReadSeeker
+	var file io.ReadSeekCloser
 	var err error
 	var errHTTP *herr.HTTPError
 	switch attachmentsStore.Type {
@@ -256,13 +258,20 @@ func retrieveFile(
 	return file, nil
 }
 
-func mustGetS3File(ctx context.Context, s3Client *attachment.S3Client, bucket, prefix, filename string) (io.ReadSeeker, *herr.HTTPError) {
+func mustGetS3File(ctx context.Context, s3Client *attachment.S3Client, bucket, prefix, filename string) (io.ReadSeekCloser, *herr.HTTPError) {
 	file, errHTTP := s3Client.GetObject(ctx, bucket, prefix+filename)
 	if errHTTP != nil {
 		return nil, errHTTP.From("[GetObject]")
 	}
-	return file, nil
+	return nopSeekCloser{file}, nil
 }
+
+// nopSeekCloser is for an attachment that's held in memory, which has nothing to close.
+type nopSeekCloser struct {
+	io.ReadSeeker
+}
+
+func (nopSeekCloser) Close() error { return nil }
 
 func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	file, contentType, name, errHTTP := action.getFieldReportAttachment(req)
@@ -270,12 +279,13 @@ func (action GetFieldReportAttachment) ServeHTTP(w http.ResponseWriter, req *htt
 		errHTTP.From("[getFieldReportAttachment]").WriteResponse(w)
 		return
 	}
+	defer shut(file)
 	serveAttachment(w, req, file, contentType, name)
 }
 
 func (action GetFieldReportAttachment) getFieldReportAttachment(
 	req *http.Request,
-) (fi io.ReadSeeker, contentType, name string, errHTTP *herr.HTTPError) {
+) (fi io.ReadSeekCloser, contentType, name string, errHTTP *herr.HTTPError) {
 	event, jwtCtx, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, "", "", errHTTP.From("[getEventPermissions]")
@@ -324,6 +334,7 @@ func (action GetFieldReportAttachment) getFieldReportAttachment(
 
 	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
+		shut(file)
 		return nil, "", "", errHTTP.From("[sniffFile]")
 	}
 	contentType = safeToPreviewContentType(mtype.String())
@@ -574,12 +585,13 @@ func (action GetVisitAttachment) ServeHTTP(w http.ResponseWriter, req *http.Requ
 		errHTTP.From("[getVisitAttachment]").WriteResponse(w)
 		return
 	}
+	defer shut(file)
 	serveAttachment(w, req, file, contentType, name)
 }
 
 func (action GetVisitAttachment) getVisitAttachment(
 	req *http.Request,
-) (fi io.ReadSeeker, contentType, name string, errHTTP *herr.HTTPError) {
+) (fi io.ReadSeekCloser, contentType, name string, errHTTP *herr.HTTPError) {
 	event, _, eventPermissions, errHTTP := getEventPermissions(req, action.imsDBQ, action.userStore, action.imsAdmins)
 	if errHTTP != nil {
 		return nil, "", "", errHTTP.From("[getEventPermissions]")
@@ -619,6 +631,7 @@ func (action GetVisitAttachment) getVisitAttachment(
 
 	mtype, errHTTP := sniffFile(file)
 	if errHTTP != nil {
+		shut(file)
 		return nil, "", "", errHTTP.From("[sniffFile]")
 	}
 	contentType = safeToPreviewContentType(mtype.String())

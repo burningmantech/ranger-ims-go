@@ -64,6 +64,7 @@ func TestSaveAndRetrieveS3File(t *testing.T) {
 	all, err := io.ReadAll(fileResp)
 	require.NoError(t, err)
 	assert.Equal(t, fileContents, all)
+	require.NoError(t, fileResp.Close())
 }
 
 func TestSaveAndRetrieveLocalFile(t *testing.T) {
@@ -98,6 +99,7 @@ func TestSaveAndRetrieveLocalFile(t *testing.T) {
 	all, err := io.ReadAll(fileResp)
 	require.NoError(t, err)
 	assert.Equal(t, fileContents, all)
+	require.NoError(t, fileResp.Close())
 }
 
 func TestSaveAndRetrieveLocalFile_Errors(t *testing.T) {

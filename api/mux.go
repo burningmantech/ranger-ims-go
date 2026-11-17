@@ -430,13 +430,16 @@ func LogRequest(mode ActionLogMode, actionLogger ActionLogger, userStore *direct
 					})
 			}
 
-			// #nosec G706 // log injection
-			slog.Debug(fmt.Sprintf("Served request for: %v %v ", r.Method, r.URL.Path),
-				"duration", fmt.Sprintf("%.3fms", float64(time.Since(start).Microseconds())/1000.0),
-				"method", r.Method,
-				"user", username.String,
-				"code", writ.code,
-			)
+			// The check spares every request the formatting when debug logging is off.
+			if slog.Default().Enabled(r.Context(), slog.LevelDebug) {
+				// #nosec G706 // log injection
+				slog.Debug(fmt.Sprintf("Served request for: %v %v ", r.Method, r.URL.Path),
+					"duration", fmt.Sprintf("%.3fms", float64(time.Since(start).Microseconds())/1000.0),
+					"method", r.Method,
+					"user", username.String,
+					"code", writ.code,
+				)
+			}
 		})
 	}
 }

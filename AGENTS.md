@@ -50,6 +50,9 @@ make test/e2e                             # Playwright
 - **Go unit tests** use `testify`. Prefer explicit, unrolled cases over table-driven tests.
 - **Integration tests** (`store/integration/`, `api/integration/`) run against a real MariaDB via
   testcontainers.
+- **New API endpoints** need a line in `api/integration/permissions_test.go` too, in the list that
+  matches who may call it (admin-only, any authenticated user, or the per-event role lists), so the
+  test checks it rejects unauthenticated and under-privileged callers.
 - **TypeScript tests** (`web/typescripttest/`) run the real TypeScript in happy-dom against
   templ-rendered HTML fixtures, with fetch/EventSource mocked. The `pretest` script regenerates the
   fixtures into the gitignored `web/typescripttest/fixtures/`.

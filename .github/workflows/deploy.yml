@@ -37,7 +37,7 @@ jobs:
     steps:
 
       - name: Harden CI
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           disable-sudo: true
           egress-policy: block
@@ -58,7 +58,7 @@ jobs:
 
       - name: Login to AWS ECR
         id: aws-login-ecr
-        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+        uses: aws-actions/amazon-ecr-login@7290e214a610b32bc0eef81748948b6d466a8783 # v2.2.0
 
       - name: Push docker image to Amazon ECR
         run: |

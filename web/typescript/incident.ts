@@ -49,6 +49,17 @@ const el = {
     rangersList: ims.typedElement("incident_rangers_list", HTMLElement),
     rangersLiTemplate: ims.typedElement("incident_rangers_li_template", HTMLTemplateElement),
     onDutyLink: ims.typedElement("onduty_link", HTMLAnchorElement),
+    onDutyAdd: ims.typedElement("on_duty_add", HTMLButtonElement),
+    onDutyModal: ims.typedElement("onDutyModal", HTMLDialogElement),
+    onDutyAt: ims.typedElement("on_duty_at", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
+    onDutyAtNow: ims.typedElement("on_duty_at_now", HTMLButtonElement),
+    onDutyFilter: ims.typedElement("on_duty_filter", HTMLInputElement),
+    onDutyMessage: ims.typedElement("on_duty_message", HTMLElement),
+    onDutyList: ims.typedElement("on_duty_list", HTMLUListElement),
+    onDutyLiTemplate: ims.typedElement("on_duty_li_template", HTMLTemplateElement),
+    onDutyOtherHeading: ims.typedElement("on_duty_other_heading", HTMLElement),
+    onDutyOtherList: ims.typedElement("on_duty_other_list", HTMLUListElement),
+    onDutySubmit: ims.typedElement("on_duty_submit", HTMLButtonElement),
 
     incidentTypeAdd: ims.typedElement("incident_type_add", HTMLInputElement),
     incidentTypes: ims.typedElement("incident_types", HTMLDataListElement),
@@ -78,6 +89,8 @@ const el = {
     incidentTypeInfoModal: ims.typedElement("incidentTypeInfoModal", HTMLDialogElement),
 };
 
+const onDutyModal = ims.dialogModal(el.onDutyModal);
+
 initIncidentPage();
 
 async function initIncidentPage(): Promise<void> {
@@ -100,6 +113,14 @@ async function initIncidentPage(): Promise<void> {
     el.locationAddress.addEventListener("change", editLocationAddress);
     el.locationDescription.addEventListener("change", editLocationDescription);
     el.rangerAdd.addEventListener("change", addRanger);
+    if (initResult.authInfo.on_duty_available && ims.eventAccess?.writeIncidents) {
+        el.onDutyAdd.classList.remove("hidden");
+    }
+    el.onDutyAdd.addEventListener("click", showOnDutyRangers);
+    el.onDutyAtNow.addEventListener("click", (): void => ims.setFlatpickrToNow(el.onDutyAt));
+    el.onDutyFilter.addEventListener("input", filterOnDutyRangers);
+    el.onDutyModal.addEventListener("change", pickOnDutyRanger);
+    el.onDutySubmit.addEventListener("click", applyOnDutyChanges);
     el.incidentTypeAdd.addEventListener("change", addIncidentType);
     el.attachedFieldReportAdd.addEventListener("change", attachFieldReport);
     el.linkedIncidentAdd.addEventListener("change", (): Promise<void> => linkIncident(el.linkedIncidentAdd));
@@ -126,6 +147,11 @@ async function initIncidentPage(): Promise<void> {
     ims.setupMapLink(el.mapLink, allEvents);
 
     ims.newFlatpickr("#started_datetime", "alt_started_datetime", setStartDatetime);
+    ims.newFlatpickr(el.onDutyAt, "alt_on_duty_at", (dates: Date[]): void => {
+        if (dates[0] != null) {
+            loadOnDutyRangers(dates[0]);
+        }
+    }, false, el.onDutyModal);
 
     ims.disableEditing();
     displayIncident();
@@ -734,14 +760,6 @@ function drawRangers() {
 
         el.rangersList.append(rangerFragment);
     }
-
-    // Set the on-duty link. This uses a UTC timestamp, which Clubhouse seems to support as the duty_date param.
-    let params = new URLSearchParams();
-    if (incident?.started) {
-        const d = new Date(incident.started);
-        params.set("duty_date", d.toISOString());
-    }
-    el.onDutyLink.href = `https://ranger-clubhouse.burningman.org/reports/on-duty?${params.toString()}`;
 }
 
 
@@ -1460,6 +1478,231 @@ export async function addRanger(): Promise<void> {
     el.rangerAdd.focus();
 }
 
+
+//
+// Add and remove Rangers by who was on duty
+//
+
+// What the user has checked or unchecked in the on-duty dialog, by handle. It
+// outlives a change of the as-of time, so a Ranger on duty at both times keeps
+// their choice.
+const onDutyChoices: Map<string, boolean> = new Map();
+
+// Counts the dialog's loads, so that a slow response for an earlier as-of time
+// can't replace a later one's.
+let onDutyLoads = 0;
+
+export async function showOnDutyRangers(): Promise<void> {
+    onDutyChoices.clear();
+    el.onDutyFilter.value = "";
+    const at = incident?.started ? new Date(incident.started) : new Date();
+    const fp = el.onDutyAt._flatpickr;
+    fp.setDate(ims.toPickerDate(at), false, fp.config.altFormat!);
+    onDutyModal.show();
+    await loadOnDutyRangers(at);
+    el.onDutyFilter.focus();
+}
+
+async function loadOnDutyRangers(at: Date): Promise<void> {
+    const load = ++onDutyLoads;
+    // Clubhouse reads duty_date as a wall-clock time in the event's zone, which is IMS's zone.
+    const params = new URLSearchParams({duty_date: `${ims.dateISO(at)} ${ims.timeHHMM(at)}`});
+    el.onDutyLink.href = `https://ranger-clubhouse.burningman.org/timesheets/on-duty?${params.toString()}`;
+    clearOnDutyLists();
+    setOnDutyMessage("Loading\u2026");
+    updateOnDutySubmit();
+
+    const url = `${ims.urlReplace(url_onDuty)}?at=${encodeURIComponent(at.toISOString())}`;
+    const {json, err} = await ims.fetchNoThrow<ims.OnDutyRanger[]>(url, null);
+    if (load !== onDutyLoads) {
+        return;
+    }
+    if (err != null || json == null) {
+        setOnDutyMessage(`Failed to load on-duty Rangers: ${err}`);
+        return;
+    }
+    drawOnDutyRangers(json);
+}
+
+function clearOnDutyLists(): void {
+    // The row template lives in the first list, so only its rows go.
+    el.onDutyList.querySelectorAll("li").forEach((li: HTMLElement): void => {li.remove()});
+    el.onDutyOtherList.replaceChildren();
+    el.onDutyOtherHeading.classList.add("hidden");
+}
+
+function attachedRangerRoles(): Map<string, string> {
+    const roles: Map<string, string> = new Map();
+    for (const ranger of incident?.rangers??[]) {
+        if (ranger.handle) {
+            roles.set(ranger.handle, ranger.role??"");
+        }
+    }
+    return roles;
+}
+
+// A dialog row. An on-duty Ranger's detail is their position, and an attached
+// Ranger who wasn't on duty shows their role instead.
+function onDutyRow(handle: string, detail: string, attached: boolean, position: string|null): DocumentFragment {
+    const fragment = el.onDutyLiTemplate.content.cloneNode(true) as DocumentFragment;
+    const li = fragment.querySelector("li")!;
+    li.dataset["handle"] = handle;
+    li.dataset["detail"] = detail;
+    if (position != null) {
+        li.dataset["position"] = position;
+    }
+    if (attached) {
+        li.dataset["attached"] = "true";
+    }
+    li.querySelector("input")!.checked = onDutyChoices.get(handle) ?? attached;
+    li.querySelector(".on-duty-handle")!.textContent = attached ? `${handle} (on Incident)` : handle;
+    li.querySelector(".on-duty-position")!.textContent = detail;
+    return fragment;
+}
+
+function drawOnDutyRangers(onDuty: ims.OnDutyRanger[]): void {
+    clearOnDutyLists();
+    const attached = attachedRangerRoles();
+    for (const ranger of onDuty) {
+        el.onDutyList.append(onDutyRow(ranger.handle, ranger.position, attached.has(ranger.handle), ranger.position));
+    }
+    const onDutyHandles = new Set(onDuty.map((r: ims.OnDutyRanger): string => r.handle));
+    const others = [...attached.keys()]
+        .filter((handle: string): boolean => !onDutyHandles.has(handle))
+        .sort((a: string, b: string): number => a.localeCompare(b));
+    for (const handle of others) {
+        el.onDutyOtherList.append(onDutyRow(handle, attached.get(handle)!, true, null));
+    }
+    el.onDutyOtherHeading.classList.toggle("hidden", others.length === 0);
+    setOnDutyMessage(onDuty.length === 0 ? "Nobody was on duty then." : null);
+    filterOnDutyRangers();
+    updateOnDutySubmit();
+}
+
+function setOnDutyMessage(message: string|null): void {
+    el.onDutyMessage.textContent = message??"";
+    el.onDutyMessage.classList.toggle("hidden", message == null);
+}
+
+function onDutyRows(): HTMLLIElement[] {
+    return Array.from(el.onDutyModal.querySelectorAll<HTMLLIElement>("li[data-handle]"));
+}
+
+export function filterOnDutyRangers(): void {
+    const filter = normalize(el.onDutyFilter.value);
+    for (const li of onDutyRows()) {
+        const text = normalize(`${li.dataset["handle"]} ${li.dataset["detail"]}`);
+        li.classList.toggle("hidden", !text.includes(filter));
+    }
+}
+
+function pickOnDutyRanger(e: Event): void {
+    const checkbox = e.target;
+    if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") {
+        return;
+    }
+    const handle = checkbox.closest("li")?.dataset["handle"];
+    if (handle) {
+        onDutyChoices.set(handle, checkbox.checked);
+    }
+    updateOnDutySubmit();
+}
+
+interface OnDutyChanges {
+    adds: ims.OnDutyRanger[];
+    removes: string[];
+}
+
+function pendingOnDutyChanges(): OnDutyChanges {
+    const changes: OnDutyChanges = {adds: [], removes: []};
+    for (const li of onDutyRows()) {
+        const checked = li.querySelector("input")!.checked;
+        const attached = li.dataset["attached"] === "true";
+        const handle = li.dataset["handle"]!;
+        if (checked && !attached) {
+            changes.adds.push({handle: handle, position: li.dataset["position"]!});
+        } else if (!checked && attached) {
+            changes.removes.push(handle);
+        }
+    }
+    return changes;
+}
+
+function rangerCount(n: number): string {
+    return `${n} Ranger${n === 1 ? "" : "s"}`;
+}
+
+function updateOnDutySubmit(): void {
+    const {adds, removes} = pendingOnDutyChanges();
+    let label = "No changes";
+    if (adds.length > 0 && removes.length > 0) {
+        label = `Add ${adds.length}, remove ${removes.length}`;
+    } else if (adds.length > 0) {
+        label = `Add ${rangerCount(adds.length)}`;
+    } else if (removes.length > 0) {
+        label = `Remove ${rangerCount(removes.length)}`;
+    }
+    el.onDutySubmit.textContent = label;
+    el.onDutySubmit.disabled = adds.length === 0 && removes.length === 0;
+}
+
+// Each Ranger added gets their position as their role. The roles of those
+// already on the Incident are left alone.
+export async function applyOnDutyChanges(): Promise<void> {
+    // Someone else may have changed the roster since the dialog was drawn.
+    // Re-adding a Ranger would overwrite the role they were given, and removing
+    // one who's already gone would just fail.
+    const attached = attachedRangerRoles();
+    const pending = pendingOnDutyChanges();
+    const adds = pending.adds.filter((r: ims.OnDutyRanger): boolean => !attached.has(r.handle));
+    const removes = pending.removes.filter((handle: string): boolean => attached.has(handle));
+    onDutyModal.hide();
+    if (adds.length === 0 && removes.length === 0) {
+        return;
+    }
+
+    if (ims.pathIds.incidentNumber == null) {
+        // Incident doesn't exist yet. Create it first.
+        const {err} = await sendEdits({});
+        if (err != null) {
+            return;
+        }
+    }
+
+    const rangerURL = (handle: string): string => (
+        ims.urlReplace(url_incidentRanger)
+            .replace("<incident_number>", ims.pathIds.incidentNumber!.toString())
+            .replace("<ranger_name>", encodeURIComponent(handle))
+    );
+    const [addErrs, removeErrs] = await Promise.all([
+        Promise.all(adds.map((ranger: ims.OnDutyRanger): Promise<string|null> =>
+            chainMutation(async (): Promise<string|null> => {
+                const {err} = await ims.fetchNoThrow(rangerURL(ranger.handle), {
+                    body: JSON.stringify({handle: ranger.handle, role: ranger.position}),
+                });
+                return err === null ? null : `${ranger.handle} (${err})`;
+            }),
+        )),
+        Promise.all(removes.map((handle: string): Promise<string|null> =>
+            chainMutation(async (): Promise<string|null> => {
+                const {err} = await ims.fetchNoThrow(rangerURL(handle), {method: "DELETE"});
+                return err === null ? null : `${handle} (${err})`;
+            }),
+        )),
+    ]);
+    const failures: string[] = [];
+    const failedAdds = addErrs.filter((err: string|null): boolean => err !== null);
+    if (failedAdds.length > 0) {
+        failures.push(`Failed to add Rangers: ${failedAdds.join(", ")}`);
+    }
+    const failedRemoves = removeErrs.filter((err: string|null): boolean => err !== null);
+    if (failedRemoves.length > 0) {
+        failures.push(`Failed to remove Rangers: ${failedRemoves.join(", ")}`);
+    }
+    if (failures.length > 0) {
+        ims.setErrorMessage(failures.join(". "));
+    }
+}
 
 export async function addIncidentType(): Promise<void> {
     let typeInput = el.incidentTypeAdd.value;

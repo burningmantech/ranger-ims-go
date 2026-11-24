@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -114,7 +116,10 @@ type ClubhouseSource struct {
 	dbq *DBQ
 }
 
-var _ Source = (*ClubhouseSource)(nil)
+var (
+	_ Source       = (*ClubhouseSource)(nil)
+	_ OnDutySource = (*ClubhouseSource)(nil)
+)
 
 func NewClubhouseSource(dbq *DBQ) *ClubhouseSource {
 	return &ClubhouseSource{dbq: dbq}
@@ -147,7 +152,7 @@ func (s *ClubhouseSource) FetchUsers(ctx context.Context) (map[int64]*User, erro
 			Email:              person.Email.String,
 			Status:             string(person.Status),
 			Onsite:             person.OnSite,
-			Password:           person.Password.String,
+			Password:           person.Password,
 			PositionIDs:        nil,
 			PositionNames:      nil,
 			TeamIDs:            nil,
@@ -179,11 +184,11 @@ func (s *ClubhouseSource) FetchUsers(ctx context.Context) (map[int64]*User, erro
 		}
 	}
 	for _, pod := range personsOnDuty {
-		if _, ok := m[int64(pod.PersonID)]; ok {
+		if _, ok := m[pod.PersonID]; ok {
 			posID := int64(pod.PositionID)
-			m[int64(pod.PersonID)].OnDutyPositionID = &posID
+			m[pod.PersonID].OnDutyPositionID = &posID
 			if pos, ok := positions[int64(pod.PositionID)]; ok {
-				m[int64(pod.PersonID)].OnDutyPositionName = &pos
+				m[pod.PersonID].OnDutyPositionName = &pos
 			}
 		}
 	}
@@ -200,6 +205,28 @@ func (s *ClubhouseSource) FetchPositions(ctx context.Context) (map[int64]string,
 		positions[row.ID] = row.Title
 	}
 	return positions, nil
+}
+
+func (s *ClubhouseSource) FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyRanger, error) {
+	secondsAgo := max(int64(time.Since(at).Seconds()), 0)
+	rows, err := s.dbq.OnDutyRangers(ctx, s.dbq, chqueries.OnDutyRangersParams{SecondsAgo: secondsAgo})
+	if err != nil {
+		return nil, fmt.Errorf("[OnDutyRangers]: %w", err)
+	}
+	// Someone with more than one open shift (a missed sign-out) is listed once,
+	// in their latest position. The rows come oldest shift first.
+	positions := make(map[string]string, len(rows))
+	for _, row := range rows {
+		positions[row.Callsign] = row.Title
+	}
+	onDuty := make([]OnDutyRanger, 0, len(positions))
+	for handle, position := range positions {
+		onDuty = append(onDuty, OnDutyRanger{Handle: handle, Position: position})
+	}
+	slices.SortFunc(onDuty, func(a, b OnDutyRanger) int {
+		return strings.Compare(a.Handle, b.Handle)
+	})
+	return onDuty, nil
 }
 
 func (s *ClubhouseSource) FetchTeams(ctx context.Context) (map[int64]string, error) {
@@ -228,6 +255,10 @@ func (l DBQ) Positions(ctx context.Context, db chqueries.DBTX) ([]chqueries.Posi
 
 func (l DBQ) Persons(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonsRow, error) {
 	return l.q.Persons(ctx, db)
+}
+
+func (l DBQ) OnDutyRangers(ctx context.Context, db chqueries.DBTX, arg chqueries.OnDutyRangersParams) ([]chqueries.OnDutyRangersRow, error) {
+	return l.q.OnDutyRangers(ctx, db, arg)
 }
 
 func (l DBQ) PersonsOnDuty(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonsOnDutyRow, error) {

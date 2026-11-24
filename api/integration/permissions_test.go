@@ -164,6 +164,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 	deleteVisitRanger := MethodURL{http.MethodDelete, eventPath + "/visits/1/rangers/some_name"}
 	getPlaces := MethodURL{http.MethodGet, eventPath + "/places"}
 	getDayNames := MethodURL{http.MethodGet, eventPath + "/day_names"}
+	getOnDuty := MethodURL{http.MethodGet, eventPath + "/on_duty"}
 
 	allPerms := []MethodURL{
 		getIncidents,
@@ -197,6 +198,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		deleteVisitRanger,
 		getPlaces,
 		getDayNames,
+		getOnDuty,
 	}
 	reporter := []MethodURL{
 		getFieldReports,
@@ -220,6 +222,7 @@ func TestEventEndpoints_ForNoEventPerms(t *testing.T) {
 		getVisitAttachment,
 		getPlaces,
 		getDayNames,
+		getOnDuty,
 	}
 
 	// TODO: section for visit writers?

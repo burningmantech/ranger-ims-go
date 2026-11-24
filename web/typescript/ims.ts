@@ -3333,6 +3333,8 @@ export type AuthenticatedAuthInfo = {
     // Whether this server has a Burning Man API key, and so can pull an event's
     // places from that API.
     places_import_allowed?: boolean,
+    // Whether the directory knows who is on duty, i.e. it's the Clubhouse.
+    on_duty_available?: boolean,
 }
 
 export type AuthInfo = UnauthenticatedAuthInfo | AuthenticatedAuthInfo;
@@ -3345,6 +3347,11 @@ export type AuthInfoEventAccess = {
     readVisits: boolean,
     writeVisits: boolean,
     attachFiles: boolean,
+}
+
+export type OnDutyRanger = {
+    handle: string;
+    position: string;
 }
 
 export type Personnel = {
@@ -3500,9 +3507,10 @@ export function parsePickerInput(input: string): Date|undefined {
 // show only if loadDayNames has finished before a date is set.
 export function newFlatpickr(
     selector: string|Node, altInputId: string, onChange: FlatpickrEventFunc,
-    startAtNow?: boolean,
+    startAtNow?: boolean, dialog?: HTMLDialogElement,
 ): Flatpickr {
-    return newFlatpickrInternal(selector, {
+    const fp = newFlatpickrInternal(selector, {
+        ...(dialog == null ? {} : {appendTo: dialog, position: positionCalendarInDialog}),
         altInput: true,
         altFormat: pickerAltFormat,
         enableTime: true,
@@ -3538,6 +3546,42 @@ export function newFlatpickr(
             instance.setDate(instance.altInput!.value, true, instance.config.altFormat!);
         },
     });
+    if (dialog != null) {
+        // The calendar is fixed to the viewport, so it has to follow its input
+        // when the dialog's content scrolls. Scroll events don't bubble, hence
+        // the capture.
+        dialog.addEventListener("scroll", (): void => {
+            if (fp.isOpen) {
+                positionCalendarInDialog(fp);
+            }
+        }, true);
+    }
+    return fp;
+}
+
+// Places the calendar of a picker inside a modal <dialog>. A calendar at the
+// end of <body> would be covered by the dialog, and one beside its input would
+// be clipped by the dialog's scrolling content, so instead it's appended to the
+// <dialog> itself, which doesn't scroll, and fixed to the viewport by the input.
+function positionCalendarInDialog(instance: Flatpickr, positionElement?: HTMLElement): void {
+    const calendar = instance.calendarContainer;
+    const anchor = positionElement ?? instance.altInput ?? instance.input;
+    if (calendar == null || anchor == null) {
+        return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    // As in flatpickr's own positioning, measure the children, since the
+    // calendar itself may not have been laid out yet.
+    const height = Array.from(calendar.children)
+        .reduce((sum: number, child: Element): number => sum + (child as HTMLElement).offsetHeight, 0);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const above = spaceBelow < height + 2 && rect.top > spaceBelow;
+    calendar.style.position = "fixed";
+    calendar.style.top = `${above ? Math.max(0, rect.top - height - 2) : rect.bottom + 2}px`;
+    calendar.style.left = `${Math.max(0, Math.min(rect.left, window.innerWidth - calendar.offsetWidth))}px`;
+    calendar.style.right = "auto";
+    calendar.classList.toggle("arrowTop", !above);
+    calendar.classList.toggle("arrowBottom", above);
 }
 
 // Point an unset picker at the current date and time, so that opening it lands
@@ -3585,6 +3629,9 @@ export interface FlatpickrOptions {
     parseDate?: (input: string, format: string) => Date|undefined;
     time_24hr?: boolean;
     minuteIncrement?: number;
+    // Where the calendar goes in the DOM, by default the end of <body>.
+    appendTo?: HTMLElement;
+    position?: string|((instance: Flatpickr, positionElement?: HTMLElement) => void);
     defaultHour?: number;
     defaultMinute?: number;
     now?: Date;
@@ -3602,6 +3649,8 @@ export interface Flatpickr {
     isMobile?: boolean;
     hourElement?: HTMLInputElement;
     minuteElement?: HTMLInputElement;
+    calendarContainer?: HTMLElement;
+    isOpen?: boolean;
     // The calendar marks this day as "today".
     now?: Date;
     setDate(date: Date|string|Date[], triggerChange: boolean, dateStrFormat: string): void;

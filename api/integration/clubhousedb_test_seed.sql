@@ -18,9 +18,12 @@ values
 ;
 
 insert into `position`
-(`id`, `title`)
+(`id`, `title`, `all_rangers`)
 values
-(7000, "Nooperator")
+(7000, "Nooperator", false),
+-- An all_rangers position is left out of the directory's positions,
+-- but the on-duty list still names it.
+(7001, "Dirt", true)
 ;
 
 insert into `person_position`
@@ -44,5 +47,10 @@ values
 insert into `timesheet`
 (`person_id`, `position_id`, `on_duty`, `off_duty`)
 values
-(6001, 7000, now(), null)
+(6001, 7000, now(), null),
+-- Two open shifts, from a missed sign-out. The on-duty list shows the newer.
+(6000, 7000, date_sub(now(), interval 2 hour), null),
+(6000, 7001, date_sub(now(), interval 1 hour), null),
+-- A finished shift, for looking back at who was on duty earlier.
+(6001, 7000, date_sub(now(), interval 5 hour), date_sub(now(), interval 3 hour))
 ;

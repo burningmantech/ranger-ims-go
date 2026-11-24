@@ -24,3 +24,9 @@ type Person struct {
 	Onsite      bool   `json:"onsite"`
 	DirectoryID int64  `json:"directory_id,omitzero"`
 }
+
+// OnDutyRanger is a Ranger who is signed in to a position right now.
+type OnDutyRanger struct {
+	Handle   string `json:"handle"`
+	Position string `json:"position"`
+}

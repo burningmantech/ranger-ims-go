@@ -115,6 +115,9 @@ To change the IMS schema:
 - DB store: `MariaDB`, or `noop` (tests only). Attachments: `local` or `s3`.
 - `IMS_TIME_ZONE` (default `America/Los_Angeles`): the zone the UI shows and takes every date and time
   in, whatever the viewer's device says
+- `IMS_DMS_TIME_ZONE` (default `America/Phoenix`): the zone of the Clubhouse's zoneless datetimes. The
+  Clubhouse connection's driver `Loc` is set to it, so pass and scan `time.Time`s rather than comparing
+  against the database's `now()`
 - `IMS_BM_API_KEY` / `IMS_BM_API_URL`: optional; enable importing Places from the Burning Man API
 - `IMS_ADMINS`: handles with unrestricted access
 - `IMS_DISABLE_PPROF`: turns off the admin-only pprof endpoints (`/ims/api/debug/pprof/*`, `api/pprof.go`),

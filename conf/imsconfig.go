@@ -78,6 +78,7 @@ func DefaultIMS() *IMSConfig {
 				Password: "",
 				// Same reasoning as the IMS DB's MaxOpenConns.
 				MaxOpenConns: 20,
+				TimeZone:     "America/Phoenix",
 			},
 			InMemoryCacheTTL: 5 * time.Minute,
 		},
@@ -107,6 +108,11 @@ func (c *IMSConfig) Validate() error {
 	errs = append(errs, c.Directory.Directory.Validate())
 	if c.Directory.Directory != DirectoryTypeClubhouseDB {
 		c.Directory.ClubhouseDB = ClubhouseDB{}
+	} else {
+		_, err := time.LoadLocation(c.Directory.ClubhouseDB.TimeZone)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("invalid Clubhouse DB time zone: %w", err))
+		}
 	}
 
 	// Deployment
@@ -355,6 +361,19 @@ type ClubhouseDB struct {
 	// #nosec G117 // Exported secret struct field
 	Password     string `redact:"true"`
 	MaxOpenConns int32
+	// TimeZone is the IANA name of the zone in which the Clubhouse writes its
+	// datetimes. They're zoneless in the database, so this is what says which
+	// instant one names.
+	TimeZone string
+}
+
+// Location is the time.Location for TimeZone. An empty TimeZone means UTC.
+func (c ClubhouseDB) Location() *time.Location {
+	loc, err := time.LoadLocation(c.TimeZone)
+	if err != nil {
+		panic(fmt.Sprintf("unvalidated Clubhouse DB time zone %q: %v", c.TimeZone, err))
+	}
+	return loc
 }
 
 type LocalAttachments struct {

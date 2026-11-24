@@ -27,13 +27,10 @@ where
 ;
 
 -- name: OnDutyRangers :many
--- Who was on duty some seconds ago, and in what position.
+-- Who was on duty at a moment, and in what position.
 --
 -- Unlike PersonsOnDuty, this names every position, including the all_rangers ones
 -- that the Positions query leaves out. The statuses match those of Persons.
---
--- The Clubhouse stores its times as zoneless local datetimes, so the moment is
--- given relative to the database's own now(), rather than as a datetime.
 select
     person.callsign,
     position.title
@@ -42,11 +39,10 @@ from
     join person on person.id = timesheet.person_id
     join position on position.id = timesheet.position_id
 where
-    timesheet.on_duty <= date_sub(now(), interval cast(sqlc.arg(seconds_ago) as signed) second)
-    and timesheet.on_duty > date_sub(now(), interval cast(sqlc.arg(seconds_ago) as signed) + 60 * 86400 second)
+    timesheet.on_duty <= cast(sqlc.arg(at) as datetime)
     and (
         timesheet.off_duty is null
-        or timesheet.off_duty > date_sub(now(), interval cast(sqlc.arg(seconds_ago) as signed) second)
+        or timesheet.off_duty > cast(sqlc.arg(at) as datetime)
     )
     and person.status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha')
 order by

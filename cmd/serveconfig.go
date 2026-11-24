@@ -155,6 +155,9 @@ func mustApplyEnvConfig(baseCfg *conf.IMSConfig, envFileName string) *conf.IMSCo
 	if v, ok := lookupEnv("IMS_DMS_PASSWORD"); ok {
 		baseCfg.Directory.ClubhouseDB.Password = v
 	}
+	if v, ok := lookupEnv("IMS_DMS_TIME_ZONE"); ok {
+		baseCfg.Directory.ClubhouseDB.TimeZone = v
+	}
 	if v, ok := lookupEnv("IMS_ATTACHMENTS_STORE"); ok {
 		baseCfg.AttachmentsStore.Type = conf.AttachmentsStoreType(v)
 	}

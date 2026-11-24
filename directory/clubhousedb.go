@@ -83,6 +83,10 @@ func MySQLConfig(chDBCfg conf.ClubhouseDB) *mysql.Config {
 	cfg.Addr = net.JoinHostPort(chDBCfg.HostName, conv.FormatInt(chDBCfg.HostPort))
 	cfg.DBName = chDBCfg.Database
 	cfg.MultiStatements = true
+	// The Clubhouse's datetimes are zoneless local times. With Loc, the driver
+	// writes time.Time parameters, and reads datetimes back, in that zone.
+	cfg.Loc = chDBCfg.Location()
+	cfg.ParseTime = true
 	// Require TLS, but don't verify the CA. We almost certainly don't use real
 	// signed certificates on the playa. It'd be good for us to start using those
 	// in the future though, and to switch this to "true".
@@ -208,8 +212,7 @@ func (s *ClubhouseSource) FetchPositions(ctx context.Context) (map[int64]string,
 }
 
 func (s *ClubhouseSource) FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyRanger, error) {
-	secondsAgo := max(int64(time.Since(at).Seconds()), 0)
-	rows, err := s.dbq.OnDutyRangers(ctx, s.dbq, chqueries.OnDutyRangersParams{SecondsAgo: secondsAgo})
+	rows, err := s.dbq.OnDutyRangers(ctx, s.dbq, chqueries.OnDutyRangersParams{At: at})
 	if err != nil {
 		return nil, fmt.Errorf("[OnDutyRangers]: %w", err)
 	}

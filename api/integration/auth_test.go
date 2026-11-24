@@ -96,6 +96,8 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 		// The test server is configured with a Burning Man API key. This says
 		// nothing about whether this user may use it.
 		PlacesImportAllowed: true,
+		// The test server's directory is the Clubhouse, which has a timesheet.
+		OnDutyAvailable: true,
 	}, getAuth)
 	require.NoError(t, resp.Body.Close())
 
@@ -108,6 +110,7 @@ func TestGetAuthAPIAuthorization(t *testing.T) {
 		User:                userAdminHandle,
 		Admin:               true,
 		PlacesImportAllowed: true,
+		OnDutyAvailable:     true,
 	}, getAuth)
 	require.NoError(t, resp.Body.Close())
 
@@ -155,6 +158,7 @@ func TestGetAuthWithEvent(t *testing.T) {
 		User:                userAdminHandle,
 		Admin:               true,
 		PlacesImportAllowed: true,
+		OnDutyAvailable:     true,
 		EventAccess: map[string]api.AccessForEvent{
 			eventName: {
 				EventID:           eventID,

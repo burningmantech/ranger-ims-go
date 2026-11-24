@@ -185,6 +185,10 @@ type GetAuthResponse struct {
 	// PlacesImportAllowed tells the admin places page whether this server has a
 	// Burning Man API key, and so can pull an event's places from that API.
 	PlacesImportAllowed bool `json:"places_import_allowed"`
+
+	// OnDutyAvailable tells the Incident page whether the directory knows who
+	// is on duty, and so whether to offer adding on-duty Rangers.
+	OnDutyAvailable bool `json:"on_duty_available"`
 }
 
 type AccessForEvent struct {
@@ -218,6 +222,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 			EventAccess:          nil,
 			EventDeletionAllowed: false,
 			PlacesImportAllowed:  false,
+			OnDutyAvailable:      false,
 		}
 		return resp, nil //lint:ignore nilerr since the jwtCtx.Error is irrelevant
 	}
@@ -234,6 +239,7 @@ func (action GetAuth) getAuth(req *http.Request) (GetAuthResponse, *herr.HTTPErr
 		EventAccess:          nil,
 		EventDeletionAllowed: action.eventDeletionEnabled,
 		PlacesImportAllowed:  action.bmAPIEnabled,
+		OnDutyAvailable:      action.userStore.OnDutyAvailable(),
 	}
 	// event_id is an optional query param for this endpoint
 	eventName := req.FormValue("event_id")

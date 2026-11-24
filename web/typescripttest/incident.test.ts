@@ -35,12 +35,21 @@ let serverPlaces: ims.Places;
 let serverFieldReports: ims.FieldReport[];
 let serverVisits: ims.Visit[];
 let serverDayNames: ims.EventDayName[];
+let serverOnDutyAvailable: boolean;
+let serverOnDuty: ims.OnDutyRanger[];
 
 beforeEach((): void => {
     vi.resetModules();
     loadFixture("incident.html");
     window.history.replaceState(null, "", `/ims/app/events/${eventName}/incidents/1`);
     serverDayNames = [];
+    serverOnDutyAvailable = true;
+    serverOnDuty = [
+        { handle: "Hot Slots", position: "Dirt" },
+        { handle: "Tool", position: "Green Dot" },
+        { handle: "Tulsa", position: "Dirt" },
+        { handle: "Zebra", position: "Echelon Field" },
+    ];
 
     // requestEventSourceLock requires a secure context, which happy-dom
     // doesn't claim to be, and the Web Locks API, which happy-dom leaves
@@ -154,7 +163,11 @@ function incidentRoutes(url: string, init?: RequestInit): Response | undefined {
             user: "Tester",
             admin: false,
             event_access: { [eventName]: serverEventAccess },
+            on_duty_available: serverOnDutyAvailable,
         });
+    }
+    if (url.startsWith(`/ims/api/events/${eventName}/on_duty?at=`)) {
+        return jsonResponse(serverOnDuty);
     }
     if (url === "/ims/api/events") {
         return jsonResponse(serverEvents);
@@ -342,13 +355,6 @@ test("rangers and incident types are drawn with their add datalists", async (): 
     expect(hotSlotsLink.textContent).toBe("Hot Slots");
     expect(hotSlotsLink.href).toBe("https://ranger-clubhouse.burningman.org/person/1234");
     expect(rangerItems[1]!.querySelector("input")!.value).toBe("lead");
-
-    // The On-Duty report link is pointed at the incident's start time.
-    const onDuty = document.getElementById("onduty_link") as HTMLAnchorElement;
-    expect(onDuty.href).toBe(
-        "https://ranger-clubhouse.burningman.org/reports/on-duty" +
-        "?duty_date=" + encodeURIComponent("2025-08-25T10:00:00.000Z"),
-    );
 
     // The Ranger add datalist holds all personnel except auditors.
     const handleOptions = [...document.querySelectorAll<HTMLOptionElement>("#ranger_handles option")]
@@ -688,6 +694,378 @@ test("removeRanger and setRangerRole hit the per-Ranger endpoint", async (): Pro
         { handle: "Tool", role: "medic" },
     ]);
     expect(roleInput.classList.contains("is-valid")).toBe(true);
+});
+
+// The rows of one of the on-duty dialog's lists, as "handle|detail|checked|hidden".
+function onDutyRows(listId: string = "on_duty_list"): string[] {
+    return Array.from(document.querySelectorAll<HTMLLIElement>(`#${listId} li`)).map((li: HTMLLIElement): string => {
+        return [
+            li.querySelector(".on-duty-handle")!.textContent,
+            li.querySelector(".on-duty-position")!.textContent,
+            li.querySelector("input")!.checked ? "checked" : "",
+            li.classList.contains("hidden") ? "hidden" : "",
+        ].join("|");
+    });
+}
+
+function setOnDutyChecked(handle: string, checked: boolean): void {
+    const checkbox = document.querySelector<HTMLInputElement>(`#onDutyModal li[data-handle="${handle}"] input`)!;
+    checkbox.checked = checked;
+    change(checkbox);
+}
+
+function onDutySubmit(): HTMLButtonElement {
+    return document.getElementById("on_duty_submit") as HTMLButtonElement;
+}
+
+// The as-of times the dialog asked the server about, oldest first.
+function onDutyRequestTimes(mock: ReturnType<typeof mockFetch>): string[] {
+    return requestsMatching(mock, /\/on_duty\?at=/)
+        .map((r: RecordedRequest): string => decodeURIComponent(r.url.split("?at=")[1]!));
+}
+
+function onDutyPicker(): MockFlatpickr {
+    return MockFlatpickr.instances.find((f: MockFlatpickr): boolean => f.input.id === "on_duty_at")!;
+}
+
+test("the On duty button shows when the directory knows who's on duty", async (): Promise<void> => {
+    await initIncidentPage();
+    expect(document.getElementById("on_duty_add")!.classList.contains("hidden")).toBe(false);
+});
+
+test("the On duty button stays hidden when the directory has no timesheet", async (): Promise<void> => {
+    serverOnDutyAvailable = false;
+    await initIncidentPage();
+    expect(document.getElementById("on_duty_add")!.classList.contains("hidden")).toBe(true);
+});
+
+test("the On duty button stays hidden from a reader who can't edit the incident", async (): Promise<void> => {
+    serverEventAccess.writeIncidents = false;
+    await initIncidentPage();
+    expect(document.getElementById("on_duty_add")!.classList.contains("hidden")).toBe(true);
+});
+
+test("the on-duty dialog opens at the incident's start, checking the Rangers already on it", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    document.getElementById("on_duty_add")!.click();
+    await vi.waitFor((): void => {
+        expect(onDutyRows().length).toBe(4);
+    });
+
+    expect((document.getElementById("onDutyModal") as HTMLDialogElement).open).toBe(true);
+    expect(onDutyRequestTimes(mock)).toEqual(["2025-08-25T10:00:00.000Z"]);
+    expect(inputValue("alt_on_duty_at")).toBe("Mon, Aug 25, 2025 @ 03:00");
+    expect((document.getElementById("onduty_link") as HTMLAnchorElement).href).toBe(
+        "https://ranger-clubhouse.burningman.org/timesheets/on-duty?duty_date=2025-08-25+03%3A00",
+    );
+    expect(onDutyRows()).toEqual([
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Tool (on Incident)|Green Dot|checked|",
+        "Tulsa|Dirt||",
+        "Zebra|Echelon Field||",
+    ]);
+    // Everyone on the incident was on duty then.
+    expect(onDutyRows("on_duty_other_list")).toEqual([]);
+    expect(document.getElementById("on_duty_other_heading")!.classList.contains("hidden")).toBe(true);
+    expect(onDutySubmit().textContent).toBe("No changes");
+    expect(onDutySubmit().disabled).toBe(true);
+});
+
+test("the on-duty picker's calendar sits in the dialog, below its input or above it", async (): Promise<void> => {
+    await initIncidentPage();
+    const fp = onDutyPicker();
+    const config = fp.config as typeof fp.config & {
+        appendTo?: HTMLElement,
+        position?: (instance: MockFlatpickr) => void,
+    };
+    expect(config.appendTo).toBe(document.getElementById("onDutyModal"));
+    // The incident's own pickers aren't in a dialog.
+    const startedConfig = MockFlatpickr.instances.find(
+        (f: MockFlatpickr): boolean => f.input.id === "started_datetime")!.config as typeof config;
+    expect(startedConfig.appendTo).toBeUndefined();
+
+    const calendar = document.createElement("div");
+    const month = document.createElement("div");
+    Object.defineProperty(month, "offsetHeight", { value: 300 });
+    calendar.append(month);
+    (fp as MockFlatpickr & { calendarContainer: HTMLElement }).calendarContainer = calendar;
+    vi.stubGlobal("innerHeight", 768);
+
+    // There's room below the input.
+    vi.spyOn(fp.altInput, "getBoundingClientRect").mockReturnValue(new DOMRect(20, 100, 200, 30));
+    config.position!(fp);
+    expect(calendar.style.position).toBe("fixed");
+    expect(calendar.style.top).toBe("132px");
+    expect(calendar.style.left).toBe("20px");
+    expect(calendar.classList.contains("arrowTop")).toBe(true);
+
+    // Near the bottom of the window, it opens upward instead.
+    vi.spyOn(fp.altInput, "getBoundingClientRect").mockReturnValue(new DOMRect(20, 600, 200, 30));
+    config.position!(fp);
+    expect(calendar.style.top).toBe("298px");
+    expect(calendar.classList.contains("arrowBottom")).toBe(true);
+    expect(calendar.classList.contains("arrowTop")).toBe(false);
+});
+
+test("the on-duty dialog opens at now for an incident with no start time", async (): Promise<void> => {
+    delete serverIncident.started;
+    const mock = await initIncidentPage();
+    const before = Date.now();
+    await page.showOnDutyRangers();
+
+    const [at] = onDutyRequestTimes(mock);
+    expect(Date.parse(at!)).toBeGreaterThanOrEqual(before - 1000);
+});
+
+test("Rangers on the incident who weren't on duty then are listed with their roles", async (): Promise<void> => {
+    serverOnDuty = [
+        { handle: "Hot Slots", position: "Dirt" },
+        { handle: "Tulsa", position: "Dirt" },
+    ];
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+
+    expect(onDutyRows()).toEqual([
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Tulsa|Dirt||",
+    ]);
+    expect(onDutyRows("on_duty_other_list")).toEqual([
+        "Tool (on Incident)|lead|checked|",
+    ]);
+    expect(document.getElementById("on_duty_other_heading")!.classList.contains("hidden")).toBe(false);
+});
+
+test("the on-duty dialog's button counts the Rangers to add and remove", async (): Promise<void> => {
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+
+    setOnDutyChecked("Tulsa", true);
+    expect(onDutySubmit().textContent).toBe("Add 1 Ranger");
+    expect(onDutySubmit().disabled).toBe(false);
+
+    setOnDutyChecked("Zebra", true);
+    expect(onDutySubmit().textContent).toBe("Add 2 Rangers");
+
+    setOnDutyChecked("Tool", false);
+    expect(onDutySubmit().textContent).toBe("Add 2, remove 1");
+
+    setOnDutyChecked("Tulsa", false);
+    setOnDutyChecked("Zebra", false);
+    expect(onDutySubmit().textContent).toBe("Remove 1 Ranger");
+
+    setOnDutyChecked("Hot Slots", false);
+    expect(onDutySubmit().textContent).toBe("Remove 2 Rangers");
+
+    setOnDutyChecked("Hot Slots", true);
+    setOnDutyChecked("Tool", true);
+    expect(onDutySubmit().textContent).toBe("No changes");
+    expect(onDutySubmit().disabled).toBe(true);
+});
+
+test("changing the as-of time reloads the list and keeps the user's choices", async (): Promise<void> => {
+    const mock = await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/on_duty?at=${encodeURIComponent("2025-08-25T15:00:00.000Z")}`) {
+            return jsonResponse([
+                { handle: "Hot Slots", position: "Echelon Field" },
+                { handle: "Tulsa", position: "Green Dot" },
+            ]);
+        }
+        return incidentRoutes(url, init);
+    });
+    await page.showOnDutyRangers();
+    setOnDutyChecked("Tulsa", true);
+    setOnDutyChecked("Zebra", true);
+    setOnDutyChecked("Hot Slots", false);
+
+    // The calendar works in the browser's zone, so 08:00 on it is 08:00 in Los Angeles.
+    onDutyPicker().setDate(new Date(2025, 7, 25, 8, 0), true);
+    await vi.waitFor((): void => {
+        expect(onDutyRows()).toEqual([
+            "Hot Slots (on Incident)|Echelon Field||",
+            "Tulsa|Green Dot|checked|",
+        ]);
+    });
+    expect(onDutyRequestTimes(mock)).toEqual(["2025-08-25T10:00:00.000Z", "2025-08-25T15:00:00.000Z"]);
+    expect((document.getElementById("onduty_link") as HTMLAnchorElement).href).toBe(
+        "https://ranger-clubhouse.burningman.org/timesheets/on-duty?duty_date=2025-08-25+08%3A00",
+    );
+    expect(onDutyRows("on_duty_other_list")).toEqual([
+        "Tool (on Incident)|lead|checked|",
+    ]);
+    // Zebra wasn't on duty then, so there's no adding them from here.
+    expect(onDutySubmit().textContent).toBe("Add 1, remove 1");
+});
+
+test("the Now button reloads the list as of now", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    await page.showOnDutyRangers();
+    const before = Date.now();
+
+    document.getElementById("on_duty_at_now")!.click();
+    await vi.waitFor((): void => {
+        expect(onDutyRequestTimes(mock).length).toBe(2);
+    });
+    // The picker works to the minute.
+    expect(Date.parse(onDutyRequestTimes(mock)[1]!)).toBeGreaterThanOrEqual(before - 60_000);
+});
+
+test("the on-duty dialog filters both lists on handle, position, or role", async (): Promise<void> => {
+    serverOnDuty = [
+        { handle: "Hot Slots", position: "Dirt" },
+        { handle: "Tulsa", position: "Dirt" },
+        { handle: "Zebra", position: "Echelon Field" },
+    ];
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+    const filter = document.getElementById("on_duty_filter") as HTMLInputElement;
+
+    filter.value = " DIRT";
+    page.filterOnDutyRangers();
+    expect(onDutyRows()).toEqual([
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Tulsa|Dirt||",
+        "Zebra|Echelon Field||hidden",
+    ]);
+    expect(onDutyRows("on_duty_other_list")).toEqual([
+        "Tool (on Incident)|lead|checked|hidden",
+    ]);
+
+    filter.value = "lead";
+    page.filterOnDutyRangers();
+    expect(onDutyRows()).toEqual([
+        "Hot Slots (on Incident)|Dirt|checked|hidden",
+        "Tulsa|Dirt||hidden",
+        "Zebra|Echelon Field||hidden",
+    ]);
+    expect(onDutyRows("on_duty_other_list")).toEqual([
+        "Tool (on Incident)|lead|checked|",
+    ]);
+});
+
+test("the on-duty dialog says when nobody was on duty", async (): Promise<void> => {
+    serverOnDuty = [];
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+    const message = document.getElementById("on_duty_message")!;
+    expect(message.textContent).toBe("Nobody was on duty then.");
+    expect(message.classList.contains("hidden")).toBe(false);
+    expect(onDutyRows()).toEqual([]);
+    // The Rangers on the incident can still be removed.
+    expect(onDutyRows("on_duty_other_list")).toEqual([
+        "Hot Slots (on Incident)||checked|",
+        "Tool (on Incident)|lead|checked|",
+    ]);
+});
+
+test("the on-duty dialog shows a load failure", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url.startsWith(`/ims/api/events/${eventName}/on_duty?`)) {
+            return problemResponse("directory is down", 500);
+        }
+        return incidentRoutes(url, init);
+    });
+    await page.showOnDutyRangers();
+    expect(document.getElementById("on_duty_message")!.textContent).toContain("Failed to load on-duty Rangers");
+    expect(onDutyRows()).toEqual([]);
+    expect(onDutyRows("on_duty_other_list")).toEqual([]);
+});
+
+test("applying adds Rangers with their position as the role, and removes the unchecked", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    await page.showOnDutyRangers();
+    setOnDutyChecked("Tulsa", true);
+    setOnDutyChecked("Zebra", true);
+    setOnDutyChecked("Tool", false);
+
+    onDutySubmit().click();
+    await vi.waitFor((): void => {
+        expect(requestsMatching(mock, /\/incidents\/1\/rangers\//)).toEqual([
+            { method: "POST", url: "/ims/api/events/2025/incidents/1/rangers/Tulsa" },
+            { method: "POST", url: "/ims/api/events/2025/incidents/1/rangers/Zebra" },
+            { method: "DELETE", url: "/ims/api/events/2025/incidents/1/rangers/Tool" },
+        ]);
+    });
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1/rangers/Tulsa")).toEqual([
+        { handle: "Tulsa", role: "Dirt" },
+    ]);
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/1/rangers/Zebra")).toEqual([
+        { handle: "Zebra", role: "Echelon Field" },
+    ]);
+    expect((document.getElementById("onDutyModal") as HTMLDialogElement).open).toBe(false);
+});
+
+test("applying removes a Ranger from the not-on-duty list", async (): Promise<void> => {
+    serverOnDuty = [];
+    const mock = await initIncidentPage();
+    await page.showOnDutyRangers();
+    setOnDutyChecked("Tool", false);
+
+    await page.applyOnDutyChanges();
+    expect(requestsMatching(mock, /\/incidents\/1\/rangers\//)).toEqual([
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/rangers/Tool" },
+    ]);
+});
+
+test("applying skips changes someone else made while the dialog was open", async (): Promise<void> => {
+    const mock = await initIncidentPage();
+    await page.showOnDutyRangers();
+    setOnDutyChecked("Tulsa", true);
+    setOnDutyChecked("Zebra", true);
+    setOnDutyChecked("Tool", false);
+    setOnDutyChecked("Hot Slots", false);
+
+    // An incident broadcast brings in Tulsa, with a role of their own, and
+    // takes Tool off.
+    serverIncident.rangers = [{ handle: "Hot Slots" }, { handle: "Tulsa", role: "medic" }];
+    const channel = new BroadcastChannel("incident_update");
+    channel.postMessage({ event_id: eventId, incident_number: 1 });
+    await vi.waitFor((): void => {
+        expect(document.querySelector('#incident_rangers_list li[data-ranger-handle="Tulsa"]')).not.toBeNull();
+    });
+    channel.close();
+
+    await page.applyOnDutyChanges();
+    expect(requestsMatching(mock, /\/incidents\/1\/rangers\//)).toEqual([
+        { method: "POST", url: "/ims/api/events/2025/incidents/1/rangers/Zebra" },
+        { method: "DELETE", url: "/ims/api/events/2025/incidents/1/rangers/Hot%20Slots" },
+    ]);
+});
+
+test("adding on-duty Rangers to a new incident creates it first", async (): Promise<void> => {
+    window.history.replaceState(null, "", "/ims/app/events/2025/incidents/new");
+    const mock = await initIncidentPage(newIncidentRoutes);
+    await page.showOnDutyRangers();
+    setOnDutyChecked("Tulsa", true);
+
+    await page.applyOnDutyChanges();
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents")).toEqual([{ state: "new", priority: 3 }]);
+    expect(postedBodies(mock, "/ims/api/events/2025/incidents/42/rangers/Tulsa")).toEqual([
+        { handle: "Tulsa", role: "Dirt" },
+    ]);
+});
+
+test("failures to add or remove Rangers are reported by handle", async (): Promise<void> => {
+    await initIncidentPage((url: string, init?: RequestInit): Response | undefined => {
+        if (url === `/ims/api/events/${eventName}/incidents/1/rangers/Zebra`) {
+            return problemResponse("no such Ranger", 400);
+        }
+        if (url === `/ims/api/events/${eventName}/incidents/1/rangers/Tool`) {
+            return problemResponse("database is down", 500);
+        }
+        return incidentRoutes(url, init);
+    });
+    await page.showOnDutyRangers();
+    setOnDutyChecked("Tulsa", true);
+    setOnDutyChecked("Zebra", true);
+    setOnDutyChecked("Tool", false);
+    setOnDutyChecked("Hot Slots", false);
+
+    await page.applyOnDutyChanges();
+    const errorText = document.getElementById("error_text")!.textContent!;
+    expect(errorText).toContain("Failed to add Rangers: Zebra");
+    expect(errorText).toContain("Failed to remove Rangers: Tool");
+    expect(errorText).not.toContain("Tulsa");
+    expect(errorText).not.toContain("Hot Slots");
 });
 
 test("addIncidentType and removeIncidentType hit the per-type endpoint", async (): Promise<void> => {

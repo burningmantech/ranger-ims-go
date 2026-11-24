@@ -189,6 +189,8 @@ func AddToMux(
 	authed("POST /ims/api/events/{eventName}/places", UpdatePlaces{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogMetadata)
 	authed("POST /ims/api/events/{eventName}/places/import", ImportPlaces{db, userStore, cfg.Core.Admins, cfg.BurningManAPI, bmAPIHTTPClient}, LogMutation)
 
+	authed("GET /ims/api/events/{eventName}/on_duty", GetOnDutyRangers{db, userStore, cfg.Core.Admins}, LogNothing)
+
 	authed("GET /ims/api/events/{eventName}/day_names", GetEventDayNames{db, userStore, cfg.Core.Admins, cfg.Core.CacheControlShort}, LogNothing)
 	authed("POST /ims/api/events/{eventName}/day_names", UpdateEventDayNames{db, userStore, cfg.Core.Admins}, LogMutation)
 

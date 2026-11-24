@@ -48,5 +48,6 @@ values
 insert into `timesheet`
 (`person_id`, `position_id`, `on_duty`, `off_duty`)
 values
-(600, 702, now(), null)
+(600, 702, now(), null),
+(601, 701, now(), null)
 ;

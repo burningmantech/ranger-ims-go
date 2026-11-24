@@ -65,6 +65,52 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
       </div>
     </dialog>
 
+    <!-- Add and remove Rangers by who was on duty -->
+    <dialog class="ims-modal no-print" id="onDutyModal" aria-labelledby="onDutyModalLabel">
+      <div class="modal-content">
+        <div class="modal-header">
+          <p class="modal-title fs-5" id="onDutyModalLabel">On-Duty Rangers</p>
+          <button type="button" class="btn-close" data-ims-close aria-label="Close" />
+        </div>
+        <div class="modal-body">
+          <div class="input-group input-group-sm flex-nowrap mb-2">
+            <label class="control-label input-group-text" for="alt_on_duty_at">As of</label>
+            <input id="on_duty_at" type="text" class="form-control" />
+            <button id="on_duty_at_now" type="button" class="btn btn-outline-secondary">Now</button>
+          </div>
+          <input id="on_duty_filter" type="search" class="form-control form-control-sm mb-2"
+                 placeholder="Filter by handle or position" aria-label="Filter Rangers"
+                 { NoAutofill()... }
+          />
+          <p id="on_duty_message" class="text-body-secondary mb-0 hidden" role="status"></p>
+          <ul id="on_duty_list" class="list-group list-group-small">
+            <template id="on_duty_li_template">
+              <li class="list-group-item">
+                <label class="form-check-label d-flex gap-2 w-100">
+                  <input type="checkbox" class="form-check-input" />
+                  <span class="on-duty-handle"></span>
+                  <span class="on-duty-position text-body-secondary ms-auto"></span>
+                </label>
+              </li>
+            </template>
+          </ul>
+          <p id="on_duty_other_heading" class="control-label mt-3 mb-1 hidden">On this Incident, not on duty then</p>
+          <ul id="on_duty_other_list" class="list-group list-group-small"></ul>
+        </div>
+        <div class="modal-footer">
+          <a id="onduty_link" href="" target="_blank" class="link-body-emphasis small me-auto" title="Clubhouse On-Duty Report as of this time">
+            On-Duty Report
+            <span class="visually-hidden">(opens in a new tab)</span>
+            <svg fill="currentColor" class="bi" aria-hidden="true" focusable="false">
+              <use href="#box-arrow-up-right"></use>
+            </svg>
+          </a>
+          <button type="button" class="btn btn-sm btn-secondary" data-ims-close>Cancel</button>
+          <button id="on_duty_submit" type="button" class="btn btn-sm btn-primary" disabled>No changes</button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- Incident number, state, started -->
 
     <div class="row">
@@ -118,13 +164,6 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
         <div class="card">
           <h2 class="control-label card-header h6 mb-0">
           Rangers
-          <a id="onduty_link" href="" target="_blank" class="link-body-emphasis float-end no-print" title="On-Duty Report at the start of the Incident" tabindex="-1">
-            On-Duty
-            <span class="visually-hidden">report (opens in a new tab)</span>
-            <svg fill="currentColor" class="bi" aria-hidden="true" focusable="false">
-              <use href="#box-arrow-up-right"></use>
-            </svg>
-          </a>
           </h2>
           <ul id="incident_rangers_list" class="list-group list-group-flush list-group-small card-body">
             <template id="incident_rangers_li_template">
@@ -152,6 +191,10 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
             <datalist id="ranger_handles">
               <option value=""></option>
             </datalist>
+            <button id="on_duty_add" type="button" class="btn btn-sm btn-outline-secondary form-control-lite ms-auto hidden"
+                    title="Add or remove Rangers by who was on duty, giving each one added their position as their role">
+              On duty
+            </button>
           </div>
         </div>
       </div>

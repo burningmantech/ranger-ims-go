@@ -40,6 +40,19 @@ type Source interface {
 	FetchTeams(ctx context.Context) (map[int64]string, error)
 }
 
+// OnDutySource is implemented by the Sources that know who is currently signed
+// in to a position. Only the Clubhouse has a timesheet.
+type OnDutySource interface {
+	// FetchOnDuty returns the Rangers who were on duty at the given time, each
+	// once, sorted by handle. It's read live, since it changes minute to minute.
+	FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyRanger, error)
+}
+
+type OnDutyRanger struct {
+	Handle   string
+	Position string
+}
+
 type UserStore struct {
 	source        Source
 	userCache     *cache.InMemory[map[int64]*User]
@@ -109,6 +122,26 @@ func (store *UserStore) GetRangers(ctx context.Context) ([]imsjson.Person, error
 	}
 
 	return response, nil
+}
+
+// OnDutyAvailable reports whether this directory knows who is on duty.
+func (store *UserStore) OnDutyAvailable() bool {
+	_, ok := store.source.(OnDutySource)
+	return ok
+}
+
+// OnDuty returns the Rangers on duty at the given time, or nothing if the
+// directory doesn't track that.
+func (store *UserStore) OnDuty(ctx context.Context, at time.Time) ([]OnDutyRanger, error) {
+	src, ok := store.source.(OnDutySource)
+	if !ok {
+		return nil, nil
+	}
+	onDuty, err := src.FetchOnDuty(ctx, at)
+	if err != nil {
+		return nil, fmt.Errorf("[FetchOnDuty] %w", err)
+	}
+	return onDuty, nil
 }
 
 func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions, teams map[int64]string, err error) {

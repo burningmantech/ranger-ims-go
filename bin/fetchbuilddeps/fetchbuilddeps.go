@@ -59,30 +59,30 @@ func main() {
 	groupCtx := ctx
 
 	// https://getbootstrap.com/docs/5.3/getting-started/download/#cdn-via-jsdelivr
-	bootstrapVersion := "5.3.8"
+	bootstrapVersion := "5.3.9"
 	{
 		bootstrapDir := mustMakeSubRoot(staticExtRoot, "bootstrap")
 		defer logClose(bootstrapDir)
 		g.Go(existOrFetch(groupCtx, bootstrapDir,
 			"bootstrap.min.css",
 			"https://cdn.jsdelivr.net/npm/bootstrap@"+bootstrapVersion+"/dist/css/bootstrap.min.css",
-			"sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB",
+			"sha384-yEPZ7jP9S0QKiUQ0m3jjsO4ProIW7wvR9gXkI7JOGa2XVsw53Yke2bsdkBbjmmiX",
 		))
 	}
 	// https://cdn.datatables.net/#Release
-	datatablesVersion := "3.1.4"
+	datatablesVersion := "3.1.6"
 	{
 		datatablesDir := mustMakeSubRoot(staticExtRoot, "datatables")
 		defer logClose(datatablesDir)
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.min.js",
 			"https://cdn.datatables.net/"+datatablesVersion+"/js/dataTables.min.js",
-			"sha384-Lg8qwUDhp1uuDJinT3SMR9sxQyVjC/2NPPFkbPahEVgqBRrWGI6zfmrgPYTaVgrS",
+			"sha384-rVfYp8STHLI/DT3kKVVklJV5zZ6ftcylQbUjoULxlqrbHGJeZe9YcPLFMm10o2iM",
 		))
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.js",
 			"https://cdn.datatables.net/"+datatablesVersion+"/js/dataTables.bootstrap5.min.js",
-			"sha384-4d8X9sr6Gnv9AgIQn6bv3lmQxj5fD+9bVAun0/XMmdy7oPRvT0adfiUUiiYpi4Ck",
+			"sha384-2JCJ65zPWIsFF9Flk2ZSwukEbtRkZygX6+sTerFFqbL7dwPDVsMf2FR3r3XDAub0",
 		))
 		g.Go(existOrFetch(groupCtx, datatablesDir,
 			"dataTables.bootstrap5.min.css",

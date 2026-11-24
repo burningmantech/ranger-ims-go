@@ -44,13 +44,17 @@ values
 (6000, 8000)
 ;
 
+-- The Clubhouse writes America/Phoenix wall-clock times (UTC-7, with no DST),
+-- whatever the database server's own time zone is.
+set @phoenix_now = utc_timestamp() - interval 7 hour;
+
 insert into `timesheet`
 (`person_id`, `position_id`, `on_duty`, `off_duty`)
 values
-(6001, 7000, now(), null),
+(6001, 7000, @phoenix_now, null),
 -- Two open shifts, from a missed sign-out. The on-duty list shows the newer.
-(6000, 7000, date_sub(now(), interval 2 hour), null),
-(6000, 7001, date_sub(now(), interval 1 hour), null),
+(6000, 7000, @phoenix_now - interval 2 hour, null),
+(6000, 7001, @phoenix_now - interval 1 hour, null),
 -- A finished shift, for looking back at who was on duty earlier.
-(6001, 7000, date_sub(now(), interval 5 hour), date_sub(now(), interval 3 hour))
+(6001, 7000, @phoenix_now - interval 5 hour, @phoenix_now - interval 3 hour)
 ;

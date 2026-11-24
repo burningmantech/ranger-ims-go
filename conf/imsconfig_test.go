@@ -81,6 +81,21 @@ func TestValidateTimeZone(t *testing.T) {
 	require.Error(t, cfg.Validate())
 }
 
+func TestValidateClubhouseTimeZone(t *testing.T) {
+	t.Parallel()
+
+	cfg := conf.DefaultIMS()
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, "America/Phoenix", cfg.Directory.ClubhouseDB.Location().String())
+
+	cfg.Directory.ClubhouseDB.TimeZone = "Black_Rock/City"
+	require.ErrorContains(t, cfg.Validate(), "Clubhouse DB time zone")
+
+	// It doesn't matter when the Clubhouse DB isn't the directory.
+	cfg.Directory.Directory = conf.DirectoryTypeIMS
+	require.NoError(t, cfg.Validate())
+}
+
 func TestValidateLongTokens(t *testing.T) {
 	t.Parallel()
 

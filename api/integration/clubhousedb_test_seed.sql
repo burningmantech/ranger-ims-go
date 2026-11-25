@@ -53,10 +53,10 @@ insert into `timesheet`
 values
 (6001, 7000, @phoenix_now, null),
 -- Two open shifts, from a missed sign-out. IMS uses the newer.
-(6000, 7000, @phoenix_now - interval 2 hour, null),
+(6000, 7000, @phoenix_now - interval 5 hour, null),
 (6000, 7001, @phoenix_now - interval 1 hour, null),
 -- A finished shift, for looking back at who was on duty earlier.
-(6001, 7000, @phoenix_now - interval 5 hour, @phoenix_now - interval 3 hour)
+(6001, 7000, @phoenix_now - interval 5 hour, @phoenix_now - interval 1 hour)
 ;
 
 -- A slot spanning the last several hours and the next few, which the pods below
@@ -77,11 +77,20 @@ values
 (9002, "mitten", "vehicle", null, @phoenix_now - interval 6 hour, null, 9100)
 ;
 
+-- Mentored by the mentor pod above, so its members are grouped into that one,
+-- even after it has disbanded.
+insert into `pod`
+(`id`, `type`, `transport`, `location`, `formed_at`, `disbanded_at`, `slot_id`, `mentor_pod_id`)
+values
+(9003, "alpha", "bicycle", "9:00 & E", @phoenix_now - interval 6 hour, null, 9100, 9001)
+;
+
 insert into `person_pod`
 (`pod_id`, `person_id`, `joined_at`, `left_at`)
 values
 (9000, 6000, @phoenix_now - interval 2 hour, null),
 (9000, 6001, @phoenix_now - interval 30 minute, null),
-(9001, 6000, @phoenix_now - interval 2 hour, null),
-(9002, 6000, @phoenix_now - interval 30 minute, @phoenix_now - interval 10 minute)
+(9001, 6000, @phoenix_now - interval 5 hour, null),
+(9002, 6000, @phoenix_now - interval 30 minute, @phoenix_now - interval 10 minute),
+(9003, 6001, @phoenix_now - interval 5 hour, @phoenix_now - interval 1 hour)
 ;

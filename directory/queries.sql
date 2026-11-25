@@ -47,15 +47,18 @@ order by
 ;
 
 -- name: PodsOnDutyThen :many
+-- A pod with a mentor_pod_id is grouped into that mentor pod, which lends the
+-- group its details. Whether the mentor pod itself is out doesn't matter.
 select
-    pod.id as pod_id,
-    pod.type,
-    pod.transport,
-    pod.location,
+    grp.id as pod_id,
+    grp.type,
+    grp.transport,
+    grp.location,
     -- Someone with two open shifts is in here twice. sqlc can't parse
     -- json_arrayagg(distinct ...), so the Go code dedupes them.
     json_arrayagg(person_pod.person_id) as person_ids
 from pod
+    join pod as grp on grp.id = coalesce(pod.mentor_pod_id, pod.id)
     join slot       on slot.id = pod.slot_id
     join person_pod on person_pod.pod_id = pod.id
     join timesheet  on timesheet.person_id = person_pod.person_id
@@ -79,8 +82,9 @@ where slot.begins <= cast(sqlc.arg(at) as datetime)
         timesheet.off_duty is null
         or timesheet.off_duty > cast(sqlc.arg(at) as datetime)
     )
-group by pod.id, pod.type, pod.transport, pod.location
-order by pod.id
+group by grp.id, grp.type, grp.transport, grp.location
+-- Oldest first, by the newest pod in each group.
+order by max(pod.id)
 ;
 
 -- name: Positions :many

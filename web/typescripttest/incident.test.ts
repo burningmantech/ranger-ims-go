@@ -696,9 +696,19 @@ test("removeRanger and setRangerRole hit the per-Ranger endpoint", async (): Pro
     expect(roleInput.classList.contains("is-valid")).toBe(true);
 });
 
-// The rows of one of the on-duty dialog's lists, as "handle|detail|checked|hidden".
+// The rows of one of the on-duty dialog's lists, as "handle|detail|checked|hidden",
+// or "[label]|checked|hidden" for a group heading, with "mixed" for a pod whose
+// members are only partly checked.
 function onDutyRows(listId: string = "on_duty_list"): string[] {
     return Array.from(document.querySelectorAll<HTMLLIElement>(`#${listId} li`)).map((li: HTMLLIElement): string => {
+        if (li.dataset["groupHeader"] != null) {
+            const input = li.querySelector("input");
+            return [
+                `[${li.querySelector(".on-duty-group-label")!.textContent}]`,
+                input == null ? "" : input.indeterminate ? "mixed" : input.checked ? "checked" : "",
+                li.classList.contains("hidden") ? "hidden" : "",
+            ].join("|");
+        }
         return [
             li.querySelector(".on-duty-handle")!.textContent,
             li.querySelector(".on-duty-position")!.textContent,
@@ -712,6 +722,25 @@ function setOnDutyChecked(handle: string, checked: boolean): void {
     const checkbox = document.querySelector<HTMLInputElement>(`#onDutyModal li[data-handle="${handle}"] input`)!;
     checkbox.checked = checked;
     change(checkbox);
+}
+
+function setOnDutyPodChecked(podID: number, checked: boolean): void {
+    const checkbox = document.querySelector<HTMLInputElement>(`#onDutyModal li[data-group-header="${podID}"] input`)!;
+    checkbox.checked = checked;
+    change(checkbox);
+}
+
+const shiftPod: ims.OnDutyPod = { id: 1, type: "shift", transport: "bicycle", location: "3:00 & C" };
+const alphaPod: ims.OnDutyPod = { id: 2, type: "alpha", transport: "foot" };
+
+function podOnDuty(): ims.OnDutyRanger[] {
+    return [
+        { handle: "Bucket", position: "Dirt", pod: alphaPod },
+        { handle: "Hot Slots", position: "Dirt", pod: shiftPod },
+        { handle: "Tool", position: "Green Dot" },
+        { handle: "Tulsa", position: "Dirt" },
+        { handle: "Zebra", position: "Echelon Field", pod: shiftPod },
+    ];
 }
 
 function onDutySubmit(): HTMLButtonElement {
@@ -939,6 +968,107 @@ test("the on-duty dialog filters both lists on handle, position, or role", async
     ]);
     expect(onDutyRows("on_duty_other_list")).toEqual([
         "Tool (on Incident)|lead|checked|",
+    ]);
+});
+
+test("the on-duty dialog lists pods first, then the Rangers in no pod", async (): Promise<void> => {
+    serverOnDuty = podOnDuty();
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+
+    // The shift pod goes above the alpha pod, though Bucket sorts before Hot Slots.
+    expect(onDutyRows()).toEqual([
+        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Zebra|Echelon Field||",
+        "[Alpha pod \u00b7 on foot]||",
+        "Bucket|Dirt||",
+        "[Not in a pod]||",
+        "Tulsa|Dirt||",
+        "Tool (on Incident)|Green Dot|checked|",
+    ]);
+});
+
+test("the on-duty dialog has no Not in a pod heading when everyone is in one", async (): Promise<void> => {
+    serverOnDuty = [
+        { handle: "Hot Slots", position: "Dirt", pod: shiftPod },
+        { handle: "Zebra", position: "Echelon Field", pod: shiftPod },
+    ];
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+
+    expect(onDutyRows()).toEqual([
+        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Zebra|Echelon Field||",
+    ]);
+});
+
+test("a pod's checkbox checks and unchecks all its members", async (): Promise<void> => {
+    serverOnDuty = podOnDuty();
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+
+    setOnDutyPodChecked(shiftPod.id, true);
+    expect(onDutyRows().slice(0, 3)).toEqual([
+        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|checked|",
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Zebra|Echelon Field|checked|",
+    ]);
+    expect(onDutySubmit().textContent).toBe("Add 1 Ranger");
+
+    setOnDutyPodChecked(shiftPod.id, false);
+    expect(onDutyRows().slice(0, 3)).toEqual([
+        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]||",
+        "Hot Slots (on Incident)|Dirt||",
+        "Zebra|Echelon Field||",
+    ]);
+    expect(onDutySubmit().textContent).toBe("Remove 1 Ranger");
+
+    // Checking the members one at a time updates the pod's checkbox.
+    setOnDutyChecked("Zebra", true);
+    expect(onDutyRows()[0]).toBe("[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|");
+    setOnDutyChecked("Hot Slots", true);
+    expect(onDutyRows()[0]).toBe("[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|checked|");
+    expect(onDutySubmit().textContent).toBe("Add 1 Ranger");
+
+    // The other pod is untouched.
+    expect(onDutyRows().slice(3, 5)).toEqual([
+        "[Alpha pod \u00b7 on foot]||",
+        "Bucket|Dirt||",
+    ]);
+});
+
+test("the on-duty dialog filters on pods, hiding the headings of empty groups", async (): Promise<void> => {
+    serverOnDuty = podOnDuty();
+    await initIncidentPage();
+    await page.showOnDutyRangers();
+    const filter = document.getElementById("on_duty_filter") as HTMLInputElement;
+
+    filter.value = "bicycle";
+    page.filterOnDutyRangers();
+    expect(onDutyRows()).toEqual([
+        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Zebra|Echelon Field||",
+        "[Alpha pod \u00b7 on foot]||hidden",
+        "Bucket|Dirt||hidden",
+        "[Not in a pod]||hidden",
+        "Tulsa|Dirt||hidden",
+        "Tool (on Incident)|Green Dot|checked|hidden",
+    ]);
+
+    filter.value = "tulsa";
+    page.filterOnDutyRangers();
+    expect(onDutyRows()).toEqual([
+        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|hidden",
+        "Hot Slots (on Incident)|Dirt|checked|hidden",
+        "Zebra|Echelon Field||hidden",
+        "[Alpha pod \u00b7 on foot]||hidden",
+        "Bucket|Dirt||hidden",
+        "[Not in a pod]||",
+        "Tulsa|Dirt||",
+        "Tool (on Incident)|Green Dot|checked|hidden",
     ]);
 });
 

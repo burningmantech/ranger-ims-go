@@ -3352,6 +3352,17 @@ export type AuthInfoEventAccess = {
 export type OnDutyRanger = {
     handle: string;
     position: string;
+    // The Clubhouse pod the Ranger was out in, if any.
+    pod?: OnDutyPod;
+}
+
+export type OnDutyPod = {
+    id: number;
+    // alpha, mentor, mitten, or shift
+    type: string;
+    // foot, bicycle, or vehicle
+    transport: string;
+    location?: string;
 }
 
 export type Personnel = {

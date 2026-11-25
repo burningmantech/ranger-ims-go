@@ -60,3 +60,25 @@ values
 (604, 703, utc_timestamp() - interval 7 hour, null),
 (605, 703, utc_timestamp() - interval 7 hour, null)
 ;
+
+insert into `slot`
+(`id`, `begins`, `ends`, `position_id`, `timezone_abbr`)
+values
+(900, utc_timestamp() - interval 9 hour, utc_timestamp() - interval 3 hour, 703, "MST")
+;
+
+insert into `pod`
+(`id`, `type`, `transport`, `location`, `formed_at`, `slot_id`)
+values
+(900, "shift", "bicycle", "3:00 & C", utc_timestamp() - interval 9 hour, 900),
+(901, "shift", "foot", "Center Camp", utc_timestamp() - interval 9 hour, 900)
+;
+
+insert into `person_pod`
+(`pod_id`, `person_id`, `joined_at`)
+values
+(900, 603, utc_timestamp() - interval 7 hour),
+(900, 604, utc_timestamp() - interval 7 hour),
+(901, 600, utc_timestamp() - interval 7 hour),
+(901, 605, utc_timestamp() - interval 7 hour)
+;

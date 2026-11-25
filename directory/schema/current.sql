@@ -172,3 +172,65 @@ CREATE TABLE `person_team` (
    PRIMARY KEY (`id`),
    UNIQUE KEY `person_team_person_id_team_id_unique` (`person_id`,`team_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+create table pod
+(
+    id            bigint unsigned auto_increment
+        primary key,
+    created_at    timestamp                                          null,
+    updated_at    timestamp                                          null,
+    type          enum ('alpha', 'mentor', 'mitten', 'shift')        not null,
+    formed_at     datetime                                           not null,
+    disbanded_at  datetime                                           null,
+    slot_id       bigint unsigned                                    null,
+    mentor_pod_id bigint unsigned                                    null,
+    person_count  int                                 default 0      not null,
+    sort_index    int                                 default 0      not null,
+    location      varchar(255)                                       null,
+    transport     enum ('foot', 'bicycle', 'vehicle') default 'foot' not null
+)
+collate = utf8mb4_unicode_ci;
+
+create table slot
+(
+    id                    bigint unsigned auto_increment
+        primary key,
+    begins                datetime                                      not null,
+    ends                  datetime                                      not null,
+    position_id           bigint unsigned                               not null,
+    description           varchar(40)                                   null comment '("day", "night", etc.)',
+    signed_up             bigint unsigned default 0                     not null,
+    max                   bigint unsigned default 0                     not null comment 'if trainee slot, this is * slot[trainer_slot_id].signed_up',
+    url                   varchar(512)                                  null,
+    trainer_slot_id       bigint unsigned                               null comment 'if trainee slot, slot.id for corresponding trainer slot, else null',
+    trainee_slot_id       bigint unsigned                               null comment 'if trainer slot, slot.id for corresponding trainee slot, else null',
+    training_id           bigint unsigned default 0                     not null,
+    min                   int(10)         default 1                     not null,
+    active                tinyint(1)      default 0                     not null,
+    timezone              varchar(255)    default 'America/Los_Angeles' not null,
+    timezone_abbr         varchar(255)                                  not null,
+    begins_year           int             default 0                     not null,
+    duration              int             default 0                     not null,
+    begins_time           int             default 0                     not null,
+    ends_time             int             default 0                     not null,
+    parent_signup_slot_id bigint unsigned                               null,
+    did_notify            tinyint(1)      default 0                     not null
+)
+comment 'schedule slot' collate = utf8mb4_unicode_ci;
+
+create table person_pod
+(
+    id           bigint unsigned auto_increment
+        primary key,
+    created_at   timestamp            null,
+    updated_at   timestamp            null,
+    pod_id       bigint unsigned      not null,
+    person_id    bigint               not null,
+    is_lead      tinyint(1) default 0 not null,
+    joined_at    datetime             not null,
+    left_at      datetime             null,
+    removed_at   datetime             null,
+    sort_index   int        default 0 not null,
+    timesheet_id bigint unsigned      null
+)
+collate = utf8mb4_unicode_ci;

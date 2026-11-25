@@ -50,25 +50,39 @@ func TestGetOnDutyRangers(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 
+	shiftPod := &imsjson.OnDutyPod{ID: 9000, Type: "shift", Transport: "bicycle", Location: "3:00 & C"}
+
 	// The admin has two open shifts in clubhousedb_test_seed.sql, and is listed
-	// once, in the newer one's all_rangers position.
+	// once, in the newer one's all_rangers position. Both are in the shift pod.
+	// The admin's other pods have disbanded or been left.
 	onDuty, resp := apisAlice.getOnDuty(ctx, eventName)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, []imsjson.OnDutyRanger{
-		{Handle: userAdminHandle, Position: "Dirt"},
-		{Handle: userAliceHandle, Position: "Nooperator"},
+		{Handle: userAdminHandle, Position: "Dirt", Pod: shiftPod},
+		{Handle: userAliceHandle, Position: "Nooperator", Pod: shiftPod},
 	}, onDuty)
 
-	// 90 minutes ago, only the admin's older shift had started.
+	// 90 minutes ago, only the admin's older shift had started. Their mentor
+	// pod had already disbanded.
 	onDuty, resp = apisAlice.getOnDutyAt(ctx, eventName, time.Now().Add(-90*time.Minute))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, []imsjson.OnDutyRanger{
-		{Handle: userAdminHandle, Position: "Nooperator"},
+		{Handle: userAdminHandle, Position: "Nooperator", Pod: shiftPod},
 	}, onDuty)
 
-	// 4 hours ago, Alice was midway through a shift she has since finished.
+	// 20 minutes ago, the admin hadn't yet left the mitten pod, which is newer
+	// than the shift pod they were also in.
+	onDuty, resp = apisAlice.getOnDutyAt(ctx, eventName, time.Now().Add(-20*time.Minute))
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, []imsjson.OnDutyRanger{
+		{Handle: userAdminHandle, Position: "Dirt", Pod: &imsjson.OnDutyPod{ID: 9002, Type: "mitten", Transport: "vehicle"}},
+	}, onDuty)
+
+	// 4 hours ago, Alice was midway through a shift she has since finished,
+	// before she joined a pod.
 	onDuty, resp = apisAlice.getOnDutyAt(ctx, eventName, time.Now().Add(-4*time.Hour))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())

@@ -30,7 +30,8 @@ import (
 // GetOnDutyRangers lists the Rangers who were signed in to a position at the
 // time given by the "at" parameter (RFC 3339, default now), from the
 // directory's timesheet, so the Incident page can add them with their position
-// as their role. It's empty for a directory with no timesheet.
+// as their role. Each also carries the pod they were out in, if any, so the
+// page can list pod-mates together. It's empty for a directory with no timesheet.
 type GetOnDutyRangers struct {
 	imsDBQ    *store.DBQ
 	userStore *directory.UserStore
@@ -78,7 +79,16 @@ func (action GetOnDutyRangers) run(req *http.Request) ([]imsjson.OnDutyRanger, *
 	}
 	resp := make([]imsjson.OnDutyRanger, 0, len(onDuty))
 	for _, r := range onDuty {
-		resp = append(resp, imsjson.OnDutyRanger{Handle: r.Handle, Position: r.Position})
+		var pod *imsjson.OnDutyPod
+		if r.Pod != nil {
+			pod = &imsjson.OnDutyPod{
+				ID:        r.Pod.ID,
+				Type:      r.Pod.Type,
+				Transport: r.Pod.Transport,
+				Location:  r.Pod.Location,
+			}
+		}
+		resp = append(resp, imsjson.OnDutyRanger{Handle: r.Handle, Position: r.Position, Pod: pod})
 	}
 	return resp, nil
 }

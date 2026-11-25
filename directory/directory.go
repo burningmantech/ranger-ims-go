@@ -48,6 +48,9 @@ type OnDutySource interface {
 	// FetchOnDuty returns the shifts that were open at the given time, oldest
 	// first. It's read live, since it changes minute to minute.
 	FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyShift, error)
+	// FetchPodsOnDuty returns the pods that were out at the given time, oldest
+	// first, each with its members who were on duty then.
+	FetchPodsOnDuty(ctx context.Context, at time.Time) ([]OnDutyPod, error)
 }
 
 type Position struct {
@@ -62,9 +65,26 @@ type OnDutyShift struct {
 	PositionID int64
 }
 
+// Pod is a Clubhouse pod: a few Rangers sent out together on a shift.
+type Pod struct {
+	ID int64
+	// Type is the Clubhouse's alpha, mentor, mitten, or shift.
+	Type string
+	// Transport is foot, bicycle, or vehicle.
+	Transport string
+	Location  string
+}
+
+type OnDutyPod struct {
+	Pod       Pod
+	PersonIDs []int64
+}
+
 type OnDutyRanger struct {
 	Handle   string
 	Position string
+	// Pod is the pod the Ranger was out in, if any.
+	Pod *Pod
 }
 
 type UserStore struct {
@@ -163,6 +183,10 @@ func (store *UserStore) OnDuty(ctx context.Context, at time.Time) ([]OnDutyRange
 	if err != nil {
 		return nil, fmt.Errorf("[positionCache.Get] %w", err)
 	}
+	pods, err := src.FetchPodsOnDuty(ctx, at)
+	if err != nil {
+		return nil, fmt.Errorf("[FetchPodsOnDuty] %w", err)
+	}
 	// Someone with more than one open shift (a missed sign-out) is listed once,
 	// in their latest position. The shifts come oldest first. Persons missing
 	// from the user cache have statuses IMS doesn't deal with.
@@ -175,9 +199,19 @@ func (store *UserStore) OnDuty(ctx context.Context, at time.Time) ([]OnDutyRange
 		// This returns an empty position name if there is no name for the ID. That's fine.
 		byHandle[user.Handle] = (*positions)[shift.PositionID].Name
 	}
+	// Someone in more than one pod at once is shown in the newest. The pods
+	// come oldest first.
+	podByHandle := make(map[string]*Pod)
+	for i := range pods {
+		for _, personID := range pods[i].PersonIDs {
+			if user, ok := users[personID]; ok {
+				podByHandle[user.Handle] = &pods[i].Pod
+			}
+		}
+	}
 	onDuty := make([]OnDutyRanger, 0, len(byHandle))
 	for handle, position := range byHandle {
-		onDuty = append(onDuty, OnDutyRanger{Handle: handle, Position: position})
+		onDuty = append(onDuty, OnDutyRanger{Handle: handle, Position: position, Pod: podByHandle[handle]})
 	}
 	slices.SortFunc(onDuty, func(a, b OnDutyRanger) int {
 		return strings.Compare(a.Handle, b.Handle)

@@ -93,6 +93,14 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 </label>
               </li>
             </template>
+            <template id="on_duty_group_template">
+              <li class="list-group-item list-group-item-secondary">
+                <label class="form-check-label d-flex gap-2 w-100">
+                  <input type="checkbox" class="form-check-input" />
+                  <span class="on-duty-group-label"></span>
+                </label>
+              </li>
+            </template>
           </ul>
           <p id="on_duty_other_heading" class="control-label mt-3 mb-1 hidden">On this Incident, not on duty then</p>
           <ul id="on_duty_other_list" class="list-group list-group-small"></ul>

@@ -20,10 +20,12 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -227,6 +229,33 @@ func (s *ClubhouseSource) FetchOnDuty(ctx context.Context, at time.Time) ([]OnDu
 	return shifts, nil
 }
 
+func (s *ClubhouseSource) FetchPodsOnDuty(ctx context.Context, at time.Time) ([]OnDutyPod, error) {
+	rows, err := s.dbq.PodsOnDutyThen(ctx, s.dbq, chqueries.PodsOnDutyThenParams{At: at})
+	if err != nil {
+		return nil, fmt.Errorf("[PodsOnDutyThen]: %w", err)
+	}
+	pods := make([]OnDutyPod, 0, len(rows))
+	for _, row := range rows {
+		var personIDs []int64
+		err = json.Unmarshal(row.PersonIds, &personIDs)
+		if err != nil {
+			return nil, fmt.Errorf("[Unmarshal] pod %v person_ids: %w", row.PodID, err)
+		}
+		slices.Sort(personIDs)
+		pods = append(pods, OnDutyPod{
+			Pod: Pod{
+				ID:        int64(row.PodID),
+				Type:      string(row.Type),
+				Transport: string(row.Transport),
+				Location:  row.Location.String,
+			},
+			// A member with two open shifts is listed twice.
+			PersonIDs: slices.Compact(personIDs),
+		})
+	}
+	return pods, nil
+}
+
 func (s *ClubhouseSource) FetchTeams(ctx context.Context) (map[int64]string, error) {
 	teamRows, err := s.dbq.Teams(ctx, s.dbq)
 	if err != nil {
@@ -257,6 +286,10 @@ func (l DBQ) Persons(ctx context.Context, db chqueries.DBTX) ([]chqueries.Person
 
 func (l DBQ) PersonsOnDutyThen(ctx context.Context, db chqueries.DBTX, arg chqueries.PersonsOnDutyThenParams) ([]chqueries.PersonsOnDutyThenRow, error) {
 	return l.q.PersonsOnDutyThen(ctx, db, arg)
+}
+
+func (l DBQ) PodsOnDutyThen(ctx context.Context, db chqueries.DBTX, arg chqueries.PodsOnDutyThenParams) ([]chqueries.PodsOnDutyThenRow, error) {
+	return l.q.PodsOnDutyThen(ctx, db, arg)
 }
 
 func (l DBQ) PersonsOnDutyNow(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonsOnDutyNowRow, error) {

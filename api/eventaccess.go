@@ -99,8 +99,12 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 		allHandles[u.Handle] = true
 	}
 	allPositions := make(map[string]bool)
+	allOnDutyPositions := make(map[string]bool)
 	for _, p := range positions {
-		allPositions[p] = true
+		if !p.AvailableToAllRangers {
+			allPositions[p.Name] = true
+		}
+		allOnDutyPositions[p.Name] = true
 	}
 	allTeams := make(map[string]bool)
 	for _, t := range teams {
@@ -147,7 +151,7 @@ func (action GetEventAccesses) getEventsAccess(ctx context.Context) (imsjson.Eve
 					rule.DebugInfo.MatchesNoOne = true
 				}
 			}
-			rule.DebugInfo.KnownTarget = knownTarget(access.Expression, allHandles, allPositions, allTeams)
+			rule.DebugInfo.KnownTarget = knownTarget(access.Expression, allHandles, allPositions, allOnDutyPositions, allTeams)
 			slices.SortFunc(rule.DebugInfo.MatchesUsers, func(a, b string) int {
 				return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
@@ -204,15 +208,19 @@ func (action GetAccessTargets) getAccessTargets(req *http.Request) (imsjson.Acce
 	}
 
 	resp := imsjson.AccessTargets{
-		Persons:   make([]string, 0, len(users)),
-		Positions: make([]string, 0, len(positions)),
-		Teams:     make([]string, 0, len(teams)),
+		Persons:         make([]string, 0, len(users)),
+		Positions:       make([]string, 0, len(positions)),
+		OnDutyPositions: make([]string, 0, len(positions)),
+		Teams:           make([]string, 0, len(teams)),
 	}
 	for _, u := range users {
 		resp.Persons = append(resp.Persons, u.Handle)
 	}
 	for _, p := range positions {
-		resp.Positions = append(resp.Positions, p)
+		if !p.AvailableToAllRangers {
+			resp.Positions = append(resp.Positions, p.Name)
+		}
+		resp.OnDutyPositions = append(resp.OnDutyPositions, p.Name)
 	}
 	for _, t := range teams {
 		resp.Teams = append(resp.Teams, t)
@@ -222,12 +230,13 @@ func (action GetAccessTargets) getAccessTargets(req *http.Request) (imsjson.Acce
 	}
 	slices.SortFunc(resp.Persons, caseInsensitive)
 	slices.SortFunc(resp.Positions, caseInsensitive)
+	slices.SortFunc(resp.OnDutyPositions, caseInsensitive)
 	slices.SortFunc(resp.Teams, caseInsensitive)
 	return resp, nil
 }
 
 // knownTarget says whether the target of this access expression matches a known user, position, or team.
-func knownTarget(expression string, allHandles, allPositions, allTeams map[string]bool) bool {
+func knownTarget(expression string, allHandles, allPositions, allOnDutyPositions, allTeams map[string]bool) bool {
 	if expression == "*" {
 		return true
 	}
@@ -238,7 +247,7 @@ func knownTarget(expression string, allHandles, allPositions, allTeams map[strin
 		return allPositions[after]
 	}
 	if after, ok := strings.CutPrefix(expression, "onduty:"); ok {
-		return allPositions[after]
+		return allOnDutyPositions[after]
 	}
 	if after, ok := strings.CutPrefix(expression, "team:"); ok {
 		return allTeams[after]

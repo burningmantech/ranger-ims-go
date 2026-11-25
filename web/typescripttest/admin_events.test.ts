@@ -101,7 +101,7 @@ function mockServer() {
             return new Response(null, { status: 204 });
         }
         if (url === url_accessTargets && init?.body == null) {
-            return jsonResponse({ persons: ["Tool"], positions: ["007"], teams: ["Council"] });
+            return jsonResponse({ persons: ["Tool"], positions: ["007"], onduty_positions: ["007", "Dirt"], teams: ["Council"] });
         }
         return undefined;
     });
@@ -824,11 +824,11 @@ test("a failure to load the access control list is reported, and no cards are dr
     expect(eventCards()).toEqual([]);
 });
 
-test("the access targets fill the typeahead, with an onduty: entry per position", async (): Promise<void> => {
+test("the access targets fill the typeahead, with onduty: entries from their own list", async (): Promise<void> => {
     await initAdminEventsPage();
 
     const options = [...document.querySelectorAll<HTMLOptionElement>("#access_target_list option")].map(o => o.value);
-    expect(options).toEqual(["*", "person:Tool", "position:007", "onduty:007", "team:Council"]);
+    expect(options).toEqual(["*", "person:Tool", "position:007", "onduty:007", "onduty:Dirt", "team:Council"]);
 });
 
 test("without access targets, the page still works, and unknown expressions go unquestioned", async (): Promise<void> => {

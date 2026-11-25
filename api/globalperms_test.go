@@ -45,8 +45,8 @@ func (emptyDirectorySource) FetchUsers(context.Context) (map[int64]*directory.Us
 	return map[int64]*directory.User{}, nil
 }
 
-func (emptyDirectorySource) FetchPositions(context.Context) (map[int64]string, error) {
-	return map[int64]string{}, nil
+func (emptyDirectorySource) FetchPositions(context.Context) (map[int64]directory.Position, error) {
+	return map[int64]directory.Position{}, nil
 }
 
 func (emptyDirectorySource) FetchTeams(context.Context) (map[int64]string, error) {

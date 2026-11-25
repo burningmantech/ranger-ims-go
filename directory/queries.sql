@@ -15,7 +15,7 @@ from person
 -- as those persons should not be able to log into IMS nor be granted any permissions in IMS.
 where status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha');
 
--- name: PersonsOnDuty :many
+-- name: PersonsOnDutyNow :many
 select
     person_id,
     position_id
@@ -24,33 +24,30 @@ from
 where
     on_duty > date_sub(now(), interval 60 day)
     and off_duty is null
+-- Someone with more than one open shift (a missed sign-out) ends up in the
+-- newest one, as in PersonsOnDutyThen.
+order by
+    on_duty
 ;
 
--- name: OnDutyRangers :many
--- Who was on duty at a moment, and in what position.
---
--- Unlike PersonsOnDuty, this names every position, including the all_rangers ones
--- that the Positions query leaves out. The statuses match those of Persons.
+-- name: PersonsOnDutyThen :many
 select
-    person.callsign,
-    position.title
+    person_id,
+    position_id
 from
     timesheet
-    join person on person.id = timesheet.person_id
-    join position on position.id = timesheet.position_id
 where
-    timesheet.on_duty <= cast(sqlc.arg(at) as datetime)
+    on_duty <= cast(sqlc.arg(at) as datetime)
     and (
-        timesheet.off_duty is null
-        or timesheet.off_duty > cast(sqlc.arg(at) as datetime)
+        off_duty is null
+        or off_duty > cast(sqlc.arg(at) as datetime)
     )
-    and person.status in ('active', 'inactive', 'inactive extension', 'auditor', 'prospective', 'alpha')
 order by
-    timesheet.on_duty
+    on_duty
 ;
 
 -- name: Positions :many
-select id, title from position where all_rangers = 0;
+select id, title, all_rangers from position;
 
 -- name: Teams :many
 select id, title from team where active;

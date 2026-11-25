@@ -58,5 +58,8 @@ type EventAccess struct {
 type AccessTargets struct {
 	Persons   []string `json:"persons"`
 	Positions []string `json:"positions"`
-	Teams     []string `json:"teams"`
+	// OnDutyPositions also has the positions available to all Rangers, which
+	// Positions leaves out.
+	OnDutyPositions []string `json:"onduty_positions"`
+	Teams           []string `json:"teams"`
 }

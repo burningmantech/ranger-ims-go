@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/burningmantech/ranger-ims-go/conf"
@@ -141,11 +139,11 @@ func (s *ClubhouseSource) FetchUsers(ctx context.Context) (map[int64]*User, erro
 	errs = append(errs, err)
 	personPositions, err := s.dbq.PersonPositions(ctx, s.dbq)
 	errs = append(errs, err)
-	personsOnDuty, err := s.dbq.PersonsOnDuty(ctx, s.dbq)
+	personsOnDuty, err := s.dbq.PersonsOnDutyNow(ctx, s.dbq)
 	errs = append(errs, err)
 	err = errors.Join(errs...)
 	if err != nil {
-		return nil, fmt.Errorf("[Teams,Positions,PersonTeams,PersonPositions] %w", err)
+		return nil, fmt.Errorf("[Teams,Positions,PersonTeams,PersonPositions,PersonsOnDuty] %w", err)
 	}
 
 	m := make(map[int64]*User, len(persons))
@@ -165,19 +163,21 @@ func (s *ClubhouseSource) FetchUsers(ctx context.Context) (map[int64]*User, erro
 			OnDutyPositionName: nil,
 		}
 	}
-	positions := make(map[int64]string, len(positionRows))
-	for _, positionRow := range positionRows {
-		positions[positionRow.ID] = positionRow.Title
-	}
+	positions := positionsByID(positionRows)
 	teams := make(map[int64]string, len(teamRows))
 	for _, teamRow := range teamRows {
 		teams[teamRow.ID] = teamRow.Title
 	}
 	for _, pp := range personPositions {
+		// Leave out all_rangers positions, so that an access rule naming one
+		// can't unintentionally grant permissions to all Rangers at once.
+		if positions[pp.PositionID].AvailableToAllRangers {
+			continue
+		}
 		if _, ok := m[pp.PersonID]; ok {
 			person := m[pp.PersonID]
 			person.PositionIDs = append(person.PositionIDs, pp.PositionID)
-			person.PositionNames = append(person.PositionNames, positions[pp.PositionID])
+			person.PositionNames = append(person.PositionNames, positions[pp.PositionID].Name)
 		}
 	}
 	for _, pt := range personTeams {
@@ -192,44 +192,39 @@ func (s *ClubhouseSource) FetchUsers(ctx context.Context) (map[int64]*User, erro
 			posID := int64(pod.PositionID)
 			m[pod.PersonID].OnDutyPositionID = &posID
 			if pos, ok := positions[int64(pod.PositionID)]; ok {
-				m[pod.PersonID].OnDutyPositionName = &pos
+				m[pod.PersonID].OnDutyPositionName = &pos.Name
 			}
 		}
 	}
 	return m, nil
 }
 
-func (s *ClubhouseSource) FetchPositions(ctx context.Context) (map[int64]string, error) {
+func (s *ClubhouseSource) FetchPositions(ctx context.Context) (map[int64]Position, error) {
 	positionRows, err := s.dbq.Positions(ctx, s.dbq)
 	if err != nil {
 		return nil, fmt.Errorf("[Positions]: %w", err)
 	}
-	positions := make(map[int64]string, len(positionRows))
-	for _, row := range positionRows {
-		positions[row.ID] = row.Title
-	}
-	return positions, nil
+	return positionsByID(positionRows), nil
 }
 
-func (s *ClubhouseSource) FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyRanger, error) {
-	rows, err := s.dbq.OnDutyRangers(ctx, s.dbq, chqueries.OnDutyRangersParams{At: at})
+func positionsByID(rows []chqueries.PositionsRow) map[int64]Position {
+	positions := make(map[int64]Position, len(rows))
+	for _, row := range rows {
+		positions[row.ID] = Position{Name: row.Title, AvailableToAllRangers: row.AllRangers}
+	}
+	return positions
+}
+
+func (s *ClubhouseSource) FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyShift, error) {
+	rows, err := s.dbq.PersonsOnDutyThen(ctx, s.dbq, chqueries.PersonsOnDutyThenParams{At: at})
 	if err != nil {
 		return nil, fmt.Errorf("[OnDutyRangers]: %w", err)
 	}
-	// Someone with more than one open shift (a missed sign-out) is listed once,
-	// in their latest position. The rows come oldest shift first.
-	positions := make(map[string]string, len(rows))
+	shifts := make([]OnDutyShift, 0, len(rows))
 	for _, row := range rows {
-		positions[row.Callsign] = row.Title
+		shifts = append(shifts, OnDutyShift{PersonID: row.PersonID, PositionID: int64(row.PositionID)})
 	}
-	onDuty := make([]OnDutyRanger, 0, len(positions))
-	for handle, position := range positions {
-		onDuty = append(onDuty, OnDutyRanger{Handle: handle, Position: position})
-	}
-	slices.SortFunc(onDuty, func(a, b OnDutyRanger) int {
-		return strings.Compare(a.Handle, b.Handle)
-	})
-	return onDuty, nil
+	return shifts, nil
 }
 
 func (s *ClubhouseSource) FetchTeams(ctx context.Context) (map[int64]string, error) {
@@ -260,12 +255,12 @@ func (l DBQ) Persons(ctx context.Context, db chqueries.DBTX) ([]chqueries.Person
 	return l.q.Persons(ctx, db)
 }
 
-func (l DBQ) OnDutyRangers(ctx context.Context, db chqueries.DBTX, arg chqueries.OnDutyRangersParams) ([]chqueries.OnDutyRangersRow, error) {
-	return l.q.OnDutyRangers(ctx, db, arg)
+func (l DBQ) PersonsOnDutyThen(ctx context.Context, db chqueries.DBTX, arg chqueries.PersonsOnDutyThenParams) ([]chqueries.PersonsOnDutyThenRow, error) {
+	return l.q.PersonsOnDutyThen(ctx, db, arg)
 }
 
-func (l DBQ) PersonsOnDuty(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonsOnDutyRow, error) {
-	return l.q.PersonsOnDuty(ctx, db)
+func (l DBQ) PersonsOnDutyNow(ctx context.Context, db chqueries.DBTX) ([]chqueries.PersonsOnDutyNowRow, error) {
+	return l.q.PersonsOnDutyNow(ctx, db)
 }
 
 func (l DBQ) Teams(ctx context.Context, db chqueries.DBTX) ([]chqueries.TeamsRow, error) {

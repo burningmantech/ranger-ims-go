@@ -25,28 +25,33 @@ func TestKnownTarget(t *testing.T) {
 	t.Parallel()
 	handles := map[string]bool{"Irate": true}
 	positions := map[string]bool{"Dirt": true}
+	onDutyPositions := map[string]bool{"Dirt": true, "Sanctuary": true}
 	teams := map[string]bool{"Green Dot": true}
 
 	// The wildcard is always a known target
-	assert.True(t, knownTarget("*", handles, positions, teams))
+	assert.True(t, knownTarget("*", handles, positions, onDutyPositions, teams))
 
-	assert.True(t, knownTarget("person:Irate", handles, positions, teams))
-	assert.False(t, knownTarget("person:Nobody", handles, positions, teams))
+	assert.True(t, knownTarget("person:Irate", handles, positions, onDutyPositions, teams))
+	assert.False(t, knownTarget("person:Nobody", handles, positions, onDutyPositions, teams))
 
-	assert.True(t, knownTarget("position:Dirt", handles, positions, teams))
-	assert.False(t, knownTarget("position:Nothing", handles, positions, teams))
+	assert.True(t, knownTarget("position:Dirt", handles, positions, onDutyPositions, teams))
+	assert.False(t, knownTarget("position:Nothing", handles, positions, onDutyPositions, teams))
 
 	// An "onduty" expression targets a position as well
-	assert.True(t, knownTarget("onduty:Dirt", handles, positions, teams))
-	assert.False(t, knownTarget("onduty:Nothing", handles, positions, teams))
+	assert.True(t, knownTarget("onduty:Dirt", handles, positions, onDutyPositions, teams))
+	assert.False(t, knownTarget("onduty:Nothing", handles, positions, onDutyPositions, teams))
 
-	assert.True(t, knownTarget("team:Green Dot", handles, positions, teams))
-	assert.False(t, knownTarget("team:No Team", handles, positions, teams))
+	// A position available to all Rangers is a target only for "onduty"
+	assert.True(t, knownTarget("onduty:Sanctuary", handles, positions, onDutyPositions, teams))
+	assert.False(t, knownTarget("position:Sanctuary", handles, positions, onDutyPositions, teams))
+
+	assert.True(t, knownTarget("team:Green Dot", handles, positions, onDutyPositions, teams))
+	assert.False(t, knownTarget("team:No Team", handles, positions, onDutyPositions, teams))
 
 	// A target must not match across categories
-	assert.False(t, knownTarget("person:Dirt", handles, positions, teams))
+	assert.False(t, knownTarget("person:Dirt", handles, positions, onDutyPositions, teams))
 
 	// A prefix is required for anything other than the wildcard
-	assert.False(t, knownTarget("Irate", handles, positions, teams))
-	assert.False(t, knownTarget("", handles, positions, teams))
+	assert.False(t, knownTarget("Irate", handles, positions, onDutyPositions, teams))
+	assert.False(t, knownTarget("", handles, positions, onDutyPositions, teams))
 }

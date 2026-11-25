@@ -89,6 +89,34 @@ func TestGetOnDutyRangers(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 }
 
+func TestOnDutyPositionForRanger(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	users, err := shared.userStore.GetAllUsers(ctx)
+	require.NoError(t, err)
+	var adminID, aliceID int64
+	for id, u := range users {
+		switch u.Handle {
+		case userAdminHandle:
+			adminID = id
+		case userAliceHandle:
+			aliceID = id
+		}
+	}
+
+	// The admin's newer open shift is in Dirt, an all_rangers position.
+	posID, posName, err := shared.userStore.OnDutyForRanger(ctx, adminID)
+	require.NoError(t, err)
+	require.Equal(t, int64(7001), posID)
+	require.Equal(t, "Dirt", posName)
+
+	posID, posName, err = shared.userStore.OnDutyForRanger(ctx, aliceID)
+	require.NoError(t, err)
+	require.Equal(t, int64(7000), posID)
+	require.Equal(t, "Nooperator", posName)
+}
+
 func (a ApiHelper) getOnDuty(ctx context.Context, eventName string) ([]imsjson.OnDutyRanger, *http.Response) {
 	a.t.Helper()
 	path := a.serverURL.JoinPath("/ims/api/events/", eventName, "/on_duty").String()

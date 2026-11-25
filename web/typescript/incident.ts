@@ -1561,6 +1561,14 @@ function onDutyRow(handle: string, detail: string, attached: boolean, position: 
 }
 
 function drawOnDutyRangers(onDuty: ims.OnDutyRanger[]): void {
+    // Sort Rangers by position then by handle, using case insensitivity.
+    onDuty.sort((a, b) => {
+        if (a.position !== b.position) {
+            return a.position.localeCompare(b.position);
+        }
+        return a.handle.localeCompare(b.handle);
+    });
+
     clearOnDutyLists();
     const attached = attachedRangerRoles();
     for (const ranger of onDuty) {

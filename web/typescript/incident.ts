@@ -1599,7 +1599,7 @@ const podTransportNames: Record<string, string> = {
 
 function podLabel(pod: ims.OnDutyPod): string {
     const parts = [
-        `${podTypeNames[pod.type] ?? pod.type} pod`,
+        podTypeNames[pod.type] ?? pod.type,
         podTransportNames[pod.transport] ?? pod.transport,
     ];
     if (pod.location) {

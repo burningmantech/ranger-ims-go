@@ -760,9 +760,9 @@ test("the on-duty dialog opens at the incident's start, checking the Rangers alr
     );
     expect(onDutyRows()).toEqual([
         "Hot Slots (on Incident)|Dirt|checked|",
-        "Tool (on Incident)|Green Dot|checked|",
         "Tulsa|Dirt||",
         "Zebra|Echelon Field||",
+        "Tool (on Incident)|Green Dot|checked|",
     ]);
     // Everyone on the incident was on duty then.
     expect(onDutyRows("on_duty_other_list")).toEqual([]);

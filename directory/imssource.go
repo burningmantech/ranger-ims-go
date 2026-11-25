@@ -106,14 +106,14 @@ func (s *IMSSource) FetchUsers(ctx context.Context) (map[int64]*User, error) {
 	return m, nil
 }
 
-func (s *IMSSource) FetchPositions(ctx context.Context) (map[int64]string, error) {
+func (s *IMSSource) FetchPositions(ctx context.Context) (map[int64]Position, error) {
 	positionRows, err := s.imsDBQ.DirectoryActivePositions(ctx, s.imsDBQ)
 	if err != nil {
 		return nil, fmt.Errorf("[DirectoryActivePositions]: %w", err)
 	}
-	positions := make(map[int64]string, len(positionRows))
+	positions := make(map[int64]Position, len(positionRows))
 	for _, row := range positionRows {
-		positions[row.ID] = row.Title
+		positions[row.ID] = Position{Name: row.Title, AvailableToAllRangers: false}
 	}
 	return positions, nil
 }

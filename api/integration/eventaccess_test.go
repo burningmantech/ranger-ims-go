@@ -270,5 +270,7 @@ func TestGetAccessTargets(t *testing.T) {
 
 	assert.Equal(t, []string{userAdminHandle, userAliceHandle}, targets.Persons)
 	assert.Equal(t, []string{"Nooperator"}, targets.Positions)
+	// Dirt is an all_rangers position, so only onduty: may target it
+	assert.Equal(t, []string{"Dirt", "Nooperator"}, targets.OnDutyPositions)
 	assert.Equal(t, []string{"Brown Dot"}, targets.Teams)
 }

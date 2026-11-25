@@ -21,8 +21,8 @@ insert into `position`
 (`id`, `title`, `all_rangers`)
 values
 (7000, "Nooperator", false),
--- An all_rangers position is left out of the directory's positions,
--- but the on-duty list still names it.
+-- An all_rangers position, which access rules can target only through onduty:,
+-- and which the on-duty list names.
 (7001, "Dirt", true)
 ;
 
@@ -52,7 +52,7 @@ insert into `timesheet`
 (`person_id`, `position_id`, `on_duty`, `off_duty`)
 values
 (6001, 7000, @phoenix_now, null),
--- Two open shifts, from a missed sign-out. The on-duty list shows the newer.
+-- Two open shifts, from a missed sign-out. IMS uses the newer.
 (6000, 7000, @phoenix_now - interval 2 hour, null),
 (6000, 7001, @phoenix_now - interval 1 hour, null),
 -- A finished shift, for looking back at who was on duty earlier.

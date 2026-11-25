@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	imsjson "github.com/burningmantech/ranger-ims-go/json"
@@ -34,8 +36,8 @@ type Source interface {
 	// FetchUsers returns all directory users who may use IMS, keyed by
 	// directory ID, with team and position memberships populated.
 	FetchUsers(ctx context.Context) (map[int64]*User, error)
-	// FetchPositions returns all position names, keyed by position ID.
-	FetchPositions(ctx context.Context) (map[int64]string, error)
+	// FetchPositions returns all positions, keyed by position ID.
+	FetchPositions(ctx context.Context) (map[int64]Position, error)
 	// FetchTeams returns all team names, keyed by team ID.
 	FetchTeams(ctx context.Context) (map[int64]string, error)
 }
@@ -43,9 +45,21 @@ type Source interface {
 // OnDutySource is implemented by the Sources that know who is currently signed
 // in to a position. Only the Clubhouse has a timesheet.
 type OnDutySource interface {
-	// FetchOnDuty returns the Rangers who were on duty at the given time, each
-	// once, sorted by handle. It's read live, since it changes minute to minute.
-	FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyRanger, error)
+	// FetchOnDuty returns the shifts that were open at the given time, oldest
+	// first. It's read live, since it changes minute to minute.
+	FetchOnDuty(ctx context.Context, at time.Time) ([]OnDutyShift, error)
+}
+
+type Position struct {
+	Name string
+	// AvailableToAllRangers is the Clubhouse's all_rangers flag: anyone may
+	// sign in to the position, without being granted it.
+	AvailableToAllRangers bool
+}
+
+type OnDutyShift struct {
+	PersonID   int64
+	PositionID int64
 }
 
 type OnDutyRanger struct {
@@ -56,7 +70,7 @@ type OnDutyRanger struct {
 type UserStore struct {
 	source        Source
 	userCache     *cache.InMemory[map[int64]*User]
-	positionCache *cache.InMemory[map[int64]string]
+	positionCache *cache.InMemory[map[int64]Position]
 	teamCache     *cache.InMemory[map[int64]string]
 }
 
@@ -130,21 +144,48 @@ func (store *UserStore) OnDutyAvailable() bool {
 	return ok
 }
 
-// OnDuty returns the Rangers on duty at the given time, or nothing if the
-// directory doesn't track that.
+// OnDuty returns the Rangers on duty at the given time, each once and sorted
+// by handle, or nothing if the directory doesn't track that.
 func (store *UserStore) OnDuty(ctx context.Context, at time.Time) ([]OnDutyRanger, error) {
 	src, ok := store.source.(OnDutySource)
 	if !ok {
 		return nil, nil
 	}
-	onDuty, err := src.FetchOnDuty(ctx, at)
+	shifts, err := src.FetchOnDuty(ctx, at)
 	if err != nil {
 		return nil, fmt.Errorf("[FetchOnDuty] %w", err)
 	}
+	users, err := store.GetAllUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[GetAllUsers] %w", err)
+	}
+	positions, err := store.positionCache.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[positionCache.Get] %w", err)
+	}
+	// Someone with more than one open shift (a missed sign-out) is listed once,
+	// in their latest position. The shifts come oldest first. Persons missing
+	// from the user cache have statuses IMS doesn't deal with.
+	byHandle := make(map[string]string, len(shifts))
+	for _, shift := range shifts {
+		user, ok := users[shift.PersonID]
+		if !ok {
+			continue
+		}
+		// This returns an empty position name if there is no name for the ID. That's fine.
+		byHandle[user.Handle] = (*positions)[shift.PositionID].Name
+	}
+	onDuty := make([]OnDutyRanger, 0, len(byHandle))
+	for handle, position := range byHandle {
+		onDuty = append(onDuty, OnDutyRanger{Handle: handle, Position: position})
+	}
+	slices.SortFunc(onDuty, func(a, b OnDutyRanger) int {
+		return strings.Compare(a.Handle, b.Handle)
+	})
 	return onDuty, nil
 }
 
-func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions, teams map[int64]string, err error) {
+func (store *UserStore) GetPositionsAndTeams(ctx context.Context) (positions map[int64]Position, teams map[int64]string, err error) {
 	var errs []error
 	posMap, err := store.positionCache.Get(ctx)
 	errs = append(errs, err)

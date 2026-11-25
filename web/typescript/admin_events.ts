@@ -124,6 +124,7 @@ interface DebugInfo {
 interface AccessTargets {
     persons?: string[]|null;
     positions?: string[]|null;
+    onduty_positions?: string[]|null;
     teams?: string[]|null;
 }
 
@@ -220,7 +221,7 @@ async function loadAccessTargets(): Promise<void> {
     for (const position of json.positions??[]) {
         expressions.push(`position:${position}`);
     }
-    for (const position of json.positions??[]) {
+    for (const position of json.onduty_positions??[]) {
         expressions.push(`onduty:${position}`);
     }
     for (const team of json.teams??[]) {

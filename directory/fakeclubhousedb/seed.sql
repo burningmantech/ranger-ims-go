@@ -21,11 +21,11 @@ values
 ;
 
 insert into `position`
-(`id`, `title`)
+(`id`, `title`, `all_rangers`)
 values
-(701, "Driver"),
-(702, "Dancer"),
-(703, "Dirt")
+(701, "Driver", false),
+(702, "Dancer", false),
+(703, "Dirt", true)
 ;
 
 insert into `person_position`

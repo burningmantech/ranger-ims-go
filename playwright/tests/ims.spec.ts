@@ -394,7 +394,7 @@ test("incidents", async ({ page, browser, authState, events }) => {
       // The mobile datetime picker is harder to work with, and we can't just
       // fill the text field. We'll leave this problem for another day for mobile
       // (Mobile Chrome and Mobile Safari).
-      if (await incidentPage.locator(".flatpickr-mobile").isVisible()) {
+      if (await incidentPage.locator("#started_datetime + .flatpickr-mobile").isVisible()) {
         ignoreDatetimeCheck = true;
       }
     }

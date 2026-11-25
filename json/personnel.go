@@ -29,4 +29,15 @@ type Person struct {
 type OnDutyRanger struct {
 	Handle   string `json:"handle"`
 	Position string `json:"position"`
+	// Pod is the Clubhouse pod the Ranger was out in, if any.
+	Pod *OnDutyPod `json:"pod,omitempty"`
+}
+
+type OnDutyPod struct {
+	ID int64 `json:"id"`
+	// Type is alpha, mentor, mitten, or shift.
+	Type string `json:"type"`
+	// Transport is foot, bicycle, or vehicle.
+	Transport string `json:"transport"`
+	Location  string `json:"location,omitzero"`
 }

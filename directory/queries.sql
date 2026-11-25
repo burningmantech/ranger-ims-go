@@ -46,6 +46,43 @@ order by
     on_duty
 ;
 
+-- name: PodsOnDutyThen :many
+select
+    pod.id as pod_id,
+    pod.type,
+    pod.transport,
+    pod.location,
+    -- Someone with two open shifts is in here twice. sqlc can't parse
+    -- json_arrayagg(distinct ...), so the Go code dedupes them.
+    json_arrayagg(person_pod.person_id) as person_ids
+from pod
+    join slot       on slot.id = pod.slot_id
+    join person_pod on person_pod.pod_id = pod.id
+    join timesheet  on timesheet.person_id = person_pod.person_id
+where slot.begins <= cast(sqlc.arg(at) as datetime)
+    and slot.ends   >  cast(sqlc.arg(at) as datetime)
+    and (
+        pod.disbanded_at is null
+        or pod.disbanded_at > cast(sqlc.arg(at) as datetime)
+    )
+    and person_pod.joined_at <= cast(sqlc.arg(at) as datetime)
+    and (
+        person_pod.left_at is null
+        or person_pod.left_at > cast(sqlc.arg(at) as datetime)
+    )
+    and (
+        person_pod.removed_at is null
+        or person_pod.removed_at > cast(sqlc.arg(at) as datetime)
+    )
+    and timesheet.on_duty <= cast(sqlc.arg(at) as datetime)
+    and (
+        timesheet.off_duty is null
+        or timesheet.off_duty > cast(sqlc.arg(at) as datetime)
+    )
+group by pod.id, pod.type, pod.transport, pod.location
+order by pod.id
+;
+
 -- name: Positions :many
 select id, title, all_rangers from position;
 

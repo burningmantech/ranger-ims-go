@@ -57,6 +57,7 @@ const el = {
     onDutyMessage: ims.typedElement("on_duty_message", HTMLElement),
     onDutyList: ims.typedElement("on_duty_list", HTMLUListElement),
     onDutyLiTemplate: ims.typedElement("on_duty_li_template", HTMLTemplateElement),
+    onDutyGroupTemplate: ims.typedElement("on_duty_group_template", HTMLTemplateElement),
     onDutyOtherHeading: ims.typedElement("on_duty_other_heading", HTMLElement),
     onDutyOtherList: ims.typedElement("on_duty_other_list", HTMLUListElement),
     onDutySubmit: ims.typedElement("on_duty_submit", HTMLButtonElement),
@@ -1542,8 +1543,11 @@ function attachedRangerRoles(): Map<string, string> {
 }
 
 // A dialog row. An on-duty Ranger's detail is their position, and an attached
-// Ranger who wasn't on duty shows their role instead.
-function onDutyRow(handle: string, detail: string, attached: boolean, position: string|null): DocumentFragment {
+// Ranger who wasn't on duty shows their role instead. A Ranger in a pod is
+// listed under its group row.
+function onDutyRow(
+    handle: string, detail: string, attached: boolean, position: string|null, pod: ims.OnDutyPod|null,
+): DocumentFragment {
     const fragment = el.onDutyLiTemplate.content.cloneNode(true) as DocumentFragment;
     const li = fragment.querySelector("li")!;
     li.dataset["handle"] = handle;
@@ -1554,10 +1558,54 @@ function onDutyRow(handle: string, detail: string, attached: boolean, position: 
     if (attached) {
         li.dataset["attached"] = "true";
     }
+    if (pod != null) {
+        li.dataset["group"] = String(pod.id);
+        li.dataset["groupLabel"] = podLabel(pod);
+        li.classList.add("ps-4");
+    }
     li.querySelector("input")!.checked = onDutyChoices.get(handle) ?? attached;
     li.querySelector(".on-duty-handle")!.textContent = attached ? `${handle} (on Incident)` : handle;
     li.querySelector(".on-duty-position")!.textContent = detail;
     return fragment;
+}
+
+// A heading row for a pod, whose checkbox checks or unchecks all its members,
+// or for the Rangers in no pod, which has no checkbox.
+function onDutyGroupRow(label: string, pod: ims.OnDutyPod|null): DocumentFragment {
+    const fragment = el.onDutyGroupTemplate.content.cloneNode(true) as DocumentFragment;
+    const li = fragment.querySelector("li")!;
+    li.querySelector(".on-duty-group-label")!.textContent = label;
+    if (pod != null) {
+        li.dataset["groupHeader"] = String(pod.id);
+    } else {
+        li.dataset["groupHeader"] = "";
+        li.querySelector("input")!.remove();
+    }
+    return fragment;
+}
+
+const podTypeNames: Record<string, string> = {
+    alpha: "Alpha",
+    mentor: "Mentor",
+    mitten: "Mitten",
+    shift: "Shift",
+};
+
+const podTransportNames: Record<string, string> = {
+    foot: "on foot",
+    bicycle: "bicycle",
+    vehicle: "vehicle",
+};
+
+function podLabel(pod: ims.OnDutyPod): string {
+    const parts = [
+        `${podTypeNames[pod.type] ?? pod.type} pod`,
+        podTransportNames[pod.transport] ?? pod.transport,
+    ];
+    if (pod.location) {
+        parts.push(pod.location);
+    }
+    return parts.join(" \u00b7 ");
 }
 
 function drawOnDutyRangers(onDuty: ims.OnDutyRanger[]): void {
@@ -1569,21 +1617,52 @@ function drawOnDutyRangers(onDuty: ims.OnDutyRanger[]): void {
         return a.handle.localeCompare(b.handle);
     });
 
+    // Pods come before the Rangers in no pod.
+    const pods: Map<number, {pod: ims.OnDutyPod, members: ims.OnDutyRanger[]}> = new Map();
+    const podless: ims.OnDutyRanger[] = [];
+    for (const ranger of onDuty) {
+        if (ranger.pod == null) {
+            podless.push(ranger);
+            continue;
+        }
+        let group = pods.get(ranger.pod.id);
+        if (group == null) {
+            group = {pod: ranger.pod, members: []};
+            pods.set(ranger.pod.id, group);
+        }
+        group.members.push(ranger);
+    }
+
+    // Shift pods go above the other types. The sort is stable, so each kind
+    // keeps the order of its first members.
+    const podGroups = [...pods.values()].sort((a, b): number =>
+        Number(b.pod.type === "shift") - Number(a.pod.type === "shift"));
+
     clearOnDutyLists();
     const attached = attachedRangerRoles();
-    for (const ranger of onDuty) {
-        el.onDutyList.append(onDutyRow(ranger.handle, ranger.position, attached.has(ranger.handle), ranger.position));
+    for (const {pod, members} of podGroups) {
+        el.onDutyList.append(onDutyGroupRow(podLabel(pod), pod));
+        for (const ranger of members) {
+            el.onDutyList.append(onDutyRow(ranger.handle, ranger.position, attached.has(ranger.handle), ranger.position, pod));
+        }
+    }
+    if (pods.size > 0 && podless.length > 0) {
+        el.onDutyList.append(onDutyGroupRow("Not in a pod", null));
+    }
+    for (const ranger of podless) {
+        el.onDutyList.append(onDutyRow(ranger.handle, ranger.position, attached.has(ranger.handle), ranger.position, null));
     }
     const onDutyHandles = new Set(onDuty.map((r: ims.OnDutyRanger): string => r.handle));
     const others = [...attached.keys()]
         .filter((handle: string): boolean => !onDutyHandles.has(handle))
         .sort((a: string, b: string): number => a.localeCompare(b));
     for (const handle of others) {
-        el.onDutyOtherList.append(onDutyRow(handle, attached.get(handle)!, true, null));
+        el.onDutyOtherList.append(onDutyRow(handle, attached.get(handle)!, true, null, null));
     }
     el.onDutyOtherHeading.classList.toggle("hidden", others.length === 0);
     setOnDutyMessage(onDuty.length === 0 ? "Nobody was on duty then." : null);
     filterOnDutyRangers();
+    updatePodCheckboxes();
     updateOnDutySubmit();
 }
 
@@ -1596,11 +1675,39 @@ function onDutyRows(): HTMLLIElement[] {
     return Array.from(el.onDutyModal.querySelectorAll<HTMLLIElement>("li[data-handle]"));
 }
 
+function onDutyGroupHeaders(): HTMLLIElement[] {
+    return Array.from(el.onDutyList.querySelectorAll<HTMLLIElement>("li[data-group-header]"));
+}
+
+// The rows under a group heading. The podless rows have no group.
+function onDutyGroupMembers(header: HTMLLIElement): HTMLLIElement[] {
+    const group = header.dataset["groupHeader"]!;
+    return Array.from(el.onDutyList.querySelectorAll<HTMLLIElement>("li[data-handle]"))
+        .filter((li: HTMLLIElement): boolean => (li.dataset["group"] ?? "") === group);
+}
+
 export function filterOnDutyRangers(): void {
     const filter = normalize(el.onDutyFilter.value);
     for (const li of onDutyRows()) {
-        const text = normalize(`${li.dataset["handle"]} ${li.dataset["detail"]}`);
+        const text = normalize(`${li.dataset["handle"]} ${li.dataset["detail"]} ${li.dataset["groupLabel"] ?? ""}`);
         li.classList.toggle("hidden", !text.includes(filter));
+    }
+    for (const header of onDutyGroupHeaders()) {
+        const anyShown = onDutyGroupMembers(header).some((li: HTMLLIElement): boolean => !li.classList.contains("hidden"));
+        header.classList.toggle("hidden", !anyShown);
+    }
+}
+
+// A pod's checkbox is checked when all its members are, and mixed when some are.
+function updatePodCheckboxes(): void {
+    for (const header of onDutyGroupHeaders()) {
+        const podCheckbox = header.querySelector("input");
+        if (podCheckbox == null) {
+            continue;
+        }
+        const checked = onDutyGroupMembers(header).map((li: HTMLLIElement): boolean => li.querySelector("input")!.checked);
+        podCheckbox.checked = checked.every((c: boolean): boolean => c);
+        podCheckbox.indeterminate = !podCheckbox.checked && checked.some((c: boolean): boolean => c);
     }
 }
 
@@ -1609,10 +1716,19 @@ function pickOnDutyRanger(e: Event): void {
     if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") {
         return;
     }
-    const handle = checkbox.closest("li")?.dataset["handle"];
-    if (handle) {
-        onDutyChoices.set(handle, checkbox.checked);
+    const li = checkbox.closest("li");
+    if (li == null) {
+        return;
     }
+    if (li.dataset["groupHeader"] != null) {
+        for (const member of onDutyGroupMembers(li)) {
+            member.querySelector("input")!.checked = checkbox.checked;
+            onDutyChoices.set(member.dataset["handle"]!, checkbox.checked);
+        }
+    } else if (li.dataset["handle"]) {
+        onDutyChoices.set(li.dataset["handle"], checkbox.checked);
+    }
+    updatePodCheckboxes();
     updateOnDutySubmit();
 }
 

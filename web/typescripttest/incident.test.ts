@@ -978,10 +978,10 @@ test("the on-duty dialog lists pods first, then the Rangers in no pod", async ()
 
     // The shift pod goes above the alpha pod, though Bucket sorts before Hot Slots.
     expect(onDutyRows()).toEqual([
-        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
+        "[Shift \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
         "Hot Slots (on Incident)|Dirt|checked|",
         "Zebra|Echelon Field||",
-        "[Alpha pod \u00b7 on foot]||",
+        "[Alpha \u00b7 on foot]||",
         "Bucket|Dirt||",
         "[Not in a pod]||",
         "Tulsa|Dirt||",
@@ -998,7 +998,7 @@ test("the on-duty dialog has no Not in a pod heading when everyone is in one", a
     await page.showOnDutyRangers();
 
     expect(onDutyRows()).toEqual([
-        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
+        "[Shift \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
         "Hot Slots (on Incident)|Dirt|checked|",
         "Zebra|Echelon Field||",
     ]);
@@ -1011,7 +1011,7 @@ test("a pod's checkbox checks and unchecks all its members", async (): Promise<v
 
     setOnDutyPodChecked(shiftPod.id, true);
     expect(onDutyRows().slice(0, 3)).toEqual([
-        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|checked|",
+        "[Shift \u00b7 bicycle \u00b7 3:00 & C]|checked|",
         "Hot Slots (on Incident)|Dirt|checked|",
         "Zebra|Echelon Field|checked|",
     ]);
@@ -1019,7 +1019,7 @@ test("a pod's checkbox checks and unchecks all its members", async (): Promise<v
 
     setOnDutyPodChecked(shiftPod.id, false);
     expect(onDutyRows().slice(0, 3)).toEqual([
-        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]||",
+        "[Shift \u00b7 bicycle \u00b7 3:00 & C]||",
         "Hot Slots (on Incident)|Dirt||",
         "Zebra|Echelon Field||",
     ]);
@@ -1027,14 +1027,14 @@ test("a pod's checkbox checks and unchecks all its members", async (): Promise<v
 
     // Checking the members one at a time updates the pod's checkbox.
     setOnDutyChecked("Zebra", true);
-    expect(onDutyRows()[0]).toBe("[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|");
+    expect(onDutyRows()[0]).toBe("[Shift \u00b7 bicycle \u00b7 3:00 & C]|mixed|");
     setOnDutyChecked("Hot Slots", true);
-    expect(onDutyRows()[0]).toBe("[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|checked|");
+    expect(onDutyRows()[0]).toBe("[Shift \u00b7 bicycle \u00b7 3:00 & C]|checked|");
     expect(onDutySubmit().textContent).toBe("Add 1 Ranger");
 
     // The other pod is untouched.
     expect(onDutyRows().slice(3, 5)).toEqual([
-        "[Alpha pod \u00b7 on foot]||",
+        "[Alpha \u00b7 on foot]||",
         "Bucket|Dirt||",
     ]);
 });
@@ -1048,10 +1048,10 @@ test("the on-duty dialog filters on pods, hiding the headings of empty groups", 
     filter.value = "bicycle";
     page.filterOnDutyRangers();
     expect(onDutyRows()).toEqual([
-        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
+        "[Shift \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
         "Hot Slots (on Incident)|Dirt|checked|",
         "Zebra|Echelon Field||",
-        "[Alpha pod \u00b7 on foot]||hidden",
+        "[Alpha \u00b7 on foot]||hidden",
         "Bucket|Dirt||hidden",
         "[Not in a pod]||hidden",
         "Tulsa|Dirt||hidden",
@@ -1061,10 +1061,10 @@ test("the on-duty dialog filters on pods, hiding the headings of empty groups", 
     filter.value = "tulsa";
     page.filterOnDutyRangers();
     expect(onDutyRows()).toEqual([
-        "[Shift pod \u00b7 bicycle \u00b7 3:00 & C]|mixed|hidden",
+        "[Shift \u00b7 bicycle \u00b7 3:00 & C]|mixed|hidden",
         "Hot Slots (on Incident)|Dirt|checked|hidden",
         "Zebra|Echelon Field||hidden",
-        "[Alpha pod \u00b7 on foot]||hidden",
+        "[Alpha \u00b7 on foot]||hidden",
         "Bucket|Dirt||hidden",
         "[Not in a pod]||",
         "Tulsa|Dirt||",

@@ -51,6 +51,7 @@ func TestGetOnDutyRangers(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	shiftPod := &imsjson.OnDutyPod{ID: 9000, Type: "shift", Transport: "bicycle", Location: "3:00 & C"}
+	mentorPod := &imsjson.OnDutyPod{ID: 9001, Type: "mentor", Transport: "foot"}
 
 	// The admin has two open shifts in clubhousedb_test_seed.sql, and is listed
 	// once, in the newer one's all_rangers position. Both are in the shift pod.
@@ -64,12 +65,14 @@ func TestGetOnDutyRangers(t *testing.T) {
 	}, onDuty)
 
 	// 90 minutes ago, only the admin's older shift had started. Their mentor
-	// pod had already disbanded.
+	// pod had already disbanded, but Alice's alpha pod, which it mentors, was
+	// still out, and is still shown as the mentor pod.
 	onDuty, resp = apisAlice.getOnDutyAt(ctx, eventName, time.Now().Add(-90*time.Minute))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, []imsjson.OnDutyRanger{
 		{Handle: userAdminHandle, Position: "Nooperator", Pod: shiftPod},
+		{Handle: userAliceHandle, Position: "Nooperator", Pod: mentorPod},
 	}, onDuty)
 
 	// 20 minutes ago, the admin hadn't yet left the mitten pod, which is newer
@@ -81,13 +84,15 @@ func TestGetOnDutyRangers(t *testing.T) {
 		{Handle: userAdminHandle, Position: "Dirt", Pod: &imsjson.OnDutyPod{ID: 9002, Type: "mitten", Transport: "vehicle"}},
 	}, onDuty)
 
-	// 4 hours ago, Alice was midway through a shift she has since finished,
-	// before she joined a pod.
+	// 4 hours ago, Alice was midway through a shift she has since finished, in
+	// the alpha pod, and the admin was in the mentor pod that mentors it. Both
+	// are grouped into the mentor pod.
 	onDuty, resp = apisAlice.getOnDutyAt(ctx, eventName, time.Now().Add(-4*time.Hour))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, []imsjson.OnDutyRanger{
-		{Handle: userAliceHandle, Position: "Nooperator"},
+		{Handle: userAdminHandle, Position: "Nooperator", Pod: mentorPod},
+		{Handle: userAliceHandle, Position: "Nooperator", Pod: mentorPod},
 	}, onDuty)
 
 	// A day ago, nobody was on duty.

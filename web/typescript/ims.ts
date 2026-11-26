@@ -43,7 +43,11 @@ const keyboardShortcutsKey = "keyboard_shortcuts_enabled";
 // Owned by theme.ts, which is a classic script and can't be imported from here.
 const themeKey = "theme";
 
-export const clubhousePersonURL = "https://ranger-clubhouse.burningman.org/person";
+// The Clubhouse server that goes with this deployment. The server sets it on the page's <header>.
+export function clubhouseURL(): string {
+    return document.querySelector<HTMLElement>("header[data-clubhouse-url]")?.dataset["clubhouseUrl"]
+        ?? "https://ranger-clubhouse.burningman.org";
+}
 
 //
 // HTML encoding

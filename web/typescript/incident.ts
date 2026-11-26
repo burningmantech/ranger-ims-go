@@ -50,6 +50,7 @@ const el = {
     rangersLiTemplate: ims.typedElement("incident_rangers_li_template", HTMLTemplateElement),
     visitRangersLiTemplate: ims.typedElement("incident_visit_rangers_li_template", HTMLTemplateElement),
     onDutyLink: ims.typedElement("onduty_link", HTMLAnchorElement),
+    cruiseDirectionLink: ims.typedElement("cruise_direction_link", HTMLAnchorElement),
     onDutyAdd: ims.typedElement("on_duty_add", HTMLButtonElement),
     onDutyModal: ims.typedElement("onDutyModal", HTMLDialogElement),
     onDutyAt: ims.typedElement("on_duty_at", HTMLInputElement) as ims.FlatpickrHTMLInputElement,
@@ -779,7 +780,7 @@ function drawRangerName(span: HTMLElement, handle: string): void {
     const rangerLink = span.querySelector("a")!;
     rangerLink.textContent = person.handle;
     if (person.directory_id != null) {
-        rangerLink.href = `${ims.clubhousePersonURL}/${person.directory_id}`;
+        rangerLink.href = `${ims.clubhouseURL()}/person/${person.directory_id}`;
         rangerLink.target = "_blank";
     }
 }
@@ -1550,9 +1551,13 @@ export async function showOnDutyRangers(): Promise<void> {
 
 async function loadOnDutyRangers(at: Date): Promise<void> {
     const load = ++onDutyLoads;
-    // Clubhouse reads duty_date as a wall-clock time in the event's zone, which is IMS's zone.
-    const params = new URLSearchParams({duty_date: `${ims.dateISO(at)} ${ims.timeHHMM(at)}`});
-    el.onDutyLink.href = `https://ranger-clubhouse.burningman.org/timesheets/on-duty?${params.toString()}`;
+    // Clubhouse reads these as wall-clock times in the event's zone, which is IMS's zone.
+    const clubhouseAt = `${ims.dateISO(at)} ${ims.timeHHMM(at)}`;
+    const onDutyParams = new URLSearchParams({duty_date: clubhouseAt});
+    el.onDutyLink.href = `${ims.clubhouseURL()}/timesheets/on-duty?${onDutyParams.toString()}`;
+    const cruiseParams = new URLSearchParams({date: clubhouseAt});
+    el.cruiseDirectionLink.href =
+        `${ims.clubhouseURL()}/shift-operations/cruise-direction?${cruiseParams.toString()}`;
     clearOnDutyLists();
     setOnDutyMessage("Loading\u2026");
     updateOnDutySubmit();

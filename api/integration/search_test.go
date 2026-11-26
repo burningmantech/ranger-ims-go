@@ -475,3 +475,48 @@ func TestSearchBadRequests(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 }
+
+func TestSearchIncidentByVisitRanger(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+
+	adminUser := srv.admin(ctx)
+	aliceUser := srv.alice(ctx)
+	eventName := newEventWithWriter(t, adminUser)
+
+	// A handle that won't collide with data from any other test.
+	handle := "vrhandle" + rand.NonCryptoText()
+
+	incidentNumber := aliceUser.newIncidentSuccess(ctx, imsjson.Incident{Event: eventName, Summary: new("A summary")})
+	visit := aliceUser.newVisitSuccess(ctx, imsjson.Visit{Event: eventName})
+	resp := aliceUser.attachRangerToVisit(ctx, eventName, visit, handle)
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	query := url.Values{"q": []string{handle}, "resources": []string{imsjson.SearchResultResourceIncident}}
+	results, resp := aliceUser.search(ctx, query)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, results.Hits)
+
+	resp = aliceUser.updateVisit(ctx, eventName, visit, imsjson.Visit{Event: eventName, Number: visit, Incident: &incidentNumber})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	results, resp = aliceUser.search(ctx, query)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, results.Hits, 1)
+	require.Equal(t, incidentNumber, results.Hits[0].Number)
+
+	// A junk Visit's Rangers don't count.
+	resp = aliceUser.updateVisit(ctx, eventName, visit, imsjson.Visit{Event: eventName, Number: visit, Junk: new(true)})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	results, resp = aliceUser.search(ctx, query)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Empty(t, results.Hits)
+}

@@ -1300,11 +1300,16 @@ export function renderLocation(data: EventLocation|null, type: RenderType, _inci
     }
 }
 
-export function renderRangerHandles(data: IncidentRanger[]|null, type: RenderType, _incident: Incident): RenderValue {
+// Includes the Rangers on the Incident's attached Visits.
+export function renderRangerHandles(data: IncidentRanger[]|null, type: RenderType, incident: IncidentListItem): RenderValue {
     if (data == null) {
         return undefined;
     }
-    const handles = data.map(r=>r.handle).filter(r=>r!=null);
+    const handles = [...new Set(
+        [...data, ...incident.visit_rangers??[]]
+            .map(r=>r.handle)
+            .filter((h): h is string => h != null),
+    )];
     switch (type) {
         case "display":
             return renderSortedSpan(handles);
@@ -3041,6 +3046,14 @@ export type VisitRanger = {
     role?: string|null;
 }
 
+// A Ranger on one of an Incident's attached Visits, rather than on the
+// Incident's own roster.
+export type IncidentVisitRanger = {
+    handle?: string|null;
+    role?: string|null;
+    visit: number;
+}
+
 export type IncidentState = 'new'|'on_hold'|'dispatched'|'on_scene'|'closed'|'null';
 
 export type Incident = {
@@ -3088,6 +3101,7 @@ export type IncidentListItem = {
     started?: string|null;
     last_modified?: string|null;
     rangers?: IncidentRanger[]|null;
+    visit_rangers?: IncidentVisitRanger[]|null;
     incident_type_ids?: number[]|null;
     location?: EventLocation|null;
     field_reports?: number[]|null;

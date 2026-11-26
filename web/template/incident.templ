@@ -185,6 +185,13 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
                 </button>
               </li>
             </template>
+            <template id="incident_visit_rangers_li_template">
+              <li class="list-group-item flex-input-container align-items-center gap-2 ps-3 text-body-secondary fst-italic hidden">
+                <span class="visit-ranger-handle"><a href="#" tabindex="-1"></a></span>
+                <span class="visit-ranger-role"></span>
+                <a class="visit-ranger-visit badge border border-secondary-subtle text-body-secondary fw-normal text-decoration-none ms-auto" href="#"></a>
+              </li>
+            </template>
           </ul>
           <div class="flex-input-container card-footer no-print">
             <label for="ranger_add" class="control-label">Add:</label>

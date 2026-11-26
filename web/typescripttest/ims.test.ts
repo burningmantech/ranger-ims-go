@@ -925,6 +925,21 @@ test("renderRangerHandles lists the handles sorted, skipping missing ones", (): 
     expect(ims.renderRangerHandles(null, "display", {})).toBeUndefined();
 });
 
+test("renderRangerHandles includes the Rangers on attached Visits, once each", (): void => {
+    const rangers: ims.IncidentRanger[] = [{ handle: "Tool" }, { handle: "Hot Slots", role: "lead" }];
+    const incident: ims.IncidentListItem = {
+        visit_rangers: [
+            { handle: "Tulsa", role: "Sitter", visit: 2 },
+            { handle: "Tool", visit: 2 },
+            { handle: "Tulsa", visit: 3 },
+        ],
+    };
+
+    const span = ims.renderRangerHandles(rangers, "display", incident) as HTMLSpanElement;
+    expect(span.textContent).toBe("Hot Slots, Tool, Tulsa");
+    expect(ims.renderRangerHandles(rangers, "filter", incident)).toBe("Hot Slots, Tool, Tulsa");
+});
+
 test("requestEventSourceLock refuses to run in an insecure context", (): void => {
     document.body.innerHTML = `
         <div id="error_info" class="hidden text-danger-emphasis" role="alert">

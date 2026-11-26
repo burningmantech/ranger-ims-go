@@ -17,13 +17,14 @@ Each month below should look like the following, using the same ordering for the
 ### Fixed
 
 This page accounts for changes up until:
-https://github.com/burningmantech/ranger-ims-go/commit/4da404b
+https://github.com/burningmantech/ranger-ims-go/commit/359d056
 -->
 
 ## 2026-11
 
 ### Changed
 
+- The Incident and Visit pages' Clubhouse links now go to the Clubhouse server for IMS's deployment (training, staging, or production), like the login page's password reset link. https://github.com/burningmantech/ranger-ims-go/commit/359d056
 - Report entry timestamps are now shorter, like "Sun, Aug 16 @ 21:38", with the year only when it isn't the current one. The full date is in the timestamp's tooltip. https://github.com/burningmantech/ranger-ims-go/commit/7f5d341
 - Date-time pickers now show and accept the same format as report entry timestamps, preceded by the day's name if it has one. https://github.com/burningmantech/ranger-ims-go/commit/6228fb8
 - Junk records on the list pages are now counted in the table's info line ("including N junk"), with a link to show only the junk records. While they're shown, a notice above the table offers a way back. The junk badge is now red. https://github.com/burningmantech/ranger-ims-go/commit/cc70e7d https://github.com/burningmantech/ranger-ims-go/commit/978586f
@@ -32,6 +33,11 @@ https://github.com/burningmantech/ranger-ims-go/commit/4da404b
 ### Added
 
 - Added names for particular days of an event (e.g. "Man Burn"), set on the new admin Day Names page. A day's name is shown before the timestamps of report entries written that day, in date tooltips and pickers, and in place of the date in the list tables. https://github.com/burningmantech/ranger-ims-go/commit/755f36c https://github.com/burningmantech/ranger-ims-go/commit/7f5d341 https://github.com/burningmantech/ranger-ims-go/commit/bffdda2
+- Added an "on-duty" dialog to the Incident page for adding Rangers to an Incident, listing who's on duty in the Clubhouse now (or at a chosen time), sorted by position, with pod-mates (including mentor and child pods) grouped together. It links to Cruise Direction for that time. https://github.com/burningmantech/ranger-ims-go/commit/ec00da7 https://github.com/burningmantech/ranger-ims-go/commit/9180554 https://github.com/burningmantech/ranger-ims-go/commit/d11ab3b https://github.com/burningmantech/ranger-ims-go/commit/1100993 https://github.com/burningmantech/ranger-ims-go/commit/ee37b21 https://github.com/burningmantech/ranger-ims-go/commit/359d056
+- Added `IMS_DMS_TIME_ZONE` (default `America/Phoenix`), the time zone of the Clubhouse database's zoneless datetimes, so on-duty lookups no longer depend on the database's own clock. https://github.com/burningmantech/ranger-ims-go/commit/203974c
+- Incidents now show the Rangers on their attached, non-junk Visits, in the Incidents list and read-only on the Incident page, and Incident search matches those Rangers' handles. https://github.com/burningmantech/ranger-ims-go/commit/a02c0b5
+- Added admin-only pprof profiling endpoints, linked from the admin debug page, which `IMS_DISABLE_PPROF` turns off. https://github.com/burningmantech/ranger-ims-go/commit/b59e6f9
+- Added the server's AWS ECS task metadata to the admin debug page. https://github.com/burningmantech/ranger-ims-go/commit/3534653
 
 ### Fixed
 
@@ -42,7 +48,9 @@ https://github.com/burningmantech/ranger-ims-go/commit/4da404b
 - Fixed Visit pages missing updates made while their live-update connection was down. https://github.com/burningmantech/ranger-ims-go/commit/1964dc7
 - Attaching a file to a nonexistent Incident or Visit is now a 404, checked before the file is stored, and a file whose name isn't valid UTF-8 can now be attached. https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
 - Places must now have a JSON object (or null) for their external data, and an event's Places list no longer fails over a stored row that has something else. https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
-- Fixed creating an Incident from a Field Report not adding the Field Report's author as a Ranger on the new Incident.
+- Fixed creating an Incident from a Field Report not adding the Field Report's author as a Ranger on the new Incident. https://github.com/burningmantech/ranger-ims-go/commit/58978bf
+- The `onduty:` event access rules offered on the admin Events page now include positions available to all Rangers, and those rules now match Rangers on duty in them. https://github.com/burningmantech/ranger-ims-go/commit/cf5a203
+- Fixed local attachment files being left open after they were served. https://github.com/burningmantech/ranger-ims-go/commit/8708b47
 - Removing a Ranger who isn't on an Incident's or Visit's roster no longer records a report entry, and a failed removal in the web UI now shows an error. https://github.com/burningmantech/ranger-ims-go/commit/bd55bea
 
 ## 2026-10

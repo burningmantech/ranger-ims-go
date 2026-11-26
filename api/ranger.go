@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/burningmantech/ranger-ims-go/directory"
@@ -45,7 +46,7 @@ type rangerRoster struct {
 	attach         func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string, role sql.NullString) error
 	currentRole    func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, rangerHandle string) (sql.NullString, bool, error)
 	addReportEntry func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError)
-	notifyUpdate   func(eventID, number int32)
+	notifyUpdate   func(ctx context.Context, eventID, number int32)
 }
 
 func incidentRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
@@ -91,7 +92,9 @@ func incidentRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 		addReportEntry: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError) {
 			return addIncidentReportEntry(ctx, imsDBQ, dbtx, eventID, number, entry)
 		},
-		notifyUpdate: es.notifyIncidentUpdate,
+		notifyUpdate: func(_ context.Context, eventID, number int32) {
+			es.notifyIncidentUpdate(eventID, number)
+		},
 	}
 }
 
@@ -138,7 +141,24 @@ func visitRangerRoster(imsDBQ *store.DBQ, es *EventSourcerer) rangerRoster {
 		addReportEntry: func(ctx context.Context, dbtx imsdb.DBTX, eventID, number int32, entry newReportEntry) (int32, *herr.HTTPError) {
 			return addVisitReportEntry(ctx, imsDBQ, dbtx, eventID, number, entry)
 		},
-		notifyUpdate: es.notifyVisitUpdate,
+		// The Incidents list shows the Rangers of each Incident's Visits, so
+		// the Visit's Incident has changed too.
+		notifyUpdate: func(ctx context.Context, eventID, number int32) {
+			es.notifyVisitUpdate(eventID, number)
+			// The change is committed, so don't let a disconnected client
+			// cancel the lookup and leave the Incident's subscribers stale.
+			incidentNumber, err := imsDBQ.Visit_IncidentNumber(context.WithoutCancel(ctx), imsDBQ, imsdb.Visit_IncidentNumberParams{
+				Event:  eventID,
+				Number: number,
+			})
+			if err != nil {
+				slog.Error("Failed to look up a Visit's Incident to notify", "event", eventID, "visit", number, "error", err)
+				return
+			}
+			if incidentNumber.Valid {
+				es.notifyIncidentUpdate(eventID, incidentNumber.Int32)
+			}
+		},
 	}
 }
 
@@ -290,7 +310,7 @@ func attachRanger(
 	}
 
 	if changed {
-		roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
+		roster.notifyUpdate(ctx, rosterReq.event.ID, rosterReq.number)
 	}
 
 	return nil
@@ -352,7 +372,7 @@ func detachRanger(
 	}
 
 	if changed {
-		roster.notifyUpdate(rosterReq.event.ID, rosterReq.number)
+		roster.notifyUpdate(ctx, rosterReq.event.ID, rosterReq.number)
 	}
 
 	return nil

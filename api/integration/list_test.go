@@ -452,3 +452,85 @@ func TestVisitListMatchesNumberLookup(t *testing.T) {
 	require.Len(t, single, 1)
 	require.Equal(t, single[0], items[0])
 }
+
+func TestIncidentListVisitRangers(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	srv := newServer(t)
+	apisAdmin := srv.admin(ctx)
+	apis := srv.alice(ctx)
+	eventName := newEventWithWriter(t, apisAdmin)
+
+	incident := apis.newIncidentSuccess(ctx, imsjson.Incident{Event: eventName, Summary: new("Has a Visit")})
+	other := apis.newIncidentSuccess(ctx, imsjson.Incident{Event: eventName, Summary: new("No Visit")})
+	resp := apis.attachRangerToIncident(ctx, eventName, incident, "Tuba")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	visit := apis.newVisitSuccess(ctx, imsjson.Visit{Event: eventName})
+	resp = apis.setVisitRangerRole(ctx, eventName, visit, "Kazoo", new("Sitter"))
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	// A Ranger on both the Incident and its Visit is in both lists.
+	resp = apis.attachRangerToVisit(ctx, eventName, visit, "Tuba")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Not yet attached, so the Visit's Rangers aren't the Incident's.
+	items, resp := apis.getIncidents(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, items, 2)
+	require.Empty(t, items[0].VisitRangers)
+	require.Empty(t, items[1].VisitRangers)
+	requireIncidentSearch(ctx, t, apis, eventName, "kazoo")
+
+	resp = apis.updateVisit(ctx, eventName, visit, imsjson.Visit{Event: eventName, Number: visit, Incident: &incident})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A later Visit's Ranger sorts by handle, ahead of the first Visit's.
+	visit2 := apis.newVisitSuccess(ctx, imsjson.Visit{Event: eventName, Incident: &incident})
+	resp = apis.attachRangerToVisit(ctx, eventName, visit2, "Accordion")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	wantVisitRangers := []imsjson.IncidentVisitRanger{
+		{Handle: "Accordion", Visit: visit2},
+		{Handle: "Kazoo", Role: new("Sitter"), Visit: visit},
+		{Handle: "Tuba", Visit: visit},
+	}
+	items, resp = apis.getIncidents(ctx, eventName)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, items, 2)
+	for _, item := range items {
+		if item.Number == incident {
+			require.Equal(t, wantVisitRangers, item.VisitRangers)
+			require.Equal(t, []imsjson.IncidentRanger{{Handle: "Tuba"}}, item.Rangers)
+		} else {
+			require.Equal(t, other, item.Number)
+			require.Empty(t, item.VisitRangers)
+		}
+	}
+
+	// The single-row refresh carries them too.
+	items, resp = apis.queryIncidents(ctx, eventName, url.Values{"number": {conv.FormatInt(incident)}})
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, items, 1)
+	require.Equal(t, wantVisitRangers, items[0].VisitRangers)
+
+	requireIncidentSearch(ctx, t, apis, eventName, "kazoo", incident)
+
+	// A junk Visit's Rangers aren't shown or searched.
+	resp = apis.updateVisit(ctx, eventName, visit, imsjson.Visit{Event: eventName, Number: visit, Junk: new(true)})
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	items, resp = apis.queryIncidents(ctx, eventName, url.Values{"number": {conv.FormatInt(incident)}})
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Len(t, items, 1)
+	require.Equal(t, []imsjson.IncidentVisitRanger{{Handle: "Accordion", Visit: visit2}}, items[0].VisitRangers)
+	requireIncidentSearch(ctx, t, apis, eventName, "kazoo")
+}

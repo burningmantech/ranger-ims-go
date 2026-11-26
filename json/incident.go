@@ -107,4 +107,14 @@ type IncidentListItem struct {
 	FieldReports    []int32          `json:"field_reports"`
 	Visits          []int32          `json:"visits"`
 	Rangers         []IncidentRanger `json:"rangers"`
+	// VisitRangers are the Rangers on the Incident's attached, non-junk
+	// Visits. They aren't on the Incident's own roster, and are left out for
+	// a requestor who can't read Visits. Sorted by handle, then Visit.
+	VisitRangers []IncidentVisitRanger `json:"visit_rangers"`
+}
+
+type IncidentVisitRanger struct {
+	Handle string  `json:"handle,omitempty"`
+	Role   *string `json:"role,omitempty"`
+	Visit  int32   `json:"visit"`
 }

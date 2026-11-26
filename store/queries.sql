@@ -725,6 +725,41 @@ where
     sr.EVENT = ?
     and sr.VISIT_NUMBER = ?;
 
+-- The Rangers on an Event's non-junk Visits that are attached to Incidents,
+-- which the Incidents list shows alongside each Incident's own Rangers.
+-- name: Incidents_VisitRangers :many
+select
+    sqlc.embed(vr),
+    v.INCIDENT_NUMBER
+from
+    VISIT__RANGER vr
+    join VISIT v
+        on v.EVENT = vr.EVENT
+        and v.NUMBER = vr.VISIT_NUMBER
+where
+    vr.EVENT = ?
+    and v.INCIDENT_NUMBER is not null
+    and v.JUNK = false;
+
+-- name: Incident_VisitRangers :many
+select
+    sqlc.embed(vr)
+from
+    VISIT__RANGER vr
+    join VISIT v
+        on v.EVENT = vr.EVENT
+        and v.NUMBER = vr.VISIT_NUMBER
+where
+    vr.EVENT = ?
+    and v.INCIDENT_NUMBER = ?
+    and v.JUNK = false;
+
+-- name: Visit_IncidentNumber :one
+select INCIDENT_NUMBER from VISIT
+where
+    EVENT = ?
+    and NUMBER = ?;
+
 -- name: LockVisit :one
 select NUMBER from VISIT
 where
@@ -932,6 +967,19 @@ where i.EVENT in (sqlc.slice(event_ids))
             where ir.EVENT = i.EVENT
                 and ir.INCIDENT_NUMBER = i.NUMBER
                 and (ir.RANGER_HANDLE like sqlc.narg(text_like) or regexp_instr(ir.RANGER_HANDLE, sqlc.narg(text_regexp)) > 0)
+        )
+        or exists (
+            select 1
+            from VISIT v
+                join VISIT__RANGER vr
+                    on vr.EVENT = v.EVENT
+                    and vr.VISIT_NUMBER = v.NUMBER
+            where v.EVENT = i.EVENT
+                -- Only in Events where the requestor can read Visits.
+                and v.EVENT in (sqlc.slice(visit_event_ids))
+                and v.INCIDENT_NUMBER = i.NUMBER
+                and v.JUNK = false
+                and (vr.RANGER_HANDLE like sqlc.narg(text_like) or regexp_instr(vr.RANGER_HANDLE, sqlc.narg(text_regexp)) > 0)
         )
         or exists (
             select 1

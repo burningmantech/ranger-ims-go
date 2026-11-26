@@ -71,7 +71,7 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.IncidentList
 	}
 
 	if filter.hasNumber {
-		item, errHTTP := action.getIncidentListItem(req.Context(), event, filter.number)
+		item, errHTTP := action.getIncidentListItem(req.Context(), event, eventPermissions, filter.number)
 		if errHTTP != nil {
 			return nil, errHTTP.From("[getIncidentListItem]")
 		}
@@ -123,6 +123,21 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.IncidentList
 		return nil
 	})
 
+	visitRangersByIncident := make(map[int32][]imsdb.VisitRanger)
+	if eventPermissions&authz.EventReadVisits != 0 {
+		group.Go(func() error {
+			rows, err := action.imsDBQ.Incidents_VisitRangers(groupCtx, action.imsDBQ, event.ID)
+			if err != nil {
+				return herr.InternalServerError("Failed to fetch Visit Rangers", err).From("[Incidents_VisitRangers]")
+			}
+			for _, row := range rows {
+				number := row.IncidentNumber.Int32
+				visitRangersByIncident[number] = append(visitRangersByIncident[number], row.VisitRanger)
+			}
+			return nil
+		})
+	}
+
 	var incidentsRows []imsdb.IncidentsRow
 	group.Go(func() error {
 		var err error
@@ -152,7 +167,8 @@ func (action GetIncidents) getIncidents(req *http.Request) (imsjson.IncidentList
 		entries := entriesByIncident[r.Incident.Number]
 		sortEntries(entries)
 
-		item, errHTTP := incidentToListItem(incidentRow, rangersByIncident[r.Incident.Number], entries, event)
+		item, errHTTP := incidentToListItem(incidentRow, rangersByIncident[r.Incident.Number],
+			visitRangersByIncident[r.Incident.Number], entries, event)
 		if errHTTP != nil {
 			return resp, errHTTP.From("[incidentToListItem]")
 		}
@@ -198,7 +214,9 @@ func (action GetIncidents) fetchListEntries(ctx context.Context, eventID int32, 
 	return nil
 }
 
-func (action GetIncidents) getIncidentListItem(ctx context.Context, event imsdb.Event, incidentNumber int32) (
+func (action GetIncidents) getIncidentListItem(
+	ctx context.Context, event imsdb.Event, eventPermissions authz.EventPermissionMask, incidentNumber int32,
+) (
 	imsjson.IncidentListItem, *herr.HTTPError,
 ) {
 	storedRow, entries, errHTTP := fetchIncident(ctx, action.imsDBQ, event.ID, incidentNumber)
@@ -216,14 +234,27 @@ func (action GetIncidents) getIncidentListItem(ctx context.Context, event imsdb.
 	for i, row := range rangersRows {
 		rangers[i] = row.IncidentRanger
 	}
+	var visitRangers []imsdb.VisitRanger
+	if eventPermissions&authz.EventReadVisits != 0 {
+		visitRangersRows, err := action.imsDBQ.Incident_VisitRangers(ctx, action.imsDBQ, imsdb.Incident_VisitRangersParams{
+			Event:          event.ID,
+			IncidentNumber: sql.NullInt32{Int32: incidentNumber, Valid: true},
+		})
+		if err != nil {
+			return imsjson.IncidentListItem{}, herr.InternalServerError("Failed to fetch Visit Rangers", err).From("[Incident_VisitRangers]")
+		}
+		for _, row := range visitRangersRows {
+			visitRangers = append(visitRangers, row.VisitRanger)
+		}
+	}
 	sortEntries(entries)
-	return incidentToListItem(storedRow, rangers, entries, event)
+	return incidentToListItem(storedRow, rangers, visitRangers, entries, event)
 }
 
 // incidentToListItem slims an Incident down for the Incidents list. The
 // entries must be sorted.
 func incidentToListItem(storedRow imsdb.IncidentRow, incidentRangers []imsdb.IncidentRanger,
-	entries []imsdb.ReportEntry, event imsdb.Event,
+	visitRangers []imsdb.VisitRanger, entries []imsdb.ReportEntry, event imsdb.Event,
 ) (imsjson.IncidentListItem, *herr.HTTPError) {
 	incidentTypeIDs, fieldReportNumbers, visitNumbers, err := readExtraIncidentRowFields(storedRow)
 	if err != nil {
@@ -236,6 +267,17 @@ func incidentToListItem(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inc
 			Role:   conv.SqlToString(ir.Role),
 		}
 	}
+	visitRangersJSON := make([]imsjson.IncidentVisitRanger, len(visitRangers))
+	for i, vr := range visitRangers {
+		visitRangersJSON[i] = imsjson.IncidentVisitRanger{
+			Handle: vr.RangerHandle,
+			Role:   conv.SqlToString(vr.Role),
+			Visit:  vr.VisitNumber,
+		}
+	}
+	slices.SortFunc(visitRangersJSON, func(a, b imsjson.IncidentVisitRanger) int {
+		return cmp.Or(cmp.Compare(a.Handle, b.Handle), cmp.Compare(a.Visit, b.Visit))
+	})
 	inc := storedRow.Incident
 	return imsjson.IncidentListItem{
 		Event:        event.Name,
@@ -258,6 +300,7 @@ func incidentToListItem(storedRow imsdb.IncidentRow, incidentRangers []imsdb.Inc
 		FieldReports:    fieldReportNumbers,
 		Visits:          visitNumbers,
 		Rangers:         rangersJSON,
+		VisitRangers:    visitRangersJSON,
 	}, nil
 }
 
@@ -363,6 +406,9 @@ func (c incidentSearchCorpus) searchText(
 	}
 	doc.add(inc.LocationName.String, inc.LocationAddress.String)
 	for _, r := range item.Rangers {
+		doc.add(r.Handle)
+	}
+	for _, r := range item.VisitRangers {
 		doc.add(r.Handle)
 	}
 	for _, frNumber := range item.FieldReports {

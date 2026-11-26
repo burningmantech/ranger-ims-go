@@ -48,6 +48,7 @@ const el = {
     rangerHandles: ims.typedElement("ranger_handles", HTMLDataListElement),
     rangersList: ims.typedElement("incident_rangers_list", HTMLElement),
     rangersLiTemplate: ims.typedElement("incident_rangers_li_template", HTMLTemplateElement),
+    visitRangersLiTemplate: ims.typedElement("incident_visit_rangers_li_template", HTMLTemplateElement),
     onDutyLink: ims.typedElement("onduty_link", HTMLAnchorElement),
     onDutyAdd: ims.typedElement("on_duty_add", HTMLButtonElement),
     onDutyModal: ims.typedElement("onDutyModal", HTMLDialogElement),
@@ -356,6 +357,7 @@ async function renderFieldReportData(): Promise<void> {
     drawMergedReportEntries();
     drawAttachedFieldReportsVisits();
     drawLinkedIncidents();
+    drawRangers();
 }
 
 
@@ -737,18 +739,7 @@ function drawRangers() {
         rangerLi.classList.remove("hidden");
         rangerLi.dataset["rangerHandle"] = handle;
 
-        const rangerName =  rangerLi.querySelector("span")!
-        if (personnel?.[handle] == null) {
-            rangerName.textContent = handle;
-        } else {
-            const person = personnel[handle];
-            const rangerLink = rangerName.querySelector("a")!;
-            rangerLink.textContent = person.handle;
-            if (person.directory_id != null) {
-                rangerLink.href = `${ims.clubhousePersonURL}/${person.directory_id}`;
-                rangerLink.target = "_blank";
-            }
-        }
+        drawRangerName(rangerLi.querySelector("span")!, handle);
         const roleInput = rangerLi.querySelector("input")!;
         roleInput.ariaLabel = `Ranger role for ${handle}`;
         if (ranger.role) {
@@ -761,6 +752,59 @@ function drawRangers() {
 
         el.rangersList.append(rangerFragment);
     }
+
+    // The Rangers on attached Visits are listed after the Incident's own, and
+    // can only be changed on the Visit. A Ranger on both is listed twice.
+    for (const ranger of visitRangers()) {
+        const fragment = el.visitRangersLiTemplate.content.cloneNode(true) as DocumentFragment;
+        const li = fragment.querySelector("li")!;
+        li.classList.remove("hidden");
+        li.dataset["visitRangerHandle"] = ranger.handle;
+        drawRangerName(li.querySelector(".visit-ranger-handle")!, ranger.handle);
+        li.querySelector(".visit-ranger-role")!.textContent = ranger.role;
+        const visitLink = li.querySelector<HTMLAnchorElement>(".visit-ranger-visit")!;
+        visitLink.textContent = `from VS #${ranger.visit}`;
+        visitLink.href = `${ims.urlReplace(url_viewVisits)}/${ranger.visit}`;
+        li.title = `On VS #${ranger.visit}. This is read-only here; change it on the Visit.`;
+        el.rangersList.append(fragment);
+    }
+}
+
+function drawRangerName(span: HTMLElement, handle: string): void {
+    const person = personnel?.[handle];
+    if (person == null) {
+        span.textContent = handle;
+        return;
+    }
+    const rangerLink = span.querySelector("a")!;
+    rangerLink.textContent = person.handle;
+    if (person.directory_id != null) {
+        rangerLink.href = `${ims.clubhousePersonURL}/${person.directory_id}`;
+        rangerLink.target = "_blank";
+    }
+}
+
+interface VisitRangerOnIncident {
+    handle: string;
+    role: string;
+    visit: number;
+}
+
+// The Rangers on this Incident's attached, non-junk Visits, by handle and then
+// by Visit.
+function visitRangers(): VisitRangerOnIncident[] {
+    const rangers: VisitRangerOnIncident[] = [];
+    for (const visit of attachedVisits??[]) {
+        if (visit.junk || visit.number == null) {
+            continue;
+        }
+        for (const ranger of visit.rangers??[]) {
+            if (ranger.handle) {
+                rangers.push({handle: ranger.handle, role: ranger.role??"", visit: visit.number});
+            }
+        }
+    }
+    return rangers.sort((a, b): number => a.handle.localeCompare(b.handle) || a.visit - b.visit);
 }
 
 

@@ -237,11 +237,12 @@ func (action GetSearch) getSearch(req *http.Request) (imsjson.SearchResults, *he
 	if searchIncidents && len(incidentEventIDs) > 0 {
 		started := time.Now()
 		rows, err := action.imsDBQ.SearchIncidents(ctx, action.imsDBQ, imsdb.SearchIncidentsParams{
-			TextLike:    textLike,
-			TextRegexp:  textRegexp,
-			IncludeJunk: includeJunk,
-			EventIds:    incidentEventIDs,
-			Limit:       limit,
+			TextLike:      textLike,
+			TextRegexp:    textRegexp,
+			IncludeJunk:   includeJunk,
+			EventIds:      incidentEventIDs,
+			VisitEventIds: visitEventIDs,
+			Limit:         limit,
 		})
 		incidentStat = searchQueryStat{ran: true, elapsed: time.Since(started), rows: len(rows), err: err}
 		if err != nil {

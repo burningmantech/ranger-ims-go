@@ -376,6 +376,58 @@ test("rangers and incident types are drawn with their add datalists", async (): 
     expect(infoNames).toEqual(["Junk", "Lost Child"]);
 });
 
+// Each Ranger listed for an attached Visit, as "handle|role|tag|tag link".
+function visitRangerRows(): string[] {
+    return Array.from(document.querySelectorAll<HTMLLIElement>("#incident_rangers_list li[data-visit-ranger-handle]"))
+        .map((li: HTMLLIElement): string => {
+            const visitLink = li.querySelector<HTMLAnchorElement>(".visit-ranger-visit")!;
+            return [
+                li.querySelector(".visit-ranger-handle")!.textContent,
+                li.querySelector(".visit-ranger-role")!.textContent,
+                visitLink.textContent,
+                visitLink.getAttribute("href"),
+            ].join("|");
+        });
+}
+
+test("the Rangers on attached Visits are listed after the incident's own, read-only", async (): Promise<void> => {
+    serverVisits = [
+        { number: 2, incident: 1, rangers: [{ handle: "Tulsa", role: "Sitter" }, { handle: "Tool" }], report_entries: [] },
+        // Not attached to this incident
+        { number: 3, incident: null, rangers: [{ handle: "Zebra" }], report_entries: [] },
+        // Junk
+        { number: 4, incident: 1, junk: true, rangers: [{ handle: "Bean Counter" }], report_entries: [] },
+    ];
+    await initIncidentPage();
+
+    const rangerItems = [...document.querySelectorAll<HTMLLIElement>("#incident_rangers_list li[data-ranger-handle]")];
+    expect(rangerItems.map((li: HTMLLIElement): string | undefined => li.dataset["rangerHandle"])).toEqual(["Hot Slots", "Tool"]);
+    // Tool is on both the incident and the visit, so is listed twice.
+    expect(visitRangerRows()).toEqual([
+        "Tool||from VS #2|/ims/app/events/2025/visits/2",
+        "Tulsa|Sitter|from VS #2|/ims/app/events/2025/visits/2",
+    ]);
+    const tulsa = document.querySelector<HTMLLIElement>('#incident_rangers_list li[data-visit-ranger-handle="Tulsa"]')!;
+    expect(tulsa.querySelector<HTMLAnchorElement>(".visit-ranger-handle a")!.href)
+        .toBe("https://ranger-clubhouse.burningman.org/person/5678");
+    expect(tulsa.querySelector("input")).toBeNull();
+    expect(tulsa.querySelector("button")).toBeNull();
+});
+
+test("a visit broadcast redraws the Rangers on that visit", async (): Promise<void> => {
+    await initIncidentPage();
+    expect(visitRangerRows()).toEqual([]);
+
+    serverVisits[0] = { ...serverVisits[0]!, rangers: [{ handle: "Tulsa" }] };
+    const channel = new BroadcastChannel("visit_update");
+    channel.postMessage({ event_id: eventId, visit_number: 2 });
+
+    await vi.waitFor((): void => {
+        expect(visitRangerRows()).toEqual(["Tulsa||from VS #2|/ims/app/events/2025/visits/2"]);
+    });
+    channel.close();
+});
+
 test("the places datalist is drawn sorted, with type-specific labels", async (): Promise<void> => {
     await initIncidentPage();
 
@@ -862,6 +914,33 @@ test("Rangers on the incident who weren't on duty then are listed with their rol
         "Tool (on Incident)|lead|checked|",
     ]);
     expect(document.getElementById("on_duty_other_heading")!.classList.contains("hidden")).toBe(false);
+});
+
+test("Rangers on attached visits are ordinary rows in the on-duty dialog", async (): Promise<void> => {
+    serverOnDuty = podOnDuty();
+    serverVisits[0] = {
+        ...serverVisits[0]!,
+        rangers: [{ handle: "Zebra" }, { handle: "Moon Dog", role: "Sitter" }],
+    };
+    const mock = await initIncidentPage();
+    await page.showOnDutyRangers();
+
+    // Zebra is only on the visit, so is unchecked and can be added. Moon Dog
+    // wasn't on duty, so isn't listed.
+    expect(onDutyRows().slice(0, 3)).toEqual([
+        "[Shift \u00b7 bicycle \u00b7 3:00 & C]|mixed|",
+        "Hot Slots (on Incident)|Dirt|checked|",
+        "Zebra|Echelon Field||",
+    ]);
+    expect(onDutyRows("on_duty_other_list")).toEqual([]);
+
+    setOnDutyChecked("Zebra", true);
+    expect(onDutySubmit().textContent).toBe("Add 1 Ranger");
+    onDutySubmit().click();
+    await vi.waitFor((): void => {
+        expect(requestsMatching(mock, /\/incidents\/1\/rangers\//).map((r: RecordedRequest): string => r.url))
+            .toEqual(["/ims/api/events/2025/incidents/1/rangers/Zebra"]);
+    });
 });
 
 test("the on-duty dialog's button counts the Rangers to add and remove", async (): Promise<void> => {

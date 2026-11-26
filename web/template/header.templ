@@ -19,7 +19,7 @@ package template
 import "strings"
 
 templ Header(deployment string) {
-<header>
+<header data-clubhouse-url={ clubhouseURL(deployment) }>
     <a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>
     if strings.ToLower(deployment) != "production" {
         <!-- The detail is a hover tooltip for sighted mouse users; the same text is

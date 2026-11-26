@@ -839,6 +839,9 @@ test("the on-duty dialog opens at the incident's start, checking the Rangers alr
     expect((document.getElementById("onduty_link") as HTMLAnchorElement).href).toBe(
         "https://ranger-clubhouse.burningman.org/timesheets/on-duty?duty_date=2025-08-25+03%3A00",
     );
+    expect((document.getElementById("cruise_direction_link") as HTMLAnchorElement).href).toBe(
+        "https://ranger-clubhouse.burningman.org/shift-operations/cruise-direction?date=2025-08-25+03%3A00",
+    );
     expect(onDutyRows()).toEqual([
         "Hot Slots (on Incident)|Dirt|checked|",
         "Tulsa|Dirt||",
@@ -996,6 +999,9 @@ test("changing the as-of time reloads the list and keeps the user's choices", as
     expect(onDutyRequestTimes(mock)).toEqual(["2025-08-25T10:00:00.000Z", "2025-08-25T15:00:00.000Z"]);
     expect((document.getElementById("onduty_link") as HTMLAnchorElement).href).toBe(
         "https://ranger-clubhouse.burningman.org/timesheets/on-duty?duty_date=2025-08-25+08%3A00",
+    );
+    expect((document.getElementById("cruise_direction_link") as HTMLAnchorElement).href).toBe(
+        "https://ranger-clubhouse.burningman.org/shift-operations/cruise-direction?date=2025-08-25+08%3A00",
     );
     expect(onDutyRows("on_duty_other_list")).toEqual([
         "Tool (on Incident)|lead|checked|",

@@ -106,13 +106,22 @@ templ Incident(deployment, versionName, versionRef, eventName string) {
           <ul id="on_duty_other_list" class="list-group list-group-small"></ul>
         </div>
         <div class="modal-footer">
-          <a id="onduty_link" href="" target="_blank" class="link-body-emphasis small me-auto" title="Clubhouse On-Duty Report as of this time">
-            On-Duty Report
-            <span class="visually-hidden">(opens in a new tab)</span>
-            <svg fill="currentColor" class="bi" aria-hidden="true" focusable="false">
-              <use href="#box-arrow-up-right"></use>
-            </svg>
-          </a>
+          <div class="d-flex flex-wrap gap-3 me-auto">
+            <a id="onduty_link" href="" target="_blank" class="link-body-emphasis small" title="Clubhouse On-Duty Report as of this time">
+              On-Duty
+              <span class="visually-hidden">(opens in a new tab)</span>
+              <svg fill="currentColor" class="bi" aria-hidden="true" focusable="false">
+                <use href="#box-arrow-up-right"></use>
+              </svg>
+            </a>
+            <a id="cruise_direction_link" href="" target="_blank" class="link-body-emphasis small" title="Clubhouse Cruise Direction as of this time">
+              Pods
+              <span class="visually-hidden">(opens in a new tab)</span>
+              <svg fill="currentColor" class="bi" aria-hidden="true" focusable="false">
+                <use href="#box-arrow-up-right"></use>
+              </svg>
+            </a>
+          </div>
           <button type="button" class="btn btn-sm btn-secondary" data-ims-close>Cancel</button>
           <button id="on_duty_submit" type="button" class="btn btn-sm btn-primary" disabled>No changes</button>
         </div>

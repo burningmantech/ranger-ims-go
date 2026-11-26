@@ -806,7 +806,7 @@ function drawRangers() {
             const rangerLink = rangerName.querySelector("a")!;
             rangerLink.textContent = person.handle;
             if (person.directory_id != null) {
-                rangerLink.href = `${ims.clubhousePersonURL}/${person.directory_id}`;
+                rangerLink.href = `${ims.clubhouseURL()}/person/${person.directory_id}`;
                 rangerLink.target = "_blank";
             }
         }

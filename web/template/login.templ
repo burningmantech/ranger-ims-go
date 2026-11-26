@@ -80,14 +80,7 @@ templ Login(deployment, versionName, versionRef string) {
 }
 
 templ passwordResetLink(deployment string) {
-    switch strings.ToLower(deployment) {
-        case "training":
-            <a class="align-self-center" href="https://ranger-clubhouse-training.burningman.org/" target="_blank">Forgot your password?</a>
-        case "staging":
-            <a class="align-self-center" href="https://ranger-clubhouse-staging.burningman.org/reset-password" target="_blank">Forgot your password?</a>
-        default:
-            <a class="align-self-center" href="https://ranger-clubhouse.burningman.org/reset-password" target="_blank">Forgot your password?</a>
-    }
+    <a class="align-self-center" href={ templ.SafeURL(clubhouseURL(deployment) + "/forgot") } target="_blank">Forgot your password?</a>
 }
 
 templ credentialsNotice(deployment string) {
